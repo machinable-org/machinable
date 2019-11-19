@@ -1,0 +1,24 @@
+matrix:
+  include:
+    - language: node_js
+      node_js:
+          - "12"
+      install:
+          - npm install -g vuepress
+      script:
+          - npm run docs:build
+      cache:
+          directories:
+              - "node_modules"
+      deploy:
+        provider: pages
+        skip_cleanup: true
+        local_dir: docs/.vuepress/dist
+        github_token: $GITHUB_TOKEN
+        repo: frthjf/machinable
+        keep_history: true
+        target_branch: gh-pages
+        on:
+          branch: master
+notifications:
+    email: false
