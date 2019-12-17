@@ -1,0 +1,117 @@
+# test_project.machinable.yaml
++:
+  - fooba: foo.bar
+scientific: 5e-6
+outsource: $/outsourced.yaml
+mixins:
+  - mixins.trait=trait:
+      key:
+        mixing: will be
+        very: powerful
+  - extended^mixins.trait:
+      key:
+        mixing: is
+        overwritten: cool
+  - mixin_module:
+      hello: there
+  - +.fooba.test=test:
+  - +.fooba.mixins.nested=nested:
+  - +.fooba.experiments.base=experiment_mixin:
+components:
+  - thenode:
+      a: through_config_method(1)
+      alpha: 0
+      ~one:
+        alpha: 1
+        beta:
+          test: True
+      ~two:
+        alpha: 2
+      ~three:
+        alpha: 3
+        ~nested:
+          works: False
+          alpha: 4
+          beta: nested
+          ~nestednested:
+            beta: overwritten
+            alpha: 5
+            added: value
+      ~nestednested:
+        q: -1
+      ~nested:
+        nested: True
+        works: True
+  - childexp^thenode:
+      a: 2
+      b: 3
+  - inherit^+.fooba.experiments.start:
+      blub: bla
+  - +.fooba.experiments.dependent=test_dependent:
+      overwrite_me:
+        nested: here
+  - mixexp:
+      _mixins_:
+        - experiment_mixin
+        - extended
+        - test
+        - nested
+      key:
+        extension: enabled
+      hello: there
+  - +.fooba.experiments.miximp=miximp:
+      c: 1
+  - inherited_mixin^miximp:
+  - direct_mixin_inheritance^+.fooba.experiments.miximp:
+  - thechildren=cool:
+      alpha: 0
+      bla: blub
+      ~local:
+        bla: boo
+        a: 5
+      ~one:
+        alpha: 1
+        beta:
+          test: True
+      ~two:
+        alpha: 2
+      ~three:
+        alpha: 3
+  - dryrun:
+  - tunemodel:
+      tuning: True
+  - export_model^thechildren:
+      _mixins_:
+        - mixin_module
+      exported: True
+  - +.fooba.models.baseline=justhere:
+      q: just
+  - ^+.fooba.models.baseline:
+      test: 1
+  - +.fooba.models.baseline^cool=fromouterspace:
+      overwrite: yes
+  - +.fooba.models.config_inheritance:
+  - +.fooba.models.config_dependency_inheritance:
+  - +.fooba.models.chained_inheritance:
+  - configmethods:
+      method: hello()
+      argmethod: arghello('world')
+      nested:
+        method: hello()
+components:nodes:
+  - observations:
+      id: -1
+      some:
+        config:
+          - 1
+          - 2
+          - 3
+      to_test: 'observations'
+      ~test:
+        version: 0
+components:workers:
+  - interactive:
+      id: 1
+      attr: worker
+      ~test:
+        version: 1

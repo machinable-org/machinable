@@ -1,0 +1,7 @@
+pytest-cov
+pytest
+hypothesis[numpy]
+ray
+pytest-flake8
+numpy
+pytest-ordering

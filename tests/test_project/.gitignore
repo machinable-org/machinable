@@ -1,10 +1,5 @@
-# Test data
-tests/observations/test_data
-tests/test_project/exports
-tests/test
-tests/.hypothesis
-**/vendor/.cache
-
+vendor/.cache/*.p
+vendor/fooba/vendor/.cache/*.p
 # Temporary and binary files
 *~
 *.py[cod]
@@ -19,7 +14,6 @@ __pycache__/*
 .cache/*
 .*.swp
 */.ipynb_checkpoints/*
-.DS_Store
 
 # Project files
 .ropeproject
@@ -42,6 +36,7 @@ htmlcov/*
 junit.xml
 coverage.xml
 .pytest_cache/
+.hypothesis
 
 # Build and docs folder/files
 build/*
@@ -55,3 +50,32 @@ MANIFEST
 
 # Per-project virtualenvs
 .venv*/
+
+
+# ---> macOS
+*.DS_Store
+.AppleDouble
+.LSOverride
+
+# Icon must end with two \r
+Icon
+
+
+# Thumbnails
+._*
+
+# Files that might appear in the root of a volume
+.DocumentRevisions-V100
+.fseventsd
+.Spotlight-V100
+.TemporaryItems
+.Trashes
+.VolumeIcon.icns
+.com.apple.timemachine.donotpresent
+
+# Directories potentially created on remote AFP share
+.AppleDB
+.AppleDesktop
+Network Trash Folder
+Temporary Items
+.apdisk

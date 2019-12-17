@@ -1,0 +1,38 @@
+# fooba.machinable.yaml
++:
+  - bedrock
+mixins:
+  - test:
+      imported: hello
+  - mixins.nested:
+      level: -1
+  - mixins.hidden:
+      state: hidden
+components:experiments=experiment:
+  - experiments.base:
+      elephant: at_home
+      nested:
+        elephants: outside
+  - experiments.start:
+      test: 123
+  - experiments.dependent^base:
+      overwrite_me:
+        keep: me
+        nested: level
+  - experiments.miximp:
+      _mixins_:
+        - hidden
+components:models:
+  - models.baseline:
+      overwrite: orginal
+  - models.extended:
+      hello: world
+      overwrite: extended
+      referenced: $self.overwrite
+  - models.config_inheritance^extended:
+      hello: inheritance
+  - models.config_dependency_inheritance^+.bedrock.models.base:
+      here: we_go
+      deep_overwrite: successful
+  - models.chained_inheritance^config_dependency_inheritance:
+      deep_overwrite: early

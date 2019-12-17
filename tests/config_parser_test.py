@@ -1,0 +1,39 @@
+from machinable.config.parser import parse_reference
+
+
+def test_parse_reference():
+    root = {
+        'test': 1,
+        'me': {
+            'nested': 2,
+            'deep': {
+                'structure': 3,
+                'with': {
+                    'nested': 4,
+                    'to': 'check'
+                }
+            }
+        },
+        'key': 'nested',
+        'hello': {
+            'world': 'with'
+        },
+        'list': [
+            'great',
+            'stuff',
+            'beautiful'
+        ]
+    }
+    this = root['me']
+
+    assert parse_reference('$self.nested', root, this) == 2
+    assert parse_reference('$.test', root, this) == 1
+
+    assert parse_reference('$.me[$.key]', root, this) == 2
+
+    assert parse_reference('$.list[$self.nested]', root, this) == 'beautiful'
+    assert parse_reference('$.list[$.me[nested]]', root, this) == 'beautiful'
+    assert parse_reference('$.list[$.me[$.key]]', root, this) == 'beautiful'
+
+    assert parse_reference('$self.deep[$.hello[world]][$.key]', root, this) == 4
+    assert parse_reference('$self.deep[$.hello[world]].to', root, this) == 'check'
