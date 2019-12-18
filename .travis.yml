@@ -27,6 +27,7 @@ matrix:
         - pip install -r test-requirements.txt
         - pip install --upgrade pytest
         - pip install -e .
+      before_script: cd tests
       script:
         - pytest
 notifications:
