@@ -1,6 +1,7 @@
 pytest-cov
 pytest
-ray
+ray[tune]
 pytest-flake8
 numpy
 pytest-ordering
+pandas
