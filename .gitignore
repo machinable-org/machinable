@@ -5,6 +5,10 @@ tests/test
 tests/.hypothesis
 **/vendor/.cache
 
+# Docs
+node_modules
+docs/.vuepress/dist
+
 # Temporary and binary files
 *~
 *.py[cod]
