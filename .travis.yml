@@ -25,6 +25,7 @@ matrix:
         - 3.6
       install:
         - pip install -r test-requirements.txt
+        - pip install --upgrade pytest
         - pip install -e .
       script:
         - pytest
