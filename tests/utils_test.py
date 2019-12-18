@@ -1,22 +1,20 @@
 import pytest
-from hypothesis import given
-import hypothesis.strategies as st
 
 from machinable.utils.strings import generate_uid, generate_execution_id
 from machinable.utils.dicts import read_path_dict
 
 
-@given(st.integers())
-def test_uid_generator(seed):
-    # correct length
-    assert len(generate_uid(random_state=seed)) == 12
-    assert len(generate_uid(k=5, random_state=seed)) == 5
+def test_uid_generator():
+    for seed in [123, 12, 100, 2000]:
+        # correct length
+        assert len(generate_uid(random_state=seed)) == 12
+        assert len(generate_uid(k=5, random_state=seed)) == 5
 
-    # regenerate
-    L1 = generate_uid(k=5, random_state=seed)
-    L2 = generate_uid(k=5, random_state=seed)
+        # regenerate
+        L1 = generate_uid(k=5, random_state=seed)
+        L2 = generate_uid(k=5, random_state=seed)
 
-    assert len(L1) == len(L2) and sorted(L1) == sorted(L2)
+        assert len(L1) == len(L2) and sorted(L1) == sorted(L2)
 
 
 def test_generate_execution_id():
