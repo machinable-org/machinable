@@ -4,12 +4,13 @@ matrix:
       node_js:
           - "12"
       install:
-          - yarn add -D vuepress
+          - npm install vuepress
       script:
           - pyenv global system 3.6.7
           - pip3 install -e .
           - python3.6 docs/.vuepress/_reference/autogen.py
-          - yarn docs:build
+          - cp -r /home/travis/build/frthjf/machinable/docs/.vuepress /home/travis/build/frthjf/machinable/.vuepress
+          - npm run docs:build
       after_failure:
         - cat /home/travis/.npm/_logs/*-debug.log
       cache:
