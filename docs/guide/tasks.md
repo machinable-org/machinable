@@ -9,9 +9,9 @@ The task definition can be read as *Import component 'optimization' and repeat i
 
 ## Adjusting configuration
 
-Crucially, the task interface allows to adjust configuration in a clear and systematic way. It eliminates global for-loops or manual re-runs of python scripts with different command-line parameters.
+Crucially, the task interface allows for configuration adjustments in a clear and systematic way. It eliminates global for-loops or manual re-runs of python scripts with different command-line parameters.
 
-To execute a component with adjusted configuration you can use the `version` parameter. The following example changes the dataset and adjusts the default learning rate that has been specified in the `machinable.yaml`.
+To execute a component with an adjusted configuration you can use the `version` parameter. The following example changes the dataset and adjusts the default learning rate that has been specified in the `machinable.yaml`.
 
 ```python
 ml.Task().component('optimization', version={'dataset': 'mnist', 'learning_rate': 0.5})
@@ -30,7 +30,7 @@ The task will execute every component, i.e. `optimization` with `lr=0.1` and `op
 ml.Task().component('optimization', [{'learning_rate': lr} for lr in (0.1, 0.01)])
 ```
 
-Note that the argument must be a list `[]` and not a tuple `()`. Tuples are being interpreted as merge operator and merge the containing elements together:
+Note that the argument must be a list `[]` and not a tuple `()`. Tuples are interpreted as a merge operator that merges the containing elements together:
 
 ```python
 ml.Task().component('optimization', ({'a': 1}, {'a': 2, 'b': 3}))
@@ -42,7 +42,7 @@ It is also possible to pass configuration as YAML:
 
 <<< @/.vuepress/includes/tasks/yaml_inline_version.py
 
-However, rather than dealing with python variables, it is more suitable to define version directly in the [machinable.yaml](./machinable-yaml.md#versions). To define a version, specify the configuration difference under a key that starts with `~`.
+However, rather than dealing with python variables, it is more suitable to define versions directly in the [machinable.yaml](./machinable-yaml.md#versions). To define a version, specify the configuration difference under a key that starts with `~`.
 
 ```yaml
 components:
@@ -60,7 +60,7 @@ components:
           name: imagenet
 ```
 
-The version can used in the task using its name `~<version-name>`, for instance:
+The version can be used in the task using its name `~<version-name>`, for instance:
 
 ```python
 task = ml.Task().component('optimization', '~alexnet')
@@ -107,7 +107,7 @@ ml.execute(..., storage='s3://bucket')       # s3 storage
 
 ## Code backups
 
-machinable automatically backups the code base at execution time in a zip file that can be used to reproduce the results. Note that the project directory needs to be under Git-version control to determine which files are included and ignored during the backup (.gitignore file). To disable code backups, set `storage` to `{'code_backup': False 'storage': 's3://bucket'}`.
+machinable automatically backs up the code base at execution time in a zip file that can be used to reproduce the results. Note that the project directory needs to be under Git-version control to determine which files are included and ignored during the backup (.gitignore file). To disable code backups, set `storage` to `{'code_backup': False 'storage': 's3://bucket'}`.
 
 ## Randomness and reproducibility
 
@@ -117,7 +117,7 @@ machinable chooses and sets a global random seed automatically at execution time
 ml.execute(ml.Task().component('controlled_randomness'), seed=42)
 ```
 
-To re-use the seed of a given task id and reproduce the execution results, you can pass the execution id as seed:
+To re-use the seed of a given task id and reproduce the execution results, you can pass the execution id as the seed:
 
 ```python 
 ml.execute(ml.Task().component('controlled_randomness'), seed='OY1p1o')

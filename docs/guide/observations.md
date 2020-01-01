@@ -83,7 +83,7 @@ print(all_records.avg('accuracy'))
 # >>> 34.3212
 ```
 
-If you have selected more than one observation (e.g. `mlo.find_all()`) the interface will return a [collection](../reference/observations.md#collection) of observation objects. The collection class provides a fluent, straight-forward wrapper for working and manipulating the list.
+If you have selected more than one observation (e.g. `mlo.find_all()`) the interface will return a [collection](../reference/observations.md#collection) of observation objects. The collection class provides a fluent, straight-forward wrapper for working with and manipulating the list.
 
 ```python
 collection = mlo.all()  # returns a collection of observation objects

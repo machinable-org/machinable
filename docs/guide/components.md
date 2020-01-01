@@ -64,12 +64,12 @@ For convenience, the dict interface can be accessed using the `.` object notatio
 ## self.flags
 
 Flags are configuration values that are associated with the particular
-execution, for example the random seeds or worker ids, etc. They are
+execution, for example the random seeds or worker ids. They are
 accessible via the `self.flags` object, that supports the `.` object notation. You can add your own flags through basic assignment (e.g. ``self.flags.counter = 1``); to avoid collision, the native machinable flags use UPPERCASE (e.g. ``self.flags.SEED``).
 
 ## self.observer
 
-The observer interface `self.observer` allows to store data and results of the component.
+The observer interface `self.observer` allows for the storing of data and results of the component.
 
 **Log**
 
@@ -134,8 +134,8 @@ While config references allow you to make static references, configuration value
 
 <<< @/.vuepress/includes/machinable_yaml/machinable_methods.yaml
 
-Here, the learning rate parameter is defined as config method that takes a base learning rate parameter. The config method `config_learning_rate` needs to be defined in the corresponding component:
+Here, the learning rate parameter is defined as a config method that takes a base learning rate parameter. The config method `config_learning_rate` needs to be defined in the corresponding component:
 
 <<< @/.vuepress/includes/machinable_yaml/my_models/base_model.py
 
-The method is executed whenever `self.config.learning_rate` is being accessed. Config methods hence allow to express arbitrary configuration dependencies and are a powerful tool to implement complex configuration patterns more efficiently. They can also be useful to parse configuration values into Python objects. For instance, you might define a config method `dtype` where `dtype: dtype('f32')` returns `np.float32` etc.
+The method is executed whenever `self.config.learning_rate` is being accessed. Config methods hence allow for the expression of arbitrary configuration dependencies and are a powerful tool for implementing complex configuration patterns more efficiently. They can also be useful for parsing configuration values into Python objects. For instance, you might define a config method `dtype` where `dtype: dtype('f32')` returns `np.float32` etc.

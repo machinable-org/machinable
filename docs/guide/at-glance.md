@@ -25,7 +25,7 @@ annotations: {
           width: 200,
           height: 90, 
           value: "
-          Versioning allows to define complex configuration patterns that can be swapped in and out efficiently.
+          Versioning allows for the specification of complex configuration patterns that can be swapped in and out efficiently.
           "
         },
         {
@@ -119,7 +119,7 @@ annotations: {
 
 # At a glance
 
-*machinable* provides a structured approach to development, execution and results analysis in machine learning projects.
+*machinable* provides a structured approach to development, execution, and results analysis in machine learning projects.
 
 **Development**
 
@@ -199,6 +199,6 @@ result = o.store('final_result.p')
 
 **Repeat**
 
-Share, publish and build on what you have developed - no more 'I clean this up later' excuses. Move faster from idea to result to publication.
+Share, publish and build on what you have developed - no more 'I will clean this up later' excuses. Move faster from idea to result to publication.
 
 [Get started →](./installation.md)

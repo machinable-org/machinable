@@ -93,7 +93,7 @@ annotations: {
 
 # machinable.yaml
 
-Let's take a closer look at the features of machinable's central configuration file `machinable.yaml` that lives at the project directory root:
+Let's take a closer look at the features of machinable's central configuration file `machinable.yaml` which lives at the project directory root:
 
     my-machinable-project
     ├── ...
@@ -101,8 +101,7 @@ Let's take a closer look at the features of machinable's central configuration f
 
 ## Module mapping
 
-The component section lists the project's components and their configuration using the following convention: The name determines the
-python module that contains the component's code, for example:
+The component section lists the project's components and their configuration using the following convention: the name determines the python module that contains the component's code, for example:
 
 <Annotated name="module_mapping" :debug="false">
 <<< @/.vuepress/includes/machinable_yaml/machinable.yaml
@@ -131,7 +130,7 @@ nested:
 new_value: 3                # new value
 ```
 
-Config inheritance can be useful to prevent unnecessary configuration repetitions ('I copy my entire children to make a minor modification') and allows to match class inheritance structures in the component implementation.
+Config inheritance can be useful in preventing unnecessary configuration repetitions ('I will copy my entire model to make a minor modification') and allows matching class inheritance structures in the component implementation.
 
 ## Aliases
 
@@ -141,20 +140,20 @@ In larger projects, module paths can become long or convoluted. To simplify the 
 
 ## Config references
 
-It is often the case that configuration values depend on other configuration. For example, a model hyperparameter may depend on the dataset that is being used. In these cases it may be useful to reference configuration values rather than duplicating them so they only have to be adjusted in one place. In the `machinable.yaml` such config references can be written using the `$` symbol. In particular, `$.{path}` refers to values from the config root while `$self.{path}`
+It is often the case that configuration values depend on other configurations. For example, a model hyperparameter may depend on the dataset that is being used. In these cases, it may be useful to reference configuration values rather than duplicating them so they only have to be adjusted in one place. In the `machinable.yaml` such config references can be written using the `$` symbol. In particular, `$.{path}` refers to values from the config root while `$self.{path}`
 refers to values of the local component. Consider the following example:
 
 <<< @/.vuepress/includes/machinable_yaml/machinable_references.yaml
 
-Effectively, the dataset name can be adjusted in one place but used elsewhere. Note that you can use the Python convention of an leading underscore (`_example`) as weak "internal use" indicator. machinable will hide configuration values that start with an underscore (`_`) in execution outputs.
+Effectively, the dataset name can be adjusted in one place but used elsewhere. Note that you can use the Python convention of a leading underscore (`_example`) as a weak "internal use" indicator. machinable will hide configuration values that start with an underscore (`_`) in execution outputs.
 
 ## Versions
 
-Components often induce a number of different versions. For example, a model might have a version with and a version without momentum. To manage the configuration different versions it can be impractical to create multiple components that inherit the configuration from some base component. Instead, we can define configuration patterns inline. To define a version, specify the configuration difference under a key that starts with `~`.
+Components often induce a number of different versions. For example, a model might have a version with and a version without momentum. To manage the configuration of different versions it can be impractical to create multiple components that inherit the configuration from some base component. Instead, we can define configuration patterns inline. To define a version, specify the configuration difference under a key that starts with `~`.
 
 <<< @/.vuepress/includes/machinable_yaml/machinable_versions.yaml
 
-You can choose which version is going to be used in the execution task. Learn more about how execute different versions in the [task section](./tasks.md).
+You can choose which version is going to be used in the execution task. Learn more about how to execute different versions in the [task section](./tasks.md).
 
 ## Using subfiles
 

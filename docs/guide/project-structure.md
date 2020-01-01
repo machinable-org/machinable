@@ -1,6 +1,6 @@
 # Project structure
 
-Machine learning projects tend to comprise three different phases: Development, execution, and result analysis. *machinable* is build around three corresponding concepts: Components, tasks, and observations.
+Machine learning projects tend to comprise three different phases: development, execution, and result analysis. *machinable* is build around three corresponding concepts: components, tasks, and observations.
 
 The concept section will discuss these fundamentals in more detail. For now, let's focus on the file structure of the project. To create a machinable project, it's sufficient to create a folder or repository that contains a `machinable.yaml`:
 
