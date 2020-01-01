@@ -1,3 +1,7 @@
+env:
+  global:
+    - PYTHON_VERSION="3.6.7"
+    - PYTHON=python3
 matrix:
   include:
     - language: node_js
@@ -6,8 +10,8 @@ matrix:
       install:
           - npm install -g vuepress
       script:
-          - pip3.6.7 install -e .
-          - python3 docs/.vuepress/_reference/autogen.py
+          - pip install -e .
+          - python docs/.vuepress/_reference/autogen.py
           - npm run docs:build
       cache:
           directories:
