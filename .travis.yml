@@ -6,8 +6,8 @@ matrix:
       install:
           - npm install -g vuepress
       script:
-          - pip install -e .
-          - python docs/.vuepress/_reference/autogen.py
+          - pip3.6 install -e .
+          - python3.6 docs/.vuepress/_reference/autogen.py
           - npm run docs:build
       cache:
           directories:
