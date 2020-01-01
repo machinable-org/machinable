@@ -1,14 +1,19 @@
 <div align="center">
   <img src="https://raw.githubusercontent.com/frthjf/machinable/master/docs/logo/logo.png">
-  <a href="https://travis-ci.org/frthjf/machinable"><img src="https://travis-ci.org/frthjf/machinable.svg?branch=master" alt="Build Status"></a>
-  <a href="https://opensource.org/licenses/MIT"><img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="License"></a>
 </div>
 
 # machinable
 
-A configuration system for machine learning projects
+<a href="https://travis-ci.org/frthjf/machinable">
+<img src="https://travis-ci.org/frthjf/machinable.svg?branch=master" alt="Build Status">
+</a>
+<a href="https://opensource.org/licenses/MIT">
+<img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="License">
+</a>
 
-**machinable** provides an alternative approach. Using straight-forward conventions and a powerful configuration engine, it can help structuring your projects in a principled way to move quickly while enabling reuse and collaboration.
+Configuration system for machine learning projects
+
+**machinable** is a development skeleton. Using straight-forward conventions and a powerful configuration engine, it can help structuring your projects in a principled way to move quickly while enabling reuse and collaboration.
 
 - Powerful configuration
 - Seamless local and cloud execution
