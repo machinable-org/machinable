@@ -41,7 +41,7 @@ def parse_docstr(docstr, level='###', intent=4):
         return ''
 
     # lower the headings
-    docstr = docstr.replace((' ' * 4) + '# ', f'    {level} ')
+    docstr = docstr.replace((' ' * 4) + '# ', '    ' + level + ' ')
     # remove intent
     docstr = docstr.replace('\n' + (' ' * intent), '\n')
     # parse Arguments block
