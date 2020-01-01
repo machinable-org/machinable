@@ -31,7 +31,7 @@ def parse_argumentblock(docstr, level='###'):
     for expr in ('Integer', 'String', 'Boolean', 'True', 'False', 'None'):
         docstr = docstr.replace(expr, "``" + expr + "``")
 
-    docstr = f"{level} Arguments\n" + docstr
+    docstr = level + " Arguments\n" + docstr
 
     return docstr
 
@@ -54,14 +54,15 @@ def parse_method(obj, path, options, level='##'):
     method = getattr(obj, path)
     name = method.__name__.replace('_', '\_')
     signature = inspect.signature(method)
-    md = f"{level} {name}\n``{path}{signature}``\n\n"
+    md = level + " " + str(name) + "\n``" + path + str(signature) + "``\n\n"
     md += parse_docstr(method.__doc__, level=level + '#', intent=8)
     return md
 
 
 def parse_property(obj, path, options, level='##'):
     p = getattr(obj, path)
-    md = f'{level} {path} <Badge text="property" vertical="middle" />\n\n'
+
+    md = level + ' ' + path + ' <Badge text="property" vertical="middle" />\n\n'
     md += parse_docstr(p.__doc__, level=level + '#', intent=8)
     return md
 
@@ -70,9 +71,9 @@ def parse_class(obj, path, options):
     signature = inspect.signature(obj)
     level = options.get('level', '###')
     if options.get('header', True):
-        md = f"## {obj.__name__}\n``{path}{signature}``\n\n"
+        md = "## " + obj.__name__ + "\n``" + path + str(signature) + "``\n\n"
     else:
-        md = f"``{path}{signature}``\n\n"
+        md = "``" + path + str(signature) + "``\n\n"
     md += parse_docstr(obj.__doc__, level=level + '#') + '\n'
 
     def filter_attributes(array):
@@ -114,7 +115,7 @@ def parse_module(obj, path, options):
 
 def parse_function(obj, path, options, level='##'):
     signature = inspect.signature(obj)
-    md = f"{level} {obj.__name__}\n``{path}{signature}``\n\n"
+    md = level + " " + obj.__name__ + "\n``" + path + str(signature) + "``\n\n"
     md += parse_docstr(obj.__doc__, level=level + '#')
     return md
 

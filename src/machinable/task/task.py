@@ -351,7 +351,7 @@ class Task:
         When executed, machinable converts the task into a plain Python project
         that can be executed without machinable.
 
-        ::: warn
+        ::: warning
         This feature may not work reliably in all circumstances and project use cases
         :::
 
