@@ -1,7 +1,7 @@
 # Installation
 
 ::: tip
-machinable requires Python 3.6 or higher and does not support Python 2. [Find out why](../miscellaneous/design-principles.md#python-3-only).
+machinable requires Python 3.6 or higher and does not support Python 2.
 :::
 
 Install the latest stable version via [pip](http://www.pip-installer.org/):

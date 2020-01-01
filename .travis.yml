@@ -10,6 +10,8 @@ matrix:
           - pip3 install -e .
           - python3.6 docs/.vuepress/_reference/autogen.py
           - npm run docs:build
+      after_failure:
+        - cat /home/travis/.npm/_logs/*-debug.log
       cache:
           directories:
               - "node_modules"
