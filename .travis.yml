@@ -6,7 +6,8 @@ matrix:
       install:
           - npm install -g vuepress
       script:
-          - npm run docs:build
+          - cd docs && python .vuepress/_reference/autogen.py
+          - cd .. && npm run docs:build
       cache:
           directories:
               - "node_modules"

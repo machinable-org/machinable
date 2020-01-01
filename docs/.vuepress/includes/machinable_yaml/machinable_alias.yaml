@@ -1,0 +1,5 @@
+components:
+  - base_component=base:
+      config_value: 1
+  - extended_component^base:
+      new_value: 3

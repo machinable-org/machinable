@@ -1,0 +1,8 @@
+# machinable.yaml
+components:experiments:
+  - optimization:
+      data: sinus
+components:models:
+  - linear_regression:
+  - gradient_descent:
+      learning_rate: 0.01

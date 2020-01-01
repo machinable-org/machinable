@@ -1,0 +1,9 @@
++:
+  - imported_project: git+https://git.serv.er/baselines/resnet50.git
+components:experiments:
+  - experiments.benchmark:
+      data: imagenet
+components:models:
+  - +.imported_project.models.resnet=baseline:
+  - models.improved_resnet^+.imported_project.models.resnet=improved:
+      learning_rate: 0.01

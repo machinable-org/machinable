@@ -1,0 +1,28 @@
+dataset: mnist
+components:
+  - data: $.dataset
+components:models:
+  - models.example:
+      learning_rate: $self._parameter[$.dataset].learning_rate
+      _parameter:
+        mnist:
+          learning_rate: 0.1
+        fashion-mnist: $self._parameter[mnist]
+        cifar10:
+          learning_rate: 0.01
+
+# At runtime, the above configuration will be parsed as:
+
+dataset: mnist
+components:
+  - data: mnist
+components:models:
+  - models.example:
+      learning_rate: 0.1
+      _parameter:
+        mnist:
+          learning_rate: 0.1
+        fashion-mnist:
+          learning_rate: 0.1
+        cifar10:
+          learning_rate: 0.01

@@ -1,0 +1,9 @@
+components:
+  - path.to_module:
+      config_value: 1
+      nested:
+        value: 2
+  - path.directory:
+      config_value: 3
+  - models.baseline:
+      learning_rate: 0.1

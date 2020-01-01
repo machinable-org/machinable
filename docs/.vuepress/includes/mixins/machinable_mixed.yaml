@@ -1,0 +1,9 @@
+mixins:
+  - data:
+      dataset:
+        name: mnist
+        batch_size: 8
+components:
+  - classifier:
+      _mixins_:
+        - data

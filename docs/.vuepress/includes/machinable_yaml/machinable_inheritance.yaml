@@ -1,0 +1,9 @@
+components:
+  - base_component:
+      config_value: 1
+      nested:
+        value: 2
+  - extended_component^base_component:
+      nested:
+        value: overwritten
+      new_value: 3

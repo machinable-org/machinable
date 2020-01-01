@@ -1,0 +1,27 @@
+components:
+  - sgd:
+      learning_rate: 0.001
+      data:
+        name: cifar10
+        augmentation: False
+      ~mnist:
+        data:
+          name: mnist
+      ~alexnet:
+        learning_rate: 0.1
+        data:
+          name: imagenet
+
+# At runtime, this will result in the following patterns
+
+# ~mnist:
+learning_rate: 0.001
+data:
+  name: mnist
+  augmentation: False
+
+# ~alexnet:
+learning_rate: 0.1
+data:
+  name: imagenet
+  augmentation: False
