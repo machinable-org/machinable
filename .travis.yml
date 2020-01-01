@@ -4,8 +4,7 @@ matrix:
       node_js:
           - "12"
       install:
-          - npm install -g vuepress
-          - npm install -g @vuepress/cli
+          - yarn add -D vuepress
       script:
           - pyenv global system 3.6.7
           - pip3 install -e .
