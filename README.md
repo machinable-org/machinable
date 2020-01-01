@@ -11,11 +11,17 @@
 <img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="License">
 </a>
 
-Configuration system for machine learning projects
+**machinable** is a configuration system for machine learning research. Using straight-forward conventions and a powerful configuration engine, it can help structuring your projects in a principled way to move quickly while enabling reuse and collaboration.
 
-**machinable** is a development skeleton. Using straight-forward conventions and a powerful configuration engine, it can help structuring your projects in a principled way to move quickly while enabling reuse and collaboration.
+
+    $ pip install machinable
 
 - Powerful configuration
 - Seamless local and cloud execution
 - Managed result collection and analysis
 - Modular sharing and importing
+- Hyperparameter tuning
+
+### Documentation
+
+The full documentation is [available here](https://frthjf.github.io/machinable/).
