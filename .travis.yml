@@ -6,10 +6,9 @@ matrix:
       install:
           - npm install -g vuepress
       script:
-          - pyenv versions
           - pyenv global system 3.6.7
-          - pip install -e .
-          - python docs/.vuepress/_reference/autogen.py
+          - pip3 install -e .
+          - python3 docs/.vuepress/_reference/autogen.py
           - npm run docs:build
       cache:
           directories:
