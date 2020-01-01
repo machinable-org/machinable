@@ -8,7 +8,7 @@ matrix:
       script:
           - pyenv global system 3.6.7
           - pip3 install -e .
-          - python3 docs/.vuepress/_reference/autogen.py
+          - python3.6 docs/.vuepress/_reference/autogen.py
           - npm run docs:build
       cache:
           directories:
