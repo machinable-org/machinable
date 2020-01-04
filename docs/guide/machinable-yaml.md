@@ -104,13 +104,13 @@ Let's take a closer look at the features of machinable's central configuration f
 The component section lists the project's components and their configuration using the following convention: the name determines the python module that contains the component's code, for example:
 
 <Annotated name="module_mapping" :debug="false">
-<<< @/.vuepress/includes/machinable_yaml/machinable.yaml
+<<< @/docs/.vuepress/includes/machinable_yaml/machinable.yaml
 </Annotated>
 
 You can group components into modules by appending the directory name to the components key:
 
 <Annotated name="module_groups" :debug="false">
-<<< @/.vuepress/includes/getting_started/machinable.yaml
+<<< @/docs/.vuepress/includes/getting_started/machinable.yaml
 </Annotated>
 
 The module mapping allows machinable to load and execute code automatically. 
@@ -119,7 +119,7 @@ The module mapping allows machinable to load and execute code automatically.
 
 The module-to-config mapping also enables configuration sharing through inheritance. Consider the following example:
 
-<<< @/.vuepress/includes/machinable_yaml/machinable_inheritance.yaml
+<<< @/docs/.vuepress/includes/machinable_yaml/machinable_inheritance.yaml
 
 Here, the extended component 'inherits' the ``base_component``'s configuration using the `^` syntax. The resulting configuration that becomes available to the ``extended_component`` would have the following structure :
 
@@ -136,22 +136,26 @@ Config inheritance can be useful in preventing unnecessary configuration repetit
 
 In larger projects, module paths can become long or convoluted. To simplify the discription, you can define simpler aliases using the `=` syntax:
 
-<<< @/.vuepress/includes/machinable_yaml/machinable_alias.yaml
+<<< @/docs/.vuepress/includes/machinable_yaml/machinable_alias.yaml
 
 ## Config references
 
 It is often the case that configuration values depend on other configurations. For example, a model hyperparameter may depend on the dataset that is being used. In these cases, it may be useful to reference configuration values rather than duplicating them so they only have to be adjusted in one place. In the `machinable.yaml` such config references can be written using the `$` symbol. In particular, `$.{path}` refers to values from the config root while `$self.{path}`
 refers to values of the local component. Consider the following example:
 
-<<< @/.vuepress/includes/machinable_yaml/machinable_references.yaml
+<<< @/docs/.vuepress/includes/machinable_yaml/machinable_references.yaml
 
 Effectively, the dataset name can be adjusted in one place but used elsewhere. Note that you can use the Python convention of a leading underscore (`_example`) as a weak "internal use" indicator. machinable will hide configuration values that start with an underscore (`_`) in execution outputs.
+
+::: tip
+To implement dynamic configuration dependencies, consider using [config methods](./components.md#config-methods).
+:::
 
 ## Versions
 
 Components often induce a number of different versions. For example, a model might have a version with and a version without momentum. To manage the configuration of different versions it can be impractical to create multiple components that inherit the configuration from some base component. Instead, we can define configuration patterns inline. To define a version, specify the configuration difference under a key that starts with `~`.
 
-<<< @/.vuepress/includes/machinable_yaml/machinable_versions.yaml
+<<< @/docs/.vuepress/includes/machinable_yaml/machinable_versions.yaml
 
 You can choose which version is going to be used in the execution task. Learn more about how to execute different versions in the [task section](./tasks.md).
 
@@ -159,4 +163,4 @@ You can choose which version is going to be used in the execution task. Learn mo
 
 As the machinable.yaml grows, it may be useful to split the file into smaller subfiles. It is possible to include YAML configuration files relative to the `machinable.yaml` using the `$/` syntax:
 
-<<< @/.vuepress/includes/machinable_yaml/machinable_includes.yaml
+<<< @/docs/.vuepress/includes/machinable_yaml/machinable_includes.yaml

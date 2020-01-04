@@ -10,19 +10,23 @@
 <a href="https://opensource.org/licenses/MIT">
 <img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="License">
 </a>
+<br />
 
+**machinable** is a modular configuration system for machine learning research. Using straight-forward conventions and a powerful configuration engine, it can help structuring your projects in a principled way to move quickly while enabling reuse and collaboration.
 
-**machinable** is a configuration system for machine learning research. Using straight-forward conventions and a powerful configuration engine, it can help structuring your projects in a principled way to move quickly while enabling reuse and collaboration.
+[Explore key features at a glance →](https://machinable.org/guide/at-glance.html)
 
+*Ready to start?*
 
     $ pip install machinable
 
-- Powerful configuration
+## Features
+
+- Efficient and transparent configuration + advanced hyperparameter tuning
 - Seamless local and cloud execution
 - Managed result collection and analysis
 - Modular sharing and importing
-- Hyperparameter tuning
 
 ### Documentation
 
-The full documentation is [available here](https://frthjf.github.io/machinable/).
+The [user guide ](https://machinable.org/guide) to get started.

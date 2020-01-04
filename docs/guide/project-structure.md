@@ -11,7 +11,7 @@ The concept section will discuss these fundamentals in more detail. For now, let
 Think of it as a README that provides basic definitions of the project's
 components and their respective hyperparameters.
 
-<<< @/.vuepress/includes/getting_started/machinable.yaml
+<<< @/docs/.vuepress/includes/getting_started/machinable.yaml
 
 
 From the example definition above you can guess that the project compares linear regression with gradient descent on some optimization problem as it exposes crucial parameters like the models's learning rate. The file also implicitly describes the file organisation of the source code:
@@ -30,7 +30,7 @@ From the example definition above you can guess that the project compares linear
 
 The different components are implemented in corresponding Python modules while the main execution scripts reside in the tasks module, for example: 
 
-<<< @/.vuepress/includes/getting_started/tasks/example.py
+<<< @/docs/.vuepress/includes/getting_started/tasks/example.py
 
 While the directory structure and file names may differ from project to project, the `machinable.yaml` acts as 'project glue' and enables a number of powerful features.
 

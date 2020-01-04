@@ -28,7 +28,7 @@ annotations: {
 Components are the core interface to implement functionality in a machinable project. Technically, they are simply classes that inherit from the base class ``machinable.Component`` as defined in the python module that is specified in the
 `machinable.yaml`. For instance, to implement a component that encapsulates some optimization problem, we could create the following source file:
 
-<<< @/.vuepress/includes/getting_started/experiments/optimization.py
+<<< @/docs/.vuepress/includes/getting_started/experiments/optimization.py
 
 Note that it does not matter how you name the class as long as the class inherits from the component base class and is registered in the ``machinable.yaml``, for instance: 
 
@@ -45,7 +45,7 @@ The component base provides a variety of interfaces that bootstrap the implement
 
 ## Life cycle
 
-First and foremost, components expose a number of life cycle events that can be overwritten to hook into the execution cycle at a certain point. All event methods start with `on_` and are documented in the [event reference](../reference/component.md#on-after-create). In the example above, the ``on_create`` and ``on_execute`` events are implemented and will thus be triggered during execution.
+Components expose a number of life cycle events that can be overwritten to hook into the execution cycle at a certain point. All event methods start with `on_` and are documented in the [event reference](../reference/component.md#on-after-create). In the example above, the ``on_create`` and ``on_execute`` events are implemented and will thus be triggered during execution.
 
 The component life cycle allows you to implement using any framework and standard python methods without worrying about the execution logic (i.e. configuration parsing, parallel execution, etc.). Moreover, the event paradigm provides a clear semantic while the object orientation enables flexible code sharing mechanisms (e.g. inheritance, [mixins](./mixins.md), etc.).
 
@@ -53,7 +53,7 @@ The component life cycle allows you to implement using any framework and standar
 
 Components can consume their configuration via the `self.config` object:
 
-<<< @/.vuepress/includes/machinable_yaml/path/to_module.py
+<<< @/docs/.vuepress/includes/machinable_yaml/path/to_module.py
 
     >>> 1
         2
@@ -63,28 +63,24 @@ For convenience, the dict interface can be accessed using the `.` object notatio
 
 ## self.flags
 
-Flags are configuration values that are associated with the particular
-execution, for example the random seeds or worker ids. They are
-accessible via the `self.flags` object, that supports the `.` object notation. You can add your own flags through basic assignment (e.g. ``self.flags.counter = 1``); to avoid collision, the native machinable flags use UPPERCASE (e.g. ``self.flags.SEED``).
+Flags are configuration values that are associated with the particular execution, for example the random seeds or worker ids. They are accessible via the `self.flags` object, that supports the `.` object notation. You can add your own flags through basic assignment, e.g. ``self.flags.counter = 1``. To avoid name collision, all native machinable flags use UPPERCASE (e.g. ``self.flags.SEED``).
 
 ## self.observer
 
-The observer interface `self.observer` allows for the storing of data and results of the component.
+The observer interface `self.observer` allows for the storing of data and results of the component. Note that you don't have to specify where the observer data is being stored. You can specify the storage location before the execution and machinable will manage unique directories automatically. The data can later be retrieved using the [Observations](./observations.md) interface.
 
 **Log**
 
-`self.observer.log` or `self.log` provides a standard logger interface
-that outputs to stdout and file.
+`self.observer.log` or `self.log` provides a standard logger interface that outputs to the console and a log file.
 
 ``` python
 self.log.info('Component created')
+self.log.debug('Component initialized')
 ```
 
 **Records**
 
-`self.observer.record` or `self.record` provides an interface for tabular
-logging, that is, storing recurring data points at each iteration. The results
-become available as a table where each row represents each iteration.
+`self.observer.record` or `self.record` provides an interface for tabular logging, that is, storing recurring data points at each iteration. The results become available as a table where each row represents each iteration.
 
 ``` python
 for iteration in range(10):
@@ -98,15 +94,9 @@ for iteration in range(10):
     self.record.save()
 ```
 
-If you use the `on_execute_iteration` event, iteration information and
-`record.save()` will be triggered automatically at the end of each
-iteration.
+If you use the `on_execute_iteration` event, iteration information and `record.save()` will be triggered automatically at the end of each iteration.
 
-Sometimes it is useful to have multiple tabular loggers, for example to
-record training and validation performance separately. You can create
-custom record loggers using `self.observer.get_record_writer(scope)`
-which returns a new instance of a record writer that you can use just
-like the main record writer.
+Sometimes it is useful to have multiple tabular loggers, for example to record training and validation performance separately. You can create custom record loggers using `self.observer.get_record_writer(scope)` which returns a new instance of a record writer that you can use just like the main record writer.
 
 **Storage**
 
@@ -132,10 +122,60 @@ Refer to the observer [reference](./components.md#observer) for more details.
 
 While config references allow you to make static references, configuration values can be more complex. They might, for example, evolve during the course of execution or obey non-trivial conditions. Config methods allow you to implement such complex configuration values. To define a config method just add a regular Python method to the component class. The method name must start with `config_`. You can then 'call' the method directly in the ``machinable.yaml`` configuration, for example:
 
-<<< @/.vuepress/includes/machinable_yaml/machinable_methods.yaml
+<<< @/docs/.vuepress/includes/machinable_yaml/machinable_methods.yaml
 
 Here, the learning rate parameter is defined as a config method that takes a base learning rate parameter. The config method `config_learning_rate` needs to be defined in the corresponding component:
 
-<<< @/.vuepress/includes/machinable_yaml/my_models/base_model.py
+<<< @/docs/.vuepress/includes/machinable_yaml/my_models/base_model.py
 
-The method is executed whenever `self.config.learning_rate` is being accessed. Config methods hence allow for the expression of arbitrary configuration dependencies and are a powerful tool for implementing complex configuration patterns more efficiently. They can also be useful for parsing configuration values into Python objects. For instance, you might define a config method `dtype` where `dtype: dtype('f32')` returns `np.float32` etc.
+The method is executed whenever `self.config.learning_rate` is being accessed; as a result, the execution output prints:
+```
+0 0
+1 0.01
+2 0.02
+3 0.03
+4 0.04
+```
+
+Config methods hence allow for the expression of arbitrary configuration dependencies and are a powerful tool for implementing complex configuration patterns more efficiently. They can also be useful for parsing configuration values into Python objects. For instance, you might define a config method `dtype` where `dtype: dtype('f32')` returns `np.float32` etc.
+
+## Child components
+
+In many cases, it can be useful to organise components in a hierarchical way. For example, your component may implement a certain prediction problem and you want to encapsulate different prediction strategies in sub-components. 
+
+machinable allows you to use components as ``child`` component, meaning they become available to a parent ``node`` component. Consider the following components:
+
+```python
+# child_component_example.py
+
+from machinable import Component
+
+class PredictionStrategy(Component):
+    
+    def on_create(self):
+        self.model = ... # set up some model
+    
+    def predict(self, data):
+        return self.model.predict(data)
+```
+```python
+# node_component_example.py
+
+from machinable import Component
+
+class PredictionBenchmark(Component):
+
+    def on_create(self, prediction_strategy):
+        self.prediction_strategy = prediction_strategy
+
+        # load data
+        self.data = ...
+
+        print(self.prediction_strategy.predict(self.data))
+```
+
+Here, the child component encapsulates the model while the node component implements the benchmark control flow. The child components becomes available as argument to the ``on_create`` event of the node component. 
+
+In general, the child component can access the parent node via ``self.node`` while the node component can access its child components via ``self.children``.
+
+To designate components as child use the ``children`` argument of [Task.component()](./tasks.md) that will be discussed in the following section.

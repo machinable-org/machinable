@@ -4,7 +4,7 @@ module.exports = ctx => ({
     '/': {
       lang: 'en-UK',
       title: 'machinable',
-      description: 'Configuration system for machine learning projects'
+      description: 'A modular configuration system for machine learning research'
     }
   },
   head: [

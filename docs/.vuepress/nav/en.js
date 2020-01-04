@@ -36,27 +36,27 @@ module.exports = [
           }
         ]
       },
-      // {
-      //   text: "Meta",
-      //   items: [
-      //     {
-      //       text: "Design principles",
-      //       link: "/miscellaneous/design-principles.html"
-      //     },
-      //     {
-      //       text: "Comparison with alternatives",
-      //       link: "/miscellaneous/comparison.html"
-      //     },
-      //     {
-      //       text: "Contribution guide",
-      //       link: "/miscellaneous/contribution-guide.html"
-      //     },
-      //     {
-      //       text: "Glossary",
-      //       link: "/miscellaneous/glossary.html"
-      //     }
-      //   ]
-      // }
+      {
+        text: "Meta",
+        items: [
+          // {
+          //   text: "Design principles",
+          //   link: "/miscellaneous/design-principles.html"
+          // },
+          // {
+          //   text: "Comparison with alternatives",
+          //   link: "/miscellaneous/comparison.html"
+          // },
+          {
+            text: "Contribution guide",
+            link: "/miscellaneous/contribution-guide.html"
+          },
+          // {
+          //   text: "Glossary",
+          //   link: "/miscellaneous/glossary.html"
+          // }
+        ]
+      }
     ]
   }
 ];

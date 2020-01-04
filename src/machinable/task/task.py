@@ -166,15 +166,6 @@ class Task:
         self.name = name
         return self
 
-    def node(self, component, children=None, resources=None):
-        """
-        ::: warning
-        This method is deprecated. Use ``component`` instead.
-        :::
-        """
-        print('Warning: node is deprecated. Use component instead.')
-        return self.component(component, children, resources)
-
     def component(self, node, children=None, resources=None):
         """Adds a component to the task
 
@@ -327,7 +318,7 @@ class Task:
         Components need to implement on_execute_iteration event that becomes tune trainable. The record writer
         can be used as usual. In particular, record fields may be used in stop conditions.
 
-        ::: warn
+        ::: warning
         Tuning integration is experimental. Please report any issues that you encounter.
         :::
 
