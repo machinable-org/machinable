@@ -10,6 +10,8 @@
 <a href="https://opensource.org/licenses/MIT">
 <img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="License">
 </a>
+
+<br />
 <br />
 
 **machinable** is a modular configuration system for machine learning research. Using straight-forward conventions and a powerful configuration engine, it can help structuring your projects in a principled way to move quickly while enabling reuse and collaboration.
@@ -29,4 +31,4 @@
 
 ### Documentation
 
-The [user guide ](https://machinable.org/guide) to get started.
+Read the [user guide ](https://machinable.org/guide) to get started.
