@@ -32,7 +32,7 @@ module.exports = [
           // },
           {
             text: "Changelog",
-            link: "https://github.com/frthjf/machinable/blob/master/CHANGELOG.md"
+            link: "https://github.com/machinable-org/machinable/blob/master/CHANGELOG.md"
           }
         ]
       },

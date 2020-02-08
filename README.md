@@ -1,11 +1,11 @@
 <div align="center">
-  <img src="https://raw.githubusercontent.com/frthjf/machinable/master/docs/logo/logo.png">
+  <img src="https://raw.githubusercontent.com/machinable-org/machinable/master/docs/logo/logo.png">
 </div>
 
 # machinable
 
-<a href="https://travis-ci.org/frthjf/machinable">
-<img src="https://travis-ci.org/frthjf/machinable.svg?branch=master" alt="Build Status">
+<a href="https://travis-ci.org/machinable-org/machinable">
+<img src="https://travis-ci.org/machinable-org/machinable.svg?branch=master" alt="Build Status">
 </a>
 <a href="https://opensource.org/licenses/MIT">
 <img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="License">

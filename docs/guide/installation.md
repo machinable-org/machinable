@@ -21,7 +21,7 @@ pip install machinable[full]
 
 To test or develop new features you may want to install the latest package version from the repository.
 
-Clone the source from the [public code repository](https://github.com/frthjf/machinable) on GitHub and change into the machinable directory. Install the development dependencies:
+Clone the source from the [public code repository](https://github.com/machinable-org/machinable) on GitHub and change into the machinable directory. Install the development dependencies:
 
 ```bash
 pip install -r test-requirements.txt

@@ -19,7 +19,7 @@ module.exports = ctx => ({
     ['meta', { name: 'msapplication-TileColor', content: '#000000' }]
   ],
   themeConfig: {
-    repo: 'frthjf/machinable',
+    repo: 'machinable-org/machinable',
     editLinks: true,
     docsDir: 'docs',
     smoothScroll: true,

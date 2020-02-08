@@ -2,9 +2,9 @@
 
 #### **Do you have questions? Did you find a bug?**
 
-* Our GitHub [Issue Tracker](https://github.com/frthjf/machinable/issues) is the place to look for help and ask questions.
+* Our GitHub [Issue Tracker](https://github.com/machinable-org/machinable/issues) is the place to look for help and ask questions.
 
-* If you're unable to find an open issue addressing the problem, [open a new one](https://github.com/frthjf/machinable/issues/new). Be sure to include as much relevant information as possible, like a **code sample** or an **executable test case** demonstrating the expected behavior that is not occurring.
+* If you're unable to find an open issue addressing the problem, [open a new one](https://github.com/machinable-org/machinable/issues/new). Be sure to include as much relevant information as possible, like a **code sample** or an **executable test case** demonstrating the expected behavior that is not occurring.
 
 * Please follow the further discussion in case more information is needed or questions arise.
 
@@ -14,7 +14,7 @@
 
 * Make sure all tests are passing; ideally add a regression test case.
 
-* Make sure the PR updates the 'Unreleased' section of the [CHANGELOG.md](https://github.com/frthjf/machinable/blob/master/CHANGELOG.md) with an honourable mention of yourself.
+* Make sure the PR updates the 'Unreleased' section of the [CHANGELOG.md](https://github.com/machinable-org/machinable/blob/master/CHANGELOG.md) with an honourable mention of yourself.
 
 #### **Do you intend to add a new feature or change an existing one?**
 
