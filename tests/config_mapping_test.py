@@ -23,6 +23,29 @@ def test_evaluate():
     print(m)
 
 
+def test_versions():
+    m = ConfigMap({
+        'test': 1,
+        '~a': {
+            'a': '1'
+        },
+        '~b': {
+            'b': '1',
+            '~d': {
+                'd': 1
+            }
+        },
+        '~c': {
+            'c': '1'
+        }
+    })
+
+    v = m.get_versioning()
+    assert len(v) == 3
+    assert 'a' in v
+    assert m['~b'].get_versioning()[0] == 'd'
+
+
 class TestReadme(unittest.TestCase):
     def test_basic_use(self):
         m = ConfigMap()

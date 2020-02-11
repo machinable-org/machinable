@@ -23,7 +23,10 @@ def str_to_time(date_time_str):
     if date_time_str is False or date_time_str is None:
         return None
 
-    return datetime.datetime.strptime(date_time_str, '%Y-%m-%d %H:%M:%S.%f')
+    try:
+        return datetime.datetime.strptime(date_time_str, "%Y-%m-%d %H:%M:%S.%f")
+    except ValueError:
+        return datetime.datetime.strptime(date_time_str, "%Y-%m-%d %H:%M:%S")
 
 
 def task_to_color(task_id):

@@ -24,7 +24,7 @@ class Records(RecordsCollection):
         """
         self._items = self._models.load_file(f'records/{self._scope}.p', meta=True)
 
-        if isinstance(self._items, FileNotFoundError):
+        if isinstance(self._items, FileNotFoundError) or self._items is FileNotFoundError:
             if self._scope != 'default':
                 raise FileNotFoundError(f"Records for scope '{self._scope}' could not be found")
             self._items = []

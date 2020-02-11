@@ -149,6 +149,9 @@ class ConfigMap(DotMap):
     def copy(self):
         return self.__class__(self, _dynamic=self._dynamic, _evaluate=self._evaluate, _evaluated=self._evaluated)
 
+    def get_versioning(self):
+        return [k[1:] for k in self.keys() if k.startswith('~')]
+
     def __getitem__(self, k, evaluate=None):
         if k not in self._map and self._dynamic and k != '_ipython_canary_method_should_not_exist_':
             # automatically extend to new DotMap
@@ -167,13 +170,15 @@ class ConfigMap(DotMap):
         return var
 
     def __setattr__(self, k, v):
-        if k in {'_map', '_dynamic', '_evaluate', '_evaluated', '_ipython_canary_method_should_not_exist_'}:
+        if k in {'_map', '_dynamic', '_evaluate', '_evaluated', '_ipython_canary_method_should_not_exist_',
+                 'get_versioning'}:
             super(DotMap, self).__setattr__(k, v)
         else:
             self[k] = v
 
     def __getattr__(self, k):
-        if k in {'_map', '_dynamic', '_evaluate', '_evaluated', '_ipython_canary_method_should_not_exist_'}:
+        if k in {'_map', '_dynamic', '_evaluate', '_evaluated', '_ipython_canary_method_should_not_exist_',
+                 'get_versioning'}:
             return super(DotMap, self).__getattr__(k)
 
         try:

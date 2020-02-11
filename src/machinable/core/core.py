@@ -156,6 +156,7 @@ class Component(Mixin):
         self._node: Optional[Component] = node
         self._children: Optional[List[Component]] = None
         self._observer: Optional[Observer] = None
+        self._actor_config = None
         self.__mixin__ = None
         self._component_state = ComponentState()
 
@@ -249,7 +250,7 @@ class Component(Mixin):
     def dispatch(self, children_config: List[Dict], observer_config: dict, actor_config=None, lifecycle=True):
         # Prepares and dispatches the component lifecycle and returns its result
 
-        self.flags.ACTOR = actor_config
+        self._actor_config = actor_config
 
         if self.node is None and self.on_seeding() is not False:
             self.set_seed()
