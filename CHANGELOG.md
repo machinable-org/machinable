@@ -4,7 +4,7 @@
 
 No current changes
 
-## v1.1.1
+## v1.1.2
 
   - Prevent records FileNotFoundError when training in progress
   - Catch occasional error from strptime missing microseconds
