@@ -70,6 +70,7 @@ class Task(Model):
         attributes.setdefault('execution_id', data.get('execution_id'))
         attributes.setdefault('seed', data.get('seed'))
         attributes.setdefault('tune', data.get('tune'))
+        attributes.setdefault('execution_cardinality', data.get('execution_cardinality'))
         attributes.setdefault('rerun', int(data.get('rerun')))
         attributes.setdefault('code_backup', bool(data.get('code_backup')))
         attributes.setdefault('code_version', json.dumps(data.get('code_version')))

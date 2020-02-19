@@ -9,7 +9,7 @@ from machinable.engine import Engine
 def test_tune_execution():
     import ray
     from ray import tune
-    ray.init()
+    ray.init(ignore_reinit_error=True)
     e = Engine(os.path.abspath('test_project'), mode='DEFAULT')
     ml.execute(ml.Task().component('tunemodel').tune(
         stop={'acc': 0.5},

@@ -103,7 +103,7 @@ def test_collections():
         return x.records.pluck('number')
     assert max(task.section(o, reduce=np.var)) > 0
     df = mlo.find_by_task('tttttt').as_dataframe()
-    assert df.size == 12 * 11
+    assert df.size == 12 * 12
     print(df.dtypes)
     obs = mlo.query.where_task('tttttt').first()
     num_elements = len(obs.records.pluck('number'))

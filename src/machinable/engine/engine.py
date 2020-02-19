@@ -6,6 +6,7 @@ from fs.errors import DirectoryExists
 from fs.opener.parse import parse_fs_url
 
 from ..project import Project
+from ..core.exceptions import ExecutionException
 from ..config.interface import ConfigInterface
 from ..observer import Observer
 from ..utils.strings import decode_id, generate_task_id, generate_uid, generate_execution_id
@@ -134,7 +135,8 @@ class Engine:
             'id': encoded_task_id,
             'seed': task_id,
             'execution_id': identifier,
-            'name': task.name,
+            'name': task.specification['name'],
+            'execution_cardinality': len(execution_plan),
             'tune': 'tune' in task.specification,
             'rerun': rerun - 1 if rerun > 1 else 0,
             'code_backup': observer_config.get('code_backup', True),
@@ -155,14 +157,16 @@ class Engine:
 
         promises = []
 
-        for job_id, (node, children, resources) in enumerate(execution_plan):
-            # generate unique directory
-            observer_config['uid'] = generate_uid(random_state=prng)
+        for index, (node, children, resources) in enumerate(execution_plan):
+            node.flags['UID'] = generate_uid(random_state=prng)
+            node.flags['TASK'] = encoded_task_id
+            node.flags['EXECUTION_INDEX'] = index
+            node.flags['EXECUTION_CARDINALITY'] = len(execution_plan)
 
-            msg(f"\nObservation: {observer_config['uid']} "
-                f"({job_id + 1}/{len(execution_plan)} of task {encoded_task_id})",
+            msg(f"\nObservation: {node.flags['UID']} ({index + 1}/{len(execution_plan)} of task {encoded_task_id})",
                 color='header')
 
+            observer_config['uid'] = node.flags['UID']
             node_config = config.get(node)
             children_config = [config.get(child) for child in children if child is not None]
 
@@ -196,7 +200,7 @@ class Engine:
                         node=node_config,
                         children=children_config,
                         observer=observer_config,
-                        job=(job_id, len(execution_plan)),
+                        job=(index, len(execution_plan)),
                         **task.specification['export']['arguments']
                     )
                 else:
@@ -209,17 +213,21 @@ class Engine:
                         dry=task.specification.get('dry', {}).get('arguments', None)
                     )
 
-            # handlers might return instantly with a promise that we resolve later to
-            # allow parallel execution
+            # handlers can return instantly with a promise that we resolve later to allow for parallel execution
             if isinstance(output, Promise):
-                output.then(lambda result: self.events.trigger('completed_job', task_id, job_id, result))
                 promises.append(output)
-            else:
-                self.events.trigger('completed_job', task_id, job_id, output)
 
         # resolve blocking promises
         for promise in promises:
-            promise.resolve()
+            result = promise.resolve()
+            if isinstance(result, ExecutionException):
+                msg(f"{promise.flags['UID']} of task {promise.flags['TASK']} failed "
+                    f"({promise.flags['EXECUTION_INDEX'] + 1}/{promise.flags['EXECUTION_CARDINALITY']}). {str(result)}",
+                    color='fail')
+            else:
+                msg(f"{promise.flags['UID']} of task {promise.flags['TASK']} has finished "
+                    f"({promise.flags['EXECUTION_INDEX'] + 1}/{promise.flags['EXECUTION_CARDINALITY']}).",
+                    color='green')
 
         status['finished'] = str(datetime.datetime.now())
         observer.store('status.json', status, overwrite=True, _meta=True)

@@ -50,10 +50,7 @@ def execute_job(node, children=None, observer=None, resources=None, local=None, 
             msg('Resource specification has no effect in local mode', level='warning')
 
         nd = node['class'](copy.deepcopy(node['args']), copy.deepcopy(node['flags']))
-        try:
-            status = nd.dispatch(copy.deepcopy(children), observer)
-        except StopIteration as e:
-            status = e
+        promise = Promise(nd.dispatch(copy.deepcopy(children), observer), flags=node['flags'])
     else:
         # ray remote execution
         if isinstance(node['class'], FunctionalCallback):
@@ -66,9 +63,9 @@ def execute_job(node, children=None, observer=None, resources=None, local=None, 
         # destroy events class as independent instances will be recreated in the local workers
         observer['events'] = None
 
-        status = Promise(nd.dispatch.remote(children, observer, nd))
+        promise = Promise(nd.dispatch.remote(children, observer, nd), flags=node['flags'])
 
-    return status
+    return promise
 
 
 def execute_tune(node, children=None, observer=None, resources=None,

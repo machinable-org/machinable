@@ -115,3 +115,5 @@ components:workers:
       attr: worker
       ~test:
         version: 1
+components:failure:
+  - exceptions:

@@ -134,7 +134,7 @@ class Task:
 
         # auto-complete
         spec = self._specs.copy()
-        spec['name'] = self.name
+        spec.setdefault('name', None)
         spec.setdefault('nodes', [])
         spec.setdefault('repeats', [])
         spec.setdefault('version', [])
@@ -163,7 +163,7 @@ class Task:
         # Arguments
         name: String, the name of the task
         """
-        self.name = name
+        self._specs['name'] = name
         return self
 
     def component(self, node, children=None, resources=None):

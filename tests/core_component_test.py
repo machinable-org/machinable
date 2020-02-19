@@ -95,3 +95,18 @@ def test_component_injection():
     t = TestInject(node=DummyChild(attribute='experiment'))
     assert inject_components(t, [DummyChild(), DummyChild(False), DummyChild()], t.on_create_manual_with_node)
 
+
+def test_exception_handling():
+    from test_project.failure.exceptions import ExceptionsComponent
+
+    ex = ExceptionsComponent()
+    status = ex.dispatch([], fake_observation_config())
+    assert isinstance(status, ml.core.exceptions.ExecutionException)
+
+    e = Engine(os.path.abspath('test_project'))
+    ml.execute(ml.Task().component('failure.exceptions'), engine=e)
+
+    # a failure does not crash others
+    import ray
+    ray.init(ignore_reinit_error=True)
+    ml.execute(ml.Task().component('failure.exceptions').component('thenode').repeat(2), engine=e)

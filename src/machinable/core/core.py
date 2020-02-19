@@ -2,6 +2,7 @@ from typing import Dict, Union
 import copy
 import os
 import inspect
+import traceback
 from inspect import getattr_static
 from typing import Optional, List
 import datetime
@@ -15,6 +16,7 @@ from ..config.mapping import ConfigMap, config_map
 from ..config.parser import ModuleClass
 from ..utils.utils import apply_seed
 from ..utils.dicts import update_dict
+from .exceptions import ExecutionException
 
 
 def set_alias(obj, alias, value):
@@ -249,41 +251,48 @@ class Component(Mixin):
 
     def dispatch(self, children_config: List[Dict], observer_config: dict, actor_config=None, lifecycle=True):
         # Prepares and dispatches the component lifecycle and returns its result
+        try:
+            self._actor_config = actor_config
 
-        self._actor_config = actor_config
+            if self.node is None and self.on_seeding() is not False:
+                self.set_seed()
 
-        if self.node is None and self.on_seeding() is not False:
-            self.set_seed()
+            if self.on_init_observer(observer_config) is not False:
+                observer = Observer(config=observer_config)
+                self.on_after_init_observer(observer)
+            else:
+                observer = None
 
-        if self.on_init_observer(observer_config) is not False:
-            observer = Observer(config=observer_config)
-            self.on_after_init_observer(observer)
-        else:
-            observer = None
+            if self.on_init_children(children_config) is not False:
+                children = []
+                index = 0
+                for child_config in children_config:
+                    if self.on_init_child(child_config, index) is not False:
+                        children.append(child_config['class'](
+                            config=copy.deepcopy(child_config['args']),
+                            flags=copy.deepcopy(child_config['flags']),
+                            node=self
+                        ))
+                        self.on_after_init_child(children[-1], index)
+                        index += 1
 
-        if self.on_init_children(children_config) is not False:
-            children = []
-            index = 0
-            for child_config in children_config:
-                if self.on_init_child(child_config, index) is not False:
-                    children.append(child_config['class'](
-                        config=copy.deepcopy(child_config['args']),
-                        flags=copy.deepcopy(child_config['flags']),
-                        node=self
-                    ))
-                    self.on_after_init_child(children[-1], index)
-                    index += 1
+                self.on_after_init_children(children)
+            else:
+                children = None
 
-            self.on_after_init_children(children)
-        else:
-            children = None
+            if not lifecycle:
+                return children, observer
 
-        if not lifecycle:
-            return children, observer
-
-        self.create(children, observer)
-        status = self.execute()
-        self.destroy()
+            self.create(children, observer)
+            status = self.execute()
+            self.destroy()
+        except (KeyboardInterrupt, SystemExit):
+            status = ExecutionException(reason='user_interrupt',
+                                        message='The component execution has been interrupted by the user or system.')
+        except BaseException as ex:
+            trace = ''.join(traceback.format_exception(etype=type(ex), value=ex, tb=ex.__traceback__))
+            status = ExecutionException(reason='exception',
+                                        message=f"The following exception occurred: {ex}\n{trace}")
 
         return status
 

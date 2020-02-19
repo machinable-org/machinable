@@ -112,7 +112,8 @@ class Observer:
         self.store('flags.json', flags, overwrite=True, _meta=True)
         self.store('observation.json', {
             'node': flags['node'].get('NAME', None),
-            'children': [f.get('NAME', None) for f in flags['children']]
+            'children': [f.get('NAME', None) for f in flags['children']],
+            'execution_index': flags['node'].get('EXECUTION_INDEX', None)
         }, overwrite=True, _meta=True)
         self.store('host.json', get_host_info(), overwrite=True, _meta=True)
 

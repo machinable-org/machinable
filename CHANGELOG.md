@@ -1,8 +1,16 @@
 # Changelog
 
+<!-- Please add changes under the Unreleased section that reads 'No current changes' otherwise -->
+
 ## Unreleased
 
 No current changes
+
+## v1.1.3
+
+  - Fixed bug in observer where task names where not captured correctly
+  - New flags with execution information
+  - Exceptions in the component are now caught and reported back to the driver
 
 ## v1.1.2
 

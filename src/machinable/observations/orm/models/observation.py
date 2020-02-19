@@ -87,6 +87,7 @@ class Observation(Model):
                     data = {}
             attributes.setdefault('node', data.get('node'))
             attributes.setdefault('children', ','.join(data.get('children', [])))
+            attributes.setdefault('execution_index', data.get('execution_index'))
 
         # status
         if task_fs.isfile('status.json'):
