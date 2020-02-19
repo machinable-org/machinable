@@ -8,6 +8,7 @@ No current changes
 
 ## v1.1.3
 
+  - Support for Ray 0.8
   - Fixed bug in observer where task names where not captured correctly
   - New flags with execution information
   - Exceptions in the component are now caught and reported back to the driver
