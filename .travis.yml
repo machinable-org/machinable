@@ -35,5 +35,11 @@ matrix:
       before_script: cd tests
       script:
         - pytest
+      deploy:
+        provider: pypi
+        user: "__token__"
+        password: $PYPI_TOKEN
+        on:
+          tags: true
 notifications:
     email: false
