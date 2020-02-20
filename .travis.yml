@@ -21,7 +21,7 @@ matrix:
         local_dir: docs/.vuepress/dist
         github_token: $GITHUB_TOKEN
         repo: machinable-org/machinable
-        keep_history: true
+        keep_history: false
         target_branch: gh-pages
         on:
           branch: master
