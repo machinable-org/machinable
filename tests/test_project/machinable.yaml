@@ -109,6 +109,8 @@ components:nodes:
       to_test: 'observations'
       ~test:
         version: 0
+  - timings:
+      test: 1
 components:workers:
   - interactive:
       id: 1

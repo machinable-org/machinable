@@ -43,5 +43,6 @@ matrix:
         password: $PYPI_TOKEN
         on:
           tags: true
+          python: 3.6
 notifications:
     email: false
