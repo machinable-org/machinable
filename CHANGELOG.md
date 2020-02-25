@@ -6,6 +6,11 @@
 
 No current changes
 
+## v1.1.4
+
+  - Fix bug where record writer fails when used before execute events
+  - Add avg mode of record.timing()
+
 ## v1.1.3
 
   - Support for Ray 0.8
