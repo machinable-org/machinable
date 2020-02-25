@@ -2,6 +2,8 @@ import click
 import pkg_resources
 
 from .vendor.commands import vendor
+from .server import server
+from .server import dev
 
 
 @click.group(invoke_without_command=True)
@@ -19,3 +21,5 @@ def cli(ctx, version):
 
 
 cli.add_command(vendor)
+cli.add_command(server)
+cli.add_command(dev)
