@@ -6,6 +6,10 @@
 
 No current changes
 
+## v1.1.5
+
+  - Bugfix for correct Exception propagation in local mode
+
 ## v1.1.4
 
   - Fix bug where record writer fails when used before execute events

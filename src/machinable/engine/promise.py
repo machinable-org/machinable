@@ -32,3 +32,5 @@ class Promise:
                 return self.resolved(ray.get(self.payload))
         except ImportError:
             pass
+
+        return self.resolved(self.payload)
