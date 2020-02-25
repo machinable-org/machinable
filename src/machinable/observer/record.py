@@ -2,6 +2,7 @@ from collections import OrderedDict
 import csv
 import pickle
 import datetime
+import pendulum
 
 from ..utils.formatting import msg, prettydict
 
@@ -76,24 +77,27 @@ class Record:
         if timestamp is None:
             timestamp = datetime.datetime.now()
 
+        if 'on_execute_start' not in self.observer.statistics:
+            self.observer.statistics['on_execute_start'] = datetime.datetime.now()
+
+        start = self.observer.statistics['on_execute_start']
+
         if mode == 'iteration':
             if len(self.history) > 0:
                 start = self.history[-1]['_timestamp']
-            else:
-                start = self.observer.statistics['on_execute_start']
+            elapsed = pendulum.instance(start).diff(timestamp)
         elif mode == 'total':
-            start = self.observer.statistics['on_execute_start']
+            if len(self.history) > 0:
+                start = self.history[0]['_timestamp']
+            elapsed = pendulum.instance(start).diff(timestamp)
         elif mode == 'avg':
-            # todo
-            raise NotImplementedError('Mode avg is currently not implemented.')
+            if len(self.history) > 0:
+                start = self.history[0]['_timestamp']
+                elapsed = pendulum.instance(start).diff(timestamp) / len(self.history)
+            else:
+                elapsed = pendulum.instance(start).diff(timestamp)
         else:
             raise ValueError(f"Invalid mode: '{mode}'; must be 'iteration', 'avg' or 'total'.")
-
-        try:
-            import pendulum
-            elapsed = pendulum.instance(start).diff(timestamp)
-        except ImportError:
-            return 'Please install pendulum to obtain timings'
 
         if return_type == 'seconds':
             seconds = elapsed.in_seconds()

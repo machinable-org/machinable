@@ -1,7 +1,7 @@
 import os
 import numpy as np
 from machinable.observer import Observer
-
+from machinable import execute, Task, Engine
 from helpers import fake_observation_config
 
 
@@ -30,3 +30,8 @@ def test_observer_storage():
 
     # log
     obs.log.info('test')
+
+
+def test_records_timing():
+    e = Engine(os.path.abspath('test_project'))
+    execute(Task().component('timings'), engine=e)
