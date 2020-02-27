@@ -4,7 +4,7 @@
 
 ## Unreleased
 
-No current changes
+  - Reload imported component modules to enable easier execution in interactive environments
 
 ## v1.1.5
 

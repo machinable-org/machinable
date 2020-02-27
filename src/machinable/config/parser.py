@@ -20,6 +20,7 @@ class ModuleClass(object):
         module_class = default
         try:
             module = importlib.import_module(self.module_name)
+            importlib.reload(module)  # reload, in case we are in interactive environments like jupyter
 
             for candidate, class_ in inspect.getmembers(module, inspect.isclass):
                 if self.baseclass is not None and not issubclass(class_, self.baseclass):
