@@ -1,6 +1,7 @@
 import importlib
 import inspect
 import regex
+import traceback
 
 from .config import parse_mixins
 from .mapping import _reserved_keys, _used_keys
@@ -36,8 +37,10 @@ class ModuleClass(object):
                                      f"the baseclass 'machinable.{self.baseclass.__name__}'")
         except ImportError as e:
             if default is None:
+                trace = ''.join(traceback.format_exception(etype=type(e), value=e, tb=e.__traceback__))
                 raise ImportError(f"Could not import module '{self.module_name}' "
-                                  f"that is specified in the machinable.yaml. Error message: \"{str(e)}\". "
+                                  f"that is specified in the machinable.yaml. "
+                                  f"The following exception occurred: {e}\n{trace}. "
                                   f"If the module is a directory, consider creating an __init__.py.")
 
         if not instantiate:
