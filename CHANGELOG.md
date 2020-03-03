@@ -4,6 +4,10 @@
 
 ## Unreleased
 
+todo: documentation update for driver
+
+  - local argument in execute() deprecated in favor of local driver
+  - Multiprocessing driver to support parallel execution without Ray
   - Reload imported component modules to enable easier execution in interactive environments
 
 ## v1.1.5

@@ -14,7 +14,7 @@ def test_decorator():
 
     t = ml.Task().component('thenode', 'thechildren')
     try:
-        run(t, seed=1, local=True, engine=e)
+        run(t, seed=1, engine=e)
         assert False
     except ValueError:
         pass

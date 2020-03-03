@@ -1,13 +1,14 @@
 from .task import Task, TaskComponent as C
 from .core import Component, Mixin
 from .engine import Engine
+from .driver import Driver
 from . import engine as _engine
 from .observations import Observations
 
 events = _engine.Events()
 
 
-def execute(task, storage=None, seed=None, local=None, engine=None):
+def execute(task, storage=None, seed=None, driver=None, engine=None):
     """Executes a machinable task
 
     Schedules the task for execution. If a [Ray server](http://ray.readthedocs.io/) is available the
@@ -21,7 +22,8 @@ def execute(task, storage=None, seed=None, local=None, engine=None):
         [pyFilesystem URLs](https://pyfilesystem.readthedocs.io/en/latest/filesystems.html)
     seed: Integer|String|None, determines the global random seed. If None, a random seed will be generated.
         To re-use the same random seed of a previous execution, you can pass in its [task ID](.)
-    local: Boolean, set to True to force machinable to run locally even if a Ray distribution server is available
+    driver: Dict|String|None, driver type and options that determine the mode of execution,
+        e.g. 'ray' or 'multiprocessing' etc.
     engine: Optional machinable.engine.Engine to use for this execution
 
     # Example
@@ -44,20 +46,20 @@ def execute(task, storage=None, seed=None, local=None, engine=None):
     """
     if callable(task):
         # decorator use
-        if None not in (storage, local, seed, engine):
+        if None not in (storage, driver, seed, engine):
             raise ValueError('execute decorator takes no arguments; '
                              'call the decorated function with arguments instead.')
         callback = task
 
-        def wrapper(task: Task, storage=None, seed=None, local=None, engine=None):
+        def wrapper(task: Task, storage=None, seed=None, driver=None, engine=None):
             if engine is None:
                 engine = Engine(events=events)
 
-            return engine.execute(task, storage, seed, local, callback=callback)
+            return engine.execute(task, storage, seed, driver, callback=callback)
 
         return wrapper
 
     if engine is None:
         engine = Engine(events=events)
 
-    engine.execute(task, storage, seed, local)
+    engine.execute(task, storage, seed, driver)

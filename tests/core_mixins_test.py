@@ -50,8 +50,8 @@ def test_hidden_mixins():
     # hidden mixins that are only part of the imported project but not referenced in the project that imports them
     e = Engine(project_directory=os.path.join(os.getcwd(), 'test_project'), mode='DEV')
 
-    ml.execute(ml.Task().component('inherited_mixin'), local=True, engine=e)
+    ml.execute(ml.Task().component('inherited_mixin'), engine=e)
 
-    ml.execute(ml.Task().component('direct_mixin_inheritance'), local=True, engine=e)
+    ml.execute(ml.Task().component('direct_mixin_inheritance'), engine=e)
 
 
