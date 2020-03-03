@@ -6,8 +6,9 @@
 
 todo: documentation update for driver
 
-  - local argument in execute() deprecated in favor of local driver
+  - Deprecate ``local`` argument in execute() in favor of default driver
   - Multiprocessing driver to support parallel execution without Ray
+  - Fix uncaught exception in Observations.records when data type was changed between iterations
   - Reload imported component modules to enable easier execution in interactive environments
 
 ## v1.1.5

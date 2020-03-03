@@ -73,7 +73,12 @@ class Records(RecordsCollection):
                 pass
 
         def cast(k, v):
-            return self.indexed_columns[k](v) if not isinstance(v, (datetime.datetime, datetime.date)) else v
+            try:
+                if isinstance(v, (datetime.datetime, datetime.date)):
+                    return v
+                return self.indexed_columns[k](v)
+            except (TypeError, ValueError):
+                return None
 
         # insert data
         if isinstance(self._items, list):

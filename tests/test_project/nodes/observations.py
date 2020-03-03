@@ -17,7 +17,15 @@ class Observations(Component):
         self.record['constant'] = 42
         self.record['float'] = 13.1
         self.record['string'] = 'test'
+        self.record['none'] = None
+        self.record['nan'] = float('NaN')
+        self.record['custom'] = Observations({}, {})
         self.record['date'] = datetime.datetime.now()
+
+        # switching type
+        if iteration > 3:
+            self.record['float'] = None
+            self.record['string'] = 1.3
 
         if self.config.get('test') is True:
             # custom records
