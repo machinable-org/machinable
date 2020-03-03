@@ -18,4 +18,5 @@ def server(host, port, log_level):
 def dev():
     host = '127.0.0.1'
     webbrowser.open('https://app.machinable.org/', new=0, autoraise=True)
+    # todo: find free port and encode the endpoint via ?get request or #
     uvicorn.run(application, host=host, port=5000, log_level='warning')
