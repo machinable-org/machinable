@@ -2,8 +2,8 @@ from .task import Task, TaskComponent as C
 from .core import Component, Mixin
 from .engine import Engine
 from .driver import Driver
-from . import engine as _engine
 from .observations import Observations
+from . import engine as _engine
 
 events = _engine.Events()
 

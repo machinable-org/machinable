@@ -1,3 +1,4 @@
+import os
 import platform
 import socket
 import pkg_resources
@@ -36,6 +37,11 @@ def _machine():
 @register_host_info
 def _python_version():
     return platform.python_version()
+
+
+@register_host_info
+def _environ():
+    return os.environ.copy()
 
 
 @register_host_info

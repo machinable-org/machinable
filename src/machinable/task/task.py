@@ -15,7 +15,7 @@ class TaskComponent:
 
         # Examples
         ```python
-        component = TaskComponent('childrens.linear_regression', {'alpha': 0.1})
+        component = TaskComponent('models.linear_regression', {'alpha': 0.1})
         ```
         """
         self.name = name

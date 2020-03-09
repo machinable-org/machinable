@@ -8,6 +8,7 @@ tests/.hypothesis
 # Docs
 node_modules
 docs/.vuepress/dist
+package-lock.json
 
 # Temporary and binary files
 *~

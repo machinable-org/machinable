@@ -76,7 +76,7 @@ def test_observation_view():
     assert observation.store('key') == 'value'
     assert 'test' in observation.store()
     assert len(observation.store()['$files'])
-    assert len(observation.host) == 5
+    assert len(observation.host) == 6
     assert len(observation.get_records_writer()) == 2
     # aliases
     o = mlo.find_by_task_name('second').first()

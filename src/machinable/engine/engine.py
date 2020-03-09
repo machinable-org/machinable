@@ -171,7 +171,11 @@ class Engine:
             node_config = config.get(node)
             children_config = [config.get(child) for child in children if child is not None]
 
-            # print summary (todo: make this an optional output)
+            # execution middleware
+            for c in [node_config] + children_config:
+                self.project.registration.before_execution_middleware(c['args'], c['flags'])
+
+            # execution print summary (todo: make this an optional output)
             msg(f"\nObservation: {node.flags['UID']} ({index + 1}/{len(execution_plan)} of task {encoded_task_id})",
                 color='header')
 

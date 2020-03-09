@@ -2,6 +2,7 @@ import shutil
 import os
 
 from machinable.project import Project
+from machinable.project import Registration
 
 
 def test_project_config():
@@ -97,3 +98,10 @@ def test_parse_config():
         if k.find('@') != -1:
             continue
         v['class'].load(instantiate=False)
+
+
+def test_project_registration():
+    test_project = Project('test_project')
+
+    assert test_project.has_registration()
+    assert isinstance(test_project.registration, Registration)

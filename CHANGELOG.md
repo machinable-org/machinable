@@ -2,14 +2,13 @@
 
 <!-- Please add changes under the Unreleased section that reads 'No current changes' otherwise -->
 
-## Unreleased
+## v1.2.0
 
-todo: documentation update for driver
-
-  - Deprecate ``local`` argument in execute() in favor of default driver
+  - New Driver API for support of custom execution modes; deprecates ``local`` argument in execute() in favor of default local driver
   - Multiprocessing driver to support parallel execution without Ray
   - Fix uncaught exception in Observations.records when data type was changed between iterations
   - Reload imported component modules to enable easier execution in interactive environments
+  - Automatically capture environment variables for host information
 
 ## v1.1.5
 

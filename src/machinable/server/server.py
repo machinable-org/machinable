@@ -12,8 +12,8 @@ schema = make_executable_schema(
 )
 
 
-application = CORSMiddleware(GraphQL(schema, keepalive=True),
-                             allow_origins=['*'],
-                             allow_methods=['*'],
-                             allow_headers=['*'],
-                             allow_credentials=True)
+server = CORSMiddleware(GraphQL(schema, keepalive=True),
+                        allow_origins=['*'],
+                        allow_methods=['*'],
+                        allow_headers=['*'],
+                        allow_credentials=True)

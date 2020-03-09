@@ -1,17 +1,35 @@
-# Remote execution using Ray
+# Drivers
 
-machinable comes with support for seamless remote execution using [Ray](https://github.com/ray-project/ray).
+machinable provides different execution drivers that enable seamless parallel and remote execution. You can also implement your own driver to customize the execution to your needs.
 
-Ray supports local as well as remote execution on [AWS and Google Cloud](https://ray.readthedocs.io/en/latest/autoscaling.html). Please refer to [Ray's documentation](https://ray.readthedocs.io) to learn how to setup and start Ray.
+## Multiprocessing
 
-machinable will automatically detect when Ray has been initialised via `ray.init()` and execute on the connected Ray backend.
+Uses Python's multiprocessing module to execute components in parallel. 
 
 ``` python
-import ray
-ray.init()   # initialise Ray or connect to remote server
+ml.execute(ml.Task().component('demo'), driver='multiprocessing')
+# by default, 5 processes are being used; to adjust the number use:
+ml.execute(ml.Task().component('demo'), driver='multiprocessing:10')
+```
 
-# detects and executes on the Ray cluster
-ml.execute(ml.Task().component('demo'))
-# executes locally only in spite Ray being available
-ml.execute(ml.Task().component('demo'), local=True)
+## Ray
+
+[Ray](https://github.com/ray-project/ray) is a powerful distributed framework that supports local as well as remote execution on [clusters like AWS and Google Cloud instances](https://ray.readthedocs.io/en/latest/autoscaling.html). Please refer to [Ray's documentation](https://ray.readthedocs.io) to learn more.
+
+To execute machinable tasks on the connected Ray backend use the Ray driver:
+
+``` python
+ml.execute(ml.Task().component('demo'), driver='ray')
+```
+
+## Custom drivers
+
+You can implement a custom driver as a subclass of `machinable.Driver` and pass them as an argument.
+
+``` python
+class CustomDriver(ml.Driver):
+
+    # implement abstract methods
+
+ml.execute(ml.Task().component('demo'), driver=CustomDriver())
 ```

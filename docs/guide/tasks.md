@@ -19,7 +19,7 @@ ml.Task().component('A').component('B').component('C')
 ```
 
 ::: tip
-Note that all task methods can be chained, e.g. ``Task().component('B').repeat(5)``. However, the order in which the methods are called does not matter.
+Note that all task methods can be chained, e.g. ``Task().component('B').repeat(5)``.
 :::
 
 ### Combining, repeating and splitting
@@ -185,6 +185,17 @@ import machinable as ml
 ml.execute(..., storage='~/observations')    # local file system
 ml.execute(..., storage='s3://bucket')       # s3 storage
 ```
+
+### Drivers
+
+While tasks are executed locally and sequential by default, machinable provides different [Driver](./drivers.md) for parallel and remote execution. For example, to execute components in parallel processes you may use the multiprocessing driver:
+
+``` python
+import machinable as ml
+ml.execute(..., driver='multiprocessing')
+```
+
+To learn more about available drivers and their options, refer to the [Driver](./drivers.md) section.
 
 ### Randomness and reproducibility
 

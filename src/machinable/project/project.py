@@ -2,6 +2,8 @@ import os
 import pickle
 import mimetypes
 import sys
+import importlib
+import traceback
 
 from fs.zipfs import WriteZipFS
 import gitignore_parser
@@ -9,18 +11,21 @@ import gitignore_parser
 from ..utils.utils import get_file_hash
 from ..utils.vcs import get_commit
 from ..utils.strings import is_valid_variable_name
+from ..utils.formatting import msg
 from ..core import Component as BaseComponent
 from ..core import Mixin as BaseMixin
 from ..config.loader import from_file as load_config_file
 from ..config.parser import parse_module_list
 from .manager import fetch_imports
 from ..engine.settings import get_settings
+from .registration import Registration
 
 
 class Project:
 
     def __init__(self, directory=None, parent=None):
         self.config_file = 'machinable.yaml'
+        self.registration_module = '_machinable'
         if directory is None:
             directory = os.getcwd()
         self.directory = directory
@@ -34,6 +39,7 @@ class Project:
         self.parsed_config = None
         self.vendor_directory = os.path.join(self.directory, 'vendor')
         self.vendor_caching = get_settings()['cache'].get('imports', False)
+        self._registration = None
 
         # create __init__.py in vendor directory and non-root projects to enable importing
         try:
@@ -93,8 +99,32 @@ class Project:
     def has_config(self):
         return os.path.isfile(os.path.join(self.directory_path, self.config_file))
 
+    def has_registration(self):
+        return os.path.isfile(os.path.join(self.directory_path, self.registration_module + '.py')) or \
+               os.path.isfile(os.path.join(self.directory_path, self.registration_module, '__init__.py'))
+
     def exists(self):
         return os.path.isfile(self.directory_path)
+
+    @property
+    def registration(self):
+        if self._registration is None:
+            if not self.has_registration():
+                self._registration = Registration()
+            else:
+                try:
+                    registration_module = importlib.import_module(self.registration_module)
+                except ImportError as ex:
+                    trace = ''.join(traceback.format_exception(etype=type(ex), value=ex, tb=ex.__traceback__))
+                    msg(f"Could not import project registration. {ex}\n{trace}", level='error', color='fail')
+
+                registration_class = getattr(registration_module, 'Project', False)
+                if not registration_class:
+                    registration_class = Registration
+
+                self._registration = registration_class()
+
+        return self._registration
 
     def get_config(self, cached='auto'):
         config_hash = None

@@ -33,7 +33,7 @@ pip install -e .
 To build the [Vuepress](https://vuepress.vuejs.org)-based documentation run:
 
 ```bash
-vuepress dev docs
+vuepress app docs
 ```
 
 If you plan to contribute please read the [contribution guide](../miscellaneous/contribution-guide.md)
