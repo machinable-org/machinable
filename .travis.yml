@@ -38,6 +38,7 @@ matrix:
       script:
         - pytest
       deploy:
+        skip_cleanup: true
         provider: pypi
         user: "__token__"
         password: $PYPI_TOKEN
