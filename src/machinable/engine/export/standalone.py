@@ -94,6 +94,9 @@ def open_fs(storage, *args, **kwargs):
     return FileSystem(storage)
 
 
+# !include machinable.observer.observer.OutputRedirection
+
+
 # !include machinable.observer.observer.Observer
 
 
