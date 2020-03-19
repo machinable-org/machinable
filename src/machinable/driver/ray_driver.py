@@ -1,6 +1,10 @@
+import traceback
+
 import ray
+from ray.exceptions import RayActorError
 
 from .driver import Driver
+from ..core.exceptions import ExecutionException
 from ..engine.functional import FunctionalCallback, FunctionalEngine
 
 
@@ -42,4 +46,10 @@ class RayDriver(Driver):
 
     def join(self):
         for object_id, promise in self.queue.items():
-            promise.resolve(ray.get(object_id))
+            try:
+                promise.resolve(ray.get(object_id))
+            except RayActorError as ex:
+                trace = ''.join(traceback.format_exception(etype=type(ex), value=ex, tb=ex.__traceback__))
+                result = ExecutionException(reason='exception',
+                                            message=f"The following exception occurred: {ex}\n{trace}")
+                promise.resolve(result)
