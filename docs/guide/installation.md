@@ -33,7 +33,12 @@ pip install -e .
 To build the [Vuepress](https://vuepress.vuejs.org)-based documentation run:
 
 ```bash
-vuepress app docs
+vuepress dev docs
+```
+
+To develop the server, use
+```bash
+uvicorn machinable.server:server --reload --port 5000
 ```
 
 If you plan to contribute please read the [contribution guide](../miscellaneous/contribution-guide.md)

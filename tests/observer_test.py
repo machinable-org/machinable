@@ -1,4 +1,6 @@
 import os
+import shutil
+
 import numpy as np
 from machinable.observer import Observer
 from machinable import execute, Task, Engine
@@ -35,3 +37,17 @@ def test_observer_storage():
 def test_records_timing():
     e = Engine(os.path.abspath('test_project'))
     execute(Task().component('timings'), engine=e)
+
+
+def test_output_redirection():
+    storage = './observations/test_data/output_redirection'
+    if os.path.exists(storage):
+        shutil.rmtree(storage, ignore_errors=True)
+
+    print('non-captured')
+    o = Observer({'uid': '654321', 'storage': storage, 'output_redirection': 'FILE_ONLY'})
+    print('hidden-but-captured')
+    o.destroy()
+    print('non-captured-again')
+    with open(os.path.join(storage, '654321/output.log'), 'r') as f:
+        assert f.read() == 'hidden-but-captured\n'

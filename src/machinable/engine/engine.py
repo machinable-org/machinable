@@ -105,6 +105,9 @@ class Engine:
                 observer_config['storage'] = '.'
             observer_config['storage'].replace('osfs://', '')
 
+        # don't use output redirection for local observer
+        output_redirection = observer_config.pop('output_redirection', 'SYS_AND_FILE')
+
         # we redirect re-runs to reruns directory
         rerun = 1
         while rerun > 0:
@@ -157,7 +160,7 @@ class Engine:
         observer._status = status
         observer.store('status.json', status, overwrite=True, _meta=True)
 
-        # register storage location (todo: think about better solution)
+        # register storage location (todo: write into sql database)
         if observer.config['storage'] != 'mem://' and rerun <= 1:
             get_history().add(observer.config['storage'])
 
@@ -168,6 +171,7 @@ class Engine:
             node.flags['EXECUTION_CARDINALITY'] = len(execution_plan)
 
             observer_config['uid'] = node.flags['UID']
+            observer_config['output_redirection'] = output_redirection
             node_config = config.get(node)
             children_config = [config.get(child) for child in children if child is not None]
 

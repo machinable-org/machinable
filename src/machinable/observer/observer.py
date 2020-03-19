@@ -1,6 +1,7 @@
 import datetime
 import json
 import os
+import sys
 try:
     import cPickle as pickle
 except ImportError:
@@ -12,6 +13,83 @@ from ..utils.dicts import update_dict, serialize
 from .record import Record
 from .log import Log
 from .host import get_host_info
+
+
+class OutputRedirection:
+
+    def __init__(self, stream_type, mode, file_open, file_name=None):
+        if stream_type not in ['stdout', 'stderr']:
+            raise ValueError(f'Invalid stream type: {stream_type}')
+
+        self._file_stream = None
+        self.stream_type = stream_type
+        self.mode = mode
+        self.file_open = file_open
+        self.file_name = file_name or stream_type + '.log'
+        self.sys_stream = getattr(sys, stream_type)
+
+        if "pytest" not in sys.modules:  # workaround to avoid interference with pytest output capture (todo: fix)
+            for stream in self.streams:
+                os.dup2(stream.fileno(), self.sys_stream.fileno())
+
+    @property
+    def file_stream(self):
+        if self._file_stream is None:
+            self._file_stream = self.file_open(self.file_name, 'a', buffering=1)
+
+        return self._file_stream
+
+    @property
+    def streams(self):
+        if self.mode == 'DISCARD':
+            return []
+
+        if self.mode == 'FILE_ONLY':
+            return [self.file_stream]
+
+        return [self.file_stream, self.sys_stream]
+
+    def write(self, message):
+        for i, stream in enumerate(self.streams):
+            try:
+                stream.write(message)
+            except IOError:
+                if i == 0:
+                    # close corrupt file stream
+                    self.close_file_stream()
+
+    def close_file_stream(self):
+        try:
+            self._file_stream.close()
+        except (IOError, AttributeError):
+            pass
+        finally:
+            self._file_stream = None
+
+    # forward attributes to standard sys stream
+
+    def __getattr__(self, item):
+        return getattr(self.sys_stream, item)
+
+    @classmethod
+    def apply(cls, mode, file_open, file_name=None):
+        if mode not in ['DISABLED', 'FILE_ONLY', 'SYS_AND_FILE', 'DISCARD']:
+            raise ValueError(f'Invalid output redirection mode: {mode}')
+
+        if mode == 'DISABLED':
+            return
+
+        sys.stdout = cls('stdout', mode, file_open, file_name)
+        sys.stderr = cls('stderr', mode, file_open, file_name)
+
+    @classmethod
+    def revert(cls):
+        if isinstance(sys.stdout, cls):
+            sys.stdout.close_file_stream()
+            sys.stdout = sys.stdout.sys_stream
+        if isinstance(sys.stderr, cls):
+            sys.stderr.close_file_stream()
+            sys.stderr = sys.stderr.sys_stream
 
 
 class Observer:
@@ -33,6 +111,7 @@ class Observer:
             'log': {},
             'records': {},
             'group': '',
+            'output_redirection': 'DISABLED',  # DISABLED, FILE_ONLY, SYS_AND_FILE, DISCARD
             'code_backup': {
                 'filename': 'code.zip',
             }
@@ -59,15 +138,17 @@ class Observer:
         self._store = {}
 
         # status
-        self._status = {}
-        if self.filesystem.isfile(self.get_path('status.json')):
-            with self.filesystem.open('status.json', 'r') as f:
-                self._status = json.load(f)
+        self._status = dict()
         self._status['started'] = str(datetime.datetime.now())
         self._status['heartbeat'] = str(datetime.datetime.now())
         self._status['finished'] = False
+        self.store('status.json', self._status, overwrite=True, _meta=True)
+
         if 'events' in self.config:
             self.events.on('heartbeat', self.refresh_status)
+
+        if not self.config['storage'].startswith('mem://'):
+            OutputRedirection.apply(self.config['output_redirection'], self.get_stream, 'output.log')
 
     def destroy(self):
         """Destroys the observer instance"""
@@ -77,6 +158,8 @@ class Observer:
         # write finished status (not triggered in the case of an unhandled exception)
         self._status['finished'] = str(datetime.datetime.now())
         self.store('status.json', self._status, overwrite=True, _meta=True)
+
+        OutputRedirection.revert()
 
     def directory(self):
         """Returns the storage directory"""
