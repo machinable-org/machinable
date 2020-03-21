@@ -105,3 +105,20 @@ def test_project_registration():
 
     assert test_project.has_registration()
     assert isinstance(test_project.registration, Registration)
+
+
+def test_project_code_backup():
+    target_file = './observations/test_data/code.zip'
+    if os.path.isfile(target_file):
+        os.remove(target_file)
+    project = Project(directory='./test_project')
+    project.backup_source_code(target_file)
+    assert os.path.isfile(target_file)
+
+
+def test_get_code_version():
+    project = Project(directory='../')
+    version = project.get_code_version()["project"]
+    assert version["path"].endswith("machinable.git")
+    assert version["commit"]
+    assert version["is_dirty"] in [True, False]

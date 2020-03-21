@@ -1,6 +1,7 @@
 import datetime
 import json
 import os
+import io
 import sys
 try:
     import cPickle as pickle
@@ -28,9 +29,13 @@ class OutputRedirection:
         self.file_name = file_name or stream_type + '.log'
         self.sys_stream = getattr(sys, stream_type)
 
-        if "pytest" not in sys.modules:  # workaround to avoid interference with pytest output capture (todo: fix)
-            for stream in self.streams:
-                os.dup2(stream.fileno(), self.sys_stream.fileno())
+        # capture output from other consumers of the underlying file descriptor
+        if self.mode != 'DISCARD':
+            try:
+                output_file_descriptor = os.dup(self.sys_stream.fileno())
+                os.dup2(self.file_stream.fileno(), output_file_descriptor)
+            except (AttributeError, IOError, io.UnsupportedOperation):
+                pass
 
     @property
     def file_stream(self):
@@ -79,6 +84,8 @@ class OutputRedirection:
         if mode == 'DISABLED':
             return
 
+        sys.stdout.flush()
+        sys.stderr.flush()
         sys.stdout = cls('stdout', mode, file_open, file_name)
         sys.stderr = cls('stderr', mode, file_open, file_name)
 
@@ -113,7 +120,7 @@ class Observer:
             'group': '',
             'output_redirection': 'DISABLED',  # DISABLED, FILE_ONLY, SYS_AND_FILE, DISCARD
             'code_backup': {
-                'filename': 'code.zip',
+                'filepath': 'code.zip',
             }
         }, config, copy=True)
         self.statistics = {}

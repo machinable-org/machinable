@@ -30,16 +30,16 @@ class Project:
             directory = os.getcwd()
         self.directory = directory
         self.parent = parent
-
-        if not self.has_config():
-            raise FileNotFoundError(f"'{self.directory_path}' does not contain a machinable.yaml")
-
         self.config_hash = None
         self.config = None
         self.parsed_config = None
         self.vendor_directory = os.path.join(self.directory, 'vendor')
         self.vendor_caching = get_settings()['cache'].get('imports', False)
         self._registration = None
+
+        if not self.has_config():
+            return
+            # raise FileNotFoundError(f"'{self.directory_path}' does not contain a machinable.yaml")
 
         # create __init__.py in vendor directory and non-root projects to enable importing
         try:
@@ -130,13 +130,16 @@ class Project:
         config_hash = None
         if cached == 'auto':
             config_hash = get_file_hash(self.config_filepath)
-            cached = (self.config_hash == config_hash)
+            if config_hash is None:
+                cached = False
+            else:
+                cached = (self.config_hash == config_hash)
 
         if cached is not False and self.config is not None:
             return self.config
 
         # load file
-        self.config = load_config_file(self.config_filepath)
+        self.config = load_config_file(self.config_filepath, default={})
         self.parsed_config = None
 
         # manage hash
@@ -155,16 +158,18 @@ class Project:
 
         return self.config
 
-    def backup_source_code(self, observer, filename):
+    def backup_source_code(self, filepath='code.zip', opener=None):
         """Writes all files in project (excluding those in .gitignore) to zip file
 
         # Arguments
-        observer: machinable.observer.observer.Observer
-        filename: String, target file
+        filepath: String, target file
+        opener: Optional file opener object. Defaults to built-in `open`
         """
+        if opener is None:
+            opener = open
 
         # Get stream in the PyFS to create zip file with
-        zip_stream = observer.get_stream(filename, 'wb')
+        zip_stream = opener(filepath, 'wb')
 
         # Get object to test whether files are in .gitignore
         try:

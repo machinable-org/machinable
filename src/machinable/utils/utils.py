@@ -1,3 +1,4 @@
+import os
 import hashlib
 import random
 
@@ -11,6 +12,8 @@ def get_file_hash(filepath):
     # Returns
     md5 hexdigest of file content
     """
+    if not os.path.isfile(filepath):
+        return None
     algorithm = hashlib.md5()
     with open(filepath, 'rb') as f:
         file_content = f.read()

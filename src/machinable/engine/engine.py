@@ -129,7 +129,10 @@ class Engine:
 
         # code backup
         if observer_config.get('code_backup', True):
-            self.project.backup_source_code(observer, **observer.config['code_backup'])
+            self.project.backup_source_code(
+                filepath=observer.config['code_backup']['filepath'],
+                opener=observer.get_stream
+            )
 
         # parse
         config = ConfigInterface(self.project.parse_config(), task.specification['version'],

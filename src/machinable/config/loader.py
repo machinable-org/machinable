@@ -27,7 +27,7 @@ class Loader(yaml.SafeLoader):
 Loader.add_constructor('!include', Loader.include)
 Loader.add_implicit_resolver(u'!include', re.compile(r'\$\/([^#^ ]*)'), first=None)
 
-# Support scientific number formats, see
+# Support scientific number formats
 Loader.add_implicit_resolver(u'tag:yaml.org,2002:float',
                              re.compile(u'''^(?:
                              [-+]?(?:[0-9][0-9_]*)\\.[0-9_]*(?:[eE][-+]?[0-9]+)?
@@ -38,10 +38,14 @@ Loader.add_implicit_resolver(u'tag:yaml.org,2002:float',
                              |\\.(?:nan|NaN|NAN))$''', re.X),
                              list(u'-+0123456789.'))
 
+sentinel = object()
 
-def from_file(filename):
+
+def from_file(filename, default=sentinel):
     if not os.path.isfile(filename):
-        raise AttributeError('Configuration file \'%s\' not found' % filename)
+        if default is not sentinel:
+            return default
+        raise FileNotFoundError(f"Configuration file '{filename}' not found")
 
     with open(filename, 'r') as f:
         config = yaml.load(f, Loader)

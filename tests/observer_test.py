@@ -39,15 +39,26 @@ def test_records_timing():
     execute(Task().component('timings'), engine=e)
 
 
-def test_output_redirection():
+def test_output_redirection(capsys):
     storage = './observations/test_data/output_redirection'
-    if os.path.exists(storage):
-        shutil.rmtree(storage, ignore_errors=True)
 
-    print('non-captured')
-    o = Observer({'uid': '654321', 'storage': storage, 'output_redirection': 'FILE_ONLY'})
-    print('hidden-but-captured')
-    o.destroy()
-    print('non-captured-again')
-    with open(os.path.join(storage, '654321/output.log'), 'r') as f:
-        assert f.read() == 'hidden-but-captured\n'
+    for mode in ['SYS_AND_FILE', 'FILE_ONLY', 'DISCARD']:
+        if os.path.exists(storage):
+            shutil.rmtree(storage, ignore_errors=True)
+
+        print('non-captured')
+        o = Observer({'uid': '654321', 'storage': storage, 'output_redirection': mode})
+        print('captured')
+        o.destroy()
+        print('non-captured-again')
+        if mode == 'DISCARD':
+            assert not os.path.isfile(os.path.join(storage, '654321/output.log'))
+        else:
+            with open(os.path.join(storage, '654321/output.log'), 'r') as f:
+                assert f.read() == 'captured\n'
+
+        assert capsys.readouterr().out == {
+            'SYS_AND_FILE': "non-captured\ncaptured\nnon-captured-again\n",
+            'FILE_ONLY': "non-captured\nnon-captured-again\n",
+            'DISCARD': "non-captured\nnon-captured-again\n"
+        }[mode]

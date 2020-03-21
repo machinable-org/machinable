@@ -2,6 +2,12 @@
 
 <!-- Please add changes under the Unreleased section that reads 'No current changes' otherwise -->
 
+## Unreleased
+
+  - Automatic output capturing
+  - Allow import registration for non-machinable repositories
+  - Handle RayActor exception gracefully
+
 ## v1.2.0
 
   - New Driver API for support of custom execution modes; deprecates ``local`` argument in execute() in favor of default local driver
