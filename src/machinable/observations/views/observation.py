@@ -96,6 +96,11 @@ class Observation(StatusTrait, BaseView):
         return self._lazyload('log', lambda m: m.load_file('log.txt', meta=True))
 
     @property
+    def output(self):
+        """Returns the content of the log file"""
+        return self._lazyload('output', lambda m: m.load_file('output.log', meta=True))
+
+    @property
     def records(self):
         """Returns the record interface"""
         return self.get_records_writer('default')
