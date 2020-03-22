@@ -2,7 +2,7 @@
 
 <!-- Please add changes under the Unreleased section that reads 'No current changes' otherwise -->
 
-## Unreleased
+## v1.2.1
 
   - Automatic output capturing
   - Allow import registration for non-machinable repositories
