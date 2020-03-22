@@ -37,6 +37,8 @@ matrix:
       before_script: cd tests
       script:
         - pytest
+      before_deploy:
+        - cd /home/travis/build/machinable-org/machinable
       deploy:
         skip_cleanup: true
         provider: pypi
