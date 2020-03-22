@@ -117,8 +117,5 @@ def test_project_code_backup():
 
 
 def test_get_code_version():
-    project = Project(directory='../')
-    version = project.get_code_version()["project"]
-    assert version["path"].endswith("machinable.git")
-    assert version["commit"]
-    assert version["is_dirty"] in [True, False]
+    project = Project(directory='./')
+    assert isinstance(project.get_code_version(), dict)
