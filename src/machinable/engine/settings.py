@@ -1,21 +1,41 @@
 import os
-import configparser
+import yaml
 
+from ..utils.dicts import update_dict
 
 _settings = None
 
 
-def get_settings(reload=False):
+def get_settings(reload=False, file='~/.machinable/settings.yaml'):
     global _settings
     if _settings is None or reload:
-        _settings = configparser.ConfigParser()
-        _settings.read(os.path.expanduser('~/.machinablerc'))
-        # default values
-        if not _settings.has_section('cache'):
-            _settings['cache'] = {}
-        if not _settings.has_section('imports'):
-            _settings['imports'] = {}
-        if not _settings.has_section('observations'):
-            _settings['observations'] = {}
+        try:
+            with open(os.path.expanduser(file), 'r') as f:
+                _settings = yaml.load(f)
+        except FileNotFoundError:
+            _settings = {}
+
+        # defaults
+        _settings = update_dict({
+            'cache': {
+                'imports': False
+            },
+            'imports': {},
+            'database': {
+                'default': 'sqlite',
+                'mysql': {
+                    'driver': 'mysql',
+                    'host': 'localhost',
+                    'database': 'database',
+                    'user': 'root',
+                    'password': '',
+                    'prefix': ''
+                },
+                'sqlite': {
+                    'driver': 'sqlite',
+                    'database': '~/.machinable/database.sqlite'
+                }
+            }
+        }, _settings)
 
     return _settings

@@ -52,13 +52,10 @@ Importing provides you with another level of modularity and makes it easy to mai
 
 ### Global dependencies
 
-Rather than re-downloading dependencies manually for every project, you can overwrite how dependency should be resolved in the `~/.machinablerc`:
-
-    [imports]
-    imported_project = /opt/imported_project
-    base = /opt/collaborative/base
-    distributed = /opt/collaborative/distributed
-    img = /opt/collaborative/img
-    rl = /opt/collaborative/rl
+Rather than re-downloading dependencies manually for every project, you can overwrite how dependency should be resolved in the `~/machinable/settings.yaml`:
+```yaml
+imports:
+  imported_project: /opt/imported_project
+```
 
 machinable will automatically symlink `/opt/imported_project` etc. into `vendor/` whenever a project declares the dependency (e.g. `imported_project`).

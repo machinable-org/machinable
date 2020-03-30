@@ -38,7 +38,7 @@ class Observations:
         self._cache = {}
         self._registry = set()
         self.database = None
-        self._init(database or get_settings()['observations'].get('database', ':memory:'))
+        self._init(database or ':memory:')  # todo: use settings
         # check storage locations in database
         for s in StorageModel.all():
             if not s.available():
