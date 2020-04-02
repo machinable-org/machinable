@@ -163,7 +163,7 @@ class Engine:
         observer._status = status
         observer.store('status.json', status, overwrite=True, _meta=True)
 
-        # register storage location (todo: write into sql database)
+        # register storage location
         if observer.config['storage'] != 'mem://' and rerun <= 1:
             get_history().add(observer.config['storage'])
 
@@ -176,8 +176,11 @@ class Engine:
             observer_config['uid'] = node.flags['UID']
             observer_config['output_redirection'] = output_redirection
             node_config = config.get(node)
-            children_config = [config.get(child) for child in children if child is not None]
-
+            children_config = []
+            for child in children:
+                c = config.get(child)
+                if c is not None:
+                    children_config.append(c)
             # execution middleware
             for c in [node_config] + children_config:
                 self.project.registration.before_execution_middleware(c['args'], c['flags'])

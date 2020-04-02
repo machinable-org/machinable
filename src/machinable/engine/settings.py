@@ -12,7 +12,7 @@ def get_settings(reload=False, file='~/.machinable/settings.yaml'):
         try:
             with open(os.path.expanduser(file), 'r') as f:
                 _settings = yaml.load(f)
-        except FileNotFoundError:
+        except (FileNotFoundError, yaml.parser.ParserError):
             _settings = {}
 
         # defaults
@@ -23,17 +23,9 @@ def get_settings(reload=False, file='~/.machinable/settings.yaml'):
             'imports': {},
             'database': {
                 'default': 'sqlite',
-                'mysql': {
-                    'driver': 'mysql',
-                    'host': 'localhost',
-                    'database': 'database',
-                    'user': 'root',
-                    'password': '',
-                    'prefix': ''
-                },
                 'sqlite': {
                     'driver': 'sqlite',
-                    'database': '~/.machinable/database.sqlite'
+                    'database': ':memory:'
                 }
             }
         }, _settings)

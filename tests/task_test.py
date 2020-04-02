@@ -59,6 +59,14 @@ def test_task_parser():
     seeding_test(spec)
 
 
+def test_task_serialization():
+    t = ml.Task().component('test', [('test', [{'a': i} for i in range(3)]),
+                                     ('test', [{'a': i} for i in range(3)])]).repeat(2)
+    json = t.to_json()
+    t_ = ml.Task.from_json(json)
+    assert str(t.specification) == str(t_.specification)
+
+
 def test_execution_modes():
     e = Engine(os.path.abspath('test_project'))
 

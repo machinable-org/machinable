@@ -1,5 +1,6 @@
 from typing import Union, Type, Tuple
 import copy
+import json
 from collections import OrderedDict
 
 
@@ -23,6 +24,7 @@ class TaskComponent:
         self.checkpoint = checkpoint
         if flags is None:
             flags = {}
+        flags = flags.copy()
         if isinstance(checkpoint, str):
             flags['CHECKPOINT'] = checkpoint
         self.flags = flags
@@ -50,21 +52,32 @@ class TaskComponent:
 
     def unpack(self):
         if isinstance(self.version, list):
-            return [__class__(self.name, v, self.checkpoint) for v in self.version]
+            return [__class__(self.name, v, self.checkpoint, self.flags) for v in self.version]
 
         return self
 
-    def __str__(self):
-        if self.name is None:
-            return 'None'
+    def to_json(self, stringify=True):
+        serialized = (self.name, copy.deepcopy(self.version), self.checkpoint, copy.deepcopy(self.flags))
+        if stringify:
+            serialized = json.dumps(serialized)
+        return serialized
 
+    @classmethod
+    def from_json(cls, serialized):
+        if isinstance(serialized, str):
+            serialized = json.loads(serialized)
+        if isinstance(serialized, list):
+            serialized = tuple(serialized)
+        return cls.create(serialized)
+
+    def __str__(self):
         return f'Component({self.name})'
 
     def __repr__(self):
         if self.name is None:
             return 'machinable.C(None)'
 
-        return f'machinable.C(name={self.name}, version={self.version}, flags={self.flags}'
+        return f'machinable.C({self.name}, version={self.version}, checkpoint={self.checkpoint}, flags={self.flags})'
 
 
 class Task:
@@ -146,7 +159,41 @@ class Task:
     @specification.setter
     def specification(self, specs):
         self._cache = None
+        if not isinstance(specs, OrderedDict):
+            specs = OrderedDict(specs)
         self._specs = specs
+
+    # serialization
+
+    def to_json(self, stringify=True):
+        def jsonify(x):
+            try:
+                return x.to_json(stringify)
+            except AttributeError:
+                return x
+
+        serialized = copy.deepcopy(self.specification)
+        for i in range(len(serialized['nodes'])):
+            args = serialized['nodes'][i]['arguments']
+            args['component'] = jsonify(args['component'])
+            args['children'] = [jsonify(c) for c in args['children']]
+        if stringify:
+            serialized = json.dumps(serialized)
+        return serialized
+
+    @classmethod
+    def from_json(cls, serialized):
+        if isinstance(serialized, str):
+            serialized = json.loads(serialized)
+        for i in range(len(serialized['nodes'])):
+            args = serialized['nodes'][i]['arguments']
+            args['component'] = TaskComponent.from_json(args['component'])
+            args['children'] = [
+                TaskComponent.from_json(c) for c in args['children']
+            ]
+        task = cls()
+        task.specification = serialized
+        return task
 
     # fluent interface
 
@@ -189,7 +236,7 @@ class Task:
             return self
 
         if not isinstance(children, list):
-            children = [children]
+            children = [TaskComponent.create(children)]
 
         for i, child in enumerate(children):
             unpacked_children = TaskComponent.create(child).unpack()
