@@ -7,7 +7,7 @@ from starlette.middleware.cors import CORSMiddleware
 from ariadne import load_schema_from_path, make_executable_schema
 from ariadne.asgi import GraphQL
 
-from .filesystem import filesystem_resolver
+from .filesystem import observation_resolver
 from .graphql import scalar_types, query, mutation, subscription
 
 dir_path = os.path.dirname(os.path.realpath(__file__))
@@ -19,7 +19,7 @@ schema = make_executable_schema(
 graphql = GraphQL(schema, keepalive=True)
 
 routes = [
-    Route('/filesystem', endpoint=filesystem_resolver)
+    Route('/filesystem/observation/{url:path}/{filename:path}', endpoint=observation_resolver)
 ]
 
 middleware = [

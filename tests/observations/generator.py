@@ -33,4 +33,7 @@ def generate_data(path=None, debug=False):
                seed='corupt',
                engine=e)
 
+    # corrupt some data
+    shutil.rmtree(os.path.join(path, 'corupt'), ignore_errors=True)
+
     return path

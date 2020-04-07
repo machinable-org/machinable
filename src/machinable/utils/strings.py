@@ -50,6 +50,14 @@ def generate_task_id(with_encoding=True, random_state=None):
     return task_id
 
 
+def is_task_id(s):
+    return len(s) == 6  # todo: actual checking
+
+
+def is_uid(s):
+    return len(s) == 12  # todo: actual checking
+
+
 def generate_uid(k=None, random_state=None):
     if random_state is None or isinstance(random_state, int):
         random_state = random.Random(random_state)

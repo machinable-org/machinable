@@ -3,6 +3,7 @@ import os
 import pytest
 
 import machinable as ml
+from machinable.observations.backend.filesystem import ObservationDirectory
 from .generator import generate_data
 
 observations_directory = None
@@ -10,18 +11,19 @@ observations_directory = None
 
 def _setup(debug=False):
     global observations_directory
-    # remove the local database
-    config_directory = os.path.expanduser('~/.machinable')
-    shutil.rmtree(config_directory, ignore_errors=True)
-    os.makedirs(config_directory)
-    # generate data
-    observations_directory = generate_data(debug=debug)
-    # delete some data
-    shutil.rmtree(os.path.join(observations_directory, 'corupt'), ignore_errors=True)
+
+    # generate data if not available
+    if observations_directory is None:
+        observations_directory = generate_data(debug=debug)
+
     mlo = ml.Observations()
-    mlo.reset()
     mlo.add(observations_directory)
     return mlo
+
+
+def _reset_settings():
+    config_directory = os.path.expanduser('~/.machinable')
+    shutil.rmtree(config_directory, ignore_errors=True)
 
 
 def test_observations():
@@ -111,3 +113,16 @@ def test_collections():
         obs.records.pluck('not_existing')
     nones = obs.records.pluck_or_none('not_existing')
     assert all([e is None for e in nones])
+
+
+def test_observation_interface():
+    _setup(debug=True)
+    o = ObservationDirectory('./observations/test_data/tttttt')
+    assert o._uid is None
+    assert o._path == 'tttttt'
+    assert o._url == 'osfs://./observations/test_data/tttttt'
+    o = ObservationDirectory('./observations/test_data/tttttt/tbAXUwxGJzA8')
+    assert o._uid == 'tbAXUwxGJzA8'
+    assert o._path == 'tttttt'
+    assert o._url == 'osfs://./observations/test_data/tttttt'
+    assert isinstance(o.load_file('task.json', meta=True), dict)
