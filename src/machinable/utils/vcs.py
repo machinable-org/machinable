@@ -9,19 +9,20 @@ def get_commit(filename, search_parent_directories=False):
     # git
     try:
         from git import Repo, InvalidGitRepositoryError
+
         try:
             directory = os.path.dirname(filename)
             repo = Repo(directory, search_parent_directories=search_parent_directories)
             try:
                 path = repo.remote().url
             except ValueError:
-                path = 'git:/' + repo.working_dir
+                path = "git:/" + repo.working_dir
             is_dirty = repo.is_dirty()
             commit = repo.head.commit.hexsha
-            return {'path': path, 'commit': commit, 'is_dirty': is_dirty}
+            return {"path": path, "commit": commit, "is_dirty": is_dirty}
         except (InvalidGitRepositoryError, ValueError):
             pass
     except ImportError:
         pass
 
-    return {'path': None, 'commit': None, 'is_dirty': None}
+    return {"path": None, "commit": None, "is_dirty": None}

@@ -2,8 +2,8 @@ import json
 
 from ariadne import ScalarType
 
-json_scalar = ScalarType('JSON')
-datetime_scalar = ScalarType('DateTime')
+json_scalar = ScalarType("JSON")
+datetime_scalar = ScalarType("DateTime")
 
 
 @datetime_scalar.serializer

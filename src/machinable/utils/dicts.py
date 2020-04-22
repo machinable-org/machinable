@@ -12,9 +12,9 @@ def get_or_fail(dict_likes, key, error="'{}' not found", options=None):
             return dict_like[key]
 
     if isinstance(options, (list, tuple)):
-        options = '\n Available: ' + ', '.join(options)
+        options = "\n Available: " + ", ".join(options)
     else:
-        options = ''
+        options = ""
 
     raise KeyError(error.format(key) + options)
 
@@ -51,20 +51,22 @@ def read_path_dict(dict_like, path):
     # Raises
     KeyError
     """
-    path = path.replace('][', '].[')
-    segments = path.split('.')  # todo: escaped_split(string=path, delimiter='.', escaper='\\')
+    path = path.replace("][", "].[")
+    segments = path.split(
+        "."
+    )  # todo: escaped_split(string=path, delimiter='.', escaper='\\')
 
     current = dict_like
     for segment in segments:
 
-        if segment.find('[') >= 0:
+        if segment.find("[") >= 0:
             # parse array notation x[y] -> key: x, segment: y
-            key = segment[segment.find('[') + 1:-1]
+            key = segment[segment.find("[") + 1 : -1]
             if key.isdigit():
                 key = int(key)
 
-            if not segment.startswith('['):
-                current = current[segment[:segment.find('[')]]
+            if not segment.startswith("["):
+                current = current[segment[: segment.find("[")]]
             current = current[key]
         else:
             current = current[segment]
@@ -75,7 +77,7 @@ def read_path_dict(dict_like, path):
 def serialize(obj):
     """JSON serializer for objects not serializable by default json code
     """
-    if getattr(obj, '__dict__', False):
+    if getattr(obj, "__dict__", False):
         return obj.__dict__
 
     return str(obj)

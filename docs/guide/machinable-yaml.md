@@ -16,7 +16,7 @@ annotations: {
           width: 150,
           height: 67, 
           value: "
-          The configuration that will become available to the component
+          The configuration that will become available to the components
           "
         },
         {
@@ -54,7 +54,7 @@ annotations: {
           width: 120,
           height: 25, 
           value: "
-          Equivalent to 'experiments.optimization'. The corresponding component will be placed in experiments/optimization.py
+          Equivalent to 'experiments.optimization'. The corresponding components will be placed in experiments/optimization.py
           "
         }
     ],
@@ -65,7 +65,7 @@ annotations: {
           width: 170,
           height: 25, 
           value: "
-          Data storage is managed and abstracted, local or in the cloud
+          Data store is managed and abstracted, local or in the cloud
           "
         },
         {
@@ -74,7 +74,7 @@ annotations: {
           width: 285,
           height: 25, 
           value: "
-          Run queries against the storage to find the observation data you need
+          Run queries against the store to find the observation data you need
           "
         },
         {
@@ -101,7 +101,7 @@ Let's take a closer look at the features of machinable's central configuration f
 
 ## Module mapping
 
-The component section lists the project's components and their configuration using the following convention: the name determines the python module that contains the component's code, for example:
+The components section lists the project's components and their configuration using the following convention: the name determines the python module that contains the components's code, for example:
 
 <Annotated name="module_mapping" :debug="false">
 <<< @/docs/.vuepress/includes/machinable_yaml/machinable.yaml
@@ -121,7 +121,7 @@ The module-to-config mapping also enables configuration sharing through inherita
 
 <<< @/docs/.vuepress/includes/machinable_yaml/machinable_inheritance.yaml
 
-Here, the extended component 'inherits' the ``base_component``'s configuration using the `^` syntax. The resulting configuration that becomes available to the ``extended_component`` would have the following structure :
+Here, the extended components 'inherits' the ``base_component``'s configuration using the `^` syntax. The resulting configuration that becomes available to the ``extended_component`` would have the following structure :
 
 ```yaml
 config_value: 1             # inherited
@@ -130,7 +130,7 @@ nested:
 new_value: 3                # new value
 ```
 
-Config inheritance can be useful in preventing unnecessary configuration repetitions ('I will copy my entire model to make a minor modification') and allows matching class inheritance structures in the component implementation.
+Config inheritance can be useful in preventing unnecessary configuration repetitions ('I will copy my entire model to make a minor modification') and allows matching class inheritance structures in the components implementation.
 
 ## Aliases
 
@@ -141,7 +141,7 @@ In larger projects, module paths can become long or convoluted. To simplify the 
 ## Config references
 
 It is often the case that configuration values depend on other configurations. For example, a model hyperparameter may depend on the dataset that is being used. In these cases, it may be useful to reference configuration values rather than duplicating them so they only have to be adjusted in one place. In the `machinable.yaml` such config references can be written using the `$` symbol. In particular, `$.{path}` refers to values from the config root while `$self.{path}`
-refers to values of the local component. Consider the following example:
+refers to values of the local components. Consider the following example:
 
 <<< @/docs/.vuepress/includes/machinable_yaml/machinable_references.yaml
 
@@ -153,7 +153,7 @@ To implement dynamic configuration dependencies, consider using [config methods]
 
 ## Versions
 
-Components often induce a number of different versions. For example, a model might have a version with and a version without momentum. To manage the configuration of different versions it can be impractical to create multiple components that inherit the configuration from some base component. Instead, we can define configuration patterns inline. To define a version, specify the configuration difference under a key that starts with `~`.
+Components often induce a number of different versions. For example, a model might have a version with and a version without momentum. To manage the configuration of different versions it can be impractical to create multiple components that inherit the configuration from some base components. Instead, we can define configuration patterns inline. To define a version, specify the configuration difference under a key that starts with `~`.
 
 <<< @/docs/.vuepress/includes/machinable_yaml/machinable_versions.yaml
 

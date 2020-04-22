@@ -1,4 +1,4 @@
 import machinable as ml
 
-export = ml.Task().component('optimization').export()
+export = ml.Experiment().components("optimization").export()
 ml.execute(export)

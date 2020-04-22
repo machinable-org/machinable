@@ -8,7 +8,7 @@ from .server import app
 
 @click.group(invoke_without_command=True)
 @click.pass_context
-@click.option('--version', '-v', is_flag=True, help='Prints the version number')
+@click.option("--version", "-v", is_flag=True, help="Prints the version number")
 def cli(ctx, version):
     if ctx.invoked_subcommand is not None:
         return

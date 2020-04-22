@@ -7,9 +7,9 @@ machinable provides different execution drivers that enable seamless parallel an
 Uses Python's multiprocessing module to execute components in parallel. 
 
 ``` python
-ml.execute(ml.Task().component('demo'), driver='multiprocessing')
+ml.execute(ml.Experiment().components('demo'), driver='multiprocessing')
 # by default, 5 processes are being used; to adjust the number use:
-ml.execute(ml.Task().component('demo'), driver='multiprocessing:10')
+ml.execute(ml.Experiment().components('demo'), driver='multiprocessing:10')
 ```
 
 ## Ray
@@ -19,17 +19,17 @@ ml.execute(ml.Task().component('demo'), driver='multiprocessing:10')
 To execute machinable tasks on the connected Ray backend use the Ray driver:
 
 ``` python
-ml.execute(ml.Task().component('demo'), driver='ray')
+ml.execute(ml.Experiment().components('demo'), driver='ray')
 ```
 
 ## Custom drivers
 
-You can implement a custom driver as a subclass of `machinable.Driver` and pass them as an argument.
+You can implement a custom driver as a subclass of `machinable.Engine` and pass them as an argument.
 
 ``` python
-class CustomDriver(ml.Driver):
+class CustomDriver(ml.Engine):
 
     # implement abstract methods
 
-ml.execute(ml.Task().component('demo'), driver=CustomDriver())
+ml.execute(ml.Experiment().components('demo'), driver=CustomDriver())
 ```

@@ -17,4 +17,4 @@ def vendor(ctx):
 def fetch():
     project = Project()
     fetch_imports(project)
-    click.echo('Dependencies have been fetched')
+    click.echo("Dependencies have been fetched")

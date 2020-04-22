@@ -15,7 +15,7 @@ def get_file_hash(filepath):
     if not os.path.isfile(filepath):
         return None
     algorithm = hashlib.md5()
-    with open(filepath, 'rb') as f:
+    with open(filepath, "rb") as f:
         file_content = f.read()
         algorithm.update(file_content)
 
@@ -37,12 +37,14 @@ def apply_seed(seed=None):
 
     try:
         import numpy as np
+
         np.random.seed(seed)
     except ImportError:
         pass
 
     try:
         import tensorflow as tf
+
         try:
             tf.random.set_seed(seed)
         except AttributeError:
@@ -53,6 +55,7 @@ def apply_seed(seed=None):
 
     try:
         import torch
+
         torch.manual_seed(seed)
     except ImportError:
         pass
@@ -72,4 +75,4 @@ def generate_seed(random_state=None):
     if random_state is None or isinstance(random_state, int):
         random_state = random.Random(random_state)
 
-    return random_state.randint(0, 2**31 - 1)
+    return random_state.randint(0, 2 ** 31 - 1)

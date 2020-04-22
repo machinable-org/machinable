@@ -81,7 +81,7 @@ annotations: {
           width: 176,
           height: 25, 
           value: "
-          Save results hassle-free to local and remote locations, or use temporary storage during development
+          Save results hassle-free to local and remote locations, or use temporary store during development
           "
         }
     ],
@@ -92,7 +92,7 @@ annotations: {
           width: 170,
           height: 25, 
           value: "
-          Data storage is managed and abstracted, local or in the cloud
+          Data store is managed and abstracted, local or in the cloud
           "
         },
         {
@@ -101,7 +101,7 @@ annotations: {
           width: 285,
           height: 25, 
           value: "
-          Run queries against the storage to find the observation data you need
+          Run queries against the store to find the observation data you need
           "
         },
         {
@@ -158,12 +158,12 @@ if self.config.control_variate:
 if self.config.distribution.name == 'normal':
     return norm(x, self.config.distribution.mu, self.config.distribution.sigma)
 ```
-So is capturing of results using tabular records, logging and storage. 
+So is capturing of results using tabular records, logging and store. 
 
 ```python
 self.record['acc'] = 0.6
 self.log.info('Training finished')
-self.observer.store('final_result.p', output_data)
+self.store.write('final_result.p', output_data)
 ```
 
 <br />
@@ -174,7 +174,7 @@ Rapidly declare execution in a fluent interface  and take advantage of automatic
 
 <Annotated name="tasks" :debug="false">
 ```python
-task = Task().component('biased_model', 
+task = Experiment().components('biased_model', 
                         [('~heavytailed', {'learning_rate': lr}) 
                         for lr in (0.25, 0.1, 0.5)]).repeat(3)
 execute(task, 's3://bucket/results')
@@ -191,7 +191,7 @@ Effortlessly retrieve the configuration, results and execution information you n
 ```python
 o = Observations('s3://bucket/results').find_by_most_recent_task().first()
 plot(y=o.records.pluck('acc'), label=o.config.learning_rate)
-result = o.store('final_result.p')
+result = o.write('final_result.p')
 ```
 </Annotated>
 

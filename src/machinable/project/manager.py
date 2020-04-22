@@ -1,6 +1,6 @@
 import os
 
-from ..engine.settings import get_settings
+from machinable.core.settings import get_settings
 from ..utils.formatting import msg
 
 
@@ -15,7 +15,9 @@ def fetch_directory(source, target):
 
 
 def fetch_git(source, target):
-    raise FileNotFoundError(f"Dependency missing. Please 'git clone {source}' into {target}")
+    raise FileNotFoundError(
+        f"Dependency missing. Please 'git clone {source}' into {target}"
+    )
 
 
 def fetch_import(source, target):
@@ -23,7 +25,7 @@ def fetch_import(source, target):
         return False
 
     # git
-    if source.startswith('git+'):
+    if source.startswith("git+"):
         return fetch_git(source[4:], target)
 
     # default: directory
@@ -32,7 +34,7 @@ def fetch_import(source, target):
 
 def fetch_imports(project, config=None):
     if config is None:
-        config = project.get_config()['+']
+        config = project.get_config()["+"]
     rc = get_settings()
     top_level_vendor = project.get_root().vendor_path
     os.makedirs(top_level_vendor, exist_ok=True)
@@ -50,13 +52,13 @@ def fetch_imports(project, config=None):
                 args = None
 
             # give local .machinablerc priority over project config
-            source = rc['imports'].get(name, args)
+            source = rc["imports"].get(name, args)
             if isinstance(source, str):
                 source = os.path.expanduser(source)
 
             # local target folder
-            os.makedirs(os.path.join(project.directory_path, 'vendor'), exist_ok=True)
-            target = os.path.join(project.directory_path, 'vendor', name)
+            os.makedirs(os.path.join(project.directory_path, "vendor"), exist_ok=True)
+            target = os.path.join(project.directory_path, "vendor", name)
 
             # protect against invalid symlinks
             if os.path.islink(target) and not os.path.exists(target):
@@ -77,7 +79,9 @@ def fetch_imports(project, config=None):
             if not os.path.exists(top_level):
                 msg(f"Fetching '+.{name}' to {top_level}")
                 if not fetch_import(source, top_level):
-                    raise FileNotFoundError(f"Could not fetch '+.{name}'. Please place it into {top_level}")
+                    raise FileNotFoundError(
+                        f"Could not fetch '+.{name}'. Please place it into {top_level}"
+                    )
 
             # symlink from top-level to local target if not identical
             if top_level != target:

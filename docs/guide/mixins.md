@@ -14,13 +14,13 @@ To make the data pipeline reusable, we can separate the `load_data` method into 
 
 <<< @/docs/.vuepress/includes/mixins/machinable_mixed.yaml
 
-The mixin configuration is placed under the `mixins` section in the `machinable.yaml`. In this example, we register the mixin with the name `data` and move the configuration that belongs to the mixin out of the component. The component can use the mixin by registering its name under `_mixins_`.
+The mixin configuration is placed under the `mixins` section in the `machinable.yaml`. In this example, we register the mixin with the name `data` and move the configuration that belongs to the mixin out of the components. The components can use the mixin by registering its name under `_mixins_`.
 
-Similiarly, the data loading method is moved from the component into the corresponding `data.py` via cut-and-paste:
+Similiarly, the data loading method is moved from the components into the corresponding `data.py` via cut-and-paste:
 
 <<< @/docs/.vuepress/includes/mixins/data_mixin.py
 
-The data loader is now completely disentangled from the component and can be maintained independently. In fact, mixins support config inheritance, aliasing and importing just like other components. In the component, we can access the mixins functionality via the `_<name>_` attribute, e.g. `_data_`:
+The data loader is now completely disentangled from the components and can be maintained independently. In fact, mixins support config inheritance, aliasing and importing just like other components. In the components, we can access the mixins functionality via the `_<name>_` attribute, e.g. `_data_`:
 
 <<< @/docs/.vuepress/includes/mixins/classifier_mixed.py
 

@@ -1,7 +1,7 @@
 # Test data
-tests/observations/test_data
+tests/v1_observations/test_data
+tests/_test_data
 tests/test_project/exports
-tests/test
 tests/.hypothesis
 **/vendor/.cache
 

@@ -10,10 +10,10 @@
 
 ## v1.2.0
 
-  - New Driver API for support of custom execution modes; deprecates ``local`` argument in execute() in favor of default local driver
+  - New Engine API for support of custom execution modes; deprecates ``local`` argument in execute() in favor of default local driver
   - Multiprocessing driver to support parallel execution without Ray
   - Fix uncaught exception in Observations.records when data type was changed between iterations
-  - Reload imported component modules to enable easier execution in interactive environments
+  - Reload imported components modules to enable easier execution in interactive environments
   - Automatically capture environment variables for host information
 
 ## v1.1.5
@@ -30,7 +30,7 @@
   - Support for Ray 0.8
   - Fixed bug in observer where task names where not captured correctly
   - New flags with execution information
-  - Exceptions in the component are now caught and reported back to the driver
+  - Exceptions in the components are now caught and reported back to the driver
 
 ## v1.1.2
 
@@ -42,7 +42,7 @@
 ## v1.1.0
 
   - Documentation source code release
-  - Removes deprecated ``Task.node()``. Use ``Task.component()`` instead
+  - Removes deprecated ``Experiment.node()``. Use ``Experiment.components()`` instead
   - New optional dependencies installation via ``pip install machinable[full]``
 
 ## v1.0.0

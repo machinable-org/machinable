@@ -1,3 +1,3 @@
 import machinable as ml
 
-ml.execute('thenode')
+ml.execute("thenode")

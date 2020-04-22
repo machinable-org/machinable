@@ -17,32 +17,31 @@ def config_map(d=None):
 
 
 class ConfigMethod(object):
-
     def __init__(self, obj, method, args, definition):
-        self._ = {'obj': obj, 'method': method, 'args': args, 'definition': definition}
+        self._ = {"obj": obj, "method": method, "args": args, "definition": definition}
 
     def evaluate(self):
         # disable config evaluation
-        state = self._['obj'].config._evaluate
-        self._['obj'].config._evaluate = False
+        state = self._["obj"].config._evaluate
+        self._["obj"].config._evaluate = False
         try:
-            costate = self._['obj'].co.config._evaluate
-            self._['obj'].co.config._evaluated = False
+            costate = self._["obj"].co.config._evaluate
+            self._["obj"].co.config._evaluated = False
         except AttributeError:
             costate = None
 
-        if self._['args'] == '':
-            value = getattr(self._['obj'], self._['method'])()
+        if self._["args"] == "":
+            value = getattr(self._["obj"], self._["method"])()
         else:
             # Yes, using eval is evil but in this case I suppose there is not enough at stake to justify
             # the implementation of a proper parser
-            obj = self._['obj']  # noqa: F841
-            value = eval('obj.' + self._['method'] + '(' + self._['args'] + ')')
+            obj = self._["obj"]  # noqa: F841
+            value = eval("obj." + self._["method"] + "(" + self._["args"] + ")")
 
         # reset config evaluation
-        self._['obj'].config._evaluate = state
+        self._["obj"].config._evaluate = state
         if costate is not None:
-            self._['obj'].co.config._evaluate = costate
+            self._["obj"].co.config._evaluate = costate
 
         if isinstance(value, dict):
             return ConfigMap(value, _dynamic=False)
@@ -60,19 +59,18 @@ class ConfigMethod(object):
 
 
 class ConfigMap(DotMap):
-
     def __init__(self, *args, **kwargs):
         self._map = OrderedDict()
         self._dynamic = True
         self._evaluate = True
         self._evaluated = False
         if kwargs:
-            if '_dynamic' in kwargs:
-                self._dynamic = kwargs['_dynamic']
-            if '_evaluate' in kwargs:
-                self._evaluate = kwargs['_evaluate']
-            if '_evaluated' in kwargs:
-                self._evaluated = kwargs['_evaluated']
+            if "_dynamic" in kwargs:
+                self._dynamic = kwargs["_dynamic"]
+            if "_evaluate" in kwargs:
+                self._evaluate = kwargs["_evaluate"]
+            if "_evaluated" in kwargs:
+                self._evaluated = kwargs["_evaluated"]
         if args:
             d = args[0]
             # for recursive assignment handling
@@ -83,26 +81,30 @@ class ConfigMap(DotMap):
                         if id(v) in trackedIDs:
                             v = trackedIDs[id(v)]
                         else:
-                            v = self.__class__(v,
-                                               _dynamic=self._dynamic,
-                                               _evaluate=self._evaluate,
-                                               _evaluated=self._evaluated)
+                            v = self.__class__(
+                                v,
+                                _dynamic=self._dynamic,
+                                _evaluate=self._evaluate,
+                                _evaluated=self._evaluated,
+                            )
                             trackedIDs[id(v)] = v
                     if type(v) is list:
                         lst = []
                         for i in v:
                             n = i
                             if isinstance(i, dict):
-                                n = self.__class__(i,
-                                                   _dynamic=self._dynamic,
-                                                   _evaluate=self._evaluate,
-                                                   _evaluated=self._evaluated)
+                                n = self.__class__(
+                                    i,
+                                    _dynamic=self._dynamic,
+                                    _evaluate=self._evaluate,
+                                    _evaluated=self._evaluated,
+                                )
                             lst.append(n)
                         v = lst
                     self._map[k] = v
         if kwargs:
             for k, v in self.__call_items(kwargs):
-                if k not in ('_dynamic', '_evaluate', '_evaluated'):
+                if k not in ("_dynamic", "_evaluate", "_evaluated"):
                     self._map[k] = v
 
     def toDict(self, evaluate=None, with_hidden=True):
@@ -110,7 +112,11 @@ class ConfigMap(DotMap):
             evaluate = bool(self._evaluate)
         d = {}
         for k, v in self.items():
-            if with_hidden is False and isinstance(k, str) and (k.startswith('_') and not k.endswith('_')):
+            if (
+                with_hidden is False
+                and isinstance(k, str)
+                and (k.startswith("_") and not k.endswith("_"))
+            ):
                 continue
             if evaluate and isinstance(v, ConfigMethod):
                 v = v.evaluate()
@@ -134,26 +140,35 @@ class ConfigMap(DotMap):
             d[k] = v
         return d
 
-    def pprint(self, pformat='json'):
-        if pformat == 'json':
+    def pprint(self, pformat="json"):
+        if pformat == "json":
             print(dumps(self.toDict(), indent=4, sort_keys=True))
         else:
             pprint(self.toDict())
 
     def __call_items(self, obj):
-        if hasattr(obj, 'iteritems') and ismethod(getattr(obj, 'iteritems')):
+        if hasattr(obj, "iteritems") and ismethod(getattr(obj, "iteritems")):
             return obj.iteritems()
         else:
             return obj.items()
 
     def copy(self):
-        return self.__class__(self, _dynamic=self._dynamic, _evaluate=self._evaluate, _evaluated=self._evaluated)
+        return self.__class__(
+            self,
+            _dynamic=self._dynamic,
+            _evaluate=self._evaluate,
+            _evaluated=self._evaluated,
+        )
 
     def get_versioning(self):
-        return [k[1:] for k in self.keys() if k.startswith('~')]
+        return [k[1:] for k in self.keys() if k.startswith("~")]
 
     def __getitem__(self, k, evaluate=None):
-        if k not in self._map and self._dynamic and k != '_ipython_canary_method_should_not_exist_':
+        if (
+            k not in self._map
+            and self._dynamic
+            and k != "_ipython_canary_method_should_not_exist_"
+        ):
             # automatically extend to new DotMap
             self[k] = self.__class__()
 
@@ -170,15 +185,27 @@ class ConfigMap(DotMap):
         return var
 
     def __setattr__(self, k, v):
-        if k in {'_map', '_dynamic', '_evaluate', '_evaluated', '_ipython_canary_method_should_not_exist_',
-                 'get_versioning'}:
+        if k in {
+            "_map",
+            "_dynamic",
+            "_evaluate",
+            "_evaluated",
+            "_ipython_canary_method_should_not_exist_",
+            "get_versioning",
+        }:
             super(DotMap, self).__setattr__(k, v)
         else:
             self[k] = v
 
     def __getattr__(self, k):
-        if k in {'_map', '_dynamic', '_evaluate', '_evaluated', '_ipython_canary_method_should_not_exist_',
-                 'get_versioning'}:
+        if k in {
+            "_map",
+            "_dynamic",
+            "_evaluate",
+            "_evaluated",
+            "_ipython_canary_method_should_not_exist_",
+            "get_versioning",
+        }:
             return super(DotMap, self).__getattr__(k)
 
         try:
@@ -190,7 +217,28 @@ class ConfigMap(DotMap):
         return self[k]
 
 
-_reserved_keys = ['_map', '_dynamic', '_evaluate', '_evaluated']
-_used_keys = ['toDict', 'pprint', 'items', 'next', 'empty', 'values', 'parseOther', 'clear', 'copy',
-              'get', 'has_key', 'keys', 'pop', 'popitem', 'setdefault', 'update', 'fromkeys',
-              'bannerStr', '_getSubMapStr', '_getSubMapDotList', '_getValueStr', '_getListStr']
+_reserved_keys = ["_map", "_dynamic", "_evaluate", "_evaluated"]
+_used_keys = [
+    "toDict",
+    "pprint",
+    "items",
+    "next",
+    "empty",
+    "values",
+    "parseOther",
+    "clear",
+    "copy",
+    "get",
+    "has_key",
+    "keys",
+    "pop",
+    "popitem",
+    "setdefault",
+    "update",
+    "fromkeys",
+    "bannerStr",
+    "_getSubMapStr",
+    "_getSubMapDotList",
+    "_getValueStr",
+    "_getListStr",
+]

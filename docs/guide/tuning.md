@@ -1,6 +1,6 @@
 # Hyperparameter tuning
 
-While tasks allow for simple configuration iteration, complex hyperparameter tuning is supported through [Ray tune](https://ray.readthedocs.io/en/latest/tune.html) using the `tune()` method of the Task object:
+While tasks allow for simple configuration iteration, complex hyperparameter tuning is supported through [Ray tune](https://ray.readthedocs.io/en/latest/tune.html) using the `tune()` method of the Experiment object:
 
 <<< @/docs/.vuepress/includes/tasks/tune.py
 

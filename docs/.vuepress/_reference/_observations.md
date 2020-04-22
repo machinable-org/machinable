@@ -14,6 +14,6 @@ Observations provide a high-level interface to retrieve observation data that is
 
 {% machinable.observations.views.records.RecordsQueryBuilder %}
 
-{% machinable.observations.views.task.Task %}
+{% machinable.observations.views.task.Experiment %}
 
 

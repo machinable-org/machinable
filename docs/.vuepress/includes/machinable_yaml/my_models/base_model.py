@@ -2,7 +2,6 @@ from machinable import Component
 
 
 class MyBaseModel(Component):
-
     def on_create(self):
         self.epoch = None
 
