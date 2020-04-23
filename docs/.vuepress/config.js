@@ -72,8 +72,8 @@ function getGuideSidebar () {
       collapsable: false,
       children: [
         'components',
-        'tasks',
-        'observations'
+        'experiments',
+        'storage'
       ]
     },
     {
@@ -82,7 +82,7 @@ function getGuideSidebar () {
       children: [
         'imports',
         'mixins',
-        'drivers',
+        'engines',
         'tuning',
         'exporting'
       ]
@@ -97,7 +97,7 @@ function getReferenceSidebar () {
       collapsable: false,
       sidebarDepth: 2,
       children: [
-        'component', 'execution', 'observations'
+        'component', 'execution', 'storage'
       ]
     },
     {

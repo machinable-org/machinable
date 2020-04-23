@@ -253,7 +253,7 @@ class Component(Mixin):
 
     @property
     def node(self) -> Optional["Component"]:
-        """Node components or None"""
+        """Node component or None"""
         return self._node
 
     @node.setter
@@ -583,7 +583,7 @@ class Component(Mixin):
 
         The method can declare arguments to handle components explicitly. For example, the signature
         ``on_create(self, node, alias_of_child_1, alias_of_child_2=None)`` declares that components
-        accepts two child components with alias ``alias_of_child_1`` and ``alias_of_child_2`` where
+        accepts two sub components with alias ``alias_of_child_1`` and ``alias_of_child_2`` where
         the latter is declared optional. If the alias starts with an underscore ``_`` the components lifecycle
         will not be triggered automatically.
 

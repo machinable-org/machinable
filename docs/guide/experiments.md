@@ -1,4 +1,4 @@
-# Tasks
+# Experiments
 
 While components encapsulate functionality using life cycle events, tasks specify their execution. The event paradigm of the components enables a powerful abstraction since we can compose arbitrary schedules for triggering the components life cycles. To make this more concrete, consider the following simple example:
 
@@ -15,7 +15,7 @@ The task interface allows for dynamic configuration adjustments in a clear and s
 A task entails an arbitrary amount of components that can be added using the ``components`` method that specifies the components name as defined in the ``machinable.yaml``.
 
 ```python
-ml.Experiment().components('A').components('B').components('C')
+ml.Experiment().component('A').components('B').components('C')
 ```
 
 ::: tip
@@ -26,14 +26,14 @@ Note that all task methods can be chained, e.g. ``Experiment().components('B').r
 
 The components can be proliferated using the ``repeat()`` functionality, for example:
 ```python
-ml.Experiment().components('A').repeat(3)
+ml.Experiment().component('A').repeat(3)
 # -> [A], [A], [A]
 ``` 
 Note that a repeat includes every components of the task and that it can be used recursively:
 ```python
-ml.Experiment().components('A').components('B').repeat(2)
+ml.Experiment().component('A').components('B').repeat(2)
 # -> [A, B], [A, B]
-ml.Experiment().components('A').components('B').repeat(2).repeat(2)
+ml.Experiment().component('A').components('B').repeat(2).repeat(2)
 # -> [[A, B], [A, B]], [[A, B], [A, B]]
 ```
 machinable will inject the flags ``REPEAT_NUMBER`` and ``REPEAT_TOTAL`` into each of the components accordingly. By default, the repeats are independent meaning machinable will inject a different ``SEED`` flag for each of the repeated components.
@@ -118,7 +118,7 @@ task = ml.Experiment().components(('optimization', '_imagenet_'))
 Taking these concepts together, task allow you to manage complex configuration adjustments in a flexible way. Consider the following example:
 
 ```python
-task = ml.Experiment().components('optimization', 
+task = ml.Experiment().component('optimization', 
                            ('~alexnet', '~mnist', {'learning_rate': 0.5}))
 ```
 
@@ -170,7 +170,7 @@ For a comprehensive description of the Experiment API, consult the [reference](.
 To schedule a task for execution, use the [execute()](../reference/execution.md#execute) method. 
 
 ```python
-task = ml.Experiment().components('example')
+task = ml.Experiment().component('example')
 ml.execute(task, store=None, seed=None)
 ```
 
@@ -202,13 +202,13 @@ To learn more about available drivers and their options, refer to the [Engine](.
 machinable chooses and sets a global random seed automatically at execution time. You can also determine the seed with the `seed` parameter by passing in a number or an execution ID:
 
 ``` python
-ml.execute(ml.Experiment().components('controlled_randomness'), seed=42)
+ml.execute(ml.Experiment().component('controlled_randomness'), seed=42)
 ```
 
 To re-use the seed of a given task ID and reproduce the execution results, you can pass the execution id as the seed:
 
 ```python 
-ml.execute(ml.Experiment().components('controlled_randomness'), seed='OY1p1o')
+ml.execute(ml.Experiment().component('controlled_randomness'), seed='OY1p1o')
 ```
 
 If you need more control over randomness and how packages are being seeded, you can overwrite the `on_seeding` event in your components class.

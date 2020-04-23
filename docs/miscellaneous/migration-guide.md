@@ -20,6 +20,6 @@ def main(components, components, observer):
     run(components.config.toDict())
 
 # use machinable's configuration engine like normal 
-task = ml.Experiment().components('my_component').repeat(3)
+task = ml.Experiment().component('my_component').repeat(3)
 
 main(task, '~results') # invoke the decorated function
