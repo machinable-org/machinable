@@ -35,7 +35,7 @@ class RemoteEngine(Engine):
         serialized["engine"] = Engine.unserialize(serialized["engine"])
         return cls.create(serialized)
 
-    async def submit(self, execution):
+    def submit(self, execution):
         if execution.storage.get("url", "mem://").startswith("mem://"):
             raise ValueError("Remote engine does not support temporary file systems")
         self.log(

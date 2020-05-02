@@ -30,16 +30,15 @@ def generate_data(path=None, debug=False):
         path,
         project="./test_project",
     )
-    # re-runs
-    for i in range(3):
-        ml.execute(
-            ml.Experiment()
-            .components(("nodes.observations", {"id": 3, "test": True}))
-            .repeat(4),
-            path,
-            seed="tttttt",
-            project="./test_project",
-        )
+
+    ml.execute(
+        ml.Experiment()
+        .components(("nodes.observations", {"id": 3, "test": True}))
+        .repeat(4),
+        path,
+        seed="tttttt",
+        project="./test_project",
+    )
 
     ml.execute(
         ml.Experiment().components(("nodes.observations", {"id": 4, "corrupt": True})),

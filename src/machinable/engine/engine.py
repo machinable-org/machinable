@@ -74,7 +74,7 @@ class Engine(Jsonable):
     def unserialize(cls, serialized):
         return cls.create(serialized)
 
-    async def submit(self, execution):
+    def submit(self, execution):
         """Retrieves an execution instance for execution
 
         Must call execution.set_result() with result and
@@ -92,7 +92,7 @@ class Engine(Jsonable):
             result = self.process(
                 execution_type, component, components, storage, resources, args, kwargs
             )
-            execution.set_result(result, echo=True)
+            execution.set_result(result)
 
         return execution
 

@@ -1,11 +1,11 @@
 from collections import OrderedDict
-import csv
 import json
 import datetime
 import pendulum
 import copy
+import pickle
 
-from ..utils.formatting import msg, prettydict
+from ..utils.formatting import msg, prettydict, serialize
 
 
 class Record:
@@ -154,16 +154,13 @@ class Record:
             if hasattr(self.store, "events"):
                 self.store.events.trigger("store.record.on_save", data)
 
-        # write human-readable csv
-        with self.store.get_stream(f"records/{self.scope}.csv", "a") as f:
-            writer = csv.writer(f)
+        # json
+        with self.store.get_stream(f"records/{self.scope}.json", "w") as f:
+            json.dump(self.history, f, ensure_ascii=False, default=serialize)
 
-            if len(self.history) == 1:
-                writer.writerow(data.keys())
-            writer.writerow(data.values())
-
-        # write json version
-        self.store.write(f"records/{self.scope}.json", self.history, _meta=True)
+        # pickle
+        with self.store.get_stream(f"records/{self.scope}.p", "wb") as f:
+            pickle.dump(self.history, f)
 
         if self.scope == "default":
             if hasattr(self.store, "events"):

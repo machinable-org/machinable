@@ -114,8 +114,9 @@ def test_project_registration():
     assert isinstance(test_project.registration, Registration)
 
 
-def test_project_code_backup():
-    target_file = "./observations/test_data/code.zip"
+def test_project_code_backup(helpers):
+    helpers.tmp_directory("code_backup")
+    target_file = "./_test_data/code_backup/code.zip"
     if os.path.isfile(target_file):
         os.remove(target_file)
     project = Project("./test_project")

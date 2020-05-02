@@ -111,7 +111,7 @@ class Store:
     heartbeat: Integer, seconds between two heartbeat events
     """
 
-    def __init__(self, config=None, heartbeat=15):
+    def __init__(self, config=None, status=True):
         if isinstance(config, dict):
             config = copy.deepcopy(config)
 
@@ -125,6 +125,7 @@ class Store:
                 "log": {},
                 "records": {},
                 "group": "",
+                "heartbeat": 15,
                 "output_redirection": "SYS_AND_FILE",  # DISABLED, FILE_ONLY, SYS_AND_FILE, DISCARD
                 "code_backup": None,
             },
@@ -143,7 +144,7 @@ class Store:
             self.events = self.config["events"]
         else:
             self.events = Events()
-        self.events.heartbeats(seconds=heartbeat)
+        self.events.heartbeats(seconds=self.config["heartbeat"])
 
         self.filesystem = open_fs(self.config["url"], create=True)
         self.filesystem.makedirs(
@@ -158,8 +159,9 @@ class Store:
         self._status = dict()
         self._status["started"] = str(datetime.datetime.now())
         self._status["finished"] = False
-        self.refresh_status()
-        self.events.on("heartbeat", self.refresh_status)
+        if status:
+            self.refresh_status()
+            self.events.on("heartbeat", self.refresh_status)
 
         if not self.config["url"].startswith("mem://"):
             OutputRedirection.apply(

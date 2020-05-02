@@ -82,7 +82,7 @@ class Observation(StatusTrait, BaseView):
         return self._lazyload(
             "flags",
             lambda m: config_map(
-                m.load_file("flags.json", meta=True, default={}).get("node")
+                m.load_file("component.json", meta=True, default={}).get("flags")
             ),
         )
 
@@ -90,7 +90,8 @@ class Observation(StatusTrait, BaseView):
     def config(self):
         """Returns the observation config"""
         return self._lazyload(
-            "config", lambda m: config_map(m.load_file("node.json", meta=True))
+            "config",
+            lambda m: config_map(m.load_file("component.json", meta=True)["config"]),
         )
 
     @property
@@ -125,7 +126,7 @@ class Observation(StatusTrait, BaseView):
             # return list of available scopes
             try:
                 scopes = self._model.filesystem().listdir("records")
-                return [s[:-2] for s in scopes if s.endswith(".p")]
+                return [s[:-2] for s in scopes if s.endswith(".json")]
             except FSError:
                 return []
         return self._lazyload(f"{scope}.records", lambda m: RecordsView(m, scope=scope))

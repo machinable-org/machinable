@@ -14,7 +14,7 @@ class DetachedEngine(Engine):
         self.using = using
         self.close = close
 
-    async def submit(self, execution):
+    def submit(self, execution):
         name = "machinable-experiment-" + execution.experiment_id
 
         url = os.path.join(

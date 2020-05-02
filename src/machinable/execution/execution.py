@@ -1,6 +1,5 @@
 import copy
 import datetime
-import asyncio
 import os
 from typing import Union, Any, Callable
 
@@ -196,15 +195,16 @@ class Execution(Jsonable):
             pass
         return False
 
-    def submit(self, asynchronous=False):
+    def submit(self):
         if not self.is_submitted():
-            self.set_schedule()
+            if len(self.schedule) == 0:
+                self.set_schedule()
             now = datetime.datetime.now()
             self.timestamp = now.timestamp()
             self.started_at = str(now)
             self.storage["group"] = self.experiment_id
             self.store = Store(
-                config=self.engine.storage_middleware(self.storage), heartbeat=None
+                config=self.engine.storage_middleware(self.storage), status=False
             )
 
             if self.code_backup is not False:
@@ -216,18 +216,7 @@ class Execution(Jsonable):
             self.store.write("execution.json", self.serialize(), _meta=True)
             self.store.write("host.json", get_host_info(), _meta=True)
 
-        coro = self.engine.submit(self)
-        try:
-            promise = asyncio.create_task(coro, name=self.experiment_id)
-        except AttributeError:
-            # < Python 3.7
-            promise = asyncio.ensure_future(coro)
-
-        if asynchronous:
-            return promise
-        else:
-            loop = asyncio.get_event_loop()
-            return loop.run_until_complete(promise)
+        return self.engine.submit(self)
 
     def set_result(self, result, index=None):
         if index is None:
@@ -270,7 +259,7 @@ class Execution(Jsonable):
         if path is None:
             path = os.path.join(os.getcwd(), "exports")
 
-        if not self.schedule:
+        if len(self.schedule) == 0:
             self.set_schedule()
 
         for (
@@ -381,6 +370,9 @@ class Execution(Jsonable):
         return encode_experiment_id(self.seed)
 
     def summary(self):
+        if len(self.schedule) == 0:
+            self.set_schedule()
+
         msg(
             f"\nExecution: {self.experiment_id}\n----------", color="header",
         )
@@ -395,7 +387,7 @@ class Execution(Jsonable):
             # only print first and last one
             shortened = len(self.schedule) > 3 and 0 < index <= len(self.schedule) - 1
             msg(
-                f"\n{self.uid[index]} ({index}/{len(self.schedule)})", color="header",
+                f"\n{self.uid[index]} ({index+1}/{len(self.schedule)})", color="header",
             )
 
             msg(f"\nComponent: {component['name']}", color="yellow")

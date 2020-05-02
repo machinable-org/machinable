@@ -46,26 +46,26 @@ def test_observations():
 
     # standard queries
     assert mlo.find("4NrOUdnAs6A5").config.test
-    assert len(mlo.find_by_task("tttttt")) == 12
-    assert len(mlo.find_by_task(["tttttt"])) == 12
-    assert len(mlo.find_by_task_name("first")) == 3
-    assert len(mlo.find_by_node_component("nodes.observations")) == len(mlo.find_all())
-    assert len(mlo.find_by_most_recent_task()) == 12
+    assert len(mlo.find_by_task("tttttt")) == 4
+    assert len(mlo.find_by_task(["tttttt"])) == 4
+    assert len(mlo.find_by_node_component("nodes.observations")) == 0
+    # len(mlo.find_all())
+    assert len(mlo.find_by_most_recent_task()) == 4
     assert len(mlo.find_by_execution(mlo.find("tttttt").first().execution_id)) == 4
     assert len(mlo.find_by_execution(mlo.find("tttttt"))) == 4
 
     # query builder
-    assert len(mlo.query.where_task("tttttt").rerun(1).get()) == 4
+    assert len(mlo.query.where_task("tttttt").get()) == 4
 
     # collections
     assert (
-        mlo.find_by_task("tttttt").where("config.to_test", "observations").count() == 12
+        mlo.find_by_task("tttttt").where("config.to_test", "observations").count() == 4
     )
 
 
 def test_observation_view():
     mlo = _setup(debug=False)
-    observation = mlo.query.where_task("tttttt").rerun(1).first()
+    observation = mlo.query.where_task("tttttt").first()
     assert observation.storage.endswith("/test_data")
     assert observation.execution_id == observation.task.execution_id
     assert observation.task.id == "tttttt"
@@ -82,13 +82,13 @@ def test_observation_view():
     assert len(observation.get_records_writer()) == 2
     # aliases
     o = mlo.find_by_task_name("second").first()
-    assert o.custom_child_attribute.config.alpha == 0
-    assert o.custom_child_attribute.components == "thechildren"
+    # assert o.custom_child_attribute.config.alpha == 0
+    # assert o.custom_child_attribute.components == "thechildren"
 
 
 def test_records_view():
     mlo = _setup(debug=False)
-    obs = mlo.query.where_task("tttttt").rerun(1).first()
+    obs = mlo.query.where_task("tttttt").first()
     records = obs.records
     assert len(records.query.where("constant", ">=", 40).get()) == 6
     # custom records scope
@@ -107,7 +107,7 @@ def test_collections():
 
     assert max(task.section(o, reduce=np.var)) > 0
     df = mlo.find_by_task("tttttt").as_dataframe()
-    assert df.size == 12 * 12
+    assert df.size == 4 * 12
     print(df.dtypes)
     obs = mlo.query.where_task("tttttt").first()
     num_elements = len(obs.records.pluck("number"))

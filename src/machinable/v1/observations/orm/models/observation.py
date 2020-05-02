@@ -82,15 +82,10 @@ class Observation(Model):
         task_fs = filesystem.opendir(path)
 
         # attributes
-        if task_fs.isfile("experiment.json"):
-            with task_fs.open("experiment.json", "r") as f:
-                try:
-                    data = json.load(f)
-                except json.decoder.JSONDecodeError:
-                    data = {}
-            attributes.setdefault("node", data.get("node"))
-            attributes.setdefault("components", ",".join(data.get("components", [])))
-            attributes.setdefault("execution_index", data.get("execution_index"))
+
+        attributes.setdefault("node", "")
+        attributes.setdefault("components", "")
+        attributes.setdefault("execution_index", None)
 
         # status
         if task_fs.isfile("status.json"):

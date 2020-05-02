@@ -57,11 +57,11 @@ class Task(Model):
         """
         task_fs = filesystem.opendir(path)
 
-        if not task_fs.isfile("experiment.json"):
+        if not task_fs.isfile("execution.json"):
             return False
 
         # attributes
-        with task_fs.open("experiment.json", "r") as f:
+        with task_fs.open("execution.json", "r") as f:
             try:
                 data = json.load(f)
             except json.decoder.JSONDecodeError:
@@ -69,29 +69,16 @@ class Task(Model):
 
         attributes.setdefault("name", data.get("name"))
         attributes.setdefault("task_id", data.get("id"))
-        attributes.setdefault("execution_id", data.get("execution_id"))
+        attributes.setdefault("execution_id", data.get("timestamp"))
         attributes.setdefault("seed", data.get("seed"))
         attributes.setdefault("tune", data.get("tune"))
-        attributes.setdefault(
-            "execution_cardinality", data.get("execution_cardinality")
-        )
-        attributes.setdefault("rerun", int(data.get("rerun")))
+        attributes.setdefault("execution_cardinality", len(data.get("schedule", [])))
+        attributes.setdefault("rerun", int(data.get("rerun", 0)))
         attributes.setdefault("code_backup", bool(data.get("code_backup")))
         attributes.setdefault("code_version", json.dumps(data.get("code_version")))
 
-        # status
-        if task_fs.isfile("status.json"):
-            with task_fs.open("status.json", "r") as f:
-                try:
-                    status = json.load(f)
-                except json.decoder.JSONDecodeError:
-                    status = {}
-            attributes.setdefault(
-                "observations_count", status.get("observations_count")
-            )
-            attributes.setdefault("started", str_to_time(status.get("started")))
-            attributes.setdefault("heartbeat", str_to_time(status.get("heartbeat")))
-            attributes.setdefault("finished", str_to_time(status.get("finished")))
+        attributes.setdefault("observations_count", len(data.get("schedule", [])))
+        attributes.setdefault("started", str_to_time(data.get("started_at")))
 
         model = cls.first_or_create(path=path, **attributes)
 

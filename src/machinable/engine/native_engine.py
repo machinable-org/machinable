@@ -15,7 +15,7 @@ class NativeEngine(Engine):
     def serialize(self):
         return {"type": "native", "processes": self.processes}
 
-    async def submit(self, execution):
+    def submit(self, execution):
         if self.processes <= 1:
             # standard execution
             return super(NativeEngine, self).submit(execution)
