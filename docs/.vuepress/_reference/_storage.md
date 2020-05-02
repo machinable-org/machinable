@@ -1,6 +1,6 @@
 # Storage
 
-The storage abstraction provides a high-level interface to retrieve observation data that is being created during execution.
+The storage abstraction provides a high-level interface to retrieve data that is being stored during execution.
 
 > Coming soon!
 

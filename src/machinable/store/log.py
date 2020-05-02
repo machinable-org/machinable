@@ -17,7 +17,7 @@ class Log:
     """
 
     def __init__(self, observer, config=None):
-        self.observer = observer
+        self.store = observer
         self.config = config
         self.logger = self._get_logger()
 
@@ -32,13 +32,13 @@ class Log:
         ch.setLevel(logging.DEBUG)
         ch.setFormatter(
             logging.Formatter(
-                fmt=f"{self.observer.directory()}; %(asctime)s; %(levelname)s: %(message)s",
+                fmt=f"{self.store.directory()}; %(asctime)s; %(levelname)s: %(message)s",
                 datefmt="%Y-%m-%d %H:%M:%S",
             )
         )
         logger.addHandler(ch)
 
-        fileh = logging.StreamHandler(self.observer.get_stream("log.txt", "a"))
+        fileh = logging.StreamHandler(self.store.get_stream("log.txt", "a"))
         fileh.setFormatter(
             logging.Formatter(
                 "%(asctime)s; %(levelname)s: %(message)s", datefmt="%Y-%m-%d %H:%M:%S"
@@ -54,8 +54,8 @@ class Log:
     def __getattr__(self, item):
         def forward(*args, **kwargs):
             method = getattr(self.logger, item)
-            if hasattr(self.observer, "events"):
-                self.observer.events.trigger("store.on_change", "log." + item)
+            if hasattr(self.store, "events"):
+                self.store.events.trigger("store.on_change", "log." + item)
             return method(*args, **kwargs)
 
         return forward

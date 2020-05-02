@@ -39,8 +39,8 @@ def test_records_timing():
     execute(Experiment().components("timings"), project="./test_project")
 
 
-def test_output_redirection(capsys):
-    storage = "./observations/test_data/output_redirection"
+def test_output_redirection(capsys, helpers):
+    storage = helpers.tmp_directory("output_redirection")
 
     for mode in ["SYS_AND_FILE", "FILE_ONLY", "DISCARD"]:
         if os.path.exists(storage):

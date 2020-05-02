@@ -361,8 +361,6 @@ class Experiment(Jsonable):
 
         The arguments differ based on the used engine.
 
-        ## Ray engine
-
-        Uses [Ray tune](https://ray.readthedocs.io/en/latest/tune.html) ([Argument reference](https://ray.readthedocs.io/en/latest/tune/api_docs/execution.html#tune-run))
+        - Ray engine: Uses [Ray tune](https://ray.readthedocs.io/en/latest/tune.html) ([Argument reference](https://ray.readthedocs.io/en/latest/tune/api_docs/execution.html#tune-run))
         """
         return self._spec("tune", locals())

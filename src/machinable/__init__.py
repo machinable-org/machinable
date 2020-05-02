@@ -36,10 +36,10 @@ def execute(experiment, storage=None, engine=None, project=None, seed=None):
 
     ```python
     @ml.execute
-    def custom_execute(components, components, store):
-        store.log.info('Custom training with learning_rate=' + str(components.config.lr))
+    def custom_execute(component, components, store):
+        store.log.info('Custom training with learning_rate=' + str(component.config.lr))
 
-    custom_execute(experiment, write, seed) # invokes the decorated function
+    custom_execute(experiment, storage, seed) # invokes the decorated function
     ```
 
     # Using the Execution

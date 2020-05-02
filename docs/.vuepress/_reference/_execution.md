@@ -1,4 +1,4 @@
-# Experiments
+# Experiment
 
 {% machinable.execute %}
 

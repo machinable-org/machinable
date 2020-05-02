@@ -8,4 +8,4 @@ def test_native_engine():
 
 def test_native_engine_multiprocessing():
     t = ml.Experiment().components("thenode", "thechildren").repeat(5)
-    ml.execute(t, engine="native:2", project="./test_project")
+    ml.execute(t, engine="native:1", project="./test_project")

@@ -65,13 +65,13 @@ For convenience, the dict interface can be accessed using the `.` object notatio
 
 Flags are configuration values that are associated with the particular execution, for example the random seeds or worker ids. They are accessible via the `self.flags` object, that supports the `.` object notation. You can add your own flags through basic assignment, e.g. ``self.flags.counter = 1``. To avoid name collision, all native machinable flags use UPPERCASE (e.g. ``self.flags.SEED``).
 
-## self.observer
+## self.store
 
-The observer interface `self.observer` allows for the storing of data and results of the components. Note that you don't have to specify where the observer data is being stored. You can specify the store location before the execution and machinable will manage unique directories automatically. The data can later be retrieved using the [Observations](./observations.md) interface.
+The observer interface `self.store` allows for the storing of data and results of the components. Note that you don't have to specify where the observer data is being stored. You can specify the store location before the execution and machinable will manage unique directories automatically. The data can later be retrieved using the [Observations](./observations.md) interface.
 
 **Log**
 
-`self.observer.log` or `self.log` provides a standard logger interface that outputs to the console and a log file.
+`self.store.log` or `self.log` provides a standard logger interface that outputs to the console and a log file.
 
 ``` python
 self.log.info('Component created')
@@ -80,7 +80,7 @@ self.log.debug('Component initialized')
 
 **Records**
 
-`self.observer.record` or `self.record` provides an interface for tabular logging, that is, storing recurring data points at each iteration. The results become available as a table where each row represents each iteration.
+`self.store.record` or `self.record` provides an interface for tabular logging, that is, storing recurring data points at each iteration. The results become available as a table where each row represents each iteration.
 
 ``` python
 for iteration in range(10):
@@ -96,11 +96,11 @@ for iteration in range(10):
 
 If you use the `on_execute_iteration` event, iteration information and `record.save()` will be triggered automatically at the end of each iteration.
 
-Sometimes it is useful to have multiple tabular loggers, for example to record training and validation performance separately. You can create custom record loggers using `self.observer.get_record_writer(scope)` which returns a new instance of a record writer that you can use just like the main record writer.
+Sometimes it is useful to have multiple tabular loggers, for example to record training and validation performance separately. You can create custom record loggers using `self.store.get_record_writer(scope)` which returns a new instance of a record writer that you can use just like the main record writer.
 
 **Store**
 
-You can use `self.observer.write()` to write any other Python object, for example:
+You can use `self.store.write()` to write any other Python object, for example:
 
 ```python
 self.store.write('final_accuracy', [0.85, 0.92])
@@ -110,10 +110,10 @@ Note that to protect unintended data loss, overwriting will fail unless the ``ov
 For larger data structures, it can be more suitable to write data in specific file formats by appending a file extension, i.e.:
 
 ``` python
-self.observer.write('data.txt', 'a string')
-self.observer.write('data.p', generic_object)
-self.observer.write('data.json', jsonable_object)
-self.observer.write('data.npy', numpy_array)
+self.store.write('data.txt', 'a string')
+self.store.write('data.p', generic_object)
+self.store.write('data.json', jsonable_object)
+self.store.write('data.npy', numpy_array)
 ```
 
 Refer to the observer [reference](./components.md#observer) for more details.

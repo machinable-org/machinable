@@ -101,15 +101,15 @@ class RayEngine(Engine):
                         components[i]["args"], components_update[i]
                     )
 
-                observer_config = copy.deepcopy(store)
-                observer_config["url"] = "../../../"
-                observer_config["allow_overwrites"] = True
+                storage_config = copy.deepcopy(store)
+                storage_config["url"] = "../../../"
+                storage_config["allow_overwrites"] = True
 
                 self.node = component["class"](node_args, node_flags)
-                self.children, self.observer = self.node.dispatch(
-                    components_config, observer_config, self, lifecycle=False
+                self.components, self.store = self.node.dispatch(
+                    components_config, storage_config, self, lifecycle=False
                 )
-                self.node.create(self.children, self.observer)
+                self.node.create(self.components, self.store)
                 self.node.execute()
                 self._node_execution_iterations = -1
 
@@ -137,10 +137,10 @@ class RayEngine(Engine):
                             self.node.store.has_records()
                             and not self.node.store.record.empty()
                         ):
-                            self.observer.record[
+                            self.store.record[
                                 "_iteration"
                             ] = self._node_execution_iterations
-                            self.observer.record.save()
+                            self.store.record.save()
                 except (KeyboardInterrupt, StopIteration):
                     callback = StopIteration
 
