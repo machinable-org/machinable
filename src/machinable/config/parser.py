@@ -4,7 +4,7 @@ import regex
 import traceback
 
 from .mapping import _reserved_keys, _used_keys
-from ..utils.strings import is_valid_variable_name
+from ..utils.utils import is_valid_variable_name
 from ..utils.dicts import get_or_fail, update_dict, read_path_dict
 from ..utils.formatting import msg
 

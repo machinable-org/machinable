@@ -5,10 +5,8 @@ import json
 from fs import open_fs
 from fs.opener.parse import parse_fs_url
 
-from machinable.utils.strings import is_experiment_id, is_uid
 
-
-class ObservationDirectory:
+class Directory:
     def __init__(self, url):
         if "://" not in url:
             url = "osfs://" + url
@@ -16,24 +14,30 @@ class ObservationDirectory:
         resource = os.path.normpath(parse_fs_url(self._url).resource)
         self._path = os.path.basename(resource)
         self._uid = None
-        if is_uid(self._path):
+        if len(self._path) == 12:
             # switch to parent
             self._uid = self._path
             self._path = os.path.basename(os.path.dirname(resource))
             self._url = self._url.replace("/" + self._uid, "")
-        if not is_experiment_id(self._path):
-            raise ValueError("The provided path is not a valid observation directory")
-        self.filesystem = open_fs(self._url)
+        if len(self._path) != 6:
+            raise ValueError("The provided path is not a valid storage directory")
 
-    def load_file(self, filename, meta=False, default=None):
-        # todo: how to handle multiple uids?
-        # implement automatic caching layer
-        # how to handle _reruns?
+        self.filesystem = open_fs(self._url, create=False)
+        # todo: implement automatic caching layer
+
+    def set_default_uid(self, uid):
+        self._uid = uid
+
+    def load_file(self, filename, uid=None, default=None):
+        if uid is None:
+            uid = self._uid or ""
+
+        if not isinstance(uid, str):
+            raise ValueError(f"Invalid UID: {uid}")
 
         name, ext = os.path.splitext(filename)
 
-        path = self._uid if not meta else ""
-        filepath = path + filename
+        filepath = os.path.join(uid, filename)
 
         if not self.filesystem.exists(filepath):
             return FileNotFoundError if default is None else default
@@ -53,6 +57,6 @@ class ObservationDirectory:
             with self.filesystem.open(filepath, "r") as f:
                 data = f.read()
         else:
-            raise ValueError("Invalid file format")
+            raise ValueError(f"Invalid file format: {ext}")
 
         return data

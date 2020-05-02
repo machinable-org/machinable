@@ -4,26 +4,30 @@ import mimetypes
 import sys
 import importlib
 import inspect
-import traceback
+import copy
 
 from fs.zipfs import WriteZipFS
 import gitignore_parser
 
-from ..utils.utils import get_file_hash
 from ..utils.vcs import get_commit
-from ..utils.strings import is_valid_variable_name
+from machinable.utils.utils import is_valid_variable_name
 from ..utils.dicts import update_dict
-from ..utils.formatting import msg
+from ..utils.traits import Jsonable
+from ..utils.formatting import msg, exception_to_str
 from ..core import Component as BaseComponent, Mixin as BaseMixin
-from ..core.core import FunctionalComponent
-from ..config.loader import from_file as load_config_file
+from ..core.component import FunctionalComponent
+from ..config.loader import (
+    from_file as load_config_file,
+    from_string as load_config_from_string,
+    from_callable as load_config_from_callable,
+)
 from ..config.parser import parse_module_list
 from .manager import fetch_imports
-from machinable.core.settings import get_settings
+from ..core.settings import get_settings
 from .registration import Registration
 
 
-class Project:
+class Project(Jsonable):
     def __init__(self, options=None, parent=None):
         if callable(options):
             if not inspect.isclass(options):
@@ -36,6 +40,7 @@ class Project:
             {
                 "directory": os.getcwd(),
                 "config_file": "machinable.yaml",
+                "config": None,
                 "registration_module": "_machinable",
                 "vendor_caching": get_settings()["cache"].get("imports", False),
                 "default_component": None,
@@ -44,7 +49,6 @@ class Project:
         )
         self.parent = parent
 
-        self.config_hash = None
         self.config = None
         self.parsed_config = None
         self._registration = None
@@ -55,6 +59,12 @@ class Project:
             and self.directory_path not in sys.path
         ):
             sys.path.insert(0, self.directory_path)
+
+    def __repr__(self):
+        return f"Project({self.directory_path})"
+
+    def __str__(self):
+        return self.__repr__()
 
     @classmethod
     def create(cls, args=None):
@@ -122,6 +132,13 @@ class Project:
 
         self.options["default_component"] = value
 
+    def serialize(self):
+        return copy.deepcopy(self.options)
+
+    @classmethod
+    def unserialize(cls, serialized):
+        return cls(serialized)
+
     def is_root(self):
         return self.parent is None
 
@@ -165,13 +182,8 @@ class Project:
                         self.options["registration_module"]
                     )
                 except ImportError as ex:
-                    trace = "".join(
-                        traceback.format_exception(
-                            etype=type(ex), value=ex, tb=ex.__traceback__
-                        )
-                    )
                     msg(
-                        f"Could not import project registration. {ex}\n{trace}",
+                        f"Could not import project registration. {ex}\n{exception_to_str(ex)}",
                         level="error",
                         color="fail",
                     )
@@ -185,25 +197,34 @@ class Project:
         return self._registration
 
     def get_config(self, cached="auto"):
-        config_hash = None
         if cached == "auto":
-            config_hash = get_file_hash(self.config_filepath)
-            if config_hash is None:
-                cached = False
-            else:
-                cached = self.config_hash == config_hash
+            # todo: reliably compute hash including vendors to determine changes
+            cashed = False
 
         if cached is not False and self.config is not None:
             return self.config
 
-        # load file
-        self.config = load_config_file(self.config_filepath, default={})
+        # load config
         self.parsed_config = None
-
-        # manage hash
-        if config_hash is None:
-            config_hash = get_file_hash(self.config_filepath)
-        self.config_hash = config_hash
+        if self.options["config"] is not None:
+            # direct specification
+            if isinstance(self.options["config"], str):
+                self.config = load_config_from_string(self.options["config"])
+            else:
+                self.config = self.options["config"]
+            if not isinstance(self.config, dict):
+                raise ValueError(
+                    f"Invalid project configuration: '{self.options['options']}'"
+                )
+        # elif isinstance(self.default_component, FunctionalComponent):
+        #     config = load_config_from_callable(self.default_component.function)
+        #     if config is None:
+        #         config = load_config_file(self.config_filepath, default={})
+        #     self.config = config
+        elif self.has_config_file():
+            self.config = load_config_file(self.config_filepath, default={})
+        else:
+            self.config = {}
 
         # validate and set defaults
         self.config.setdefault("_evaluate", True)
@@ -356,8 +377,8 @@ class Project:
 
     def parse_config(self, reference=True, cached="auto"):
         if cached == "auto":
-            cached = self.config_hash == get_file_hash(self.config_filepath)
-            # todo: detect import changes and set parse_import cache to false
+            # todo: detect from hash
+            cached = False
 
         if not cached and self.parsed_config is not None:
             return self.parsed_config

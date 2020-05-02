@@ -213,7 +213,22 @@ class ConfigInterface:
 
         return config
 
-    def get(self, component):
+    def get(self, component, components=None):
         component = ExperimentComponent.create(component)
+        node_config = self.get_component(
+            component.name, component.version, component.flags
+        )
 
-        return self.get_component(component.name, component.version, component.flags)
+        if components is None:
+            return node_config
+
+        components_config = []
+        for c in components:
+            subcomponent = ExperimentComponent.create(c)
+            component_config = self.get_component(
+                subcomponent.name, subcomponent.version, subcomponent.flags
+            )
+            if component_config is not None:
+                components_config.append(component_config)
+
+        return node_config, components_config

@@ -19,6 +19,7 @@ mixins:
   - +.fooba.experiments.base=experiment_mixin:
 components:
   - thenode:
+      timeout: 0
       a: through_config_method(1)
       alpha: 0
       ~one:

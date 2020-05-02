@@ -53,12 +53,16 @@ def from_file(filename, default=sentinel):
     if not os.path.isfile(filename):
         if default is not sentinel:
             return default
-        raise FileNotFoundError(f"Configuration file '{filename}' not found")
+        return None
 
     with open(filename, "r") as f:
         config = yaml.load(f, Loader)
 
     return config
+
+
+def from_string(text):
+    return yaml.load(text, Loader)
 
 
 def from_callable(callable: Callable, default=sentinel):
@@ -68,4 +72,4 @@ def from_callable(callable: Callable, default=sentinel):
             return default
         return None
 
-    return yaml.load(doc[1], Loader)
+    return from_string(doc[1])

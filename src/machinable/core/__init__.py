@@ -1,1 +1,1 @@
-from .core import Component, Mixin
+from .component import Component, Mixin

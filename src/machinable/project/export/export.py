@@ -7,127 +7,7 @@ import re
 import importlib
 from collections import namedtuple
 
-from ..project import Project
-from ...experiment import Experiment
-from ...experiment.parser import parse_experiment
-from ...utils.formatting import msg
-from ...config.interface import ConfigInterface
 from . import standalone
-
-
-def export_experiment(experiment, path=None, overwrite=False, project=None):
-    """Exports experiment
-
-    Converts the experiment into a plain Python project
-    that can be executed without machinable.
-
-    ::: warning
-    This feature may not work reliably in all circumstances and project use cases
-    :::
-
-    # Arguments
-    experiment: machinable.Experiment, specifies the experiment.
-    path: String, directory where exported experiment will be stored. If None defaults to 'exports' in the
-        current working directory
-    overwrite: Boolean, whether to overwrite an existing export.
-    project: Project|Dict|String|None, project used, defaults to current working directory
-    """
-    if path is None:
-        path = os.path.join(os.getcwd(), "exports")
-
-    experiment = Experiment.create(experiment)
-    project = Project.create(project)
-
-    config = ConfigInterface(
-        project.parse_config(), experiment.specification["version"]
-    )
-
-    execution_plan = list(parse_experiment(experiment.specification))
-    for index, (node, components, resources) in enumerate(execution_plan):
-        node.flags["UID"] = str(index)
-        node.flags["EXPERIMENT_ID"] = "EXPORT"
-        node.flags["EXECUTION_INDEX"] = index
-        node.flags["EXECUTION_CARDINALITY"] = len(execution_plan)
-        node.flags["EXECUTION_ID"] = index
-
-        node_config = config.get(node)
-        components_config = []
-        for component in components:
-            c = config.get(component)
-            if c is not None:
-                components_config.append(c)
-
-        # if more than one job, write into subdirectories
-        if len(execution_plan) > 1:
-            path = os.path.join(path, str(index))
-
-        export_path = os.path.abspath(path)
-
-        if os.path.exists(export_path) and not overwrite:
-            raise FileExistsError(
-                f"Export directory '{export_path}' exists. To overwrite, set overwrite=True"
-            )
-
-        msg(f"\nExporting to {export_path}", color="yellow")
-
-        export = Export(project.directory_path, export_path)
-
-        # instantiate targets
-        nd = node_config["class"](
-            config=node_config["args"], flags=node_config["flags"]
-        )
-        comps = [
-            c["class"](config=c["args"], flags=c["flags"], node=nd)
-            for c in components_config
-        ]
-
-        # export config
-        export.write(
-            "config.json",
-            {
-                "node": {
-                    "args": nd.config.toDict(evaluate=True),
-                    "flags": nd.flags.toDict(evaluate=True),
-                },
-                "components": [
-                    {
-                        "args": comps[i].config.toDict(evaluate=True),
-                        "flags": comps[i].flags.toDict(evaluate=True),
-                        "class": components_config[i]["class"].__name__,
-                    }
-                    for i in range(len(comps))
-                ],
-                "store": {"url": "./results"},
-            },
-            meta=True,
-        )
-
-        # export components and node
-        export.module(node_config["class"])
-        for c in components_config:
-            export.module(c["class"])
-
-        # export mixins
-        mixins = node_config["args"].get("_mixins_", [])
-        for c in components_config:
-            mixins.extend(c["args"].get("_mixins_", []))
-        for mixin in mixins:
-            export.module(
-                mixin["origin"].replace("+.", "vendor."), from_module_path=True
-            )
-
-        export.write("__init__.py")
-
-        export.machinable()
-
-        export.entry_point(node_config, components_config)
-
-        export.echo()
-
-        msg(
-            f"\nExporting finished. Run as 'cd {export_path} && python run.py'",
-            color="yellow",
-        )
 
 
 def copy_and_overwrite(from_path, to_path):
@@ -327,8 +207,8 @@ with open('config.json') as f:
 for k in range(len(config['components'])):
     config['components'][k]['class'] = locals()[config['components'][k]['class']]
 
-{node['class'].__name__}(config['node']['args'], config['node']['flags']).dispatch(
-    config['components'], config['store']
+{node['class'].__name__}(config['component']['args'], config['component']['flags']).dispatch(
+    config['components'], config['storage']
 )
 """
 

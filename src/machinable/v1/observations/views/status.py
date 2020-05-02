@@ -19,7 +19,7 @@ class StatusTrait:
 
     def is_finished(self):
         """True if finishing time has been written"""
-        return isinstance(self.finished, pendulum.pendulum.Pendulum)
+        return None
 
     def is_alive(self):
         """True if last heartbeat occurred less than 30 seconds ago"""

@@ -1,8 +1,9 @@
 from collections import OrderedDict
 import csv
-import pickle
+import json
 import datetime
 import pendulum
+import copy
 
 from ..utils.formatting import msg, prettydict
 
@@ -20,14 +21,14 @@ class Record:
     scope: String, optional destination name
     """
 
-    def __init__(self, observer, config=None, scope="default"):
-        self.observer = observer
+    def __init__(self, store, config=None, scope="default"):
+        self.store = store
         self.config = config if config is not None else {}
         self.scope = scope
         self.history = []
         self._record = OrderedDict()
         # create records directory
-        self.observer.get_path("records", create=True)
+        self.store.get_path("records", create=True)
 
     def write(self, key, value, fmt=None):
         """Writes a cell value
@@ -77,10 +78,10 @@ class Record:
         if timestamp is None:
             timestamp = datetime.datetime.now()
 
-        if "on_execute_start" not in self.observer.statistics:
-            self.observer.statistics["on_execute_start"] = datetime.datetime.now()
+        if "on_execute_start" not in self.store.statistics:
+            self.store.statistics["on_execute_start"] = datetime.datetime.now()
 
-        start = self.observer.statistics["on_execute_start"]
+        start = self.store.statistics["on_execute_start"]
 
         if mode == "iteration":
             if len(self.history) > 0:
@@ -125,7 +126,7 @@ class Record:
         # Returns
         The row data
         """
-        data = self._record.copy()
+        data = copy.deepcopy(self._record)
         self._record = OrderedDict()
 
         # don't save if there are no records
@@ -150,27 +151,26 @@ class Record:
         self.history.append(data)
 
         if self.scope == "default":
-            if hasattr(self.observer, "events"):
-                self.observer.events.trigger("store.record.on_save", data)
+            if hasattr(self.store, "events"):
+                self.store.events.trigger("store.record.on_save", data)
 
         # write human-readable csv
-        with self.observer.get_stream(f"records/{self.scope}.csv", "a") as f:
+        with self.store.get_stream(f"records/{self.scope}.csv", "a") as f:
             writer = csv.writer(f)
 
             if len(self.history) == 1:
                 writer.writerow(data.keys())
             writer.writerow(data.values())
 
-        # write pickle version
-        with self.observer.get_stream(f"records/{self.scope}.p", "wb") as f:
-            pickle.dump(self.history, f)
+        # write json version
+        self.store.write(f"records/{self.scope}.json", self.history, _meta=True)
 
         if self.scope == "default":
-            if hasattr(self.observer, "events"):
-                self.observer.events.trigger("store.on_change", "record.save")
+            if hasattr(self.store, "events"):
+                self.store.events.trigger("store.on_change", "record.save")
 
         if echo:
-            msg(self.observer.directory())
+            msg(self.store.directory())
             msg(prettydict(data, sort_keys=True))
 
         return data

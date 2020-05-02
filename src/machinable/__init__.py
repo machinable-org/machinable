@@ -1,9 +1,9 @@
 from .core import Component, Mixin
-from .core.execution import execute as _execute
 from .experiment import Experiment, ExperimentComponent as C
 from .engine import Engine
 from .storage import Storage
 from .project import Project
+from .execution import Execution
 
 
 def execute(experiment, storage=None, engine=None, project=None, seed=None):
@@ -23,11 +23,6 @@ def execute(experiment, storage=None, engine=None, project=None, seed=None):
     seed: Integer|String|None, determines the global random seed. If None, a random seed will be generated.
         To re-use the same random seed of a previous execution, you can pass in its [experiment ID](.)
 
-    # Engines
-
-    multiprocessing: Parallel execution using multiprocessing
-    ray: If a [Ray server](http://ray.readthedocs.io/) is available the execution will be scheduled and distributed on the Ray server.
-
     # Example
     ```python
     import machinable as ml
@@ -35,8 +30,9 @@ def execute(experiment, storage=None, engine=None, project=None, seed=None):
     ```
 
     # Functional API
-    You can use this method as a function decorator to implement a custom execution. The decorated function
-    is invoked with the node configuration as well as an store object, for example:
+    You can use this method as a function decorator to implement a custom execution.
+    The decorated function is invoked with the configuration as well as an
+    store object, for example:
 
     ```python
     @ml.execute
@@ -45,6 +41,17 @@ def execute(experiment, storage=None, engine=None, project=None, seed=None):
 
     custom_execute(experiment, write, seed) # invokes the decorated function
     ```
+
+    # Using the Execution
+
+    This method forms a wrapper around machinable.Execution. You can instantiate
+    machinable.Executon directly with the same argument to benefit from
+    more fine grained execution APIs like asynchronous executon etc.
+
+    # Returns
+
+    The execution returns an machinable.Execution object that contains the
+    result of the execution
     """
     if callable(experiment):
         # decorator use
@@ -58,20 +65,28 @@ def execute(experiment, storage=None, engine=None, project=None, seed=None):
         def wrapper(experiment, storage=None, engine=None, project=None, seed=None):
             project = Project.create(project)
             project.default_component = functional_component
-            return _execute(
-                experiment=experiment,
-                storage=storage,
-                engine=engine,
-                project=project,
-                seed=seed,
+            return (
+                Execution(
+                    experiment=experiment,
+                    storage=storage,
+                    engine=engine,
+                    project=project,
+                    seed=seed,
+                )
+                .summary()
+                .submit()
             )
 
         return wrapper
 
-    _execute(
-        experiment=experiment,
-        storage=storage,
-        engine=engine,
-        project=project,
-        seed=seed,
+    return (
+        Execution(
+            experiment=experiment,
+            storage=storage,
+            engine=engine,
+            project=project,
+            seed=seed,
+        )
+        .summary()
+        .submit()
     )

@@ -3,8 +3,10 @@ import copy
 import json
 from collections import OrderedDict
 
+from ..utils.traits import Jsonable
 
-class ExperimentComponent:
+
+class ExperimentComponent(Jsonable):
     def __init__(self, name, version=None, checkpoint=None, flags=None):
         """Experiment components
 
@@ -60,21 +62,16 @@ class ExperimentComponent:
 
         return self
 
-    def to_json(self, stringify=True):
-        serialized = (
+    def serialize(self):
+        return (
             self.name,
             copy.deepcopy(self.version),
             self.checkpoint,
             copy.deepcopy(self.flags),
         )
-        if stringify:
-            serialized = json.dumps(serialized)
-        return serialized
 
     @classmethod
-    def from_json(cls, serialized):
-        if isinstance(serialized, str):
-            serialized = json.loads(serialized)
+    def unserialize(cls, serialized):
         if isinstance(serialized, list):
             serialized = tuple(serialized)
         return cls.create(serialized)
@@ -89,7 +86,7 @@ class ExperimentComponent:
         return f"machinable.C({self.name}, version={self.version}, checkpoint={self.checkpoint}, flags={self.flags})"
 
 
-class Experiment:
+class Experiment(Jsonable):
     """Defines an execution schedule for available components. The experiment interface is fluent,
     methods can be chained in arbitrary order.
 
@@ -149,7 +146,6 @@ class Experiment:
 
         # auto-complete
         spec = self._specs.copy()
-        spec.setdefault("name", None)
         spec.setdefault("components", [])
         spec.setdefault("repeats", [])
         spec.setdefault("version", [])
@@ -165,33 +161,28 @@ class Experiment:
             specs = OrderedDict(specs)
         self._specs = specs
 
-    # serialization
-
-    def to_json(self, stringify=True):
-        def jsonify(x):
+    def serialize(self):
+        def serial(x):
             try:
-                return x.to_json(stringify)
+                return x.serialize()
             except AttributeError:
                 return x
 
         serialized = copy.deepcopy(self.specification)
         for i in range(len(serialized["components"])):
             args = serialized["components"][i]["arguments"]
-            args["node"] = jsonify(args["node"])
-            args["components"] = [jsonify(c) for c in args["components"]]
-        if stringify:
-            serialized = json.dumps(serialized)
+            args["node"] = serial(args["node"])
+            args["components"] = [serial(c) for c in args["components"]]
+
         return serialized
 
     @classmethod
-    def from_json(cls, serialized):
-        if isinstance(serialized, str):
-            serialized = json.loads(serialized)
+    def unserialize(cls, serialized):
         for i in range(len(serialized["components"])):
             args = serialized["components"][i]["arguments"]
-            args["node"] = ExperimentComponent.from_json(args["node"])
+            args["node"] = ExperimentComponent.unserialize(args["node"])
             args["components"] = [
-                ExperimentComponent.from_json(c) for c in args["components"]
+                ExperimentComponent.unserialize(c) for c in args["components"]
             ]
         task = cls()
         task.specification = serialized
@@ -205,15 +196,6 @@ class Experiment:
         task = __class__()
         task.specification = self.specification.copy()
         return task
-
-    def name(self, name):
-        """Specifies a name of the current experiment that may help to manage its results later
-
-        # Arguments
-        name: String, the name of the experiment
-        """
-        self._specs["name"] = name
-        return self
 
     def component(
         self, name, version=None, checkpoint=None, flags=None, resources=None
@@ -364,29 +346,6 @@ class Experiment:
         ```
         """
         return self._spec("repeats", dict(locals(), split=True), multiple=True)
-
-    # execution
-
-    def dry(self, verbosity=1):
-        """Marks the execution as simulation without actual execution
-
-        # Arguments
-        verbosity: ``Integer`` determining the level of output detail
-        """
-        return self._spec("dry", locals())
-
-    def confirm(self, each=False, timeout=None):
-        """Adds a confirmation step before execution
-
-        ::: warning
-        This feature is currently under development and not ready for wider use
-        :::
-
-        # Arguments
-        each: Boolean, if True each sub-execution has to be confirmed individually
-        timeout: Optional timeout in seconds after which the execution will be confirmed
-        """
-        return self._spec("confirm", locals())
 
     def tune(self, *args, **kwargs):
         """Schedules for hyperparameter tuning

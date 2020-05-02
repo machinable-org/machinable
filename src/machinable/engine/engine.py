@@ -1,26 +1,51 @@
 import ast
-from .promise import Promise
+import importlib
+import copy
+
+from ..core.exceptions import ExecutionException
 from ..utils.dicts import update_dict
+from ..utils.formatting import exception_to_str, msg
+from ..utils.traits import Jsonable
+
+_register = {
+    "native": "machinable.engine.native_engine",
+    "ray": "machinable.engine.ray_engine",
+    "detached": "machinable.engine.detached_engine",
+    "remote": "machinable.engine.remote_engine",
+    "dry": "machinable.engine.dry_engine",
+}
 
 
-class Engine:
+class Engine(Jsonable):
+    @staticmethod
+    def register(engine, name=None):
+        if name is None:
+            name = engine.__name__
+        _register[name] = engine
+
     @classmethod
     def create(cls, args):
         if isinstance(args, Engine):
             return args
 
+        if isinstance(args, dict):
+            args = copy.deepcopy(args)
+
         if isinstance(args, str):
             args = {"type": args}
 
         if args is None:
-            args = {"type": "local"}
+            args = {"type": "native"}
 
         engine = args.pop("type")
 
         arg = []
         if engine.find(":") != -1:
             engine, version = engine.split(":", maxsplit=1)
-            options = ast.literal_eval(version)
+            try:
+                options = ast.literal_eval(version)
+            except ValueError:
+                options = version
             if isinstance(options, dict):
                 args = update_dict(args, options)
             elif isinstance(options, (list, tuple)):
@@ -28,51 +53,88 @@ class Engine:
             else:
                 arg.append(options)
 
-        if engine == "local":
-            from .local_engine import LocalEngine as _Engine
-        elif engine.startswith("ray"):
-            from .ray_engine import RayEngine as _Engine
-        else:
-            raise ValueError(
-                f"Invalid engine type: {engine}. Available: 'local', 'ray'"
+        try:
+            if isinstance(_register[engine], str):
+                engine_module = importlib.import_module(_register[engine])
+                class_name_snake = _register[engine].split(".")[-1]
+                class_name = "".join(
+                    p.capitalize() for p in class_name_snake.split("_")
+                )
+                _register[engine] = getattr(engine_module, class_name)
+        except KeyError:
+            raise ValueError(f"Unknown engine: {engine}.")
+        except ImportError as ex:
+            raise ValueError(f"Engine import failed: {exception_to_str(ex)}")
+        except AttributeError:
+            raise ValueError(f"Engine could not be found.")
+
+        return _register[engine](*arg, **args)
+
+    @classmethod
+    def unserialize(cls, serialized):
+        return cls.create(serialized)
+
+    async def submit(self, execution):
+        """Retrieves an execution instance for execution
+
+        Must call execution.set_result() with result and
+        return the execution instance
+
+        # Arguments
+        execution: machinable.Execution
+
+        machinable.Execution object
+        """
+        for (
+            index,
+            (execution_type, component, components, storage, resources, args, kwargs,),
+        ) in enumerate(execution.schedule.iterate(execution.storage)):
+            result = self.process(
+                execution_type, component, components, storage, resources, args, kwargs
             )
+            execution.set_result(result, echo=True)
 
-        return _Engine(*arg, **args)
+        return execution
 
-    def submit(self, component, children, observer, resources):
-        promise = Promise(component, children, observer, resources)
-        self.execute(promise)
+    def process(self, execution_type, *args, **kwargs):
+        return getattr(self, execution_type)(*args, **kwargs)
 
-    def msg(self, message):
-        print(message)
+    def storage_middleware(self, storage):
+        return storage
+
+    def log(self, text, level="info"):
+        msg("Engine: " + text, level, color="blue")
 
     def __str__(self):
         return self.__repr__()
 
-    # abstract methods
-
     def __repr__(self):
         return "machinable.Engine"
 
-    def init(self):
-        raise NotImplementedError
-
-    def join(self):
-        raise NotImplementedError
-
-    def shutdown(self):
-        raise NotImplementedError
-
-    def execute(self, promise: Promise):
-        raise NotImplementedError
+    def execute(
+        self,
+        component,
+        components=None,
+        storage=None,
+        resources=None,
+        args=None,
+        kwargs=None,
+    ):
+        return ExecutionException(
+            reason="unsupported",
+            message="The engine does not support execution operations",
+        )
 
     def tune(
         self,
         component,
         components=None,
-        store=None,
+        storage=None,
         resources=None,
         args=None,
         kwargs=None,
     ):
-        raise NotImplementedError("This engine does not support tuning operations.")
+        return ExecutionException(
+            reason="unsupported",
+            message="The engine does not support tuning operations",
+        )

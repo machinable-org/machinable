@@ -1,12 +1,13 @@
 import random
 import copy
 
-from ..utils.utils import generate_seed
+from ..utils.utils import generate_seed, generate_uid
 from ..utils.dicts import update_dict
 
 
 def parse_experiment(specification, seed=None):
-    random_state = random.Random(seed)
+    seed_random_state = random.Random(seed)
+    uid_random_state = random.Random(seed)
 
     # repeat behaviour
     repeats = []
@@ -16,7 +17,7 @@ def parse_experiment(specification, seed=None):
         name = repeat["arguments"]["name"]
         # todo: support resuming mode that allows for nested cross validation etc
         #  mode = repeat['arguments']['mode']
-        repeat_seed = generate_seed(random_state)
+        repeat_seed = generate_seed(seed_random_state)
         # collect repeat configuration and extend already existing inner repeats
         repeat_collection = []
         for r in range(k):
@@ -44,7 +45,8 @@ def parse_experiment(specification, seed=None):
             node = node_arguments.pop("node")
 
             node.flags["GLOBAL_SEED"] = seed
-            node.flags["SEED"] = generate_seed(random_state)
+            node.flags["SEED"] = generate_seed(random_state=seed_random_state)
+            node.flags["UID"] = generate_uid(random_state=uid_random_state)[0]
             node.flags.update(repeat)
 
             yield node, components, resources

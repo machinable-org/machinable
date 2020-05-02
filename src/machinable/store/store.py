@@ -3,6 +3,7 @@ import json
 import os
 import io
 import sys
+import copy
 
 try:
     import cPickle as pickle
@@ -14,7 +15,6 @@ from fs import open_fs
 from ..utils.dicts import update_dict, serialize
 from .record import Record
 from .log import Log
-from .host import get_host_info
 
 
 class OutputRedirection:
@@ -112,6 +112,12 @@ class Store:
     """
 
     def __init__(self, config=None, heartbeat=15):
+        if isinstance(config, dict):
+            config = copy.deepcopy(config)
+
+        if isinstance(config, str):
+            config = {"url": config}
+
         # default settings
         self.config = update_dict(
             {
@@ -119,8 +125,8 @@ class Store:
                 "log": {},
                 "records": {},
                 "group": "",
-                "output_redirection": "DISABLED",  # DISABLED, FILE_ONLY, SYS_AND_FILE, DISCARD
-                "code_backup": {"filepath": "code.zip",},
+                "output_redirection": "SYS_AND_FILE",  # DISABLED, FILE_ONLY, SYS_AND_FILE, DISCARD
+                "code_backup": None,
             },
             config,
             copy=True,
@@ -131,14 +137,13 @@ class Store:
             self.config["url"] = "osfs://" + self.config["url"]
 
         # event system
-        if "events" in self.config:
-            if self.config["events"] is not None:
-                self.events = self.config["events"]
-            else:
-                from machinable.core.events import Events
+        from ..core.events import Events
 
-                self.events = Events()
-            self.events.heartbeats(seconds=heartbeat)
+        if isinstance(self.config.get("events", None), Events):
+            self.events = self.config["events"]
+        else:
+            self.events = Events()
+        self.events.heartbeats(seconds=heartbeat)
 
         self.filesystem = open_fs(self.config["url"], create=True)
         self.filesystem.makedirs(
@@ -152,12 +157,9 @@ class Store:
         # status
         self._status = dict()
         self._status["started"] = str(datetime.datetime.now())
-        self._status["heartbeat"] = str(datetime.datetime.now())
         self._status["finished"] = False
-        self.write("status.json", self._status, overwrite=True, _meta=True)
-
-        if "events" in self.config:
-            self.events.on("heartbeat", self.refresh_status)
+        self.refresh_status()
+        self.events.on("heartbeat", self.refresh_status)
 
         if not self.config["url"].startswith("mem://"):
             OutputRedirection.apply(
@@ -171,7 +173,7 @@ class Store:
             self.events.heartbeats(None)
         # write finished status (not triggered in the case of an unhandled exception)
         self._status["finished"] = str(datetime.datetime.now())
-        self.write("status.json", self._status, overwrite=True, _meta=True)
+        self.refresh_status()
 
         OutputRedirection.revert()
 
@@ -195,31 +197,10 @@ class Store:
     def refresh_status(self):
         """Updates the status.json file with a heartbeat at the current time
         """
+        if not self.config.get("uid", None):
+            return
         self._status["heartbeat"] = str(datetime.datetime.now())
         self.write("status.json", self._status, overwrite=True, _meta=True)
-
-    def refresh_meta_data(self, node=None, components=None, flags=None):
-        """Updates the observation's meta data
-
-        # Arguments
-        node: Node config
-        components: Children config
-        flags: Flags
-        """
-        self.write("node.json", node, overwrite=True, _meta=True)
-        self.write("components.json", components, overwrite=True, _meta=True)
-        self.write("flags.json", flags, overwrite=True, _meta=True)
-        self.write(
-            "experiment.json",
-            {
-                "node": flags["node"].get("NAME", None),
-                "components": [f.get("NAME", None) for f in flags["components"]],
-                "execution_index": flags["node"].get("EXECUTION_INDEX", None),
-            },
-            overwrite=True,
-            _meta=True,
-        )
-        self.write("host.json", get_host_info(), overwrite=True, _meta=True)
 
     def get_record_writer(self, scope):
         """Creates or returns an instance of a record writer
@@ -232,7 +213,7 @@ class Store:
         """
         if scope not in self._record_writers:
             self._record_writers[scope] = Record(
-                observer=self, config=self.config["records"], scope=scope
+                store=self, config=self.config["records"], scope=scope
             )
 
         return self._record_writers[scope]
@@ -309,6 +290,8 @@ class Store:
             path = "store/" + path
             self.filesystem.makedir(self.get_path(path), recreate=True)
         filepath = os.path.join(path, name)
+
+        # todo: check overwrite for files
 
         if ext == "":
             # automatic handling

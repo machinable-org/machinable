@@ -1,62 +1,61 @@
 import os
 import copy
-import traceback
 
 import ray
 from ray.exceptions import RayActorError
 
 from .engine import Engine
 from ..utils.dicts import update_dict
+from ..utils.formatting import exception_to_str
 from ..core.exceptions import ExecutionException
-from ..core.core import FunctionalComponent
+from ..core.component import FunctionalComponent
 
 
 class RayEngine(Engine):
-    def __init__(self):
-        self.queue = {}
+    def serialize(self):
+        return {"type": "ray"}
 
-    def init(self):
+    async def submit(self, execution):
         if not ray.is_initialized():
             ray.init()
 
-    def shutdown(self):
-        # workout whether to shutdown from config
-        self.queue = {}
-        ray.shutdown()
-
-    def execute(self, promise):
-        if isinstance(promise.component["class"], FunctionalComponent):
-            nd = ray.remote(resources=promise.resources)(FunctionalComponent).remote(
-                promise.component["class"].function,
-                promise.component["args"],
-                promise.component["flags"],
-            )
-        else:
-            nd = ray.remote(resources=promise.resources)(
-                promise.component["class"]
-            ).remote(promise.component["args"], promise.component["flags"])
-
-        # destroy events class as independent instances will be recreated in the local workers
-        promise.storage["events"] = None
-
-        object_id = nd.dispatch.remote(promise.components, promise.storage, nd)
-        self.queue[object_id] = promise
-
-    def join(self):
-        for object_id, promise in self.queue.items():
+        for arguments in execution.schedule.iterate(execution.storage):
             try:
-                promise.resolve(ray.get(object_id))
+                result = self.process(*arguments)
+                if isinstance(result, ray.ObjectID):
+                    result = ray.get(result)
+                execution.set_result(result)
             except RayActorError as ex:
-                trace = "".join(
-                    traceback.format_exception(
-                        etype=type(ex), value=ex, tb=ex.__traceback__
-                    )
-                )
                 result = ExecutionException(
                     reason="exception",
-                    message=f"The following exception occurred: {ex}\n{trace}",
+                    message=f"The following exception occurred: {ex}\n{exception_to_str(ex)}",
                 )
-                promise.resolve(result)
+                execution.set_result(result)
+
+        return execution
+
+    def execute(
+        self,
+        component,
+        components=None,
+        storage=None,
+        resources=None,
+        args=None,
+        kwargs=None,
+    ):
+        if isinstance(component["class"], FunctionalComponent):
+            nd = ray.remote(resources=resources)(FunctionalComponent).remote(
+                component["class"].function, component["args"], component["flags"],
+            )
+        else:
+            nd = ray.remote(resources=resources)(component["class"]).remote(
+                component["args"], component["flags"]
+            )
+
+        # destroy events class as independent instances will be recreated in the local workers
+        storage["events"] = None
+
+        return nd.dispatch.remote(components, storage, nd)
 
     def tune(
         self,

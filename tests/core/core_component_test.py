@@ -4,7 +4,7 @@ import sys
 import machinable as ml
 import pytest
 from machinable import Engine, Component
-from machinable.core.core import inject_components
+from machinable.core.component import inject_components
 
 
 def test_core_config_method():

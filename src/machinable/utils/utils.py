@@ -1,6 +1,8 @@
 import os
 import hashlib
 import random
+import string
+from keyword import iskeyword
 
 
 def get_file_hash(filepath):
@@ -76,3 +78,31 @@ def generate_seed(random_state=None):
         random_state = random.Random(random_state)
 
     return random_state.randint(0, 2 ** 31 - 1)
+
+
+def is_valid_variable_name(name):
+    if not isinstance(name, str):
+        return False
+    return name.isidentifier() and not iskeyword(name)
+
+
+def random_str(length, random_state=None):
+    if random_state is None or isinstance(random_state, int):
+        random_state = random.Random(random_state)
+
+    return "".join(
+        random_state.choice(
+            string.ascii_uppercase + string.ascii_lowercase + string.digits
+        )
+        for _ in range(length)
+    )
+
+
+def generate_uid(k=1, random_state=None):
+    if random_state is None or isinstance(random_state, int):
+        random_state = random.Random(random_state)
+
+    if not isinstance(k, int):
+        raise ValueError(f"k has to be integer, {type(k)} given")
+
+    return [random_str(length=12, random_state=random_state) for _ in range(k)]

@@ -1,7 +1,7 @@
 import machinable as ml
 
 
-def test_core_execution_decorator():
+def test_core_execute_decorator():
     @ml.execute
     def run(node, components, store):
         assert node.config.alpha == 0

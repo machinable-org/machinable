@@ -19,16 +19,12 @@ def generate_data(path=None, debug=False):
 
     # run data generator
     ml.execute(
-        ml.Experiment()
-        .name("first")
-        .components(("nodes.observations", {"id": 1}))
-        .repeat(3),
+        ml.Experiment().components(("nodes.observations", {"id": 1})).repeat(3),
         path,
         project="./test_project",
     )
     ml.execute(
         ml.Experiment()
-        .name("second")
         .components(("nodes.observations", {"id": 2}), "thechildren")
         .repeat(2),
         path,
@@ -38,7 +34,6 @@ def generate_data(path=None, debug=False):
     for i in range(3):
         ml.execute(
             ml.Experiment()
-            .name("third")
             .components(("nodes.observations", {"id": 3, "test": True}))
             .repeat(4),
             path,
@@ -47,9 +42,7 @@ def generate_data(path=None, debug=False):
         )
 
     ml.execute(
-        ml.Experiment()
-        .name("corrupt")
-        .components(("nodes.observations", {"id": 4, "corrupt": True})),
+        ml.Experiment().components(("nodes.observations", {"id": 4, "corrupt": True})),
         path,
         seed="corupt",
         project="./test_project",

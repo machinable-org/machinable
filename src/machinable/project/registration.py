@@ -1,3 +1,3 @@
 class Registration:
-    def before_execution_middleware(self, config, flags):
-        pass
+    def host_info(self):
+        return {}

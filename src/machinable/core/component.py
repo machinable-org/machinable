@@ -3,7 +3,6 @@ from typing import Dict, Union
 import copy
 import os
 import inspect
-import traceback
 from inspect import getattr_static
 from typing import Optional, List
 import datetime
@@ -16,7 +15,9 @@ from ..config.mapping import ConfigMap, config_map
 from ..config.parser import ModuleClass, parse_mixins
 from ..utils.utils import apply_seed
 from ..utils.dicts import update_dict
+from ..utils.formatting import exception_to_str
 from ..config.mapping import ConfigMethod
+from machinable.utils.host import get_host_info
 from .exceptions import ExecutionException
 
 
@@ -347,14 +348,9 @@ class Component(Mixin):
                 message="The components execution has been interrupted by the user or system.",
             )
         except BaseException as ex:
-            trace = "".join(
-                traceback.format_exception(
-                    etype=type(ex), value=ex, tb=ex.__traceback__
-                )
-            )
             status = ExecutionException(
                 reason="exception",
-                message=f"The following exception occurred: {ex}\n{trace}",
+                message=f"The following exception occurred: {ex}\n{exception_to_str(ex)}",
             )
 
         return status
@@ -405,22 +401,14 @@ class Component(Mixin):
 
         if self.store:
             self.store.statistics["on_execute_start"] = datetime.datetime.now()
-            self.store.refresh_meta_data(
-                node=self.config.toDict(evaluate=True, with_hidden=False),
-                components=[
-                    child.config.toDict(evaluate=True, with_hidden=False)
-                    for child in self.components
-                ]
+            self.store.write("host.json", get_host_info(), _meta=True)
+            self.store.write("component.json", self.serialize(), _meta=True)
+            self.store.write(
+                "components.json",
+                [component.serialize() for component in self.components]
                 if self.components
                 else [],
-                flags={
-                    "node": self.flags.toDict(evaluate=True),
-                    "components": [
-                        child.flags.toDict(evaluate=True) for child in self.components
-                    ]
-                    if self.components
-                    else [],
-                },
+                _meta=True,
             )
 
         try:
@@ -549,6 +537,12 @@ class Component(Mixin):
         if self.store is not None:
             self.store.log.info(f"Restoring checkpoint {filepath}")
         return self.on_restore(filepath)
+
+    def serialize(self):
+        return {
+            "config": self.config.toDict(evaluate=True, with_hidden=False),
+            "flags": self.flags.toDict(evaluate=True),
+        }
 
     # life cycle
 
@@ -754,13 +748,19 @@ class FunctionalComponent:
                 else:
                     store = Store(storage_config)
                     store.statistics["on_execute_start"] = datetime.datetime.now()
-                    store.refresh_meta_data(
-                        node=self.node["config"],
-                        components=[c["config"] for c in components],
-                        flags={
-                            "node": self.node["flags"],
-                            "components": [c["flags"] for c in components],
-                        },
+                    store.write("host.json", get_host_info(), _meta=True)
+                    store.write(
+                        "component",
+                        {"config": self.node["config"], "flags": self.node["flags"]},
+                        _meta=True,
+                    )
+                    store.write(
+                        "components",
+                        [
+                            {"config": c["config"], "flags": c["flags"]}
+                            for c in components
+                        ],
+                        _meta=True,
                     )
                     payload["store"] = store
             else:
@@ -778,14 +778,9 @@ class FunctionalComponent:
                 message="The components execution has been interrupted by the user or system.",
             )
         except BaseException as ex:
-            trace = "".join(
-                traceback.format_exception(
-                    etype=type(ex), value=ex, tb=ex.__traceback__
-                )
-            )
             status = ExecutionException(
                 reason="exception",
-                message=f"The following exception occurred: {ex}\n{trace}",
+                message=f"The following exception occurred: {ex}\n{exception_to_str(ex)}",
             )
 
         return status

@@ -24,16 +24,6 @@ def test_experiment_serialization():
     assert str(t.specification) == str(t_.specification)
 
 
-def test_experiment_execution_modes():
-    # dry run
-    t = ml.Experiment().components("dryrun").dry(verbosity=5)
-    assert t.specification.get("dry")["arguments"]["verbosity"] == 5
-    ml.execute(t, project="./test_project")
-
-    t = ml.Experiment().components("thenode").confirm(timeout=10)
-    assert t.specification.get("confirm")["arguments"]["timeout"] == 10
-
-
 def test_experiment_config():
     test_project = Project("./test_project")
     config = test_project.parse_config()

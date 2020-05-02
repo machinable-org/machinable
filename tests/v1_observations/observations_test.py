@@ -4,7 +4,6 @@ import pytest
 
 import machinable.v1 as ml
 from machinable.v1.history import get_history
-from machinable.v1.observations.backend.filesystem import ObservationDirectory
 from .generator import generate_data
 
 observations_directory = None
@@ -67,11 +66,9 @@ def test_observations():
 def test_observation_view():
     mlo = _setup(debug=False)
     observation = mlo.query.where_task("tttttt").rerun(1).first()
-    assert observation.is_finished()
     assert observation.storage.endswith("/test_data")
     assert observation.execution_id == observation.task.execution_id
     assert observation.task.id == "tttttt"
-    assert observation.task.is_finished()
     assert observation.task.code_version.project.path is None
     assert observation.flags.NAME == "nodes.observations"
     assert observation.config.to_test == "observations"
@@ -118,19 +115,6 @@ def test_collections():
         obs.records.pluck("not_existing")
     nones = obs.records.pluck_or_none("not_existing")
     assert all([e is None for e in nones])
-
-
-def test_observation_interface():
-    _setup(debug=True)
-    o = ObservationDirectory("./v1_observations/test_data/tttttt")
-    assert o._uid is None
-    assert o._path == "tttttt"
-    assert o._url == "osfs://./v1_observations/test_data/tttttt"
-    o = ObservationDirectory("./v1_observations/test_data/tttttt/tbAXUwxGJzA8")
-    assert o._uid == "tbAXUwxGJzA8"
-    assert o._path == "tttttt"
-    assert o._url == "osfs://./v1_observations/test_data/tttttt"
-    assert isinstance(o.load_file("experiment.json", meta=True), dict)
 
 
 def test_history():

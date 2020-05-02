@@ -22,7 +22,7 @@ except ImportError:
 import importlib
 from inspect import getattr_static
 
-# !include machinable.store.host
+# !include machinable.utils.host
 
 
 class ConfigMap(dict):
@@ -50,7 +50,7 @@ def config_map(d=None):
 # !include machinable.utils.dicts.serialize
 
 
-# !include machinable.utils.strings.is_valid_variable_name
+# !include machinable.utils.utils.is_valid_variable_name
 
 
 # !include machinable.utils.dicts.update_dict
@@ -99,10 +99,10 @@ def open_fs(storage, *args, **kwargs):
 # !include machinable.store.store.Store
 
 
-# !include machinable.core.core.set_alias
+# !include machinable.core.component.set_alias
 
 
-# !include machinable.core.core.inject_components
+# !include machinable.core.component.inject_components
 
 
 # !include machinable.config.parser.ModuleClass
@@ -111,20 +111,20 @@ def open_fs(storage, *args, **kwargs):
 # !include machinable.config.mapping.ConfigMethod
 
 
-# !include machinable.core.core.bind_config_methods
+# !include machinable.core.component.bind_config_methods
 
 
 # !include machinable.config.parser.parse_mixins
 
 
-# !include machinable.core.core.MixinInstance
+# !include machinable.core.component.MixinInstance
 
 
 Mixin = object
 # !include machinable.Mixin
 
 
-# !include machinable.core.core.ComponentState
+# !include machinable.core.component.ComponentState
 
 
-# !include machinable.core.core.Component
+# !include machinable.core.component.Component

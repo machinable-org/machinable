@@ -12,8 +12,10 @@ def get_settings(reload=False, file="~/.machinable/settings.yaml"):
         try:
             with open(os.path.expanduser(file), "r") as f:
                 _settings = yaml.load(f)
-        except (FileNotFoundError, yaml.parser.ParserError):
+        except FileNotFoundError:
             _settings = {}
+        except yaml.parser.ParserError as e:
+            _settings = {"_errors": f"Invalid configuration file: {e}"}
 
         # defaults
         _settings = update_dict(
@@ -22,8 +24,9 @@ def get_settings(reload=False, file="~/.machinable/settings.yaml"):
                 "imports": {},
                 "database": {
                     "default": "sqlite",
-                    "sqlite": {"engine": "sqlite", "database": ":memory:"},
+                    "sqlite": {"driver": "sqlite", "database": ":memory:"},
                 },
+                "tmp_directory": "userdata://machinable:machinable/tmp",
             },
             _settings,
         )
