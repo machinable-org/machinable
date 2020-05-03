@@ -57,41 +57,27 @@ class Observation(StatusTrait, BaseView):
         return self._model.load_file(name)
 
     @property
-    def children(self):
-        """Provides access the child components data of this observation (if existing)"""
-
-        def get_children(m):
-            if m.components == "":
-                return []
-
-            name = m.components.split(",")
-            config = m.load_file("components.json", meta=True)
-            flags = m.load_file("flags.json", meta=True, default={}).get("components")
-            return [
-                config_map(
-                    {"components": name[i], "config": config[i], "flags": flags[i]}
-                )
-                for i in range(len(name))
-            ]
-
-        return self._lazyload("components", get_children)
-
-    @property
     def flags(self):
         """Return the observation flags"""
+        return self.component.flags
+
+    @property
+    def components(self):
         return self._lazyload(
-            "flags",
-            lambda m: config_map(
-                m.load_file("component.json", meta=True, default={}).get("flags")
-            ),
+            "components",
+            lambda m: config_map(m.load_file("components.json", meta=True, default={})),
         )
 
     @property
     def config(self):
         """Returns the observation config"""
+        return self.component.config
+
+    @property
+    def component(self):
+        """Returns the component"""
         return self._lazyload(
-            "config",
-            lambda m: config_map(m.load_file("component.json", meta=True)["config"]),
+            "component", lambda m: config_map(m.load_file("component.json", meta=True)),
         )
 
     @property
