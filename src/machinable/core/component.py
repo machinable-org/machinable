@@ -8,6 +8,7 @@ from typing import Optional, List
 import datetime
 from collections import OrderedDict
 
+from ..utils.traits import Jsonable
 from ..store import Store
 from ..store.record import Record
 from ..store.log import Log
@@ -35,7 +36,7 @@ def inject_components(component, components, on_create):
     # default: if there are no given parameters, create each component and assign suggested attribute_
     if len(signature.parameters) == 0:
         for index, c in enumerate(components):
-            if not c._component_state.created:
+            if not c.component_state.created:
                 c.create()
             set_alias(component, c.attribute_, c)
             component.flags.COMPONENTS_ALIAS[c.attribute_] = index
@@ -120,12 +121,44 @@ def bind_config_methods(obj, config):
     return config
 
 
-class ComponentState:
-    def __init__(self):
-        self.checkpoint_counter = 0
+class ComponentState(Jsonable):
+    def __init__(
+        self, created=False, executed=False, destroyed=False, checkpoints=None
+    ):
+        self.checkpoints = checkpoints or []
         self.created = False
         self.executed = False
         self.destroyed = False
+
+    def serialize(self):
+        return {
+            "created": self.created,
+            "executed": self.executed,
+            "destroyed": self.destroyed,
+            "checkpoints": self.checkpoints,
+        }
+
+    @classmethod
+    def unserialize(cls, serialized):
+        return cls(**serialized)
+
+    @staticmethod
+    def save(component):
+        if component.node is not None or component.store is None:
+            return False
+        component.store.write(
+            "state.json",
+            {
+                "component": component.component_state.serialize(),
+                "components": [
+                    c.component_state.serialize() for c in component.components
+                ]
+                if component.components is not None
+                else None,
+            },
+            overwrite=True,
+            _meta=True,
+        )
 
 
 class MixinInstance:
@@ -204,7 +237,7 @@ class Component(Mixin):
         self._store: Optional[Store] = None
         self._actor_config = None
         self.__mixin__ = None
-        self._component_state = ComponentState()
+        self.component_state = ComponentState()
 
         if self.on_init(config, flags, node) is False:
             return
@@ -386,7 +419,8 @@ class Component(Mixin):
 
         self.on_after_create()
 
-        self._component_state.created = True
+        self.component_state.created = True
+        self.component_state.save(self)
 
     def execute(self):
         """Executes the components
@@ -410,6 +444,7 @@ class Component(Mixin):
                 else [],
                 _meta=True,
             )
+            self.component_state.save(self)
 
         try:
             status = self.on_execute()
@@ -449,7 +484,8 @@ class Component(Mixin):
 
         self.on_after_execute()
 
-        self._component_state.executed = True
+        self.component_state.executed = True
+        self.component_state.save(self)
 
         return status
 
@@ -465,21 +501,22 @@ class Component(Mixin):
         self.on_before_destroy()
 
         if self.components and len(self.components) > 0:
-            for child in self.components:
+            for component in self.components:
                 if (
-                    child._component_state.created
-                    and not child._component_state.destroyed
+                    component.component_state.created
+                    and not component.component_state.destroyed
                 ):
-                    child.destroy()
+                    component.destroy()
 
         self.on_destroy()
+
+        self.component_state.destroyed = True
+        self.component_state.save(self)
 
         if self.store:
             self.store.destroy()
 
         self.on_after_destroy()
-
-        self._component_state.destroyed = True
 
     def set_seed(self, seed=None) -> bool:
         """Applies a global random seed
@@ -506,25 +543,27 @@ class Component(Mixin):
         Filepath of the saved checkpoint or False if checkpoint has not been saved
         """
         if timestep is None:
-            timestep: int = self._component_state.checkpoint_counter
+            timestep: int = len(self.component_state.checkpoints)
 
         if path is None:
-            if not self.node.store:
+            if not self.store:
                 raise ValueError("You need to specify a checkpoint path")
 
-            fs_prefix, basepath = self.node.store.config["url"].split("://")
+            fs_prefix, basepath = self.store.config["url"].split("://")
             if fs_prefix != "osfs":
                 # todo: support non-local filesystems via automatic sync
                 raise NotImplementedError(
                     "Checkpointing to non-os file systems is currently not supported."
                 )
-            checkpoint_path = self.node.store.get_path("checkpoints", create=True)
+            checkpoint_path = self.store.get_path("checkpoints", create=True)
             path = os.path.join(os.path.expanduser(basepath), checkpoint_path)
 
         checkpoint = self.on_save(path, timestep)
 
-        if checkpoint is not False:
-            self._component_state.checkpoint_counter += 1
+        self.component_state.checkpoints.append(
+            {"timestep": timestep, "path": path, "checkpoint": checkpoint}
+        )
+        self.component_state.save(self)
 
         return checkpoint
 
