@@ -1,4 +1,5 @@
 import pytest
+
 from machinable import Experiment
 from machinable.config.interface import ConfigInterface
 from machinable.experiment.parser import parse_experiment

@@ -1,7 +1,9 @@
-from ..core import Component as _V2Component, Mixin
-from ..experiment import Experiment as _Experiment, ExperimentComponent as C
-from .observations import Observations
 from .. import execute as _execute
+from ..core import Component as _V2Component
+from ..core import Mixin
+from ..experiment import Experiment as _Experiment
+from ..experiment import ExperimentComponent as C
+from .observations import Observations
 
 
 def execute(task, storage=None, seed=None, driver=None):

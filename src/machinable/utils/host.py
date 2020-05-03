@@ -1,6 +1,7 @@
 import os
 import platform
 import socket
+
 import pkg_resources
 
 _getters = {}

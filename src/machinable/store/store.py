@@ -1,20 +1,20 @@
+import copy
 import datetime
+import io
 import json
 import os
-import io
 import sys
-import copy
+
+from fs import open_fs
+
+from ..utils.dicts import serialize, update_dict
+from .log import Log
+from .record import Record
 
 try:
     import cPickle as pickle
 except ImportError:
     import pickle
-
-from fs import open_fs
-
-from ..utils.dicts import update_dict, serialize
-from .record import Record
-from .log import Log
 
 
 class OutputRedirection:

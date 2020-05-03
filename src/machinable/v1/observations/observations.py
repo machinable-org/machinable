@@ -1,16 +1,16 @@
-import os
 import datetime
+import os
 
 import pendulum
-from orator import Model
-from orator import DatabaseManager
 from fs.errors import CreateFailed as CreateFailedException
+from orator import DatabaseManager, Model
 
 from machinable.v1.history import get_history
-from ..observations.orm.query_builder import QueryBuilder
+
 from ..observations.orm.migrations import run as migrate_database
-from ..observations.orm.models import StorageModel, ObservationModel, TaskModel
-from .collections import ObservationCollection, Collection
+from ..observations.orm.models import ObservationModel, StorageModel, TaskModel
+from ..observations.orm.query_builder import QueryBuilder
+from .collections import Collection, ObservationCollection
 from .views import ObservationView, TaskView
 
 

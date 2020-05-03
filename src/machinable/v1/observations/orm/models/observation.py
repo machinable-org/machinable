@@ -1,16 +1,16 @@
-import os
 import json
+import os
+
+from orator import Model
+from orator.exceptions.query import QueryException
+from orator.orm import belongs_to, scope
+
+from machinable.utils.formatting import str_to_time
 
 try:
     import cPickle as pickle
 except ImportError:
     import pickle
-
-from orator import Model
-from orator.orm import belongs_to, scope
-from orator.exceptions.query import QueryException
-
-from machinable.utils.formatting import str_to_time
 
 
 class Observation(Model):

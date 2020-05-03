@@ -2,8 +2,8 @@ import os
 import sys
 from shlex import quote
 
-from .engine import Engine
 from ..core.settings import get_settings
+from .engine import Engine
 
 
 class DetachedEngine(Engine):

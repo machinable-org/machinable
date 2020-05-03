@@ -1,5 +1,6 @@
-import machinable as ml
 import numpy as np
+
+import machinable as ml
 
 random_search = (
     ml.Experiment()

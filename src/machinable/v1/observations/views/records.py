@@ -2,9 +2,10 @@ import datetime
 
 from orator import DatabaseManager, Schema
 
-from ..orm.query_builder import QueryBuilder
-from ..collections import RecordsCollection
 from machinable.utils.formatting import prettydict
+
+from ..collections import RecordsCollection
+from ..orm.query_builder import QueryBuilder
 
 
 class Records(RecordsCollection):

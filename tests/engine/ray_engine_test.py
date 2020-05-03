@@ -1,5 +1,6 @@
-import machinable as ml
 import pytest
+
+import machinable as ml
 
 
 def test_ray_engine():

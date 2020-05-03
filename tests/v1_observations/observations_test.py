@@ -1,9 +1,11 @@
-import shutil
 import os
+import shutil
+
 import pytest
 
 import machinable.v1 as ml
 from machinable.v1.history import get_history
+
 from .generator import generate_data
 
 observations_directory = None
@@ -72,7 +74,7 @@ def test_observation_view():
     assert observation.task.code_version.project.path is None
     assert observation.flags.NAME == "nodes.observations"
     assert observation.config.to_test == "observations"
-    assert len(observation.children) == 0
+    assert len(observation.components) == 0
     assert observation.store("data.json")["observation_id"] > 0
     assert observation.store("test") == 2
     assert observation.store("key") == "value"

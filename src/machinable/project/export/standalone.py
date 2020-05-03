@@ -1,26 +1,24 @@
-import random
+import copy
+import csv
+import datetime
+import importlib
+import inspect
 import json
+import logging
+import os
+import random
+import re
 import sys
 from collections import OrderedDict
-import logging
-import csv
-import copy
 from importlib import reload
-import datetime
-import inspect
-from typing import Dict, Type, Union
-from typing import Optional, List
-import re
-from typing import Mapping
+from inspect import getattr_static
 from keyword import iskeyword
-import os
+from typing import Dict, List, Mapping, Optional, Type, Union
 
 try:
     import cPickle as pickle
 except ImportError:
     import pickle
-import importlib
-from inspect import getattr_static
 
 # !include machinable.utils.host
 

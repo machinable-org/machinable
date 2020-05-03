@@ -1,29 +1,29 @@
-import os
-import pickle
-import mimetypes
-import sys
+import copy
 import importlib
 import inspect
-import copy
+import mimetypes
+import os
+import pickle
+import sys
 
-from fs.zipfs import WriteZipFS
 import gitignore_parser
+from fs.zipfs import WriteZipFS
 
-from ..utils.vcs import get_commit
 from machinable.utils.utils import is_valid_variable_name
-from ..utils.dicts import update_dict
-from ..utils.traits import Jsonable
-from ..utils.formatting import msg, exception_to_str
-from ..core import Component as BaseComponent, Mixin as BaseMixin
-from ..core.component import FunctionalComponent
-from ..config.loader import (
-    from_file as load_config_file,
-    from_string as load_config_from_string,
-    from_callable as load_config_from_callable,
-)
+
+from ..config.loader import from_callable as load_config_from_callable
+from ..config.loader import from_file as load_config_file
+from ..config.loader import from_string as load_config_from_string
 from ..config.parser import parse_module_list
-from .manager import fetch_imports
+from ..core import Component as BaseComponent
+from ..core import Mixin as BaseMixin
+from ..core.component import FunctionalComponent
 from ..core.settings import get_settings
+from ..utils.dicts import update_dict
+from ..utils.formatting import exception_to_str, msg
+from ..utils.traits import Jsonable
+from ..utils.vcs import get_commit
+from .manager import fetch_imports
 from .registration import Registration
 
 

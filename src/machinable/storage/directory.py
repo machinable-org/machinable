@@ -1,6 +1,6 @@
+import json
 import os
 import pickle
-import json
 
 from fs import open_fs
 from fs.opener.parse import parse_fs_url

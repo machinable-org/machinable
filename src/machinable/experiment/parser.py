@@ -1,8 +1,8 @@
-import random
 import copy
+import random
 
-from ..utils.utils import generate_seed, generate_uid
 from ..utils.dicts import update_dict
+from ..utils.utils import generate_seed, generate_uid
 
 
 def parse_experiment(specification, seed=None):

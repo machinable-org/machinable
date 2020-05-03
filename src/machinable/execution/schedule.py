@@ -1,8 +1,8 @@
 import copy
 
+from ..config.parser import ModuleClass
 from ..core.component import Component as BaseComponent
 from ..utils.traits import Jsonable
-from ..config.parser import ModuleClass
 
 
 def recover_class(element):

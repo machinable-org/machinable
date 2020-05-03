@@ -1,5 +1,5 @@
-from machinable.project.manager import fetch_imports
 from machinable.project import Project
+from machinable.project.manager import fetch_imports
 
 
 def test_fetch_imports():

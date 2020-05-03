@@ -1,10 +1,10 @@
-import os
-import shutil
-import json
-import inspect
 import ast
-import re
 import importlib
+import inspect
+import json
+import os
+import re
+import shutil
 from collections import namedtuple
 
 from . import standalone

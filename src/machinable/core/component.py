@@ -1,24 +1,23 @@
-import re
-from typing import Dict, Union
 import copy
-import os
-import inspect
-from inspect import getattr_static
-from typing import Optional, List
 import datetime
+import inspect
+import os
+import re
 from collections import OrderedDict
+from inspect import getattr_static
+from typing import Dict, List, Optional, Union
 
-from ..utils.traits import Jsonable
-from ..store import Store
-from ..store.record import Record
-from ..store.log import Log
-from ..config.mapping import ConfigMap, config_map
+from machinable.utils.host import get_host_info
+
+from ..config.mapping import ConfigMap, ConfigMethod, config_map
 from ..config.parser import ModuleClass, parse_mixins
-from ..utils.utils import apply_seed
+from ..store import Store
+from ..store.log import Log
+from ..store.record import Record
 from ..utils.dicts import update_dict
 from ..utils.formatting import exception_to_str
-from ..config.mapping import ConfigMethod
-from machinable.utils.host import get_host_info
+from ..utils.traits import Jsonable
+from ..utils.utils import apply_seed
 from .exceptions import ExecutionException
 
 

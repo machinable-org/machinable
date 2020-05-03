@@ -2,10 +2,10 @@
 # https://github.com/drgrib/dotmap
 # The copyright and license agreement can be found in the ThirdPartyNotices.txt file at the root of this repository.
 
+from collections import OrderedDict
 from inspect import ismethod
 from json import dumps
 from pprint import pprint
-from collections import OrderedDict, MutableMapping
 
 from dotmap import DotMap
 

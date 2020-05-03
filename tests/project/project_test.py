@@ -1,10 +1,8 @@
-import shutil
 import os
+import shutil
 
 import machinable as ml
-
-from machinable.project import Project
-from machinable.project import Registration
+from machinable.project import Project, Registration
 
 
 def test_project_config():

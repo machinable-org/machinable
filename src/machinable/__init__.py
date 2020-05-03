@@ -1,9 +1,10 @@
 from .core import Component, Mixin
-from .experiment import Experiment, ExperimentComponent as C
 from .engine import Engine
-from .storage import Storage
-from .project import Project
 from .execution import Execution
+from .experiment import Experiment
+from .experiment import ExperimentComponent as C
+from .project import Project
+from .storage import Storage
 
 
 def execute(experiment, storage=None, engine=None, project=None, seed=None):

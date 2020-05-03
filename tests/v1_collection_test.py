@@ -5,8 +5,8 @@
 
 from unittest import TestCase
 
-from machinable.v1.observations.collections import Collection
 from machinable.v1.observations import collect
+from machinable.v1.observations.collections import Collection
 
 
 def test_collect():

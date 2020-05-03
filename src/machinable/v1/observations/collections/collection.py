@@ -2,12 +2,13 @@
 # https://github.com/sdispater/backpack/blob/master/backpack/collections/base_collection.py.
 # The copyright and license agreement can be found in the ThirdPartyNotices.txt file at the root of this repository.
 
-from backpack._utils import data_get, basestring, reduce
+import copy
+from json import dumps
+from pprint import pprint
+
+from backpack._utils import basestring, data_get, reduce
 from backpack._utils import value as _get_value
 from backpack.collections.base_collection import BaseCollection as _BackpackCollection
-from pprint import pprint
-from json import dumps
-import copy
 
 
 class Collection:

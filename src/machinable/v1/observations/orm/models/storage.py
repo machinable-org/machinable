@@ -1,10 +1,10 @@
 import os
 
-from orator import Model
-from orator.orm import has_many
 from fs import open_fs
 from fs.base import FS
 from fs.errors import CreateFailed as CreateFailedException
+from orator import Model
+from orator.orm import has_many
 
 
 class Storage(Model):

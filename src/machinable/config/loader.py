@@ -1,7 +1,8 @@
 import os
-import yaml
 import re
 from typing import Callable
+
+import yaml
 
 
 class Loader(yaml.SafeLoader):

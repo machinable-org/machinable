@@ -1,6 +1,7 @@
 import json
 
 from machinable.config.mapping import config_map
+
 from .status import StatusTrait
 
 

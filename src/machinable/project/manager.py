@@ -1,6 +1,7 @@
 import os
 
 from machinable.core.settings import get_settings
+
 from ..utils.formatting import msg
 
 

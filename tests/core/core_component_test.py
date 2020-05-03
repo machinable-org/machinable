@@ -1,9 +1,10 @@
 import os
 import sys
 
-import machinable as ml
 import pytest
-from machinable import Engine, Component
+
+import machinable as ml
+from machinable import Component, Engine
 from machinable.core.component import inject_components
 
 

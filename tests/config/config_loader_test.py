@@ -1,5 +1,4 @@
-from machinable.config.loader import from_callable
-from machinable.config.loader import from_file
+from machinable.config.loader import from_callable, from_file
 
 
 def test_config_loader_from_file():

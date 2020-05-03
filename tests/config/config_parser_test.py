@@ -1,5 +1,6 @@
 import pytest
-from machinable.config.parser import parse_reference, parse_mixins
+
+from machinable.config.parser import parse_mixins, parse_reference
 
 
 def test_parse_reference():

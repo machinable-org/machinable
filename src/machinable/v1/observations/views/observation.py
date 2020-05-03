@@ -1,11 +1,14 @@
 import os
+
 from fs.errors import FSError
+
 from machinable.config.mapping import config_map
-from .status import StatusTrait
-from .task import Task as TaskView
+from machinable.utils.formatting import msg
+
 from .base import BaseView
 from .records import Records as RecordsView
-from machinable.utils.formatting import msg
+from .status import StatusTrait
+from .task import Task as TaskView
 
 
 class Observation(StatusTrait, BaseView):

@@ -1,5 +1,5 @@
-import os
 import hashlib
+import os
 import random
 import string
 from keyword import iskeyword

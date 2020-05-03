@@ -2,9 +2,9 @@ import copy
 
 import yaml
 
-from .parser import ModuleClass, parse_mixins
-from ..utils.dicts import update_dict
 from ..experiment import ExperimentComponent
+from ..utils.dicts import update_dict
+from .parser import ModuleClass, parse_mixins
 
 
 def collect_updates(version):

@@ -1,7 +1,8 @@
 pytest-cov
 pytest
 ray[tune]
-pytest-flake8
 numpy
 pytest-ordering
 pandas
+black
+isort

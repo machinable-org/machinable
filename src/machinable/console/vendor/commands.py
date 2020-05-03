@@ -1,7 +1,7 @@
 import click
 
-from ...project.manager import fetch_imports
 from ...project import Project
+from ...project.manager import fetch_imports
 
 
 @click.group(invoke_without_command=True)

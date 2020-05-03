@@ -2,8 +2,9 @@ import os
 import shutil
 
 import numpy as np
+
+from machinable import Experiment, execute
 from machinable.store import Store
-from machinable import execute, Experiment
 
 
 def test_store_writer():

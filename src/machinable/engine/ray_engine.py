@@ -1,14 +1,14 @@
-import os
 import copy
+import os
 
 import ray
 from ray.exceptions import RayActorError
 
-from .engine import Engine
+from ..core.component import FunctionalComponent
+from ..core.exceptions import ExecutionException
 from ..utils.dicts import update_dict
 from ..utils.formatting import exception_to_str
-from ..core.exceptions import ExecutionException
-from ..core.component import FunctionalComponent
+from .engine import Engine
 
 
 class RayEngine(Engine):

@@ -1,12 +1,13 @@
 import importlib
 import inspect
-import regex
 import traceback
 
-from .mapping import _reserved_keys, _used_keys
-from ..utils.utils import is_valid_variable_name
-from ..utils.dicts import get_or_fail, update_dict, read_path_dict
+import regex
+
+from ..utils.dicts import get_or_fail, read_path_dict, update_dict
 from ..utils.formatting import msg
+from ..utils.utils import is_valid_variable_name
+from .mapping import _reserved_keys, _used_keys
 
 
 class ModuleClass(object):

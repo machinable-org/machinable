@@ -1,9 +1,9 @@
 import click
+
 import pkg_resources
 
+from .server import app, server
 from .vendor.commands import vendor
-from .server import server
-from .server import app
 
 
 @click.group(invoke_without_command=True)

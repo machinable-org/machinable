@@ -1,7 +1,7 @@
-from typing import Union, Type, Tuple
 import copy
 import json
 from collections import OrderedDict
+from typing import Tuple, Type, Union
 
 from ..utils.traits import Jsonable
 
