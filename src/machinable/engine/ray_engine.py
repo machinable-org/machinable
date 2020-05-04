@@ -19,9 +19,13 @@ class RayEngine(Engine):
         if not ray.is_initialized():
             ray.init()
 
-        for arguments in execution.schedule.iterate(execution.storage):
+        results = [
+            self.process(*arguments)
+            for arguments in execution.schedule.iterate(execution.storage)
+        ]
+
+        for result in results:
             try:
-                result = self.process(*arguments)
                 if isinstance(result, ray.ObjectID):
                     result = ray.get(result)
                 execution.set_result(result)
@@ -33,6 +37,9 @@ class RayEngine(Engine):
                 execution.set_result(result)
 
         return execution
+
+    def __repr__(self):
+        return "Ray"
 
     def execute(
         self,
