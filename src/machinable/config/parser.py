@@ -5,7 +5,7 @@ import traceback
 import regex
 
 from ..utils.dicts import get_or_fail, read_path_dict, update_dict
-from ..utils.formatting import msg
+from ..utils.formatting import msg, exception_to_str
 from ..utils.utils import is_valid_variable_name
 from .mapping import _reserved_keys, _used_keys
 
@@ -42,15 +42,10 @@ class ModuleClass(object):
                 )
         except ImportError as e:
             if default is None:
-                trace = "".join(
-                    traceback.format_exception(
-                        etype=type(e), value=e, tb=e.__traceback__
-                    )
-                )
                 raise ImportError(
                     f"Could not import module '{self.module_name}' "
                     f"that is specified in the machinable.yaml. "
-                    f"The following exception occurred: {e}\n{trace}. "
+                    f"The following exception occurred: {exception_to_str(e)}. "
                     f"If the module is a directory, consider creating an __init__.py."
                 )
 

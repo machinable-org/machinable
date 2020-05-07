@@ -6,6 +6,7 @@ from ..core.exceptions import ExecutionException
 from ..utils.dicts import update_dict
 from ..utils.formatting import exception_to_str, msg
 from ..utils.traits import Jsonable
+from ..utils.importing import resolve_instance
 
 _register = {
     "native": "machinable.engine.native_engine",
@@ -15,8 +16,18 @@ _register = {
     "dry": "machinable.engine.dry_engine",
 }
 
+_latest = [None]
+
 
 class Engine(Jsonable):
+    @classmethod
+    def latest(cls):
+        return _latest[0]
+
+    @classmethod
+    def set_latest(cls, latest):
+        _latest[0] = latest
+
     @staticmethod
     def register(engine, name=None):
         if name is None:
@@ -27,6 +38,10 @@ class Engine(Jsonable):
     def create(cls, args):
         if isinstance(args, Engine):
             return args
+
+        resolved = resolve_instance(args, Engine, "engines")
+        if resolved is not None:
+            return resolved
 
         if isinstance(args, dict):
             args = copy.deepcopy(args)
@@ -92,7 +107,7 @@ class Engine(Jsonable):
             result = self.process(
                 execution_type, component, components, storage, resources, args, kwargs
             )
-            execution.set_result(result)
+            execution.set_result(result, index)
 
         return execution
 

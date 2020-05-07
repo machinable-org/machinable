@@ -14,6 +14,8 @@ class DetachedEngine(Engine):
         self.using = using
         self.close = close
 
+        Engine.set_latest(self)
+
     def submit(self, execution):
         name = "machinable-experiment-" + execution.experiment_id
 

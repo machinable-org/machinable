@@ -12,6 +12,9 @@ from .engine import Engine
 
 
 class RayEngine(Engine):
+    def __init__(self):
+        Engine.set_latest(self)
+
     def serialize(self):
         return {"type": "ray"}
 
@@ -24,17 +27,17 @@ class RayEngine(Engine):
             for arguments in execution.schedule.iterate(execution.storage)
         ]
 
-        for result in results:
+        for index, result in enumerate(results):
             try:
                 if isinstance(result, ray.ObjectID):
                     result = ray.get(result)
-                execution.set_result(result)
+                execution.set_result(result, index)
             except RayActorError as ex:
                 result = ExecutionException(
                     reason="exception",
                     message=f"The following exception occurred: {ex}\n{exception_to_str(ex)}",
                 )
-                execution.set_result(result)
+                execution.set_result(result, index)
 
         return execution
 

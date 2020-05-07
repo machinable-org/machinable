@@ -9,6 +9,8 @@ class NativeEngine(Engine):
     ):
         self.processes = processes
 
+        Engine.set_latest(self)
+
     def __repr__(self):
         return "Native"
 
@@ -26,8 +28,8 @@ class NativeEngine(Engine):
             [arguments for arguments in execution.schedule.iterate(execution.storage)],
         )
 
-        for result in results:
-            execution.set_result(result)
+        for index, result in enumerate(results):
+            execution.set_result(index, result)
 
         return execution
 

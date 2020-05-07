@@ -1,9 +1,9 @@
 import copy
-import json
 from collections import OrderedDict
 from typing import Tuple, Type, Union
 
 from ..utils.traits import Jsonable
+from ..utils.importing import resolve_instance
 
 
 class ExperimentComponent(Jsonable):
@@ -86,6 +86,9 @@ class ExperimentComponent(Jsonable):
         return f"machinable.C({self.name}, version={self.version}, checkpoint={self.checkpoint}, flags={self.flags})"
 
 
+_latest = [None]
+
+
 class Experiment(Jsonable):
     """Defines an execution schedule for available components. The experiment interface is fluent,
     methods can be chained in arbitrary order.
@@ -105,6 +108,27 @@ class Experiment(Jsonable):
     def __init__(self):
         self._cache = None
         self._specs = OrderedDict()
+        _latest[0] = self
+
+    @classmethod
+    def latest(cls):
+        return _latest[0]
+
+    @classmethod
+    def set_latest(cls, latest):
+        _latest[0] = latest
+
+    def name(self, name: str):
+        """Set a name of the experiment
+
+        # Arguments
+        name: String, descriptive name
+        """
+        if not isinstance(name, str):
+            raise ValueError("Name must be a string")
+        self._specs["name"] = name
+
+        return self
 
     @classmethod
     def create(cls, args):
@@ -114,6 +138,10 @@ class Experiment(Jsonable):
 
         if args is None:
             return cls()
+
+        resolved = resolve_instance(args, Experiment, "experiments")
+        if resolved is not None:
+            return resolved
 
         if isinstance(args, str):
             return cls().components(args)
@@ -149,6 +177,7 @@ class Experiment(Jsonable):
         spec.setdefault("components", [])
         spec.setdefault("repeats", [])
         spec.setdefault("version", [])
+        spec.setdefault("name", None)
 
         self._cache = spec
 

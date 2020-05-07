@@ -21,6 +21,8 @@ class RemoteEngine(Engine):
         self.python = python
         self.shell = sh.ssh.bake(self.host)
 
+        Engine.set_latest(self)
+
     def serialize(self):
         return {
             "type": "remote",
