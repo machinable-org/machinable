@@ -2,7 +2,7 @@ import os
 import shutil
 
 import machinable as ml
-from machinable.engine import Engine
+from machinable.engines import Engine
 
 
 def generate_data(path=None, debug=False):

@@ -65,7 +65,7 @@ class OutputRedirection:
 
     def close_file_stream(self):
         try:
-            self._file_stream.close()
+            self._file_stream.exit_on_completion()
         except (IOError, AttributeError):
             pass
         finally:
@@ -124,6 +124,7 @@ class Store:
                 "url": "mem://",
                 "log": {},
                 "records": {},
+                "directory": "",
                 "group": "",
                 "heartbeat": 15,
                 "output_redirection": "SYS_AND_FILE",  # DISABLED, FILE_ONLY, SYS_AND_FILE, DISCARD
@@ -355,7 +356,12 @@ class Store:
         append: String, optional postfix that is appended to the path
         create: Boolean, if True path is being created if not existing
         """
-        path = os.path.join(self.config["group"], self.config.get("uid", ""), append)
+        path = os.path.join(
+            self.config["directory"],
+            self.config["group"],
+            self.config.get("uid", ""),
+            append,
+        )
 
         if create:
             self.filesystem.makedirs(path, recreate=True)

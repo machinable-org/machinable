@@ -1,3 +1,3 @@
-from machinable.engine import Native
+from machinable.engines import Native
 
 Native()

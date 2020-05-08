@@ -10,7 +10,7 @@ from machinable.utils.host import get_host_info
 
 from ..config.interface import ConfigInterface
 from ..core.exceptions import ExecutionException
-from ..engine import Engine
+from ..engines import Engine
 from ..execution.schedule import Schedule
 from ..experiment.experiment import Experiment
 from ..experiment.parser import parse_experiment
@@ -148,6 +148,9 @@ class Execution(Jsonable):
             self.experiment.specification["version"],
             default_class=self.project.default_component,
         )
+
+        if self.experiment.specification.get("directory", None) is not None:
+            self.storage["directory"] = self.experiment.specification["directory"]
 
         for index, (node, components, resources) in enumerate(
             parse_experiment(self.experiment.specification, seed=self.seed)
@@ -377,7 +380,10 @@ class Execution(Jsonable):
         msg(
             f"\nExecution: {self.experiment_id}\n----------", color="header",
         )
-        msg(f"Storage: {self.storage.get('url', 'mem://')}", color="blue")
+        msg(
+            f"Storage: {os.path.join(self.storage.get('url', 'mem://'), self.storage.get('directory', ''))}",
+            color="blue",
+        )
         msg(f"Engine: {repr(self.engine)}", color="blue")
         msg(f"Project: {repr(self.project)}", color="blue")
 

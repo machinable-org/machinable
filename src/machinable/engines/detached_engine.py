@@ -7,12 +7,12 @@ from .engine import Engine
 
 
 class DetachedEngine(Engine):
-    def __init__(self, engine=None, using="tmux", close=True):
+    def __init__(self, engine=None, using="tmux", exit_on_completion=True):
         if using not in ["tmux"]:
             raise ValueError(f"Invalid detached mode: {using}")
         self.engine = Engine.create(engine)
         self.using = using
-        self.close = close
+        self.exit_on_completion = exit_on_completion
 
         Engine.set_latest(self)
 
@@ -37,7 +37,7 @@ class DetachedEngine(Engine):
             1:-1
         ]
         command = f'{sys.executable or "python"} -c "{code}"'
-        if self.close:
+        if self.exit_on_completion:
             command += "; exit"
         self.shell(command, name=name)
 
@@ -59,7 +59,7 @@ class DetachedEngine(Engine):
             "type": "detached",
             "engine": self.engine.serialize(),
             "using": self.using,
-            "close": self.close,
+            "close": self.exit_on_completion,
         }
 
     @classmethod

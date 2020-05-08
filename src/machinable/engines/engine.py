@@ -9,11 +9,11 @@ from ..utils.traits import Jsonable
 from ..utils.importing import resolve_instance
 
 _register = {
-    "native": "machinable.engine.native_engine",
-    "ray": "machinable.engine.ray_engine",
-    "detached": "machinable.engine.detached_engine",
-    "remote": "machinable.engine.remote_engine",
-    "dry": "machinable.engine.dry_engine",
+    "native": "machinable.engines.native_engine",
+    "ray": "machinable.engines.ray_engine",
+    "detached": "machinable.engines.detached_engine",
+    "remote": "machinable.engines.remote_engine",
+    "dry": "machinable.engines.dry_engine",
 }
 
 _latest = [None]

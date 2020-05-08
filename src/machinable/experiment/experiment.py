@@ -118,15 +118,19 @@ class Experiment(Jsonable):
     def set_latest(cls, latest):
         _latest[0] = latest
 
-    def name(self, name: str):
-        """Set a name of the experiment
+    def directory(self, name: str):
+        """Set the directory of the experiment
+
+        Relative path that gets appended to the storage directory of this experiment
 
         # Arguments
-        name: String, descriptive name
+        name: String, directory name
         """
         if not isinstance(name, str):
             raise ValueError("Name must be a string")
-        self._specs["name"] = name
+        if name[0] == "/":
+            raise ValueError("Directory must be relative")
+        self._specs["directory"] = name
 
         return self
 
@@ -177,7 +181,7 @@ class Experiment(Jsonable):
         spec.setdefault("components", [])
         spec.setdefault("repeats", [])
         spec.setdefault("version", [])
-        spec.setdefault("name", None)
+        spec.setdefault("directory", None)
 
         self._cache = spec
 

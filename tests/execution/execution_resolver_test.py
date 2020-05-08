@@ -2,7 +2,7 @@ import pytest
 
 from machinable.utils.importing import resolve_instance
 from machinable import Engine, execute
-from machinable.engine import Detached
+from machinable.engines import Detached
 
 
 def test_execution_resolve():
