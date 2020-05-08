@@ -1,16 +1,19 @@
 import copy
 import json
 import os
-from shlex import quote
 
 import sh
 
 from ..core.exceptions import ExecutionException
 from .engine import Engine
+from .detached_engine import DetachedEngine
+from ..utils.dicts import update_dict
 
 
 class RemoteEngine(Engine):
-    def __init__(self, engine=None, host=None, directory=None, python="python"):
+    def __init__(
+        self, engine=None, host=None, directory=None, python="python", sync=None
+    ):
         if host is None:
             raise ValueError("You have to provide a remote host")
         if directory is None:
@@ -20,6 +23,7 @@ class RemoteEngine(Engine):
         self.directory = directory
         self.python = python
         self.shell = sh.ssh.bake(self.host)
+        self.sync = update_dict({"delete_on_remote": False}, sync)
 
         Engine.set_latest(self)
 
@@ -44,17 +48,24 @@ class RemoteEngine(Engine):
             f"Rsyncing project {execution.project.directory_path} -> {self.host}:{self.directory}"
         )
         path = execution.project.directory_path
-        if path[-1] == "/":
-            path = path[:-1]
+        if path[-1] != "/":
+            path += "/"
         sh.rsync(
-            "-az", path, f"{self.host}:{self.directory}",
+            "-azL",
+            path,
+            f"{self.host}:{self.directory}"
+            f"{' --delete' if self.sync.get('delete_on_remote', False) else ''}",
         )
-        self.log("Rsync complete. Submitting execution.")
+        self.log("Rsync complete. Executing ...")
 
         # todo$: handle local URLs and ssh URL correctly
         #  i.e. mirror local one to remote, remove ssh prefix if same as self.host
 
-        url = os.path.join(execution.storage["url"], execution.experiment_id)
+        url = os.path.join(
+            execution.storage["url"],
+            execution.storage.get("directory", ""),
+            execution.experiment_id,
+        )
         engine = self.engine.to_json().replace('"', '\\"')
         remote_project = copy.deepcopy(execution.project.options)
         remote_project["directory"] = self.directory
@@ -71,10 +82,10 @@ class RemoteEngine(Engine):
         )[
             1:-1
         ]
-        command = f'cd {self.directory}; {self.python} -c "{code}"'
+        command = f'`cd {self.directory}; {self.python} -c "{code}"`'
         try:
-            self.shell(quote(command))
-            execution.set_result(True)
+            p = self.shell(command, _bg=True)
+            execution.set_result(p)
         except sh.ErrorReturnCode as ex:
             execution.set_result(
                 ExecutionException(ex.stderr.decode("utf-8"), reason="engine_failure")

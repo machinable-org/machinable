@@ -210,7 +210,6 @@ class Execution(Jsonable):
             self.store = Store(
                 config=self.engine.storage_middleware(self.storage), status=False
             )
-
             if self.code_backup is not False:
                 self.project.backup_source_code(opener=self.store.get_stream)
 
@@ -219,6 +218,8 @@ class Execution(Jsonable):
 
             self.store.write("execution.json", self.serialize(), _meta=True)
             self.store.write("host.json", get_host_info(), _meta=True)
+            self.store.destroy()
+            self.store = None
 
         return self.engine.submit(self)
 
@@ -296,6 +297,12 @@ class Execution(Jsonable):
                 for c in components
             ]
 
+            def get_class_name(cls):
+                try:
+                    return cls.__name__
+                except AttributeError:
+                    return cls.name()
+
             # export config
             export.write(
                 "config.json",
@@ -308,7 +315,7 @@ class Execution(Jsonable):
                         {
                             "args": comps[i].config.toDict(evaluate=True),
                             "flags": comps[i].flags.toDict(evaluate=True),
-                            "class": components[i]["class"].__name__,
+                            "class": get_class_name(components[i]["class"]),
                         }
                         for i in range(len(comps))
                     ],

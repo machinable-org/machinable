@@ -9,6 +9,7 @@ from ..core.exceptions import ExecutionException
 from ..utils.dicts import update_dict
 from ..utils.formatting import exception_to_str
 from .engine import Engine
+from ..config.parser import ModuleClass
 
 
 class RayEngine(Engine):
@@ -58,6 +59,9 @@ class RayEngine(Engine):
                 component["class"].function, component["args"], component["flags"],
             )
         else:
+            # load lazy module
+            if isinstance(component["class"], ModuleClass):
+                component["class"] = component["class"].load(instantiate=False)
             nd = ray.remote(resources=resources)(component["class"]).remote(
                 component["args"], component["flags"]
             )

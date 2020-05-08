@@ -15,8 +15,11 @@ class ModuleClass(object):
         self.module_name = module_name
         self.args = args
         self.baseclass = baseclass
+        self.default_class = None
 
     def load(self, instantiate=True, default=None):
+        if default is None:
+            default = self.default_class
         module_class = default
         try:
             module = importlib.import_module(self.module_name)
@@ -57,12 +60,16 @@ class ModuleClass(object):
 
         return module_class(**self.args)
 
+    def name(self):
+        class_ = self.load(instantiate=False)
+        return class_.__name__
+
     def __call__(self, *args, **kwargs):
         class_ = self.load(instantiate=False)
         return class_(*args, **kwargs)
 
     def __repr__(self):
-        return f"<machinable.ModuleClass(module_name={self.module_name}, args={self.args} baseclass={self.baseclass})>"
+        return f"<machinable.config.ModuleClass(module_name={self.module_name}, args={self.args} baseclass={self.baseclass})>"
 
 
 def parse_mixins(config, valid_only=False):

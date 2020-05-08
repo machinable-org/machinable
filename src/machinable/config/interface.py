@@ -82,11 +82,8 @@ class ConfigInterface:
         if self.default_class is not None:
             self.data["components"][name]["class"] = self.default_class
 
-        # load lazy modules
         if isinstance(self.data["components"][name]["class"], ModuleClass):
-            self.data["components"][name]["class"] = self.data["components"][name][
-                "class"
-            ].load(instantiate=False, default=self.default_class)
+            self.data["components"][name]["class"].default_class = self.default_class
 
         # de-reference
         config = copy.deepcopy(self.data["components"][name])

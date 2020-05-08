@@ -7,6 +7,7 @@ import re
 import shutil
 from collections import namedtuple
 
+from ...config.parser import ModuleClass
 from . import standalone
 
 
@@ -138,6 +139,7 @@ class Export:
         return source
 
     def get_import_statement(self, obj, alias=None):
+        obj = self.lazyload(obj)
         source = self._resolve(obj)
         if os.path.isdir(os.path.join(self.project_path, source)):
             module = source.replace("/", ".")
@@ -151,8 +153,13 @@ class Export:
 
         return statement
 
+    def lazyload(self, cls):
+        if isinstance(cls, ModuleClass):
+            return cls.load(instantiate=False)
+        return cls
+
     def module(self, source, from_module_path=False):
-        source = self._resolve(source)
+        source = self._resolve(self.lazyload(source))
         if from_module_path:
             source = source.replace(".", "/")
             if os.path.isdir(os.path.join(self.project_path, source)):
@@ -207,7 +214,7 @@ with open('config.json') as f:
 for k in range(len(config['components'])):
     config['components'][k]['class'] = locals()[config['components'][k]['class']]
 
-{node['class'].__name__}(config['component']['args'], config['component']['flags']).dispatch(
+{self.lazyload(node['class']).__name__}(config['component']['args'], config['component']['flags']).dispatch(
     config['components'], config['storage']
 )
 """

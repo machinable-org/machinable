@@ -133,6 +133,7 @@ class Store:
             config,
             copy=True,
         )
+        self._store_status = status
         self.statistics = {}
 
         if "://" not in self.config["url"]:
@@ -160,7 +161,7 @@ class Store:
         self._status = dict()
         self._status["started"] = str(datetime.datetime.now())
         self._status["finished"] = False
-        if status:
+        if self._store_status:
             self.refresh_status()
             self.events.on("heartbeat", self.refresh_status)
 
@@ -175,8 +176,9 @@ class Store:
         if "events" in self.config:
             self.events.heartbeats(None)
         # write finished status (not triggered in the case of an unhandled exception)
-        self._status["finished"] = str(datetime.datetime.now())
-        self.refresh_status()
+        if self._store_status:
+            self._status["finished"] = str(datetime.datetime.now())
+            self.refresh_status()
 
         OutputRedirection.revert()
 
