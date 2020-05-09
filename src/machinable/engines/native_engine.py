@@ -29,7 +29,7 @@ class NativeEngine(Engine):
         )
 
         for index, result in enumerate(results):
-            execution.set_result(index, result)
+            execution.set_result(result, index)
 
         return execution
 

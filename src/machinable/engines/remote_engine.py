@@ -6,7 +6,6 @@ import sh
 
 from ..core.exceptions import ExecutionException
 from .engine import Engine
-from .detached_engine import DetachedEngine
 from ..utils.dicts import update_dict
 
 

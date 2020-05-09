@@ -1,7 +1,8 @@
 import os
 import sys
-from shlex import quote
+import sh
 
+from ..core.exceptions import ExecutionException
 from ..core.settings import get_settings
 from .engine import Engine
 
@@ -39,7 +40,15 @@ class DetachedEngine(Engine):
         command = f'{sys.executable or "python"} -c "{code}"'
         if self.exit_on_completion:
             command += "; exit"
-        self.shell(command, name=name)
+
+        try:
+            p = self.shell(command, name=name)
+            execution.set_result(p)
+        except sh.ErrorReturnCode as ex:
+            execution.set_result(
+                ExecutionException(ex.stderr.decode("utf-8"), reason="engine_failure")
+            )
+            self.log(f"Execution failed: {str(ex)}", level="error")
 
         return execution
 
@@ -76,6 +85,9 @@ class DetachedEngine(Engine):
     # using
 
     def tmux_shell(self, command, name):
+        # return sh.tmux(
+        #     f"new-session -d -s {name}; tmux send-keys `{command}` Enter", _bg=True
+        # )
         return os.system(
-            f"tmux new-session -d -s {name}; tmux send-keys {quote(command)} Enter"
+            f"tmux new-session -d -s {name}; tmux send-keys `{command}` Enter"
         )

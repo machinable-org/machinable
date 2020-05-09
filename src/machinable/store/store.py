@@ -58,7 +58,7 @@ class OutputRedirection:
         for i, stream in enumerate(self.streams):
             try:
                 stream.write(message)
-            except IOError:
+            except (IOError, AttributeError):
                 if i == 0:
                     # close corrupt file stream
                     self.close_file_stream()
