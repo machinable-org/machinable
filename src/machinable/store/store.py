@@ -182,13 +182,11 @@ class Store:
 
         OutputRedirection.revert()
 
-    def directory(self):
+    def directory(self, append=""):
         """Returns the write directory"""
-        return os.path.join(
-            self.config["url"], self.config["group"], self.config.get("uid", "")
-        )
+        return os.path.join(self.config["url"], self.get_path(append))
 
-    def local_directory(self):
+    def local_directory(self, append=""):
         """Returns the local filesystem path, or False if non-local
 
         # Returns
@@ -197,7 +195,9 @@ class Store:
         if not self.config["url"].startswith("osfs://"):
             return False
 
-        return self.config["url"].split("osfs://")[-1]
+        return os.path.join(
+            self.config["url"].split("osfs://")[-1], self.get_path(append)
+        )
 
     def refresh_status(self):
         """Updates the status.json file with a heartbeat at the current time
