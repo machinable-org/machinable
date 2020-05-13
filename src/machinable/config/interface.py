@@ -33,7 +33,7 @@ class ConfigInterface:
         if not name.startswith("~") and not (
             name.startswith("_") and name.endswith("_")
         ):
-            return yaml.load(name)
+            return yaml.load(name, Loader=yaml.FullLoader)
 
         # from mixin
         if name.startswith("_") and name.endswith("_"):
