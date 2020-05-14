@@ -100,6 +100,10 @@ class Execution(Jsonable):
         else:
             storage = {}
 
+        url_override = os.environ.get("MACHINABLE_STORAGE", None)
+        if url_override is not None:
+            storage["url"] = url_override
+
         # code backup
         self.code_backup = False
         if storage.get("code_backup", None) is not False:
