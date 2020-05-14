@@ -44,6 +44,7 @@ class Project(Jsonable):
                 "registration_module": "_machinable",
                 "vendor_caching": get_settings()["cache"].get("imports", False),
                 "default_component": None,
+                "name": None,
             },
             options,
         )
@@ -52,6 +53,10 @@ class Project(Jsonable):
         self.config = None
         self.parsed_config = None
         self._registration = None
+
+        if self.options["name"] is None:
+            # automatic naming
+            self.options["name"] = os.path.basename(self.directory_path)
 
         if (
             os.path.exists(self.directory_path)
@@ -85,6 +90,14 @@ class Project(Jsonable):
             return cls(*args)
 
         raise ValueError(f"Invalid project: {args}")
+
+    @property
+    def name(self):
+        return self.options["name"]
+
+    @name.setter
+    def name(self, value):
+        self.options["name"] = value
 
     @property
     def config_filepath(self):
@@ -170,6 +183,10 @@ class Project(Jsonable):
 
     def exists(self):
         return os.path.isfile(self.directory_path)
+
+    def set_name(self, name):
+        self.options["name"] = name
+        return self
 
     @property
     def registration(self):

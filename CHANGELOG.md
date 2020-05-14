@@ -2,6 +2,12 @@
 
 <!-- Please add changes under the Unreleased section that reads 'No current changes' otherwise -->
 
+## v2 (unreleased)
+
+  - Experiment.directory() 
+  - MACHINABLE_STORAGE override
+  - Execution for fine grained execution control
+
 ## v1.2.1
 
   - Automatic output capturing

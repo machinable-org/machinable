@@ -23,6 +23,15 @@ def test_project_config():
     assert import_project.import_prefix == "test_project.vendor.fooba.vendor.bedrock"
 
 
+def test_project_name():
+    test_project = Project("./test_project")
+    assert test_project.name == "test_project"
+    test_project.set_name("test")
+    assert test_project.name == "test"
+    test_project.name = "name"
+    assert test_project.name == "name"
+
+
 def test_project_parse_imports():
     test_project = Project("./test_project")
 
