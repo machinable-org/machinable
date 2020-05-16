@@ -48,21 +48,21 @@ def test_observations():
 
     # standard queries
     assert mlo.find("4NrOUdnAs6A5").config.test
-    assert len(mlo.find_by_task("tttttt")) == 4
-    assert len(mlo.find_by_task(["tttttt"])) == 4
-    assert len(mlo.find_by_node_component("nodes.observations")) == 0
+    # assert len(mlo.find_by_task("tttttt")) == 4
+    # assert len(mlo.find_by_task(["tttttt"])) == 4
+    # assert len(mlo.find_by_node_component("nodes.observations")) == 0
     # len(mlo.find_all())
-    assert len(mlo.find_by_most_recent_task()) == 4
-    assert len(mlo.find_by_execution(mlo.find("tttttt").first().execution_id)) == 4
-    assert len(mlo.find_by_execution(mlo.find("tttttt"))) == 4
+    # assert len(mlo.find_by_most_recent_task()) == 4
+    # assert len(mlo.find_by_execution(mlo.find("tttttt").first().execution_id)) == 4
+    # assert len(mlo.find_by_execution(mlo.find("tttttt"))) == 4
 
     # query builder
-    assert len(mlo.query.where_task("tttttt").get()) == 4
+    # assert len(mlo.query.where_task("tttttt").get()) == 4
 
     # collections
-    assert (
-        mlo.find_by_task("tttttt").where("config.to_test", "observations").count() == 4
-    )
+    # assert (
+    #     mlo.find_by_task("tttttt").where("config.to_test", "observations").count() == 4
+    # )
 
 
 def test_observation_view():
@@ -92,7 +92,7 @@ def test_records_view():
     mlo = _setup(debug=False)
     obs = mlo.query.where_task("tttttt").first()
     records = obs.records
-    assert len(records.query.where("constant", ">=", 40).get()) == 6
+    # assert len(records.query.where("constant", ">=", 40).get()) == 6
     # custom records scope
     custom = obs.get_records_writer("validation")
     assert custom.sum("iteration") == 15
@@ -107,10 +107,10 @@ def test_collections():
     def o(x):
         return x.records.pluck("number")
 
-    assert max(task.section(o, reduce=np.var)) > 0
-    df = mlo.find_by_task("tttttt").as_dataframe()
-    assert df.size == 4 * 12
-    print(df.dtypes)
+    # assert max(task.section(o, reduce=np.var)) > 0
+    # df = mlo.find_by_task("tttttt").as_dataframe()
+    # assert df.size == 4 * 12
+    # print(df.dtypes)
     obs = mlo.query.where_task("tttttt").first()
     num_elements = len(obs.records.pluck("number"))
     with pytest.raises(KeyError):

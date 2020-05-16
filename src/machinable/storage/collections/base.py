@@ -6,9 +6,63 @@ import copy
 from json import dumps
 from pprint import pprint
 
-from backpack._utils import basestring, data_get, reduce
-from backpack._utils import value as _get_value
-from backpack.collections.base_collection import BaseCollection as _BackpackCollection
+
+from functools import reduce
+
+long = int
+unicode = str
+basestring = str
+
+
+def _get_value(val):
+    if callable(val):
+        return val()
+
+    return val
+
+
+def data_get(target, key, default=None):
+    """
+    Get an item from a list, a dict or an object using "dot" notation.
+
+    :param target: The target element
+    :type target: list or dict or object
+
+    :param key: The key to get
+    :type key: string or list
+
+    :param default: The default value
+    :type default: mixed
+
+    :rtype: mixed
+    """
+    if key is None:
+        return target
+
+    if not isinstance(key, list):
+        key = key.split(".")
+
+    for segment in key:
+        if isinstance(target, (list, tuple)):
+            try:
+                target = target[segment]
+            except IndexError:
+                return _get_value(default)
+        elif isinstance(target, dict):
+            try:
+                target = target[segment]
+            except IndexError:
+                return _get_value(default)
+        else:
+            try:
+                target = target[segment]
+            except (IndexError, KeyError, TypeError):
+                try:
+                    target = getattr(target, segment)
+                except AttributeError:
+                    return _get_value(default)
+
+    return target
 
 
 class Collection:
@@ -1237,7 +1291,11 @@ class Collection:
             return items
         elif isinstance(items, tuple):
             return list(items)
-        elif isinstance(items, (Collection, _BackpackCollection)):
+        elif (
+            isinstance(items, Collection)
+            or str(type(items))
+            == "<class 'backpack.collections.base_collection.BaseCollection'>"
+        ):
             return items.all()
         elif hasattr("items", "to_list"):
             return items.to_list()
