@@ -5,8 +5,8 @@ import os
 import sh
 
 from ..core.exceptions import ExecutionException
-from .engine import Engine
 from ..utils.dicts import update_dict
+from .engine import Engine
 
 
 class RemoteEngine(Engine):

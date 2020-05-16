@@ -5,12 +5,12 @@ import pendulum
 from fs.errors import CreateFailed as CreateFailedException
 from orator import DatabaseManager, Model
 
+from machinable.storage.collections import Collection, ComponentCollection
 from machinable.v1.history import get_history
 
 from ..observations.orm.migrations import run as migrate_database
 from ..observations.orm.models import ObservationModel, StorageModel, TaskModel
 from ..observations.orm.query_builder import QueryBuilder
-from machinable.storage.collections import Collection, ComponentCollection
 from .views import ObservationView, TaskView
 
 

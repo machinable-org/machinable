@@ -1,7 +1,7 @@
 from multiprocessing import Pool
 
-from .engine import Engine
 from ..core.settings import get_settings
+from .engine import Engine
 
 
 class NativeEngine(Engine):

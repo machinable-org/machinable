@@ -1,8 +1,15 @@
 pytest-cov
 pytest
-ray[tune]
-numpy
 pytest-ordering
-pandas
 black
 isort
+# optional dependencies
+numpy
+ray[tune]
+pandas
+tabulate
+ariadne
+starlette
+uvicorn
+# v1
+orator

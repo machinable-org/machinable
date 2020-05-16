@@ -1,5 +1,6 @@
 import os
 import sys
+
 import sh
 
 from ..core.exceptions import ExecutionException

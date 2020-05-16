@@ -1,8 +1,8 @@
 from typing import List, Tuple, Union
 
 from ..filesystem import open_fs
-from .experiment import ExperimentStorage
 from .collections import ExperimentCollection
+from .experiment import ExperimentStorage
 
 
 class Storage:

@@ -4,12 +4,12 @@ import os
 import ray
 from ray.exceptions import RayActorError
 
+from ..config.parser import ModuleClass
 from ..core.component import FunctionalComponent
 from ..core.exceptions import ExecutionException
 from ..utils.dicts import update_dict
 from ..utils.formatting import exception_to_str
 from .engine import Engine
-from ..config.parser import ModuleClass
 
 
 class RayEngine(Engine):

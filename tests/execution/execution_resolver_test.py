@@ -1,8 +1,8 @@
 import pytest
 
-from machinable.utils.importing import resolve_instance
 from machinable import Engine, execute
 from machinable.engines import Detached
+from machinable.utils.importing import resolve_instance
 
 
 def test_execution_resolve():

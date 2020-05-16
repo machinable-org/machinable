@@ -2,9 +2,9 @@ import click
 
 import pkg_resources
 
+from .execute import execute
 from .server import app, server
 from .vendor.commands import vendor
-from .execute import execute
 
 
 @click.group(invoke_without_command=True)

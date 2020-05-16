@@ -2,8 +2,8 @@ import copy
 from collections import OrderedDict
 from typing import Tuple, Type, Union
 
-from ..utils.traits import Jsonable
 from ..utils.importing import resolve_instance
+from ..utils.traits import Jsonable
 
 
 class ExperimentComponent(Jsonable):

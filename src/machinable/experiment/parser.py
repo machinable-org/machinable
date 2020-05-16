@@ -1,9 +1,10 @@
 import copy
 import random
 
+from machinable.execution.identifiers import generate_component_id
+
 from ..utils.dicts import update_dict
 from ..utils.utils import generate_seed
-from machinable.execution.identifiers import generate_component_id
 
 
 def parse_experiment(specification, seed=None):

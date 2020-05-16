@@ -5,8 +5,8 @@ import importlib
 from ..core.exceptions import ExecutionException
 from ..utils.dicts import update_dict
 from ..utils.formatting import exception_to_str, msg
-from ..utils.traits import Jsonable
 from ..utils.importing import resolve_instance
+from ..utils.traits import Jsonable
 
 _register = {
     "native": "machinable.engines.native_engine",

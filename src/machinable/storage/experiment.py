@@ -3,8 +3,8 @@ import os
 from dotmap import DotMap
 
 from ..filesystem import open_fs, parse_fs_url
-from .component import ComponentStorage
 from .collections import ComponentCollection
+from .component import ComponentStorage
 
 
 class ExperimentStorage:
