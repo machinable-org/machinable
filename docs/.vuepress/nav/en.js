@@ -30,10 +30,10 @@ module.exports = [
           //   text: "App",
           //   link: "/miscellaneous/app.html"
           // },
-          // {
-          //   text: "Changelog",
-          //   link: "https://github.com/machinable-org/machinable/blob/master/CHANGELOG.md"
-          // }
+          {
+            text: "Changelog",
+            link: "https://github.com/machinable-org/machinable/blob/master/CHANGELOG.md"
+          }
         ]
       },
       {

@@ -13,9 +13,9 @@ matrix:
       after_failure:
         - rm -rf /home/travis/machinable/node_modules
         - cat /home/travis/.npm/_logs/*-debug.log
-      cache:
-          directories:
-              - "node_modules"
+#      cache:
+#          directories:
+#              - "node_modules"
       deploy:
         provider: pages
         skip_cleanup: true
