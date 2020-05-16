@@ -2,7 +2,7 @@ matrix:
   include:
     - language: node_js
       node_js:
-          - "12"
+          - "14"
       install:
           - npm install vuepress
       script:
@@ -12,6 +12,7 @@ matrix:
           - vuepress build docs
       after_failure:
         - cat /home/travis/.npm/_logs/*-debug.log
+        - rm -rf /home/travis/machinable/node_modules
       cache:
           directories:
               - "node_modules"

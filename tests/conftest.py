@@ -22,8 +22,6 @@ def helpers():
 
 def pytest_sessionstart(session):
     # setup storage test data
-    return
-
     path = Helpers.tmp_directory("storage")
 
     ml.execute(
