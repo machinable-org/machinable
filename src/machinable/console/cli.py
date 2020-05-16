@@ -4,6 +4,7 @@ import pkg_resources
 
 from .server import app, server
 from .vendor.commands import vendor
+from .execute import execute
 
 
 @click.group(invoke_without_command=True)
@@ -23,3 +24,4 @@ def cli(ctx, version):
 cli.add_command(vendor)
 cli.add_command(server)
 cli.add_command(app)
+cli.add_command(execute)

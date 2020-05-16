@@ -1,12 +1,15 @@
 from multiprocessing import Pool
 
 from .engine import Engine
+from ..core.settings import get_settings
 
 
 class NativeEngine(Engine):
     def __init__(
-        self, processes=1,
+        self, processes=None,
     ):
+        if processes is None:
+            processes = get_settings()["engines"]["native"]["processes"]
         self.processes = processes
 
         Engine.set_latest(self)

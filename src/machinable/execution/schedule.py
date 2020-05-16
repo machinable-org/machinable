@@ -81,7 +81,7 @@ class Schedule(Jsonable):
         ) in self._elements:
             if storage is not None:
                 storage = copy.deepcopy(storage)
-                storage["uid"] = component["flags"]["UID"]
+                storage["components"] = component["flags"]["UID"]
                 yield (
                     execution_type,
                     component,

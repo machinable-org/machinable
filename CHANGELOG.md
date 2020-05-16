@@ -4,9 +4,9 @@
 
 ## v2 (unreleased)
 
-  - Experiment.directory() 
-  - MACHINABLE_STORAGE override
-  - Execution for fine grained execution control
+  - Experiment.directory() for automatic directories per experiment
+  - Set default storage and engine in .machinable/settings.yaml
+  - machinable.Execution() for fine grained execution control
 
 ## v1.2.1
 

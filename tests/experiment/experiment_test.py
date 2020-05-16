@@ -52,3 +52,11 @@ def test_experiment_config():
     assert node_config["version"] == 0
     worker_component_config = conf.get(components[0])["args"]
     assert worker_component_config["version"] == 1
+
+
+def test_experiment_directory():
+    e = ml.Execution(
+        "@/test_project/experiments/auto_directory", project="./test_project",
+    )
+    e.set_schedule()
+    assert e.storage["directory"] == "test_project"

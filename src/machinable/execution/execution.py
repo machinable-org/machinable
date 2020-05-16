@@ -6,8 +6,6 @@ from typing import Any, Callable, Union
 import fs
 import yaml
 
-from machinable.utils.host import get_host_info
-
 from ..config.interface import ConfigInterface
 from ..core.exceptions import ExecutionException
 from ..engines import Engine
@@ -16,11 +14,13 @@ from ..experiment.experiment import Experiment
 from ..experiment.parser import parse_experiment
 from ..project import Project
 from ..project.export import Export
-from ..storage.directory import Directory as StorageDirectory
+from ..filesystem import open_fs
 from ..store import Store
 from ..utils.formatting import exception_to_str, msg
 from ..utils.traits import Jsonable
-from ..utils.utils import generate_uid
+from machinable.execution.identifiers import generate_component_id
+from ..utils.host import get_host_info
+from ..core.settings import get_settings
 from .identifiers import (
     decode_experiment_id,
     encode_experiment_id,
@@ -43,8 +43,8 @@ class Execution(Jsonable):
         project: Union[Project, Callable, str, dict] = None,
         seed: Union[int, None, str] = None,
     ):
-        self._uid = None
-        self._uid_cache = None
+        self._components = None
+        self._components_cache = None
         self.function = None
 
         self.experiment = None
@@ -70,10 +70,10 @@ class Execution(Jsonable):
             self.function = experiment
             return
 
+        self.set_project(project)
         self.set_experiment(experiment)
         self.set_storage(storage)
         self.set_engine(engine)
-        self.set_project(project)
         self.set_seed(seed)
 
     def __call__(self, experiment, storage=None, engine=None, project=None, seed=None):
@@ -93,16 +93,15 @@ class Execution(Jsonable):
         return self
 
     def set_storage(self, storage):
+        if storage is None:
+            storage = get_settings()["default_storage"]
+
         if isinstance(storage, dict):
             storage = copy.deepcopy(storage)
         elif isinstance(storage, str):
             storage = {"url": storage}
         else:
             storage = {}
-
-        url_override = os.environ.get("MACHINABLE_STORAGE", None)
-        if url_override is not None:
-            storage["url"] = url_override
 
         # code backup
         self.code_backup = False
@@ -119,6 +118,9 @@ class Execution(Jsonable):
         return self
 
     def set_engine(self, engine):
+        if engine is None:
+            engine = get_settings()["default_engine"]
+
         self.engine = Engine.create(engine)
 
         return self
@@ -153,8 +155,21 @@ class Execution(Jsonable):
             default_class=self.project.default_component,
         )
 
-        if self.experiment.specification.get("directory", None) is not None:
-            self.storage["directory"] = self.experiment.specification["directory"]
+        experiment_directory = self.experiment.specification.get("directory", None)
+        if experiment_directory is not None:
+            # replace magic variables
+            project_name = self.project.name if self.project else ""
+            experiment_directory = experiment_directory.replace(
+                "%PROJECT%", project_name
+            )
+            module_name = (
+                self.experiment._resolved_module_origin
+                if hasattr(self.experiment, "_resolved_module_origin")
+                else ""
+            )
+            experiment_directory = experiment_directory.replace("%MODULE%", module_name)
+
+            self.storage["directory"] = experiment_directory.strip("/")
 
         for index, (node, components, resources) in enumerate(
             parse_experiment(self.experiment.specification, seed=self.seed)
@@ -178,15 +193,17 @@ class Execution(Jsonable):
         return self
 
     @property
-    def uid(self):
+    def components(self):
         if self.seed is None:
             return []
 
-        if self._uid is None or self._uid_cache != self.seed:
-            self._uid = generate_uid(k=len(self.schedule), random_state=self.seed)
-            self._uid_cache = self.seed
+        if self._components is None or self._components_cache != self.seed:
+            self._components = generate_component_id(
+                k=len(self.schedule), random_state=self.seed
+            )
+            self._components_cache = self.seed
 
-        return self._uid
+        return self._components
 
     def is_submitted(self):
         try:
@@ -221,6 +238,7 @@ class Execution(Jsonable):
                 self.code_version = self.project.get_code_version()
 
             self.store.write("execution.json", self.serialize(), _meta=True)
+            self.store.write("schedule.json", self.schedule.serialize(), _meta=True)
             self.store.write("host.json", get_host_info(), _meta=True)
             self.store.destroy()
             self.store = None
@@ -232,14 +250,14 @@ class Execution(Jsonable):
             index = len(self.schedule) - 1
         if isinstance(result, ExecutionException):
             self.engine.log(
-                f"{self.uid[index]} of experiment {self.experiment_id} failed "
+                f"{self.components[index]} of experiment {self.experiment_id} failed "
                 f"({index + 1}/{len(self.schedule)}). "
                 f"{exception_to_str(result)}",
                 level="error",
             )
         else:
             self.engine.log(
-                f"{self.uid[index]} of experiment {self.experiment_id} finished "
+                f"{self.components[index]} of experiment {self.experiment_id} finished "
                 f"({index + 1}/{len(self.schedule)}). ",
                 level="info",
             )
@@ -247,8 +265,13 @@ class Execution(Jsonable):
 
     @classmethod
     def from_storage(cls, url):
-        storage = StorageDirectory(url)
-        return cls.from_json(storage.load_file("execution.json"))
+        with open_fs(url) as filesystem:
+            serialized = filesystem.load_file("execution.json")
+        execution = cls.from_json(serialized)
+        schedule = filesystem.load_file("schedule.json", default=None)
+        if schedule:
+            execution.set_schedule(Schedule.from_json(schedule))
+        return execution
 
     def export(self, path=None, overwrite=False):
         """Exports the execution
@@ -363,8 +386,7 @@ class Execution(Jsonable):
             "code_backup": self.code_backup,
             "code_version": self.code_version,
             "started_at": self.started_at,
-            "schedule": self.schedule.serialize(),
-            "uid": self.uid,
+            "components": self.components,
         }
 
     @classmethod
@@ -377,7 +399,6 @@ class Execution(Jsonable):
         execution.code_backup = serialized["code_backup"]
         execution.code_version = serialized["code_version"]
         execution.started_at = serialized["started_at"]
-        execution.schedule = Schedule.unserialize(serialized["schedule"])
         return execution
 
     @property
@@ -405,7 +426,8 @@ class Execution(Jsonable):
             # only print first and last one
             shortened = len(self.schedule) > 3 and 0 < index <= len(self.schedule) - 1
             msg(
-                f"\n{self.uid[index]} ({index+1}/{len(self.schedule)})", color="header",
+                f"\n{self.components[index]} ({index + 1}/{len(self.schedule)})",
+                color="header",
             )
 
             msg(f"\nComponent: {component['name']}", color="yellow")

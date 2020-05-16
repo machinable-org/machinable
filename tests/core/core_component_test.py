@@ -27,7 +27,7 @@ def test_on_iterate():
                 return StopIteration
 
     iterator = TestIterate()
-    iterator.dispatch([], {"uid": "12345"})
+    iterator.dispatch([], {"components": "12345"})
     iterator.create()
     iterator.execute()
 
@@ -39,7 +39,7 @@ def test_on_iterate():
 
     # repeat with records writing
     iterator = TestIterate()
-    iterator.dispatch([], {"uid": "12345"})
+    iterator.dispatch([], {"components": "12345"})
     iterator.create()
     iterator.USE_RECORDS = True
     iterator.execute()
@@ -108,7 +108,7 @@ def test_exception_handling():
     from test_project.failure.exceptions import ExceptionsComponent
 
     ex = ExceptionsComponent()
-    status = ex.dispatch([], {"uid": "12345"})
+    status = ex.dispatch([], {"components": "12345"})
     assert isinstance(status, ml.core.exceptions.ExecutionException)
 
     ml.execute(

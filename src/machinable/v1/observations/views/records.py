@@ -4,11 +4,11 @@ from orator import DatabaseManager, Schema
 
 from machinable.utils.formatting import prettydict
 
-from ..collections import RecordsCollection
+from machinable.storage.collections import RecordCollection
 from ..orm.query_builder import QueryBuilder
 
 
-class Records(RecordsCollection):
+class Records(RecordCollection):
     def __init__(self, models, scope="default"):
         self._models = models
         self._scope = scope
@@ -185,7 +185,7 @@ class RecordsQueryBuilder(QueryBuilder):
         return self._data[model.id]
 
     def _collection(self, models):
-        return RecordsCollection(models.transform(lambda model: self._data[model.id]))
+        return RecordCollection(models.transform(lambda model: self._data[model.id]))
 
     def get(self):
         """Returns the query result"""

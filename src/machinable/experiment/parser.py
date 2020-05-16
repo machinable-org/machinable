@@ -2,7 +2,8 @@ import copy
 import random
 
 from ..utils.dicts import update_dict
-from ..utils.utils import generate_seed, generate_uid
+from ..utils.utils import generate_seed
+from machinable.execution.identifiers import generate_component_id
 
 
 def parse_experiment(specification, seed=None):
@@ -46,7 +47,7 @@ def parse_experiment(specification, seed=None):
 
             node.flags["GLOBAL_SEED"] = seed
             node.flags["SEED"] = generate_seed(random_state=seed_random_state)
-            node.flags["UID"] = generate_uid(random_state=uid_random_state)[0]
+            node.flags["UID"] = generate_component_id(random_state=uid_random_state)[0]
             node.flags.update(repeat)
 
             yield node, components, resources

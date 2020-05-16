@@ -2,6 +2,7 @@ import os
 import shutil
 
 import pytest
+import machinable as ml
 
 
 class Helpers:
@@ -16,3 +17,42 @@ class Helpers:
 @pytest.fixture
 def helpers():
     return Helpers
+
+
+def pytest_sessionstart(session):
+    # setup storage test data
+    return
+
+    path = Helpers.tmp_directory("storage")
+
+    ml.execute(
+        ml.Experiment().components(("nodes.observations", {"id": 1})).repeat(3),
+        path,
+        project="./test_project",
+    )
+    ml.execute(
+        ml.Experiment()
+        .components(("nodes.observations", {"id": 2}), "thechildren")
+        .repeat(2),
+        path,
+        project="./test_project",
+    )
+
+    ml.execute(
+        ml.Experiment()
+        .components(("nodes.observations", {"id": 3, "test": True}))
+        .repeat(4),
+        path,
+        seed="tttttt",
+        project="./test_project",
+    )
+
+    ml.execute(
+        ml.Experiment().components(("nodes.observations", {"id": 4, "corrupt": True})),
+        path,
+        seed="corupt",
+        project="./test_project",
+    )
+
+    # corrupt some data
+    shutil.rmtree(os.path.join(path, "corupt"), ignore_errors=True)

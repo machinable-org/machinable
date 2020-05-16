@@ -10,7 +10,7 @@ from machinable.v1.history import get_history
 from ..observations.orm.migrations import run as migrate_database
 from ..observations.orm.models import ObservationModel, StorageModel, TaskModel
 from ..observations.orm.query_builder import QueryBuilder
-from .collections import Collection, ObservationCollection
+from machinable.storage.collections import Collection, ComponentCollection
 from .views import ObservationView, TaskView
 
 
@@ -354,7 +354,7 @@ class ObservationsQueryBuilder(QueryBuilder):
         return field
 
     def _collection(self, models):
-        return ObservationCollection(
+        return ComponentCollection(
             models.transform(lambda model: ObservationView(model, self._cache))
         )
 

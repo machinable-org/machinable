@@ -202,7 +202,7 @@ class Store:
     def refresh_status(self):
         """Updates the status.json file with a heartbeat at the current time
         """
-        if not self.config.get("uid", None):
+        if not self.config.get("components", None):
             return
         self._status["heartbeat"] = str(datetime.datetime.now())
         self.write("status.json", self._status, overwrite=True, _meta=True)
@@ -361,7 +361,7 @@ class Store:
         path = os.path.join(
             self.config["directory"],
             self.config["group"],
-            self.config.get("uid", ""),
+            self.config.get("components", ""),
             append,
         )
 

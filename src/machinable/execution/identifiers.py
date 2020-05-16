@@ -3,6 +3,8 @@ from typing import Optional
 
 from baseconv import base62
 
+from ..utils.utils import random_str
+
 
 def encode_experiment_id(seed, or_fail=True) -> Optional[str]:
     """Encodes a seed and returns the corresponding experiment ID
@@ -54,3 +56,13 @@ def generate_experiment_id(with_encoding=True, random_state=None):
         return experiment_id, encode_experiment_id(experiment_id)
 
     return experiment_id
+
+
+def generate_component_id(k=1, random_state=None):
+    if random_state is None or isinstance(random_state, int):
+        random_state = random.Random(random_state)
+
+    if not isinstance(k, int):
+        raise ValueError(f"k has to be integer, {type(k)} given")
+
+    return [random_str(length=12, random_state=random_state) for _ in range(k)]

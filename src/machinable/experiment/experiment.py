@@ -118,19 +118,21 @@ class Experiment(Jsonable):
     def set_latest(cls, latest):
         _latest[0] = latest
 
-    def directory(self, name: str):
+    def directory(self, path: str = "%PROJECT%/%MODULE%"):
         """Set the directory of the experiment
 
         Relative path that gets appended to the storage directory of this experiment
 
         # Arguments
-        name: String, directory name
+        name: String, directory name. %PROJECT% and %MODULE% will be replaced by
+            the project and experiment module name respectively (empty if they can
+            not be determined)
         """
-        if not isinstance(name, str):
+        if not isinstance(path, str):
             raise ValueError("Name must be a string")
-        if name[0] == "/":
+        if path[0] == "/":
             raise ValueError("Directory must be relative")
-        self._specs["directory"] = name
+        self._specs["directory"] = path
 
         return self
 
