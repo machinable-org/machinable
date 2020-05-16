@@ -91,3 +91,9 @@ class Storage:
         """
         self._index = {"experiments": {}, "url": []}
         return self
+
+    def __str__(self):
+        return self.__repr__()
+
+    def __repr__(self):
+        return f"Storage <{self._index['url']}>"

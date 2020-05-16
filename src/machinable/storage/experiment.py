@@ -41,7 +41,7 @@ class ExperimentStorage:
     @property
     def id(self):
         """6-digit experiment ID, e.g. F4K3r6"""
-        return self.file("execution.json")["id"]
+        return self._path
 
     @property
     def seed(self):
@@ -111,8 +111,11 @@ class ExperimentStorage:
         """Returns the number of components in this experiment"""
         return len(self.file("execution.json")["components"])
 
+    def __iter__(self):
+        yield from self.components
+
     def __str__(self):
-        return self.id
+        return self.__repr__()
 
     def __repr__(self):
-        return f"Experiment <{self.id}> ({len(self)})"
+        return f"Experiment <{self.id}>"

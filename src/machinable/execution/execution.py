@@ -425,7 +425,15 @@ class Execution(Jsonable):
             (execution_type, component, components, resources, args, kwargs),
         ) in enumerate(self.schedule):
             # only print first and last one
-            shortened = len(self.schedule) > 3 and 0 < index <= len(self.schedule) - 1
+            shortened = len(self.schedule) > 3 and 0 < index < len(self.schedule) - 1
+            if shortened:
+                if index == 1:
+                    msg(
+                        f"[ + {len(self.schedule) - 2} other experiments ]",
+                        color="header",
+                    )
+                continue
+
             msg(
                 f"\n{self.components[index]} ({index + 1}/{len(self.schedule)})",
                 color="header",

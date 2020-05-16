@@ -1,8 +1,12 @@
 import os
 
+import pendulum
+
 from ..config.mapping import config_map
 from ..filesystem import open_fs, parse_fs_url
 from .collections import RecordCollection
+
+sentinel = object()
 
 
 class ComponentStorage:
@@ -33,7 +37,7 @@ class ComponentStorage:
             self._experiment = ExperimentStorage(self.url)
         return self._experiment
 
-    def file(self, filepath, reload=False):
+    def file(self, filepath, default=sentinel, reload=False):
         """Returns the content of a file in the component storage
 
         # Arguments
@@ -41,8 +45,14 @@ class ComponentStorage:
         reload: If True, cache will be ignored
         """
         if filepath not in self._cache or reload:
-            with open_fs(self.url) as filesystem:
-                self._cache[filepath] = filesystem.load_file(filepath)
+            try:
+                with open_fs(self.url) as filesystem:
+                    self._cache[filepath] = filesystem.load_file(filepath)
+            except FileNotFoundError:
+                if default is not sentinel:
+                    return default
+                raise
+
         return self._cache[filepath]
 
     def store(self, name=None):
@@ -54,7 +64,7 @@ class ComponentStorage:
         name: Key or filename of the object that is to be retrieved. If None, a list of available objects is returned
         """
         if name is None:
-            store = self.file("store.json", reload=self.is_active())
+            store = self.file("store.json", reload=self.is_alive())
             try:
                 with open_fs(self.url) as filesystem:
                     files = filesystem.listdir("store")
@@ -67,7 +77,7 @@ class ComponentStorage:
 
         if os.path.splitext(name)[1] == "":
             try:
-                return self.file("store.json", reload=self.is_active())[name]
+                return self.file("store.json", reload=self.is_alive())[name]
             except:
                 return FileNotFoundError
 
@@ -103,17 +113,17 @@ class ComponentStorage:
     @property
     def state(self):
         """Returns information of component state"""
-        return config_map(self.file("state.json"), reload=self.is_active())
+        return config_map(self.file("state.json", reload=self.is_alive()))
 
     @property
     def log(self):
         """Returns the content of the log file"""
-        return self.file("log.txt", reload=self.is_active())
+        return self.file("log.txt", reload=self.is_alive())
 
     @property
     def output(self):
         """Returns the content of the log file"""
-        return self.file("output.log", reload=self.is_active())
+        return self.file("output.log", reload=self.is_alive())
 
     @property
     def records(self):
@@ -134,38 +144,49 @@ class ComponentStorage:
                     return [s[:-5] for s in scopes if s.endswith(".json")]
             except:
                 return []
-        return RecordCollection(
-            self.file(f"records/{scope}.p", reload=self.is_active())
-        )
+        return RecordCollection(self.file(f"records/{scope}.p", reload=self.is_alive()))
 
     @property
-    def started(self):
+    def started_at(self):
         """Returns the starting time"""
-        return self.file("status.json")["started"]
+        return pendulum.parse(self.status["started_at"])
 
     @property
-    def heartbeat(self):
+    def heartbeat_at(self):
         """Returns the last heartbeat time"""
-        return self.file("status.json")["heartbeat"]
+        if not isinstance(self.status["heartbeat_at"], str):
+            return False
+        return pendulum.parse(self.status["heartbeat_at"])
 
     @property
-    def finished(self):
+    def finished_at(self):
         """Returns the finishing time"""
-        return self.file("status.json")["finished"]
+        if not isinstance(self.status["finished_at"], str):
+            return False
+        return pendulum.parse(self.status["finished_at"])
+
+    @property
+    def status(self):
+        return config_map(self.file("status.json"))
 
     def is_finished(self):
         """True if finishing time has been written"""
-        # todo
-        return None
+        status = self.file("status.json", default={"finished_at": False})
+        return bool(status["finished_at"])
+
+    def is_started(self):
+        status = self.file("status.json", default={"started_at": False})
+        return bool(status["started_at"])
 
     def is_alive(self):
-        """True if last heartbeat occurred less than 30 seconds ago"""
-        # todo
-        return None
+        """True if not finished and last heartbeat occurred less than 30 seconds ago"""
+        status = self.file("status.json", default={"heartbeat_at": None})
+        if not status["heartbeat_at"]:
+            return False
 
-    def is_active(self):
-        """True if not finished and alive"""
-        return (not self.is_finished()) and self.is_alive()
+        return (not self.is_finished()) and pendulum.parse(status["heartbeat_at"]).diff(
+            pendulum.now()
+        ).in_seconds() < 30
 
     def __getattr__(self, item):
         # resolve child alias

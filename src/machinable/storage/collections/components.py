@@ -2,6 +2,17 @@ from .base import Collection
 
 
 class ComponentCollection(Collection):
+    def status(self, status="started"):
+        """Filters the collection by a status attribute
+
+        # Arguments
+        status: String, status field: 'started', 'finished', 'alive'
+        """
+        try:
+            return self.filter(lambda item: getattr(item, "is_" + status)())
+        except AttributeError:
+            raise ValueError(f"Invalid status field: {status}")
+
     def as_dataframe(self):
         """Returns collection as Pandas dataframe
         """

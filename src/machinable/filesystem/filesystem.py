@@ -4,6 +4,7 @@ import os
 import pickle
 
 from fs import open_fs
+from fs import errors
 
 sentinel = object()
 
@@ -27,7 +28,10 @@ class FileSystem:
         self._fs = None
 
     def __enter__(self):
-        self._fs = open_fs(self.config["url"])
+        try:
+            self._fs = open_fs(self.config["url"])
+        except errors.CreateFailed:
+            raise FileNotFoundError(f"Directory {self.config['url']} does not exist")
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
