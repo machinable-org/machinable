@@ -1,11 +1,10 @@
 import json
 import os
 
+import pendulum
 from orator import Model
 from orator.exceptions.query import QueryException
 from orator.orm import belongs_to, scope
-
-from machinable.utils.formatting import str_to_time
 
 try:
     import cPickle as pickle
@@ -94,9 +93,9 @@ class Observation(Model):
                     status = json.load(f)
                 except json.decoder.JSONDecodeError:
                     status = {}
-            attributes.setdefault("started", str_to_time(status.get("started")))
-            attributes.setdefault("heartbeat", str_to_time(status.get("heartbeat")))
-            attributes.setdefault("finished", str_to_time(status.get("finished")))
+            attributes.setdefault("started", pendulum.parse(status.get("started")))
+            attributes.setdefault("heartbeat", pendulum.parse(status.get("heartbeat")))
+            attributes.setdefault("finished", pendulum.parse(status.get("finished")))
         try:
             model = cls.first_or_create(path=path, **attributes)
         except QueryException:

@@ -1,9 +1,9 @@
 import copy
-import datetime
 import os
 from typing import Any, Callable, Union
 
 import fs
+import pendulum
 import yaml
 
 from machinable.execution.identifiers import generate_component_id
@@ -225,7 +225,7 @@ class Execution(Jsonable):
         if not self.is_submitted():
             if len(self.schedule) == 0:
                 self.set_schedule()
-            now = datetime.datetime.now()
+            now = pendulum.now()
             self.timestamp = now.timestamp()
             self.started_at = str(now)
             self.storage["group"] = self.experiment_id

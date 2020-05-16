@@ -77,10 +77,10 @@ class Record:
         Returns: See return_type
         """
         if timestamp is None:
-            timestamp = datetime.datetime.now()
+            timestamp = pendulum.now()
 
         if "on_execute_start" not in self.store.statistics:
-            self.store.statistics["on_execute_start"] = datetime.datetime.now()
+            self.store.statistics["on_execute_start"] = pendulum.now()
 
         start = self.store.statistics["on_execute_start"]
 
@@ -135,7 +135,7 @@ class Record:
             return data
 
         # meta-data
-        data["_timestamp"] = datetime.datetime.now()
+        data["_timestamp"] = pendulum.now()
 
         iteration_time = self.timing(
             "iteration", timestamp=data["_timestamp"], return_type="period"

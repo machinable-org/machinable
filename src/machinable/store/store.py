@@ -1,10 +1,10 @@
 import copy
-import datetime
 import io
 import json
 import os
 import sys
 
+import pendulum
 from fs import open_fs
 
 from ..utils.dicts import serialize, update_dict
@@ -159,7 +159,7 @@ class Store:
 
         # status
         self._status = dict()
-        self._status["started_at"] = str(datetime.datetime.now())
+        self._status["started_at"] = str(pendulum.now())
         self._status["finished_at"] = False
         if self._store_status:
             self.refresh_status()
@@ -177,7 +177,7 @@ class Store:
             self.events.heartbeats(None)
         # write finished status (not triggered in the case of an unhandled exception)
         if self._store_status:
-            self._status["finished_at"] = str(datetime.datetime.now())
+            self._status["finished_at"] = str(pendulum.now())
             self.refresh_status()
 
         OutputRedirection.revert()
@@ -204,7 +204,7 @@ class Store:
         """
         if not self.config.get("components", None):
             return
-        self._status["heartbeat_at"] = str(datetime.datetime.now())
+        self._status["heartbeat_at"] = str(pendulum.now())
         self.write("status.json", self._status, overwrite=True, _meta=True)
 
     def get_record_writer(self, scope):

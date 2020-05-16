@@ -1,9 +1,8 @@
 import json
 
+import pendulum
 from orator import Model
 from orator.orm import belongs_to, has_many, scope
-
-from machinable.utils.formatting import str_to_time
 
 
 class Task(Model):
@@ -78,7 +77,7 @@ class Task(Model):
         attributes.setdefault("code_version", json.dumps(data.get("code_version")))
 
         attributes.setdefault("observations_count", len(data.get("schedule", [])))
-        attributes.setdefault("started", str_to_time(data.get("started_at")))
+        attributes.setdefault("started", None)
 
         model = cls.first_or_create(path=path, **attributes)
 

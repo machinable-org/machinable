@@ -21,16 +21,6 @@ def msg(text, level="info", color=None):
     print(text)
 
 
-def str_to_time(date_time_str):
-    if date_time_str is False or date_time_str is None:
-        return None
-
-    try:
-        return datetime.datetime.strptime(date_time_str, "%Y-%m-%d %H:%M:%S.%f")
-    except ValueError:
-        return datetime.datetime.strptime(date_time_str, "%Y-%m-%d %H:%M:%S")
-
-
 def prettydict(dict_like, sort_keys=False):
     try:
         return json.dumps(dict_like, indent=4, default=serialize, sort_keys=sort_keys)

@@ -3,11 +3,9 @@
 # The copyright and license agreement can be found in the ThirdPartyNotices.txt file at the root of this repository.
 
 import copy
+from functools import reduce
 from json import dumps
 from pprint import pprint
-
-
-from functools import reduce
 
 long = int
 unicode = str

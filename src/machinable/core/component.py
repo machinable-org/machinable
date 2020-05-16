@@ -1,11 +1,12 @@
 import copy
-import datetime
 import inspect
 import os
 import re
 from collections import OrderedDict
 from inspect import getattr_static
 from typing import Dict, List, Optional, Union
+
+import pendulum
 
 from machinable.utils.host import get_host_info
 
@@ -433,7 +434,7 @@ class Component(Mixin):
         self.on_before_execute()
 
         if self.store:
-            self.store.statistics["on_execute_start"] = datetime.datetime.now()
+            self.store.statistics["on_execute_start"] = pendulum.now()
             self.store.write("host.json", get_host_info(), _meta=True)
             self.store.write("component.json", self.serialize(), _meta=True)
             self.store.write(
@@ -785,7 +786,7 @@ class FunctionalComponent:
                     payload["store"] = storage_config
                 else:
                     store = Store(storage_config)
-                    store.statistics["on_execute_start"] = datetime.datetime.now()
+                    store.statistics["on_execute_start"] = pendulum.now()
                     store.write("host.json", get_host_info(), _meta=True)
                     store.write(
                         "component",

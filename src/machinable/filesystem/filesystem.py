@@ -3,8 +3,7 @@ import json
 import os
 import pickle
 
-from fs import open_fs
-from fs import errors
+from fs import errors, open_fs
 
 sentinel = object()
 
