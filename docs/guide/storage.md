@@ -182,7 +182,7 @@ o = mlo.find('hYRI2RB0tS9Y')
 >>> <Observation <hYRI2RB0tS9Y> (3K45al)>
 ```
 
-The [observation object](../reference/observations.md#observation) then provides convenient access to the observation data.
+The [observation object](../reference/storage.md#observation) then provides convenient access to the observation data.
 
 ```python
 # used configuration
@@ -225,7 +225,7 @@ obs = mlo.find_by_most_recent_task()
 >>> 'Collection (2) <Observation <hYRI2RB0tS9Y> (3K45al), Observation <e5JJ4fzhNHgj> (3K45al)>'
 ```
 
-Note that the method returns a [collection](../reference/observations.md#collection) of observation objects rather than a single observation. 
+Note that the method returns a [collection](../reference/storage.md#collection) of observation objects rather than a single observation. 
 
 The collection interface forms a wrapper for working with the list of observations and provides a wealth of manipulation operations. For example, we could select the observation that is already finished: 
 
@@ -233,7 +233,7 @@ The collection interface forms a wrapper for working with the list of observatio
 obs.filter(lambda x: x.is_finished()).first()
 ```
 
-The [collection reference documentation](../reference/observations.md#collection) provides a comprehensive overview over available options.
+The [collection reference documentation](../reference/storage.md#collection) provides a comprehensive overview over available options.
 
 In practice, the interfaces allow you to quickly retrieve the data that is needed to analyse the results. Consider the following code block for plotting training performance:
 
@@ -255,6 +255,6 @@ One of the key advantages when working with the observation abstraction is that 
 
 ### Further reading
 
-- Explore the [observations](../reference/observations.md#observations-2) reference documentation to learn about advanced options
+- Explore the [observations](../reference/storage.md#observations-2) reference documentation to learn about advanced options
 
-- For advanced customized queries, you may use the [query builder](../reference/observations.md#observationsquerybuilder)
+- For advanced customized queries, you may use the [query builder](../reference/storage.md#observationsquerybuilder)
