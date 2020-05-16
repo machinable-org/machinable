@@ -11,8 +11,8 @@ matrix:
           - python3.6 docs/.vuepress/_reference/autogen.py
           - vuepress build docs
       after_failure:
-        - cat /home/travis/.npm/_logs/*-debug.log
         - rm -rf /home/travis/machinable/node_modules
+        - cat /home/travis/.npm/_logs/*-debug.log
       cache:
           directories:
               - "node_modules"
