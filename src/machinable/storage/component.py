@@ -167,20 +167,20 @@ class ComponentStorage:
 
     @property
     def status(self):
-        return config_map(self.file("status.json"))
+        return config_map(self.file("status.json", reload=True))
 
     def is_finished(self):
         """True if finishing time has been written"""
-        status = self.file("status.json", default={"finished_at": False})
+        status = self.file("status.json", default={"finished_at": False}, reload=True)
         return bool(status["finished_at"])
 
     def is_started(self):
-        status = self.file("status.json", default={"started_at": False})
+        status = self.file("status.json", default={"started_at": False}, reload=True)
         return bool(status["started_at"])
 
     def is_alive(self):
         """True if not finished and last heartbeat occurred less than 30 seconds ago"""
-        status = self.file("status.json", default={"heartbeat_at": None})
+        status = self.file("status.json", default={"heartbeat_at": None}, reload=True)
         if not status["heartbeat_at"]:
             return False
 
