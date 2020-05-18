@@ -78,7 +78,7 @@ def read_path_dict(dict_like, path):
 def serialize(obj):
     """JSON serializer for objects not serializable by default json code
     """
-    if isinstance(obj, pendulum.Pendulum):
+    if isinstance(obj, pendulum.DateTime):
         return str(obj)
 
     if getattr(obj, "__dict__", False):

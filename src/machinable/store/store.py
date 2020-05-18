@@ -163,7 +163,7 @@ class Store:
         self._status["finished_at"] = False
         if self._store_status:
             self.refresh_status()
-            self.events.on("heartbeat", self.refresh_status)
+            # self.events.on("heartbeat", self.refresh_status)
 
         if not self.config["url"].startswith("mem://"):
             OutputRedirection.apply(

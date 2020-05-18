@@ -5,9 +5,8 @@ import machinable as ml
 STORAGE_DIRECTORY = "./_test_data/storage"
 
 
-def test_storage():
+def test_storage_interface():
     storage = ml.Storage(STORAGE_DIRECTORY)
-
     # storage
     storage.reset()
     assert len(storage._index["url"]) == 0

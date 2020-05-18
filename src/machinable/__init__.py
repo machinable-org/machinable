@@ -1,3 +1,5 @@
+from typing import Union, Any, Callable
+
 from .core import Component, Mixin
 from .engines import Engine
 from .execution import Execution
@@ -7,7 +9,13 @@ from .project import Project
 from .storage import Storage
 
 
-def execute(experiment, storage=None, engine=None, project=None, seed=None):
+def execute(
+    experiment: Union[Experiment, Any],
+    storage: Union[dict, str] = None,
+    engine: Union[Engine, str, dict, None] = None,
+    project: Union[Project, Callable, str, dict] = None,
+    seed: Union[int, None, str] = None,
+) -> Execution:
     """Executes a machinable experiment
 
     Schedules the experiment for execution.

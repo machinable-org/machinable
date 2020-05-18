@@ -130,6 +130,10 @@ class ComponentStorage:
         """Returns the record interface"""
         return self.get_records_writer("default")
 
+    def has_records(self, scope="default"):
+        """Returns True if records of given scope exist"""
+        return bool(self.file(f"records/{scope}.p", default=False))
+
     def get_records_writer(self, scope=None):
         """Returns a record writer
 
@@ -200,4 +204,4 @@ class ComponentStorage:
         return self.__repr__()
 
     def __repr__(self):
-        return f"Component <{self.id}>"
+        return f"Storage: Component <{self.id}>"

@@ -9,3 +9,6 @@ def test_native_engine():
 def test_native_engine_multiprocessing():
     t = ml.Experiment().components("thenode", "thechildren").repeat(5)
     ml.execute(t, engine="native:1", project="./test_project")
+    # failure
+    t = ml.Experiment().components("failure.exceptions").repeat(5)
+    ml.execute(t, engine="native:1", project="./test_project")

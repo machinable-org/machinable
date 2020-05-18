@@ -1,8 +1,10 @@
+import os
 from typing import List, Tuple, Union
 
 from ..filesystem import open_fs
 from .collections import ExperimentCollection
 from .experiment import ExperimentStorage
+from ..execution.identifiers import decode_experiment_id
 
 
 class Storage:
@@ -22,28 +24,26 @@ class Storage:
     url: String, URL of storage location.
     """
 
-    def __init__(self, url: str):
+    def __init__(self, url=None):
         self._index = None
         self.reset()
-        self.add(url)
+        if url:
+            self.add(url)
 
     def add(self, url: str) -> "Storage":
-        """Load a write location
+        """Adds a URL to the search index
 
         # Arguments
         url: String, URL to add
 
         Returns the number of experiments found
         """
-        if url in self._index["url"]:
+        # check if already indexed
+        if any([url.startswith(indexed_url) for indexed_url in self._index["url"]]):
             return self
-        with open_fs(url) as filesystem:
-            for path in filesystem.listdir(""):
-                if len(path) == 6:
-                    self._index["experiments"][path] = ExperimentStorage(
-                        filesystem.get_url(path)
-                    )
+
         self._index["url"].append(url)
+
         return self
 
     def find(self, experiment: Union[str, None] = None):
@@ -57,6 +57,9 @@ class Storage:
         """
         if experiment is None:
             return self.find_all()
+        # lazy index
+        if experiment not in self._index["experiments"]:
+            self._refresh()
         try:
             return self._index["experiments"][experiment]
         except KeyError:
@@ -64,6 +67,22 @@ class Storage:
                 f"Experiment {experiment} could not be found. "
                 f"Did you add the directory that contains the experiment storage?"
             )
+
+    def find_by_directory(self, directory):
+        """
+        Finds experiments in a directory
+
+        # Arguments
+        directory: String
+
+        # Returns
+        Instance or collection of machinable.storage.ExperimentStorage
+        """
+        self._refresh()
+        directory = directory.strip("/")
+        if directory not in self._index["directories"]:
+            self._index["directories"][directory] = set()
+        return ExperimentCollection(list(self._index["directories"][directory]))
 
     def find_many(self, experiments: Union[List[str], Tuple[str]]):
         """Finds many experiments
@@ -74,8 +93,12 @@ class Storage:
         # Returns
         Instance or collection of machinable.storage.ExperimentStorage
         """
+        self._refresh()
         return ExperimentCollection(
-            [self.find(experiment) for experiment in experiments]
+            [
+                self._index["experiments"].get(experiment, None)
+                for experiment in experiments
+            ]
         )
 
     def find_all(self):
@@ -84,13 +107,35 @@ class Storage:
         # Returns
         Instance or collection of machinable.storage.ExperimentStorage
         """
+        self._refresh()
         return ExperimentCollection(list(self._index["experiments"].values()))
 
     def reset(self) -> "Storage":
         """Resets the interface and discards the cache
         """
-        self._index = {"experiments": {}, "url": []}
+        self._index = {"experiments": {}, "url": [], "directories": {}}
         return self
+
+    def _refresh(self):
+        for url in self._index["url"]:
+            with open_fs(url) as filesystem:
+                for path, info in filesystem.walk.info():
+                    if not info.is_dir:
+                        continue
+                    directory, name = os.path.split(path)
+                    if not decode_experiment_id(name, or_fail=False):
+                        continue
+                    if name not in self._index["experiments"]:
+                        self._index["experiments"][name] = ExperimentStorage(
+                            filesystem.get_url(path)
+                        )
+                    directory = directory.strip("/")
+                    if directory not in self._index["directories"]:
+                        self._index["directories"][directory] = set()
+
+                    self._index["directories"][directory].add(
+                        self._index["experiments"][name]
+                    )
 
     def __str__(self):
         return self.__repr__()
