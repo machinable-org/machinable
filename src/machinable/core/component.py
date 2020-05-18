@@ -434,7 +434,7 @@ class Component(Mixin):
         self.on_before_execute()
 
         if self.store:
-            self.store.statistics["on_execute_start"] = pendulum.now()
+            self.store.statistics["on_execute_start"] = pendulum.now().timestamp()
             self.store.write("host.json", get_host_info(), _meta=True)
             self.store.write("component.json", self.serialize(), _meta=True)
             self.store.write(
@@ -786,7 +786,7 @@ class FunctionalComponent:
                     payload["store"] = storage_config
                 else:
                     store = Store(storage_config)
-                    store.statistics["on_execute_start"] = pendulum.now()
+                    store.statistics["on_execute_start"] = pendulum.now().timestamp()
                     store.write("host.json", get_host_info(), _meta=True)
                     store.write(
                         "component",

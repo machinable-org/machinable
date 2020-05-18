@@ -78,26 +78,32 @@ class Record:
         """
         if timestamp is None:
             timestamp = pendulum.now()
+        elif isinstance(timestamp, str):
+            timestamp = pendulum.parse(timestamp)
+        elif isinstance(timestamp, (float, int)):
+            timestamp = pendulum.from_timestamp(timestamp)
 
         if "on_execute_start" not in self.store.statistics:
-            self.store.statistics["on_execute_start"] = pendulum.now()
+            self.store.statistics["on_execute_start"] = pendulum.now().timestamp()
 
         start = self.store.statistics["on_execute_start"]
 
         if mode == "iteration":
             if len(self.history) > 0:
                 start = self.history[-1]["_timestamp"]
-            elapsed = pendulum.instance(start).diff(timestamp)
+            elapsed = pendulum.from_timestamp(int(start)).diff(timestamp)
         elif mode == "total":
             if len(self.history) > 0:
                 start = self.history[0]["_timestamp"]
-            elapsed = pendulum.instance(start).diff(timestamp)
+            elapsed = pendulum.from_timestamp(int(start)).diff(timestamp)
         elif mode == "avg":
             if len(self.history) > 0:
                 start = self.history[0]["_timestamp"]
-                elapsed = pendulum.instance(start).diff(timestamp) / len(self.history)
+                elapsed = pendulum.from_timestamp(int(start)).diff(timestamp) / len(
+                    self.history
+                )
             else:
-                elapsed = pendulum.instance(start).diff(timestamp)
+                elapsed = pendulum.from_timestamp(int(start)).diff(timestamp)
         else:
             raise ValueError(
                 f"Invalid mode: '{mode}'; must be 'iteration', 'avg' or 'total'."
@@ -134,8 +140,10 @@ class Record:
         if len(data) == 0 and not force:
             return data
 
+        now = pendulum.now()
+
         # meta-data
-        data["_timestamp"] = pendulum.now()
+        data["_timestamp"] = now.timestamp()
 
         iteration_time = self.timing(
             "iteration", timestamp=data["_timestamp"], return_type="period"
