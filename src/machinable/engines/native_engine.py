@@ -25,7 +25,7 @@ class NativeEngine(Engine):
             # standard execution
             return super(NativeEngine, self).submit(execution)
 
-        pool = Pool(processes=self.processes)
+        pool = Pool(processes=self.processes, maxtasksperchild=1)
         results = pool.starmap(
             self.process,
             [arguments for arguments in execution.schedule.iterate(execution.storage)],
@@ -33,6 +33,9 @@ class NativeEngine(Engine):
 
         for index, result in enumerate(results):
             execution.set_result(result, index)
+
+        pool.close()
+        pool.join()
 
         return execution
 

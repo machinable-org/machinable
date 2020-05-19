@@ -12,7 +12,7 @@ def get_settings(reload=False, file="~/.machinable/settings.yaml"):
     if _settings is None or reload:
         try:
             with open(os.path.expanduser(file), "r") as f:
-                _settings = yaml.load(f)
+                _settings = yaml.load(f, Loader=yaml.SafeLoader)
         except FileNotFoundError:
             _settings = {}
         except yaml.parser.ParserError as e:
