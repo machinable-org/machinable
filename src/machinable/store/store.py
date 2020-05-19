@@ -146,7 +146,7 @@ class Store:
             self.events = self.config["events"]
         else:
             self.events = Events()
-        self.events.heartbeats(seconds=self.config["heartbeat"])
+        # self.events.heartbeats(seconds=self.config["heartbeat"])
 
         self.filesystem = open_fs(self.config["url"], create=True)
         self.filesystem.makedirs(
