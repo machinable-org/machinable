@@ -72,33 +72,35 @@ class Schedule(Jsonable):
 
     def iterate(self, storage=None):
         for (
-            execution_type,
-            component,
-            components,
-            resources,
-            args,
-            kwargs,
-        ) in self._elements:
+            index,
+            (execution_type, component, components, resources, args, kwargs),
+        ) in enumerate(self._elements):
             if storage is not None:
                 storage = copy.deepcopy(storage)
                 storage["components"] = component["flags"]["UID"]
-                yield (
-                    execution_type,
-                    component,
-                    components,
-                    storage,
-                    resources,
-                    args,
-                    kwargs,
+                yield copy.deepcopy(
+                    (
+                        index,
+                        execution_type,
+                        component,
+                        components,
+                        storage,
+                        resources,
+                        args,
+                        kwargs,
+                    )
                 )
             else:
-                yield (
-                    execution_type,
-                    component,
-                    components,
-                    resources,
-                    args,
-                    kwargs,
+                yield copy.deepcopy(
+                    (
+                        index,
+                        execution_type,
+                        component,
+                        components,
+                        resources,
+                        args,
+                        kwargs,
+                    )
                 )
 
     def __getitem__(self, item):

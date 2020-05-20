@@ -11,5 +11,3 @@ tabulate
 ariadne
 starlette
 uvicorn
-# v1
-orator

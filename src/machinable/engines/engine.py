@@ -102,17 +102,30 @@ class Engine(Jsonable):
         """
         for (
             index,
-            (execution_type, component, components, storage, resources, args, kwargs,),
-        ) in enumerate(execution.schedule.iterate(execution.storage)):
-            result = self.process(
-                execution_type, component, components, storage, resources, args, kwargs
+            execution_type,
+            component,
+            components,
+            storage,
+            resources,
+            args,
+            kwargs,
+        ) in execution.schedule.iterate(execution.storage):
+            i, result = self.process(
+                index,
+                execution_type,
+                component,
+                components,
+                storage,
+                resources,
+                args,
+                kwargs,
             )
-            execution.set_result(result, index)
+            execution.set_result(result, i)
 
         return execution
 
-    def process(self, execution_type, *args, **kwargs):
-        return getattr(self, execution_type)(*args, **kwargs)
+    def process(self, index, execution_type, *args, **kwargs):
+        return index, getattr(self, execution_type)(*args, **kwargs)
 
     def storage_middleware(self, storage):
         return storage

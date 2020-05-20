@@ -146,7 +146,7 @@ class Store:
             self.events = self.config["events"]
         else:
             self.events = Events()
-        # self.events.heartbeats(seconds=self.config["heartbeat"])
+        self.events.heartbeats(seconds=self.config["heartbeat"])
 
         self.filesystem = open_fs(self.config["url"], create=True)
         self.filesystem.makedirs(
@@ -163,7 +163,7 @@ class Store:
         self._status["finished_at"] = False
         if self._store_status:
             self.refresh_status()
-            # self.events.on("heartbeat", self.refresh_status)
+            self.events.on("heartbeat", self.refresh_status)
 
         if not self.config["url"].startswith("mem://"):
             OutputRedirection.apply(
@@ -204,8 +204,11 @@ class Store:
         """
         if not self.config.get("components", None):
             return
-        self._status["heartbeat_at"] = str(pendulum.now())
-        self.write("status.json", self._status, overwrite=True, _meta=True)
+        try:
+            self._status["heartbeat_at"] = str(pendulum.now())
+            self.write("status.json", self._status, overwrite=True, _meta=True)
+        except:
+            pass
 
     def get_record_writer(self, scope):
         """Creates or returns an instance of a record writer

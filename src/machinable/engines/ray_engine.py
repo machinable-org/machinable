@@ -28,7 +28,7 @@ class RayEngine(Engine):
             for arguments in execution.schedule.iterate(execution.storage)
         ]
 
-        for index, result in enumerate(results):
+        for index, result in results:
             try:
                 if isinstance(result, ray.ObjectID):
                     result = ray.get(result)

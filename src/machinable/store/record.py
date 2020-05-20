@@ -144,7 +144,7 @@ class Record:
 
         # meta-data
         data["_timestamp"] = now.timestamp()
-
+        data["_time"] = str(now)
         iteration_time = self.timing(
             "iteration", timestamp=data["_timestamp"], return_type="period"
         )

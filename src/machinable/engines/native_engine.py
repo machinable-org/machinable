@@ -26,18 +26,18 @@ class NativeEngine(Engine):
             return super(NativeEngine, self).submit(execution)
 
         pool = Pool(processes=self.processes, maxtasksperchild=1)
-        results = pool.starmap(
-            self.process,
-            [arguments for arguments in execution.schedule.iterate(execution.storage)],
-        )
-
-        for index, result in enumerate(results):
+        for index, result in pool.imap_unordered(
+            self.pool_process, execution.schedule.iterate(execution.storage),
+        ):
             execution.set_result(result, index)
 
         pool.close()
         pool.join()
 
         return execution
+
+    def pool_process(self, payload):
+        return self.process(*payload)
 
     def execute(
         self,
