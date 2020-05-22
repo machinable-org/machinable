@@ -1,10 +1,10 @@
 import os
 from typing import List, Tuple, Union
 
+from ..execution.identifiers import decode_experiment_id
 from ..filesystem import open_fs
 from .collections import ExperimentCollection
 from .experiment import ExperimentStorage
-from ..execution.identifiers import decode_experiment_id
 
 
 class Storage:

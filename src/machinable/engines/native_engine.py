@@ -20,10 +20,10 @@ class NativeEngine(Engine):
     def serialize(self):
         return {"type": "native", "processes": self.processes}
 
-    def submit(self, execution):
+    def _submit(self, execution):
         if self.processes <= 1:
             # standard execution
-            return super(NativeEngine, self).submit(execution)
+            return super(NativeEngine, self)._submit(execution)
 
         pool = Pool(processes=self.processes, maxtasksperchild=1)
         for index, result in pool.imap_unordered(

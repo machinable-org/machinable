@@ -18,7 +18,7 @@ class DetachedEngine(Engine):
 
         Engine.set_latest(self)
 
-    def submit(self, execution):
+    def _submit(self, execution):
         name = "machinable-experiment-" + execution.experiment_id
 
         url = os.path.join(

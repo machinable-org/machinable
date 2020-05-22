@@ -7,6 +7,7 @@ from ..utils.dicts import update_dict
 from ..utils.formatting import exception_to_str, msg
 from ..utils.importing import resolve_instance
 from ..utils.traits import Jsonable
+from ..utils.utils import set_process_title
 
 _register = {
     "native": "machinable.engines.native_engine",
@@ -100,6 +101,10 @@ class Engine(Jsonable):
 
         machinable.Execution object
         """
+        set_process_title(repr(execution))
+        return self._submit(execution)
+
+    def _submit(self, execution):
         for (
             index,
             execution_type,

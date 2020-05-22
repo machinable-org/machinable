@@ -372,3 +372,6 @@ class Store:
             self.filesystem.makedirs(path, recreate=True)
 
         return path
+
+    def get_url(self, append=""):
+        return os.path.join(self.config["url"], self.get_path(append, create=False))

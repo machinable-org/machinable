@@ -1,4 +1,4 @@
-from typing import Union, Any, Callable
+from typing import Any, Callable, Union
 
 from .core import Component, Mixin
 from .engines import Engine

@@ -4,6 +4,18 @@ import random
 import string
 from keyword import iskeyword
 
+import setproctitle
+
+
+def set_process_title(title):
+    setproctitle.setproctitle(title)
+    # tmux
+    if (
+        os.environ.get("TERM", None) == "screen"
+        and os.environ.get("TMUX", None) is not None
+    ):
+        os.system(f"printf '\033]2;%s\033\\' '{title}'")
+
 
 def get_file_hash(filepath):
     """Returns a hash value of a file

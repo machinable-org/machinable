@@ -8,5 +8,5 @@ class DryEngine(Engine):
     def __repr__(self):
         return "Dry run"
 
-    def submit(self, execution):
+    def _submit(self, execution):
         return execution

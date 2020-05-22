@@ -108,7 +108,7 @@ class Execution(Jsonable):
         self.code_backup = False
         if storage.get("code_backup", None) is not False:
             if not (
-                # do not backup on mem:// filesystem unless explictly set to True
+                # do not backup on mem:// filesystem unless explicitly set to True
                 storage.get("code_backup", None) is None
                 and storage.get("url", "mem://").startswith("mem://")
             ):
@@ -454,3 +454,17 @@ class Execution(Jsonable):
                     msg("\t" + yaml.dump(c["args"]), color="blue")
 
         return self
+
+    def __repr__(self):
+        experiment_id = self.experiment_id if isinstance(self.seed, int) else "None"
+        storage = (
+            os.path.join(
+                self.storage.get("url", "-"), self.storage.get("directory", "")
+            )
+            if isinstance(self.storage, dict)
+            else "-"
+        )
+        return f"Execution <{experiment_id}> ({storage})"
+
+    def __str__(self):
+        return self.__repr__()

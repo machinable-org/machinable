@@ -24,6 +24,8 @@ cli.add_command(vendor)
 cli.add_command(execute)
 try:
     from .server import app, server
-except ImportError:
+
     cli.add_command(server)
     cli.add_command(app)
+except ImportError:
+    pass

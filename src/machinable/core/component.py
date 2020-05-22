@@ -8,8 +8,6 @@ from typing import Dict, List, Optional, Union
 
 import pendulum
 
-from machinable.utils.host import get_host_info
-
 from ..config.mapping import ConfigMap, ConfigMethod, config_map
 from ..config.parser import ModuleClass, parse_mixins
 from ..store import Store
@@ -17,8 +15,9 @@ from ..store.log import Log
 from ..store.record import Record
 from ..utils.dicts import update_dict
 from ..utils.formatting import exception_to_str
+from ..utils.host import get_host_info
 from ..utils.traits import Jsonable
-from ..utils.utils import apply_seed
+from ..utils.utils import apply_seed, set_process_title
 from .exceptions import ExecutionException
 
 
@@ -373,6 +372,10 @@ class Component(Mixin):
                 return components, store
 
             self.create(components, store)
+
+            if self.node is None:
+                set_process_title(repr(self))
+
             status = self.execute()
             self.destroy()
         except (KeyboardInterrupt, SystemExit):
@@ -733,6 +736,19 @@ class Component(Mixin):
     def on_after_destroy(self):
         """Lifecycle event triggered after components destruction"""
         pass
+
+    def __repr__(self):
+        if isinstance(self.node, Component):
+            return "Sub" + repr(self.node)
+
+        flags = getattr(self, "flags", {})
+        r = f"Component <{flags.get('EXPERIMENT_ID', '-')}:{flags.get('UID', '-')}>"
+        if isinstance(getattr(self, "store", None), Store):
+            r += f" ({self.store.get_url()})"
+        return r
+
+    def __str__(self):
+        return self.__repr__()
 
 
 class FunctionalComponent:
