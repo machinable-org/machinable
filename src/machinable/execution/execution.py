@@ -6,8 +6,7 @@ import fs
 import pendulum
 import yaml
 
-from machinable.execution.identifiers import generate_component_id
-
+from ..execution.identifiers import generate_component_id
 from ..config.interface import ConfigInterface
 from ..core.exceptions import ExecutionException
 from ..core.settings import get_settings

@@ -571,7 +571,7 @@ class Collection:
         """
         first = self.first()
 
-        if not isinstance(first, (basestring)):
+        if not isinstance(first, basestring):
             return glue.join(self.pluck(value).all())
 
         return value.join(self.items)
@@ -692,7 +692,7 @@ class Collection:
             val = data_get(item, key)
 
             if result is None or val > result:
-                return value
+                return val
 
             return result
 
@@ -708,7 +708,7 @@ class Collection:
             val = data_get(item, key)
 
             if result is None or val < result:
-                return value
+                return val
 
             return result
 
@@ -1202,7 +1202,7 @@ class Collection:
         try:
             from tabulate import tabulate
 
-            return tabulate(self.items, header=headers, tablefmt=mode, **kwargs)
+            return tabulate(self.items, headers=headers, tablefmt=mode, **kwargs)
         except ImportError:
             if mode != "html":
                 raise ValueError(
