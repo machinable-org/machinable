@@ -884,11 +884,12 @@ class Collection:
         """
         return Collection(list(reversed(self.items)))
 
-    def sort(self, callback=None):
+    def sort(self, callback=None, reverse=False):
         """Sorts the collection
 
         # Arguments
         callback: Sort callable
+        reverse: True for reversed sort order
 
         ``` python
         collection = Collection([5, 3, 1, 2, 4])
@@ -903,9 +904,9 @@ class Collection:
         items = self.items
 
         if callback:
-            return Collection(sorted(items, key=callback))
+            return Collection(sorted(items, key=callback, reverse=reverse))
         else:
-            return Collection(sorted(items))
+            return Collection(sorted(items, reverse=reverse))
 
     def sum(self, callback=None):
         """Returns the sum of all items in the collection
