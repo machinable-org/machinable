@@ -27,7 +27,7 @@ def test_on_iterate():
                 return StopIteration
 
     iterator = TestIterate()
-    iterator.dispatch([], {"components": "12345"})
+    iterator.dispatch([], {"component": "12345"})
     iterator.create()
     iterator.execute()
 
@@ -39,7 +39,7 @@ def test_on_iterate():
 
     # repeat with records writing
     iterator = TestIterate()
-    iterator.dispatch([], {"components": "12345"})
+    iterator.dispatch([], {"component": "12345"})
     iterator.create()
     iterator.USE_RECORDS = True
     iterator.execute()

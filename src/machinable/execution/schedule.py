@@ -77,7 +77,7 @@ class Schedule(Jsonable):
         ) in enumerate(self._elements):
             if storage is not None:
                 storage = copy.deepcopy(storage)
-                storage["components"] = component["flags"]["UID"]
+                storage["component"] = component["flags"]["COMPONENT_ID"]
                 yield copy.deepcopy(
                     (
                         index,

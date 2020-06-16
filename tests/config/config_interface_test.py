@@ -32,14 +32,14 @@ def test_config_mixin_handler():
 def to_config(project, schedule):
     config = ConfigInterface(project.parse_config(), schedule.specification["version"])
     execution_plan = list(parse_experiment(schedule.specification))
-    for job_id, (node, children, resources) in enumerate(execution_plan):
+    for job_id, (node, components, resources) in enumerate(execution_plan):
         node_config = config.get(node)
-        children_config = config.get(children[0])
+        components_config = config.get(components[0])
 
-        if children_config is None:
+        if components_config is None:
             return node_config["args"], None
 
-        return node_config["args"], children_config["args"]
+        return node_config["args"], components_config["args"]
 
 
 def test_config_versioning():

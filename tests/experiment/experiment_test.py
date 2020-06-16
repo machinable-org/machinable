@@ -1,7 +1,4 @@
-import os
-
 import machinable as ml
-from machinable import Engine
 from machinable.config.interface import ConfigInterface
 from machinable.experiment.parser import parse_experiment
 from machinable.project import Project

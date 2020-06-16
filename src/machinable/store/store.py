@@ -364,7 +364,7 @@ class Store:
         path = os.path.join(
             self.config["directory"],
             self.config["group"],
-            self.config.get("components", ""),
+            self.config.get("component", ""),
             append,
         )
 

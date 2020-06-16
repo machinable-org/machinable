@@ -49,7 +49,9 @@ def parse_experiment(specification, seed=None):
             node.flags["GLOBAL_SEED"] = seed
             node.flags["EXPERIMENT_ID"] = experiment_id
             node.flags["SEED"] = generate_seed(random_state=seed_random_state)
-            node.flags["UID"] = generate_component_id(random_state=uid_random_state)[0]
+            node.flags["COMPONENT_ID"] = generate_component_id(
+                random_state=uid_random_state
+            )[0]
             node.flags.update(repeat)
 
             yield node, components, resources

@@ -8,12 +8,12 @@ from machinable.store import Store
 
 
 def test_store_writer():
-    store = Store({"components": "12345"})
+    store = Store({"component": "12345"})
 
     # write
     store.write("test.txt", "test me")
     f = os.path.join(
-        store.config["group"], store.config["components"], "store", "test.txt"
+        store.config["group"], store.config["component"], "store", "test.txt"
     )
     assert store.filesystem.readtext(f) == "test me"
     store.write("test.npy", np.ones([5]))
@@ -21,10 +21,10 @@ def test_store_writer():
     store.write("test.json", [1, 2, 3])
     store.write("dir/test.txt", "subdirectory")
     f = os.path.join(
-        store.config["group"], store.config["components"], "store", "dir/test.txt"
+        store.config["group"], store.config["component"], "store", "dir/test.txt"
     )
     assert store.filesystem.readtext(f) == "subdirectory"
-    f = os.path.join(store.config["group"], store.config["components"], "store.json")
+    f = os.path.join(store.config["group"], store.config["component"], "store.json")
     store.write("test", True)
     assert store.filesystem.readtext(f) == '{"test": true}'
     store.write("bla", 1)
@@ -50,7 +50,7 @@ def test_output_redirection(capsys, helpers):
             shutil.rmtree(storage, ignore_errors=True)
 
         print("non-captured")
-        o = Store({"components": "654321", "url": storage, "output_redirection": mode})
+        o = Store({"component": "654321", "url": storage, "output_redirection": mode})
         print("captured")
         o.destroy()
         print("non-captured-again")

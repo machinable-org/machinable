@@ -21,6 +21,9 @@ def helpers():
 
 
 def pytest_sessionstart(session):
+    if "DISABLE_STORAGE_GENERATION" in os.environ:
+        return
+
     # setup storage test data
     path = Helpers.tmp_directory("storage")
 
