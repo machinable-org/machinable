@@ -78,8 +78,8 @@ class ComponentStorage:
         if os.path.splitext(name)[1] == "":
             try:
                 return self.file("store.json", reload=self.is_alive())[name]
-            except:
-                return FileNotFoundError
+            except (FileNotFoundError, TypeError, KeyError) as ex:
+                return ex
 
         with open_fs(self.url) as filesystem:
             return filesystem.load_file(

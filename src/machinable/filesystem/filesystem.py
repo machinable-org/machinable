@@ -60,9 +60,10 @@ class FileSystem:
                 else:
                     raise ValueError(f"Invalid file format: {ext}")
                 return data
-        except errors.FSError:
+        except errors.FSError as ex:
             if default is not sentinel:
                 return default
+            raise FileNotFoundError(str(ex))
 
     # forward function calls to fs
 
