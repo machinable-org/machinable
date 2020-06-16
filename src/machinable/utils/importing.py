@@ -22,9 +22,7 @@ def resolve_instance(arg, instance_type, default_path=""):
     try:
         instance_type.set_latest(None)
         module = importlib.import_module(module_name)
-        importlib.reload(
-            module
-        )  # reload, in case we are in interactive environments like jupyter
+        importlib.reload(module)
 
         instance = instance_type.latest()
         if isinstance(instance, instance_type):

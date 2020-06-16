@@ -18,6 +18,8 @@ class RemoteEngine(Engine):
         if directory is None:
             raise ValueError("You have to provide a remote directory")
         self.engine = Engine.create(engine)
+        if isinstance(host, str) and host.startswith("ssh://"):
+            host = host.replace("ssh://", "")
         self.host = host
         self.directory = directory
         self.python = python
@@ -41,8 +43,6 @@ class RemoteEngine(Engine):
         return cls.create(serialized)
 
     def _submit(self, execution):
-        if execution.storage.get("url", "mem://").startswith("mem://"):
-            raise ValueError("Remote engine does not support temporary file systems")
         self.log(
             f"Rsyncing project {execution.project.directory_path} -> {self.host}:{self.directory}"
         )
@@ -57,8 +57,11 @@ class RemoteEngine(Engine):
         )
         self.log("Rsync complete. Executing ...")
 
-        # todo$: handle local URLs and ssh URL correctly
-        #  i.e. mirror local one to remote, remove ssh prefix if same as self.host
+        if execution.storage["url"].startswith("ssh://" + self.host):
+            # rewrite SSH storage path as relative path on remote host
+            execution.storage["url"] = execution.storage["url"].replace(
+                "ssh://" + self.host.rstrip("/") + ":", ""
+            )
 
         url = os.path.join(
             execution.storage["url"],
@@ -92,6 +95,14 @@ class RemoteEngine(Engine):
             self.log(f"Execution failed: {str(ex)}", level="error")
 
         return execution
+
+    def storage_middleware(self, storage):
+        if storage.get("url", "mem://").startswith("mem://"):
+            raise ValueError("Remote engine does not support temporary file systems")
+
+        storage["allow_overwrites"] = True
+
+        return storage
 
     def __repr__(self):
         return f"Remote({repr(self.engine)})"

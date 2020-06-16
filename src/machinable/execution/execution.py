@@ -207,7 +207,10 @@ class Execution(Jsonable):
 
     def is_submitted(self):
         try:
-            storage = fs.open_fs(self.storage["url"], create=False)
+            storage = fs.open_fs(
+                os.path.join(self.storage["url"], self.storage.get("directory", "")),
+                create=False,
+            )
             return storage.isdir(self.experiment_id)
         except (
             AttributeError,
@@ -250,14 +253,14 @@ class Execution(Jsonable):
             index = len(self.schedule) - 1
         if isinstance(result, ExecutionException):
             self.engine.log(
-                f"{self.components[index]} of experiment {self.experiment_id} failed "
+                f"Submission {self.components[index]} of experiment {self.experiment_id} failed "
                 f"({index + 1}/{len(self.schedule)}). "
                 f"{exception_to_str(result)}",
                 level="error",
             )
         else:
             self.engine.log(
-                f"{self.components[index]} of experiment {self.experiment_id} finished "
+                f"Submission {self.components[index]} of experiment {self.experiment_id} completed "
                 f"({index + 1}/{len(self.schedule)}). ",
                 level="info",
             )
