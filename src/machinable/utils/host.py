@@ -1,4 +1,5 @@
 import os
+import sys
 import platform
 import socket
 
@@ -41,6 +42,11 @@ def _python_version():
 @register_host_info
 def _environ():
     return os.environ.copy()
+
+
+@register_host_info
+def _argv():
+    return sys.argv
 
 
 @register_host_info

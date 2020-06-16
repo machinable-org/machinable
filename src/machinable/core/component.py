@@ -19,6 +19,7 @@ from ..utils.host import get_host_info
 from ..utils.traits import Jsonable
 from ..utils.utils import apply_seed, set_process_title
 from .exceptions import ExecutionException
+from .events import Events
 
 
 def set_alias(obj, alias, value):
@@ -234,6 +235,7 @@ class Component(Mixin):
         self._node: Optional[Component] = node
         self._components: Optional[List[Component]] = None
         self._store: Optional[Store] = None
+        self._events = Events()
         self._actor_config = None
         self.__mixin__ = None
         self.component_state = ComponentState()
@@ -323,6 +325,10 @@ class Component(Mixin):
         """Log writer instance"""
         return self.store.log
 
+    @property
+    def events(self) -> Events:
+        return self._events
+
     def __getattr__(self, name):
         # Mixins and dynamic attributes are set during construction; this helps suppressing IDE warnings
         raise AttributeError(
@@ -344,10 +350,15 @@ class Component(Mixin):
                 self.set_seed()
 
             if self.on_init_storage(storage_config) is not False:
-                store = Store(config=storage_config)
+                store = Store(config=storage_config, component=self)
                 self.on_after_init_storage(store)
             else:
                 store = None
+
+            if self.node is None:
+                self.events.heartbeats(seconds=self.flags.get("HEARTBEAT", 15))
+                if store is not None:
+                    self.events.on("heartbeat", store.refresh_status)
 
             if self.on_init_components(components_config) is not False:
                 components = []
@@ -502,6 +513,8 @@ class Component(Mixin):
         :::
         """
         self.on_before_destroy()
+
+        self.events.heartbeats(None)
 
         if self.components and len(self.components) > 0:
             for component in self.components:

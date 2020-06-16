@@ -111,7 +111,8 @@ class Store:
     heartbeat: Integer, seconds between two heartbeat events
     """
 
-    def __init__(self, config=None):
+    def __init__(self, config=None, component=None):
+        self._component = component
         if isinstance(config, dict):
             config = copy.deepcopy(config)
 
@@ -126,7 +127,6 @@ class Store:
                 "records": {},
                 "directory": "",
                 "experiment": "",
-                "heartbeat": 15,
                 "output_redirection": "SYS_AND_FILE",  # DISABLED, FILE_ONLY, SYS_AND_FILE, DISCARD
             },
             config,
@@ -136,15 +136,6 @@ class Store:
 
         if "://" not in self.config["url"]:
             self.config["url"] = "osfs://" + self.config["url"]
-
-        # event system
-        from ..core.events import Events
-
-        if isinstance(self.config.get("events", None), Events):
-            self.events = self.config["events"]
-        else:
-            self.events = Events()
-        self.events.heartbeats(seconds=self.config["heartbeat"])
 
         self.filesystem = open_fs(self.config["url"], create=True)
         self.filesystem.makedirs(
@@ -160,7 +151,6 @@ class Store:
         self._status["started_at"] = str(pendulum.now())
         self._status["finished_at"] = False
         self.refresh_status()
-        self.events.on("heartbeat", self.refresh_status)
 
         if not self.config["url"].startswith("mem://"):
             OutputRedirection.apply(
@@ -169,9 +159,6 @@ class Store:
 
     def destroy(self):
         """Destroys the store instance"""
-        # disable heartbeat
-        if "events" in self.config:
-            self.events.heartbeats(None)
         # write finished status (not triggered in the case of an unhandled exception)
         self._status["finished_at"] = str(pendulum.now())
         self.refresh_status()
@@ -335,8 +322,8 @@ class Store:
                 f"Supported formats are .json (JSON), .npy (numpy), .p (pickle), .txt (txt)"
             )
 
-        if "events" in self.config:
-            self.events.trigger(
+        if self._component is not None:
+            self._component.events.trigger(
                 "store.on_change", "store.save", {"name": name, "data": data}
             )
 

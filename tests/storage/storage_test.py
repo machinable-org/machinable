@@ -35,7 +35,7 @@ def test_storage_component_interface():
     assert comp.store("key") == "value"
     assert "test" in comp.store()
     assert len(comp.store()["$files"])
-    assert len(comp.host) == 6
+    assert len(comp.host) == 7
     assert len(comp.get_records_writer()) == 2
 
 
