@@ -5,6 +5,8 @@ import pickle
 
 from fs import errors, open_fs
 
+from ..utils.dicts import serialize
+
 sentinel = object()
 
 
@@ -28,7 +30,9 @@ class FileSystem:
 
     def __enter__(self):
         try:
-            self._fs = open_fs(self.config["url"])
+            self._fs = open_fs(
+                self.config["url"], create=self.config.get("create", False)
+            )
         except errors.CreateFailed:
             raise FileNotFoundError(f"Directory {self.config['url']} does not exist")
         return self
@@ -64,6 +68,53 @@ class FileSystem:
             if default is not sentinel:
                 return default
             raise FileNotFoundError(str(ex))
+
+    def save_file(self, name, data, overwrite=False):
+        """Stores a data object
+
+        # Arguments
+        name: String, name identifier.
+            You can provide an extension to instruct machinable to write the data in its own file and not as part
+            of a dictionary with other stored values.
+            Supported formats are .json (JSON), .npy (numpy), .p (pickle), .txt (txt)
+        data: The data object
+        overwrite: Boolean, if True existing values will be overwritten
+        """
+        mode = "w" if overwrite else "a"
+        path = os.path.dirname(name)
+        name = os.path.basename(name)
+        _, ext = os.path.splitext(name)
+        filepath = os.path.join(path, name)
+
+        try:
+            with self as filesystem:
+                if ext == ".json":
+                    # json
+                    with filesystem.open(filepath, mode) as f:
+                        f.write(json.dumps(data, ensure_ascii=False, default=serialize))
+                elif ext == ".npy":
+                    import numpy as np
+
+                    if "b" not in mode:
+                        mode += "b"
+                    # numpy
+                    with filesystem.open(filepath, mode) as f:
+                        np.save(f, data)
+                elif ext == ".p":
+                    if "b" not in mode:
+                        mode += "b"
+                    with filesystem.open(filepath, mode) as f:
+                        pickle.dump(data, f)
+                elif ext == ".txt":
+                    with filesystem.open(filepath, mode) as f:
+                        f.write(data)
+                else:
+                    raise ValueError(
+                        f"Invalid format: '{ext}'. "
+                        f"Supported formats are .json (JSON), .npy (numpy), .p (pickle), .txt (txt)"
+                    )
+        except errors.FSError as ex:
+            raise IOError(str(ex))
 
     # forward function calls to fs
 

@@ -111,7 +111,7 @@ class Store:
     heartbeat: Integer, seconds between two heartbeat events
     """
 
-    def __init__(self, config=None, status=True):
+    def __init__(self, config=None):
         if isinstance(config, dict):
             config = copy.deepcopy(config)
 
@@ -125,15 +125,13 @@ class Store:
                 "log": {},
                 "records": {},
                 "directory": "",
-                "group": "",
+                "experiment": "",
                 "heartbeat": 15,
                 "output_redirection": "SYS_AND_FILE",  # DISABLED, FILE_ONLY, SYS_AND_FILE, DISCARD
-                "code_backup": None,
             },
             config,
             copy=True,
         )
-        self._store_status = status
         self.statistics = {}
 
         if "://" not in self.config["url"]:
@@ -161,9 +159,8 @@ class Store:
         self._status = dict()
         self._status["started_at"] = str(pendulum.now())
         self._status["finished_at"] = False
-        if self._store_status:
-            self.refresh_status()
-            self.events.on("heartbeat", self.refresh_status)
+        self.refresh_status()
+        self.events.on("heartbeat", self.refresh_status)
 
         if not self.config["url"].startswith("mem://"):
             OutputRedirection.apply(
@@ -176,9 +173,8 @@ class Store:
         if "events" in self.config:
             self.events.heartbeats(None)
         # write finished status (not triggered in the case of an unhandled exception)
-        if self._store_status:
-            self._status["finished_at"] = str(pendulum.now())
-            self.refresh_status()
+        self._status["finished_at"] = str(pendulum.now())
+        self.refresh_status()
 
         OutputRedirection.revert()
 
@@ -363,7 +359,7 @@ class Store:
         """
         path = os.path.join(
             self.config["directory"],
-            self.config["group"],
+            self.config["experiment"],
             self.config.get("component", ""),
             append,
         )

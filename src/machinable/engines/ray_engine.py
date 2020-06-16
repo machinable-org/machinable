@@ -188,7 +188,7 @@ class RayEngine(Engine):
         else:
             local_dir = store["url"]
 
-        kwargs["name"] = os.path.join(store["group"], store["component"])
+        kwargs["name"] = os.path.join(store["experiment"], store["component"])
         kwargs["resources_per_trial"] = resources
         kwargs["local_dir"] = local_dir
 

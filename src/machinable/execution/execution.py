@@ -17,7 +17,6 @@ from ..experiment.parser import parse_experiment
 from ..filesystem import open_fs
 from ..project import Project
 from ..project.export import Export
-from ..store import Store
 from ..utils.formatting import exception_to_str, msg
 from ..utils.host import get_host_info
 from ..utils.traits import Jsonable
@@ -55,7 +54,6 @@ class Execution(Jsonable):
 
         self.timestamp = None
         self.schedule = Schedule()
-        self.store = None
         self.code_backup = None
         self.code_version = None
         self.started_at = None
@@ -102,16 +100,6 @@ class Execution(Jsonable):
             storage = {"url": storage}
         else:
             storage = {}
-
-        # code backup
-        self.code_backup = False
-        if storage.get("code_backup", None) is not False:
-            if not (
-                # do not backup on mem:// filesystem unless explicitly set to True
-                storage.get("code_backup", None) is None
-                and storage.get("url", "mem://").startswith("mem://")
-            ):
-                self.code_backup = True
 
         self.storage = storage
 
@@ -230,21 +218,35 @@ class Execution(Jsonable):
             now = pendulum.now()
             self.timestamp = now.timestamp()
             self.started_at = str(now)
-            self.storage["group"] = self.experiment_id
-            self.store = Store(
-                config=self.engine.storage_middleware(self.storage), status=False
-            )
-            if self.code_backup is not False:
-                self.project.backup_source_code(opener=self.store.get_stream)
+            # do not backup on mem:// filesystem unless explicitly set to True
+            code_backup = self.code_backup
+            if code_backup is None and not self.storage.get("url", "mem://").startswith(
+                "mem://"
+            ):
+                code_backup = True
 
-            if self.code_version is not False:
+            self.storage["experiment"] = self.experiment_id
+            storage = self.engine.storage_middleware(self.storage)
+
+            with open_fs(
+                {
+                    "url": os.path.join(
+                        storage.get("url", "mem://"),
+                        storage.get("directory", ""),
+                        storage["experiment"],
+                    ),
+                    "create": True,
+                }
+            ) as filesystem:
+
+                if code_backup:
+                    self.project.backup_source_code(opener=filesystem.open)
+
                 self.code_version = self.project.get_code_version()
 
-            self.store.write("execution.json", self.serialize(), _meta=True)
-            self.store.write("schedule.json", self.schedule.serialize(), _meta=True)
-            self.store.write("host.json", get_host_info(), _meta=True)
-            self.store.destroy()
-            self.store = None
+                filesystem.save_file("execution.json", self.serialize())
+                filesystem.save_file("schedule.json", self.schedule.serialize())
+                filesystem.save_file("host.json", get_host_info())
 
         return self.engine.submit(self)
 
