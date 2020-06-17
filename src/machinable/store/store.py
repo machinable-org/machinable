@@ -257,10 +257,6 @@ class Store:
         """
         return self._log is not None
 
-    def store(self, name, data, overwrite=False, _meta=False):
-        # todo: remove v1 deprecation
-        return self.write(name, data, overwrite, _meta)
-
     def write(self, name, data, overwrite=False, _meta=False):
         """Stores a data object
 

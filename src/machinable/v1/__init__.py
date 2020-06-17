@@ -3,7 +3,7 @@ from ..core import Component as _V2Component
 from ..core import Mixin
 from ..experiment import Experiment as _Experiment
 from ..experiment import ExperimentComponent as C
-from .observations import Observations
+from ..storage import Storage as Observations
 
 
 def execute(task, storage=None, seed=None, driver=None):
