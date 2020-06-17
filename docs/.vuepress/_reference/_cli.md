@@ -10,6 +10,22 @@ machinable <command> [options]
 
 Prints the machinable version number
 
+## execute
+
+```bash
+machinable execute [OPTIONS] EXPERIMENT
+```
+
+Executes an EXPERIMENT
+
+### Options
+
+- `--storage TEXT`  Storage for this execution.
+- `--engine TEXT`   Engine used during execution
+- `--project TEXT`  Project directory
+- `--seed TEXT`     Seed used in this execution
+
+
 ## server
 
 ::: warning
