@@ -2,11 +2,15 @@
 
 <!-- Please add changes under the Unreleased section that reads 'No current changes' otherwise -->
 
-## v2 (unreleased)
+## v2.0.0 (unreleased)
 
+  - Many APIs have been renamed for increased consistency
   - Experiment.directory() for automatic directories per experiment
   - Set default storage and engine in .machinable/settings.yaml
   - machinable.Execution() for fine grained execution control
+  - Computable resources specification
+  - Specify values based on other values
+  - New Registration API that allows to define project wide settings such as global config methods or custom host information
 
 ## v1.2.1
 

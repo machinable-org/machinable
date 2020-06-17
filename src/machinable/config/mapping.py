@@ -22,13 +22,12 @@ class ConfigMethod(object):
 
     def evaluate(self):
         # disable config evaluation
-        state = self._["obj"].config._evaluate
-        self._["obj"].config._evaluate = False
         try:
-            costate = self._["obj"].co.config._evaluate
-            self._["obj"].co.config._evaluated = False
+            state = self._["obj"].config._evaluate
+            self._["obj"].config._evaluate = False
+            # todo: disable for sub-components
         except AttributeError:
-            costate = None
+            state = None
 
         if self._["args"] == "":
             value = getattr(self._["obj"], self._["method"])()
@@ -39,9 +38,8 @@ class ConfigMethod(object):
             value = eval("obj." + self._["method"] + "(" + self._["args"] + ")")
 
         # reset config evaluation
-        self._["obj"].config._evaluate = state
-        if costate is not None:
-            self._["obj"].co.config._evaluate = costate
+        if state is not None:
+            self._["obj"].config._evaluate = state
 
         if isinstance(value, dict):
             return ConfigMap(value, _dynamic=False)

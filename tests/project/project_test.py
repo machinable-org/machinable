@@ -1,8 +1,7 @@
 import os
 import shutil
 
-import machinable as ml
-from machinable.project import Project, Registration
+from machinable.project import Project
 
 
 def test_project_config():
@@ -112,13 +111,6 @@ def test_parse_config():
         if k.find("@") != -1:
             continue
         v["class"].load(instantiate=False)
-
-
-def test_project_registration():
-    test_project = Project("./test_project")
-
-    assert test_project.has_registration()
-    assert isinstance(test_project.registration, Registration)
 
 
 def test_project_code_backup(helpers):

@@ -1,9 +1,12 @@
+import inspect
 import os
-import sys
 import platform
 import socket
+import sys
 
 import pkg_resources
+
+from ..registration import Registration
 
 _getters = {}
 
@@ -15,7 +18,15 @@ def register_host_info(function):
     _getters[name] = function
 
 
-def get_host_info():
+def get_host_info(registration=True):
+    if registration:
+        registration = Registration.get()
+        for name, method in inspect.getmembers(
+            registration, predicate=inspect.ismethod
+        ):
+            if name.startswith("host_"):
+                _getters[name[5:]] = method
+
     return {name: getter() for name, getter in _getters.items()}
 
 

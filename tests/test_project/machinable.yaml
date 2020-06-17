@@ -99,6 +99,7 @@ components:
       argmethod: arghello('world')
       nested:
         method: hello()
+      global_method: global_conf(works=True)
 components:nodes:
   - observations:
       id: -1

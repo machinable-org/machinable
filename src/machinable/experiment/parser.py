@@ -6,19 +6,17 @@ from ..utils.dicts import update_dict
 from ..utils.utils import generate_seed
 
 
-def parse_experiment(specification, seed=None):
+def parse_experiment(experiment, seed=None):
     seed_random_state = random.Random(seed)
     uid_random_state = random.Random(seed)
     experiment_id = encode_experiment_id(seed, or_fail=False)
 
     # repeat behaviour
     repeats = []
-    for level, repeat in enumerate(specification["repeats"]):
+    for level, repeat in enumerate(experiment.specification["repeats"]):
         # for each repeat that has been specified we proliferate
         k = repeat["arguments"]["k"]
         name = repeat["arguments"]["name"]
-        # todo: support resuming mode that allows for nested cross validation etc
-        #  mode = repeat['arguments']['mode']
         repeat_seed = generate_seed(seed_random_state)
         # collect repeat configuration and extend already existing inner repeats
         repeat_collection = []
@@ -38,7 +36,7 @@ def parse_experiment(specification, seed=None):
         repeats.append({})
 
     for repeat in repeats:
-        for component in specification["components"]:
+        for component in experiment.specification["components"]:
             node_arguments = copy.deepcopy(component["arguments"])
             components = node_arguments.pop("components")
             if not isinstance(components, (list, tuple)):

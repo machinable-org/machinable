@@ -50,6 +50,15 @@ def pytest_sessionstart(session):
     )
 
     ml.execute(
+        ml.Experiment()
+        .components(("nodes.observations", {"id": 4}))
+        .directory("subdirectory"),
+        path,
+        seed="TTTTTT",
+        project="./test_project",
+    )
+
+    ml.execute(
         ml.Experiment().components(("nodes.observations", {"id": 4, "corrupt": True})),
         path,
         seed="corupt",

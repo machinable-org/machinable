@@ -20,7 +20,7 @@ def test_storage_interface():
     # standard queries
     assert storage.find("tttttt").components.first().config.test
     assert len(storage.find("tttttt").components) == 4
-    assert len(storage.find_all()) == 3
+    assert len(storage.find_all()) == 4
 
 
 def test_storage_component_interface():
@@ -35,8 +35,11 @@ def test_storage_component_interface():
     assert comp.store("key") == "value"
     assert "test" in comp.store()
     assert len(comp.store()["$files"])
-    assert len(comp.host) == 7
+    assert len(comp.host) == 8
     assert len(comp.get_records_writer()) == 2
+
+    comp = ml.Storage(STORAGE_DIRECTORY).find("TTTTTT")
+    assert comp.components.first().experiment.id == "TTTTTT"
 
 
 def test_storage_records_interface():

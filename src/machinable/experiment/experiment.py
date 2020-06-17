@@ -118,15 +118,16 @@ class Experiment(Jsonable):
     def set_latest(cls, latest):
         _latest[0] = latest
 
-    def directory(self, path: str = "%PROJECT%/%MODULE%"):
+    def directory(self, path: str = "&PROJECT/&MODULE"):
         """Set the directory of the experiment
 
         Relative path that gets appended to the storage directory of this experiment
 
         # Arguments
-        name: String, directory name. %PROJECT% and %MODULE% will be replaced by
-            the project and experiment module name respectively (empty if they can
-            not be determined)
+        path: String, defines the directory name as string which may contain the following variables:
+            - &MODULE will be replaced by the experiment module name (empty if it can not be determined)
+            - &PROJECT will be replaced by project name (empty if it can not be determined)
+            - %x expressions will be replaced by strftime
         """
         if not isinstance(path, str):
             raise ValueError("Name must be a string")
@@ -242,13 +243,26 @@ class Experiment(Jsonable):
         version: dict|String, a configuration update to override its default config
         checkpoint: String, optional URL to a checkpoint file from which the components will be restored
         flags: dict, optional flags to be passed to the component
-        resources: dict, specifies the resources that are available to the component
+        resources: dict, specifies the resources that are available to the component.
+                   This can be computed by passing in a callable (see below)
 
         # Examples
         ```python
         import machinable as ml
         experiment = ml.Experiment().component(name='models.linear_regression', version={'alpha': 0.1})
         ```
+
+        # Dynamic resource computation
+
+        You can condition the resource specification on the configuration, for example:
+        ```python
+        resources = lambda(config): {'gpu': config.num_gpus }
+        ```
+        The arguments of the callable are passed in only if requested by the signature. Options are:
+        node - The full component specification
+        config - alias for node.args
+        flags - alias for node.flags
+        components - List of sub-component specifications
         """
         return self.components(
             node=ExperimentComponent(name, version, checkpoint, flags),

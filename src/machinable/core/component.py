@@ -10,6 +10,7 @@ import pendulum
 
 from ..config.mapping import ConfigMap, ConfigMethod, config_map
 from ..config.parser import ModuleClass, parse_mixins
+from ..registration import Registration
 from ..store import Store
 from ..store.log import Log
 from ..store.record import Record
@@ -18,8 +19,8 @@ from ..utils.formatting import exception_to_str
 from ..utils.host import get_host_info
 from ..utils.traits import Jsonable
 from ..utils.utils import apply_seed, set_process_title
-from .exceptions import ExecutionException
 from .events import Events
+from .exceptions import ExecutionException
 
 
 def set_alias(obj, alias, value):
@@ -108,15 +109,19 @@ def bind_config_methods(obj, config):
             definition = config
             method = "config_" + fn_match.groupdict()["method"]
             args = fn_match.groupdict()["args"]
-            if getattr(obj, method, False) is False:
-                msg = "Config method %s specified but %s.%s() does not exist." % (
-                    definition,
-                    type(obj).__name__,
-                    method,
-                )
-                raise AttributeError(msg)
-            else:
+
+            # local config method
+            if getattr(obj, method, False) is not False:
                 return ConfigMethod(obj, method, args, definition)
+
+            # global config method
+            registration = Registration.get()
+            if getattr(registration, method, False) is not False:
+                return ConfigMethod(registration, method, args, definition)
+
+            raise AttributeError(
+                f"Config method {definition} specified but {type(obj).__name__}.{method}() does not exist."
+            )
 
     return config
 
@@ -227,7 +232,7 @@ class Component(Mixin):
     def __init__(self, config: dict = None, flags: dict = None, node=None):
         """Constructs the components instance.
 
-        The initialisation and its events are side-effect free, meaning the application state is preserved
+        The initialisation and its events ought to be side-effect free, meaning the application state is preserved
         as if no execution would have happened.
         """
         self.on_before_init(config, flags, node)

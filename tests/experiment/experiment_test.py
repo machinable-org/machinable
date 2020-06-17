@@ -28,7 +28,7 @@ def test_experiment_config():
     t = ml.Experiment().components(
         ("nodes.observations", {"attr": "node"}), ("workers.interactive", {"id": 2})
     )
-    node, components, resources = list(parse_experiment(t.specification))[0]
+    node, components, resources = list(parse_experiment(t))[0]
     conf = ConfigInterface(config, t.specification["version"])
     node_config = conf.get(node)["args"]
     worker_component_config = conf.get(components[0])["args"]
@@ -43,7 +43,7 @@ def test_experiment_config():
         )
         .version("~test")
     )
-    node, components, resources = list(parse_experiment(t.specification))[0]
+    node, components, resources = list(parse_experiment(t))[0]
     conf = ConfigInterface(config, t.specification["version"])
     node_config = conf.get(node)["args"]
     assert node_config["version"] == 0
@@ -51,9 +51,18 @@ def test_experiment_config():
     assert worker_component_config["version"] == 1
 
 
+def test_computable_resources():
+    test_project = Project("./test_project")
+    t = ml.Experiment().component(
+        "thenode", resources=lambda config: {"test": config["alpha"]}
+    )
+    e = ml.Execution(t, project=test_project).set_schedule()
+    assert e.schedule._elements[0][3]["test"] == 0
+
+
 def test_experiment_directory():
     e = ml.Execution(
         "@/test_project/experiments/auto_directory", project="./test_project",
     )
     e.set_schedule()
-    assert e.storage["directory"] == "test_project"
+    assert e.storage["directory"][:-2] == "test_project 20"

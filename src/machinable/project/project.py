@@ -19,12 +19,11 @@ from ..core import Component as BaseComponent
 from ..core import Mixin as BaseMixin
 from ..core.component import FunctionalComponent
 from ..core.settings import get_settings
+from ..registration import Registration
 from ..utils.dicts import update_dict
-from ..utils.formatting import exception_to_str, msg
 from ..utils.traits import Jsonable
 from ..utils.vcs import get_commit
 from .manager import fetch_imports
-from .registration import Registration
 
 
 class Project(Jsonable):
@@ -41,7 +40,6 @@ class Project(Jsonable):
                 "directory": os.getcwd(),
                 "config_file": "machinable.yaml",
                 "config": None,
-                "registration_module": "_machinable",
                 "vendor_caching": get_settings()["cache"].get("imports", False),
                 "default_component": None,
                 "name": None,
@@ -172,13 +170,9 @@ class Project(Jsonable):
 
     def has_registration(self):
         return os.path.isfile(
-            os.path.join(
-                self.directory_path, self.options["registration_module"] + ".py"
-            )
+            os.path.join(self.directory_path, "_machinable.py")
         ) or os.path.isfile(
-            os.path.join(
-                self.directory_path, self.options["registration_module"], "__init__.py"
-            )
+            os.path.join(self.directory_path, "_machinable", "__init__.py")
         )
 
     def exists(self):
@@ -191,25 +185,7 @@ class Project(Jsonable):
     @property
     def registration(self):
         if self._registration is None:
-            if not self.has_registration():
-                self._registration = Registration()
-            else:
-                try:
-                    registration_module = importlib.import_module(
-                        self.options["registration_module"]
-                    )
-                except ImportError as ex:
-                    msg(
-                        f"Could not import project registration. {ex}\n{exception_to_str(ex)}",
-                        level="error",
-                        color="fail",
-                    )
-
-                registration_class = getattr(registration_module, "Project", False)
-                if not registration_class:
-                    registration_class = Registration
-
-                self._registration = registration_class()
+            self._registration = Registration.get()
 
         return self._registration
 

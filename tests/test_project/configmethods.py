@@ -6,6 +6,7 @@ class ConfMethods(Component):
         assert self.config.method == "test"
         assert self.config.argmethod == "world"
         assert self.config.nested.method == "test"
+        assert self.config.global_method is True
 
     def config_hello(self):
         return "test"

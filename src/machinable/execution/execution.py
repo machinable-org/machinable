@@ -1,22 +1,24 @@
 import copy
 import os
+from datetime import datetime as dt
 from typing import Any, Callable, Union
 
 import fs
 import pendulum
 import yaml
 
-from ..execution.identifiers import generate_component_id
 from ..config.interface import ConfigInterface
 from ..core.exceptions import ExecutionException
 from ..core.settings import get_settings
 from ..engines import Engine
+from ..execution.identifiers import generate_component_id
 from ..execution.schedule import Schedule
 from ..experiment.experiment import Experiment
 from ..experiment.parser import parse_experiment
 from ..filesystem import open_fs
 from ..project import Project
 from ..project.export import Export
+from ..registration import Registration
 from ..utils.formatting import exception_to_str, msg
 from ..utils.host import get_host_info
 from ..utils.traits import Jsonable
@@ -69,14 +71,14 @@ class Execution(Jsonable):
             return
 
         self.set_project(project)
-        self.set_experiment(experiment)
         self.set_storage(storage)
+        self.set_experiment(experiment)
         self.set_engine(engine)
         self.set_seed(seed)
 
     def __call__(self, experiment, storage=None, engine=None, project=None, seed=None):
-        self.set_experiment(experiment)
         self.set_storage(storage)
+        self.set_experiment(experiment)
         self.set_engine(engine)
         self.set_project(project)
         self.set_seed(seed)
@@ -87,6 +89,33 @@ class Execution(Jsonable):
 
     def set_experiment(self, experiment):
         self.experiment = Experiment.create(experiment)
+
+        # compute experiment directory
+        experiment_directory = self.experiment.specification.get("directory", None)
+        if experiment_directory is None:
+            experiment_directory = Registration.get().experiment_directory
+        if callable(experiment_directory):
+            experiment_directory = experiment_directory()
+            if experiment_directory is True:
+                # use default value
+                experiment_directory = "&PROJECT/&MODULE"
+        if isinstance(experiment_directory, str):
+            # replace magic variables
+            project_name = self.project.name if self.project else ""
+            experiment_directory = experiment_directory.replace(
+                "&PROJECT", project_name
+            )
+            module_name = (
+                self.experiment._resolved_module_origin
+                if hasattr(self.experiment, "_resolved_module_origin")
+                else ""
+            )
+            experiment_directory = experiment_directory.replace("&MODULE", module_name)
+            try:
+                experiment_directory = dt.now().strftime(experiment_directory)
+            except ValueError:
+                pass
+            self.storage["directory"] = experiment_directory.strip("/")
 
         return self
 
@@ -134,7 +163,6 @@ class Execution(Jsonable):
             self.schedule = schedule
             return self
 
-        # build schedule
         self.schedule = Schedule()
 
         config = ConfigInterface(
@@ -143,26 +171,20 @@ class Execution(Jsonable):
             default_class=self.project.default_component,
         )
 
-        experiment_directory = self.experiment.specification.get("directory", None)
-        if experiment_directory is not None:
-            # replace magic variables
-            project_name = self.project.name if self.project else ""
-            experiment_directory = experiment_directory.replace(
-                "%PROJECT%", project_name
-            )
-            module_name = (
-                self.experiment._resolved_module_origin
-                if hasattr(self.experiment, "_resolved_module_origin")
-                else ""
-            )
-            experiment_directory = experiment_directory.replace("%MODULE%", module_name)
-
-            self.storage["directory"] = experiment_directory.strip("/")
-
         for index, (node, components, resources) in enumerate(
-            parse_experiment(self.experiment.specification, seed=self.seed)
+            parse_experiment(self.experiment, seed=self.seed)
         ):
             node_config, components_config = config.get(node, components)
+
+            # compute resources
+            if callable(resources):
+                resources = config.call_with_context(
+                    resources, node_config, components_config
+                )
+                if not isinstance(resources, dict):
+                    raise ValueError(
+                        f"Resources specification has to be a dictionary. Got '{resources}'."
+                    )
 
             if "tune" in self.experiment.specification:
                 self.schedule.add_tune(
@@ -212,6 +234,8 @@ class Execution(Jsonable):
         return False
 
     def submit(self):
+        self.storage["experiment"] = self.experiment_id
+
         if not self.is_submitted():
             if len(self.schedule) == 0:
                 self.set_schedule()
@@ -225,7 +249,6 @@ class Execution(Jsonable):
             ):
                 code_backup = True
 
-            self.storage["experiment"] = self.experiment_id
             storage = self.engine.storage_middleware(self.storage)
 
             with open_fs(
@@ -262,7 +285,7 @@ class Execution(Jsonable):
             )
         else:
             self.engine.log(
-                f"Submission {self.components[index]} of experiment {self.experiment_id} completed "
+                f"Submission {self.components[index]} of experiment {self.experiment_id} complete "
                 f"({index + 1}/{len(self.schedule)}). ",
                 level="info",
             )

@@ -1,7 +1,10 @@
 import copy
+import inspect
+from collections import OrderedDict
 
 import yaml
 
+from ..config.mapping import config_map
 from ..experiment import ExperimentComponent
 from ..utils.dicts import update_dict
 from .parser import ModuleClass, parse_mixins
@@ -69,6 +72,38 @@ class ConfigInterface:
             f"Version '{name}' could not be found.\n"
             f"Available versions: {[f for f in config.keys() if f.startswith('~')]}\n"
         )
+
+    @staticmethod
+    def call_with_context(function, node, components=None, resources=None):
+        signature = inspect.signature(function)
+        payload = OrderedDict()
+
+        for index, (key, parameter) in enumerate(signature.parameters.items()):
+            if parameter.kind is not parameter.POSITIONAL_OR_KEYWORD:
+                # disallow *args and **kwargs
+                raise TypeError(
+                    f"Method only allows simple positional or keyword arguments,"
+                    f"for example lambda(node, components, resources)"
+                )
+
+            if key == "node":
+                payload["node"] = config_map(node)
+            elif key == "config":
+                payload["config"] = config_map(node["args"])
+            elif key == "flags":
+                payload["flags"] = config_map(node["flags"])
+            elif components is not None and key == "components":
+                payload["components"] = [component for component in components]
+            elif resources is not None and key == "resources":
+                payload["resources"] = resources
+            else:
+                raise ValueError(
+                    f"Unrecognized argument: '{key}'. "
+                    f"Experiment directory takes the following arguments: "
+                    f"'node', 'components' and 'resources'"
+                )
+
+        return function(**payload)
 
     def get_component(self, name, version=None, flags=None):
         if name is None:
@@ -195,6 +230,11 @@ class ConfigInterface:
                 if isinstance(k, str):
                     config["versions"].append(k)
                     k = self._get_version(k, config["args"], version)
+                elif isinstance(k, dict):
+                    # evaluate computed properties
+                    for key in k.keys():
+                        if callable(k[key]):
+                            k[key] = self.call_with_context(k[key], config)
 
                 # merge with version
                 version = update_dict(version, k)

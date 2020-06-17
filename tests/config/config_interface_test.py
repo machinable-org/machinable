@@ -31,7 +31,7 @@ def test_config_mixin_handler():
 
 def to_config(project, schedule):
     config = ConfigInterface(project.parse_config(), schedule.specification["version"])
-    execution_plan = list(parse_experiment(schedule.specification))
+    execution_plan = list(parse_experiment(schedule))
     for job_id, (node, components, resources) in enumerate(execution_plan):
         node_config = config.get(node)
         components_config = config.get(components[0])
@@ -96,3 +96,14 @@ def test_config_versioning():
     assert e["key"]["very"] == "powerful"
     assert m["alpha"] == 0
     assert m["key"]["mixing"] == "is"
+
+
+def test_computed_versioning():
+    test_project = Project("./test_project")
+
+    t = Experiment().components(
+        ("thenode", {"alpha": lambda: 3.14, "cond": lambda config: config.alpha})
+    )
+    e, m = to_config(test_project, t)
+    assert e["alpha"] == 3.14
+    assert e["cond"] == 0
