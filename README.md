@@ -45,10 +45,9 @@
 
 **Effective result collection and analysis**
 
-- Logging, tabular record writer and store API
+- Logging, tabular record writer and storage API
 - File system abstraction (in-memory, AWS S3, and more)
-- Flat-file result database with SQL-like query interface
-- Convenient configuration and result retrieval
+- Flat-file result database with convenient query syntax
 
 ### Documentation
 

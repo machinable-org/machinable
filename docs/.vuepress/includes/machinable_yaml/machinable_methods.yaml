@@ -1,3 +1,0 @@
-components:
-  - my_components.base_component:
-      learning_rate: learning_rate(base=0.01)

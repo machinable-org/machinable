@@ -1,8 +1,0 @@
-+:
-  - my_project
-mixins:
-  - +.my_project.components.classifier=classifier:
-components:
-  - mix_components:
-      _mixins_:
-        - classifier

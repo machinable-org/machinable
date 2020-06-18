@@ -1,8 +1,6 @@
 # About
 
-Machine learning code can be hard to manage. Research often starts with hacking a model prototype in an improvised setup that grows in complexity over time. Configuration options and hyperparameters diffuse through the code base and continued changes can feel increasingly brittle. Often, technical debt takes its toll when modifications take an unreasonably long time due to poor structure and lack of modularity.
-
-**machinable** provides an alternative approach. Using straight-forward conventions and a powerful configuration engine, it can help structure your projects in a principled way so you can move quickly while enabling reuse and collaboration.
+**machinable** provides a system to manage configuration of machine learning projects more effectively. Using straight-forward conventions and a powerful configuration engine, it can help structure your projects in a principled way so you can move quickly while enabling reuse and collaboration.
 
 ## Features
 
@@ -26,7 +24,6 @@ Machine learning code can be hard to manage. Research often starts with hacking 
 
 **Effective result collection and analysis**
 
-- Logging, tabular record writer and store API
+- Logging, tabular record writer and storage API
 - File system abstraction (in-memory, AWS S3, and more)
-- Flat-file result database with SQL-like query interface
-- Convenient configuration and result retrieval
+- Flat-file result database with convenient query syntax

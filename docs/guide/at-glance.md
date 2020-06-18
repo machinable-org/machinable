@@ -149,35 +149,35 @@ components:
 ```
 </Annotated>
 
-Configuration retrieval in the corresponding code is straight-forward and convenient:
+Configuration retrieval in the corresponding code is straight-forward:
 
-```python   
-if self.config.control_variate:
-    return -x * self.config.learning_rate
-
-if self.config.distribution.name == 'normal':
-    return norm(x, self.config.distribution.mu, self.config.distribution.sigma)
+```python
+class MyModel(Component):
+    def on_create(self):
+        if self.config.distribution.control_variate:
+            lr = self.config.learning_rate * self.config.alpha
 ```
 So is capturing of results using tabular records, logging and store. 
 
 ```python
-self.record['acc'] = 0.6
-self.log.info('Training finished')
-self.store.write('final_result.p', output_data)
+    def on_execute(self):
+        self.record['acc'] = 0.6
+        self.log.info('Training finished')
+        self.store.write('final_result.p', output_data)
 ```
 
 <br />
 
 **Execution**
 
-Rapidly declare execution in a fluent interface  and take advantage of automatic parallelized execution - locally or in the cloud.
+Rapidly declare experiments in a fluent interface and take advantage of automatic parallelized execution - locally or in the cloud.
 
 <Annotated name="tasks" :debug="false">
 ```python
-task = Experiment().components('biased_model', 
+expr = Experiment().component('biased_model', 
                         [('~heavytailed', {'learning_rate': lr}) 
                         for lr in (0.25, 0.1, 0.5)]).repeat(3)
-execute(task, 's3://bucket/results')
+execute(expr, 's3://bucket/results', engine='slurm')
 ```
 </Annotated>
 
@@ -185,13 +185,13 @@ execute(task, 's3://bucket/results')
 
 **Results**
 
-Effortlessly retrieve the configuration, results and execution information you need through a high-level query interface. 
+Retrieve the configuration, results and execution information you need through a high-level query interface. 
 
 <Annotated name="observations" :debug="false">
 ```python
-o = Observations('s3://bucket/results').find_by_most_recent_task().first()
+o = Storage('s3://bucket/results').components.first()
 plot(y=o.records.pluck('acc'), label=o.config.learning_rate)
-result = o.write('final_result.p')
+result = o.store('final_result.p')
 ```
 </Annotated>
 
@@ -199,6 +199,6 @@ result = o.write('final_result.p')
 
 **Repeat**
 
-Share, publish and build on what you have developed - no more 'I will clean this up later' excuses. Move faster from idea to result to publication.
+Share, publish and build on what you have developed - no need to 'clean it up later'. Move faster from idea to result to publication.
 
 [Get started →](./installation.md)

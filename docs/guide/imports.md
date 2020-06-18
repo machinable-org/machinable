@@ -32,7 +32,17 @@ components:
 
 That's it. You can now use and extend the imported components as if they were part of your project:
 
-<<< @/docs/.vuepress/includes/machinable_yaml/machinable_imports.yaml
+```yaml
++:
+  - imported_project: git+https://git.serv.er/baselines/resnet50.git
+components:experiments:
+  - experiments.benchmark:
+      data: imagenet
+components:models:
+  - +.imported_project.models.resnet=baseline:
+  - models.improved_resnet^+.imported_project.models.resnet=improved:
+      learning_rate: 0.01
+```
 
 In this example, the `+.` syntax is being used to use a baseline model in the imported project. Generally, components of the imported projects can be accessed via ``+.{project_name}``.
 

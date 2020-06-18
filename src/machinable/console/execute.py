@@ -19,6 +19,6 @@ def execute(experiment, storage, engine, project, seed):
     """
     try:
         seed = int(seed)
-    except ValueError:
+    except (ValueError, TypeError):
         pass
     Execution(experiment, storage, engine, project, seed).summary().submit()

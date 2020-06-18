@@ -28,7 +28,21 @@ annotations: {
 Components are the core interface to implement functionality in a machinable project. Technically, they are simply classes that inherit from the base class ``machinable.Component`` as defined in the python module that is specified in the
 `machinable.yaml`. For instance, to implement a components that encapsulates some optimization problem, we could create the following source file:
 
-<<< @/docs/.vuepress/includes/getting_started/experiments/optimization.py
+```python
+# optimization.py
+from machinable import Component
+
+class DummyOptimization(Component):
+    def on_create(self):
+        print(
+            "Creating the optimization model with the following configuration: ",
+            self.config,
+        )
+
+    def on_execute(self):
+        for i in range(3):
+            print("Training step", i)
+```
 
 Note that it does not matter how you name the class as long as the class inherits from the components base class and is registered in the ``machinable.yaml``, for instance: 
 
@@ -53,7 +67,16 @@ The components life cycle allows you to implement using any framework and standa
 
 Components can consume their configuration via the `self.config` object:
 
-<<< @/docs/.vuepress/includes/machinable_yaml/path/to_module.py
+```python
+from machinable import Component
+
+class MyComponent(Component):
+    def on_create(self):
+        print(self.config.config_value)
+        print(self.config.nested.value)
+        print(self.config["nested"]["value"])
+
+```
 
     >>> 1
         2
@@ -63,11 +86,11 @@ For convenience, the dict interface can be accessed using the `.` object notatio
 
 ## self.flags
 
-Flags are configuration values that are associated with the particular execution, for example the random seeds or worker ids. They are accessible via the `self.flags` object, that supports the `.` object notation. You can add your own flags through basic assignment, e.g. ``self.flags.counter = 1``. To avoid name collision, all native machinable flags use UPPERCASE (e.g. ``self.flags.SEED``).
+Flags are configuration values that are associated with the particular execution, for example the random seeds or worker IDs. They are accessible via the `self.flags` object, that supports the `.` object notation. You can add your own flags through basic assignment, e.g. ``self.flags.counter = 1``. To avoid name collision, all native machinable flags use UPPERCASE (e.g. ``self.flags.SEED``).
 
 ## self.store
 
-The observer interface `self.store` allows for the storing of data and results of the components. Note that you don't have to specify where the observer data is being stored. You can specify the store location before the execution and machinable will manage unique directories automatically. The data can later be retrieved using the [Observations](./observations.md) interface.
+The interface `self.store` allows for the storing of data and results of the components. Note that you don't have to specify where the data is being stored. machinable will manage unique directories automatically. The data can later be retrieved using the [Storage](./storage.md) interface.
 
 **Log**
 
@@ -116,39 +139,48 @@ self.store.write('data.json', jsonable_object)
 self.store.write('data.npy', numpy_array)
 ```
 
-Refer to the observer [reference](./components.md#observer) for more details.
+Refer to the store [reference](./components.md#store) for more details.
 
 ## Config methods
 
 While config references allow you to make static references, configuration values can be more complex. They might, for example, evolve during the course of execution or obey non-trivial conditions. Config methods allow you to implement such complex configuration values. To define a config method just add a regular Python method to the components class. The method name must start with `config_`. You can then 'call' the method directly in the ``machinable.yaml`` configuration, for example:
 
-<<< @/docs/.vuepress/includes/machinable_yaml/machinable_methods.yaml
+```yaml
+components:
+  - my_network:
+      batch_size: 32
+      learning_rate: base_learning_rate(2**-5)
+```
 
-Here, the learning rate parameter is defined as a config method that takes a base learning rate parameter. The config method `config_learning_rate` needs to be defined in the corresponding components:
+Here, the learning rate parameter is defined as a config method that takes a base learning rate parameter. The config method `config_base_learning_rate` needs to be defined in the corresponding component:
 
-<<< @/docs/.vuepress/includes/machinable_yaml/my_models/base_model.py
+```python
+from machinable import Component
+
+class MyBaseModel(Component):
+    def on_create(self):
+        print('Training with lr=', self.config.learning_rate)
+
+    def config_base_learning_rate(self, lr):
+        return lr * self.config.batch_size
+```
 
 The method is executed whenever `self.config.learning_rate` is being accessed; as a result, the execution output prints:
-```
-0 0
-1 0.01
-2 0.02
-3 0.03
-4 0.04
-```
+
+    >>> 'Training with lr=1'
 
 Config methods hence allow for the expression of arbitrary configuration dependencies and are a powerful tool for implementing complex configuration patterns more efficiently. They can also be useful for parsing configuration values into Python objects. For instance, you might define a config method `dtype` where `dtype: dtype('f32')` returns `np.float32` etc.
 
-## Child components
+## Sub-components
 
 In many cases, it can be useful to organise components in a hierarchical way. For example, your components may implement a certain prediction problem and you want to encapsulate different prediction strategies in sub-components. 
 
-machinable allows you to use components as ``child`` components, meaning they become available to a parent ``node`` components. Consider the following components:
+machinable allows you to use components as sub-components, meaning they become available to a parent ``node`` components. Consider the following components:
 
 ```python
-# child_component_example.py
-
 from machinable import Component
+
+# sub_component_example.py
 
 class PredictionStrategy(Component):
     
@@ -157,8 +189,7 @@ class PredictionStrategy(Component):
     
     def predict(self, data):
         return self.model.predict(data)
-```
-```python
+
 # node_component_example.py
 
 from machinable import Component
@@ -174,8 +205,8 @@ class PredictionBenchmark(Component):
         print(self.prediction_strategy.predict(self.data))
 ```
 
-Here, the child components encapsulates the model while the node components implements the benchmark control flow. The child components becomes available as argument to the ``on_create`` event of the node components. 
+Here, the sub-component encapsulates the model while the node components implements the benchmark control flow. The sub-component becomes available as argument to the ``on_create`` event of the node components. 
 
-In general, the child components can access the parent node via ``self.node`` while the node components can access its child components via ``self.components``.
+In general, the sub-components can access the parent node via ``self.node`` while the node components can access its sub-components via ``self.components``.
 
-To designate components as child use the ``components`` argument of [Experiment.components()](./tasks.md) that will be discussed in the following section.
+To designate components as sub-components use the ``components`` argument of [Experiment.components()](./experiments.md) that will be discussed in the following section.

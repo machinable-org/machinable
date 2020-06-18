@@ -1,5 +1,0 @@
-components:
-  - classifier:
-      dataset:
-        name: mnist
-        batch_size: 8

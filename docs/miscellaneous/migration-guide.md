@@ -14,12 +14,12 @@ from my_existing_source_code import run
 #  the existing source code
 
 @ml.execute
-def main(components, components, observer):
-    observer.log.info('Running existing code with machinable')
+def main(component, components, store):
+    store.log.info('Running existing code with machinable')
     # call into your code
     run(components.config.toDict())
 
 # use machinable's configuration engine like normal 
-task = ml.Experiment().component('my_component').repeat(3)
+experiment = ml.Experiment().component('my_component').repeat(3)
 
-main(task, '~results') # invoke the decorated function
+main(experiment, '~results') # invoke the decorated function
