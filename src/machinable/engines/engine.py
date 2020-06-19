@@ -15,6 +15,7 @@ _register = {
     "detached": "machinable.engines.detached_engine",
     "remote": "machinable.engines.remote_engine",
     "dry": "machinable.engines.dry_engine",
+    "slurm": "machinable.engines.slurm_engine",
 }
 
 _latest = [None]

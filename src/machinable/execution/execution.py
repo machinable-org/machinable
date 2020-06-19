@@ -181,10 +181,6 @@ class Execution(Jsonable):
                 resources = config.call_with_context(
                     resources, node_config, components_config
                 )
-                if not isinstance(resources, dict):
-                    raise ValueError(
-                        f"Resources specification has to be a dictionary. Got '{resources}'."
-                    )
 
             if "tune" in self.experiment.specification:
                 self.schedule.add_tune(
@@ -232,6 +228,16 @@ class Execution(Jsonable):
         ):
             pass
         return False
+
+    def filter(self, callback=None):
+        filtered = [
+            args[0]
+            for args in zip(
+                range(len(self.components)), self.components, self.schedule.serialize(),
+            )
+            if callback(*args)
+        ]
+        self.schedule.filter(lambda i, _: i in filtered)
 
     def submit(self):
         self.storage["experiment"] = self.experiment_id

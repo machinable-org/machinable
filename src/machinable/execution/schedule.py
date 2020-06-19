@@ -24,6 +24,17 @@ class Schedule(Jsonable):
             [execution_type, component, components, resources, args, kwargs]
         )
 
+    @property
+    def elements(self):
+        return copy.deepcopy(self._elements)
+
+    def filter(self, callback=None):
+        self._elements = [
+            args[1] for args in enumerate(self._elements) if callback(*args)
+        ]
+
+        return self
+
     def add_execute(self, component, components, resources, args=None, kwargs=None):
         return self.add("execute", component, components, resources, args, kwargs)
 
@@ -41,9 +52,15 @@ class Schedule(Jsonable):
         self._result[index] = result
 
     def serialize(self):
-        elements = copy.deepcopy(self._elements)
         serialized = []
-        for execution_type, component, components, resources, args, kwargs in elements:
+        for (
+            execution_type,
+            component,
+            components,
+            resources,
+            args,
+            kwargs,
+        ) in self.elements:
             component.pop("class", None)
             for i in range(len(components)):
                 components[i].pop("class", None)
