@@ -29,6 +29,7 @@ def test_storage_component_interface():
     assert comp.experiment.code_version.project.path is None
     assert comp.flags.NAME == "nodes.observations"
     assert comp.config.to_test == "observations"
+    assert comp.schedule.component.args.to_test == comp.config.to_test
     assert len(comp.components) == 0
     assert comp.store("data.json")["observation_id"] > 0
     assert comp.store("test") == 2

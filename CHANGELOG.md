@@ -2,7 +2,7 @@
 
 <!-- Please add changes under the Unreleased section that reads 'No current changes' otherwise -->
 
-## v2.0.0 (unreleased)
+## v2.0.0
 
   - Many APIs have been renamed for increased consistency
   - Experiment.directory() for automatic directories per experiment

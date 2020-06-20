@@ -7,9 +7,21 @@ from ..utils.traits import Jsonable
 
 def recover_class(element):
     if "class" not in element:
-        element["class"] = ModuleClass(
-            module_name=element["module"], baseclass=BaseComponent
-        ).load(instantiate=False)
+        try:
+            element["class"] = ModuleClass(
+                module_name=element["module"], baseclass=BaseComponent
+            ).load(instantiate=False)
+        except ImportError as ex:
+            # we delay the exception, since a wrapped engine
+            #  might handle the import correctly later
+            class FailedRecovery:
+                def __init__(self, exception):
+                    self.exception = exception
+
+                def __call__(self, *args, **kwargs):
+                    raise self.exception
+
+            element["class"] = FailedRecovery(ex)
 
 
 class Schedule(Jsonable):

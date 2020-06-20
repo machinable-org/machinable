@@ -1,13 +1,13 @@
-import os
 import json
+import os
 import stat
 
-import sh
 import pendulum
+import sh
 
-from .engine import Engine
 from ..core.exceptions import ExecutionException
-from ..filesystem import FileSystem
+from ..filesystem import open_fs
+from .engine import Engine
 
 
 class SlurmEngine(Engine):
@@ -28,9 +28,10 @@ class SlurmEngine(Engine):
         parsed = {}
         events = [
             "setup",
-            "after_finish",
+            "before_script",
+            "after_script",
         ]
-        for key, command in commands:
+        for key, command in commands.items():
             if key not in events:
                 raise ValueError(
                     f"Invalid command event: {key}. Available events: {events}"
@@ -61,7 +62,7 @@ class SlurmEngine(Engine):
 
         # script path
         script_path = ".engine/slurm_" + pendulum.now().strftime("%d-%m-%Y_%H-%M-%S")
-        with FileSystem(url) as filesystem:
+        with open_fs(url) as filesystem:
             filesystem.makedirs(script_path, recreate=True)
         script_url = os.path.join(url, script_path)
 
@@ -97,14 +98,14 @@ class SlurmEngine(Engine):
             script = "#!/bin/bash\n"
             script += f"#SBATCH --job-name={execution.experiment_id}:{component_id}\n"
             try:
-                script += self.commands["setup"] + ";\n"
+                script += self.commands["before_script"] + ";\n"
             except KeyError:
                 pass
 
             script += submission.replace("$COMPONENT_ID", component_id)
 
             try:
-                script += self.commands["after_finish"] + ";\n"
+                script += self.commands["after_script"] + ";\n"
             except KeyError:
                 pass
 

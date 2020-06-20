@@ -192,8 +192,23 @@ class ComponentStorage:
             pendulum.now()
         ).in_seconds() < 30
 
+    @property
+    def schedule(self):
+        """Returns the component's schedule"""
+        try:
+            index = [
+                i
+                for i, c in enumerate(
+                    self.experiment.file("execution.json")["components"]
+                )
+                if c == self.id
+            ][0]
+            return config_map(self.experiment.schedule[index])
+        except (AttributeError, IndexError, TypeError):
+            return None
+
     def __getattr__(self, item):
-        # resolve child alias
+        # resolve sub-component alias
         aliases = self.flags.get("COMPONENTS_ALIAS", {})
         try:
             return self.components[aliases[item]]

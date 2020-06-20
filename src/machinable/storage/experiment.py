@@ -91,7 +91,7 @@ class ExperimentStorage:
     @property
     def schedule(self):
         """Returns the experiment schedule"""
-        return DotMap(self.file("schedule.json"))
+        return self.file("schedule.json")
 
     @property
     def components(self):
