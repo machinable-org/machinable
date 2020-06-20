@@ -8,7 +8,7 @@ matrix:
       script:
           - pyenv global system 3.6.7
           - pip3 install -e .
-          - pip3 install -r test-requirements.txt
+          - pip3 install -r docs-requirements.txt
           - python3.6 docs/.vuepress/_reference/autogen.py
           - vuepress build docs
       after_failure:

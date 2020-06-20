@@ -1,0 +1,6 @@
+numpy
+pandas
+tabulate
+ariadne
+starlette
+uvicorn
