@@ -11,9 +11,10 @@ from .engine import Engine
 
 
 class SlurmEngine(Engine):
-    def __init__(self, commands=None, python="python"):
+    def __init__(self, commands=None, python="python", script="#!/usr/bin/env bash"):
         self.commands = self._parse_commands(commands)
         self.python = python
+        self.script = script
         Engine.set_latest(self)
 
     def _parse_commands(self, commands):
@@ -51,7 +52,12 @@ class SlurmEngine(Engine):
         return parsed
 
     def serialize(self):
-        return {"type": "slurm", "commands": self.commands, "python": self.python}
+        return {
+            "type": "slurm",
+            "commands": self.commands,
+            "python": self.python,
+            "script": self.script,
+        }
 
     def _submit(self, execution):
         url = os.path.join(
@@ -95,7 +101,7 @@ class SlurmEngine(Engine):
             kwargs,
         ) in execution.schedule.iterate(execution.storage):
             component_id = component["flags"]["COMPONENT_ID"]
-            script = "#!/bin/bash\n"
+            script = f"{self.script}\n"
             script += f"#SBATCH --job-name={execution.experiment_id}:{component_id}\n"
             try:
                 script += self.commands["before_script"] + ";\n"
