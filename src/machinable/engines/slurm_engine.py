@@ -81,7 +81,7 @@ class SlurmEngine(Engine):
             1:-1
         ]
         submission = (
-            f'cd {execution.project.directory_path};\n{self.python} -c "{code};\n"'
+            f'cd {execution.project.directory_path};\n{self.python} -c "{code};"\n'
         )
 
         for (
