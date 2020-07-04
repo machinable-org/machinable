@@ -67,7 +67,7 @@ class SlurmEngine(Engine):
         )
 
         # script path
-        script_path = ".engine/slurm_" + pendulum.now().strftime("%d-%m-%Y_%H-%M-%S")
+        script_path = "_engine/slurm_" + pendulum.now().strftime("%d-%m-%Y_%H-%M-%S")
         with open_fs(url) as filesystem:
             filesystem.makedirs(script_path, recreate=True)
         script_url = os.path.join(url, script_path)
@@ -103,6 +103,7 @@ class SlurmEngine(Engine):
             component_id = component["flags"]["COMPONENT_ID"]
             script = f"{self.script}\n"
             script += f"#SBATCH --job-name={execution.experiment_id}:{component_id}\n"
+            script += f"#SBATCH -o {os.path.join(script_url.replace('osfs://', ''), component_id + '.out')}\n"
             try:
                 script += self.commands["before_script"] + ";\n"
             except KeyError:
