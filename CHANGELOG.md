@@ -2,6 +2,10 @@
 
 <!-- Please add changes under the Unreleased section that reads 'No current changes' otherwise -->
 
+## v2.0.1
+
+ - Improved Slurm engine
+
 ## v2.0.0
 
   - Many APIs have been renamed for increased consistency
