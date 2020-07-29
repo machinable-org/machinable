@@ -26,6 +26,7 @@ def resolve_instance(arg, instance_type, default_path=""):
 
         instance = instance_type.latest()
         if isinstance(instance, instance_type):
+            instance._resolved_by_expression = arg
             if origin:
                 instance._resolved_module_origin = origin
             return instance

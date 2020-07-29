@@ -56,7 +56,7 @@ class ExperimentStorage:
     @property
     def code_backup(self):
         """True if code backup is available"""
-        return self.file("execution.json")["code_backup"]
+        return self.file("code.json")["code_backup"]
 
     @property
     def code_version(self):
@@ -67,10 +67,10 @@ class ExperimentStorage:
           path: VCS url
           commit: Commit hash or None
           is_dirty: Whether everything has been commited to VCS
-        vendor: List of vendor project information with the same structure as above
+        vendor: Dict of vendor project information with the same structure as above
         ```
         """
-        return DotMap(self.file("execution.json")["code_version"])
+        return DotMap(self.file("code.json")["code_version"])
 
     @property
     def started_at(self):

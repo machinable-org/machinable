@@ -277,11 +277,27 @@ class Execution(Jsonable):
                 if code_backup:
                     self.project.backup_source_code(opener=filesystem.open)
 
-                self.code_version = self.project.get_code_version()
+                code_version = self.project.get_code_version()
 
                 filesystem.save_file("execution.json", self.serialize())
                 filesystem.save_file("schedule.json", self.schedule.serialize())
                 filesystem.save_file("host.json", get_host_info())
+                filesystem.save_file(
+                    "code.json",
+                    {
+                        "resolvers": {
+                            "experiment": getattr(
+                                self.experiment, "_resolved_by_expression", None
+                            ),
+                            "storage": None,
+                            "engine": getattr(
+                                self.engine, "_resolved_by_expression", None
+                            ),
+                        },
+                        "code_backup": code_backup,
+                        "code_version": code_version,
+                    },
+                )
 
         return self.engine.submit(self)
 
@@ -423,8 +439,6 @@ class Execution(Jsonable):
             "id": self.experiment_id,
             "seed": self.seed,
             "timestamp": self.timestamp,
-            "code_backup": self.code_backup,
-            "code_version": self.code_version,
             "started_at": self.started_at,
             "components": self.components,
         }
@@ -436,8 +450,6 @@ class Execution(Jsonable):
         execution = cls(None)
         execution.seed = serialized["seed"]
         execution.timestamp = serialized["timestamp"]
-        execution.code_backup = serialized["code_backup"]
-        execution.code_version = serialized["code_version"]
         execution.started_at = serialized["started_at"]
         return execution
 
