@@ -1,7 +1,7 @@
 import os
 from typing import List, Tuple, Union
 
-from ..execution.identifiers import decode_experiment_id
+from ..utils.identifiers import decode_experiment_id
 from ..filesystem import open_fs
 from .collections import ExperimentCollection
 from .experiment import ExperimentStorage

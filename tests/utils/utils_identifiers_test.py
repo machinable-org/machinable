@@ -1,6 +1,6 @@
 import pytest
 
-from machinable.execution.identifiers import (
+from machinable.utils.identifiers import (
     decode_experiment_id,
     encode_experiment_id,
     generate_component_id,

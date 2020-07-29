@@ -3,7 +3,7 @@ from typing import Optional
 
 from baseconv import base62
 
-from ..utils.utils import random_str
+from .utils import random_str
 
 
 def encode_experiment_id(seed, or_fail=True) -> Optional[str]:

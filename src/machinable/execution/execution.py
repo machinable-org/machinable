@@ -1,3 +1,4 @@
+import ast
 import copy
 import os
 from datetime import datetime as dt
@@ -11,7 +12,7 @@ from ..config.interface import ConfigInterface
 from ..core.exceptions import ExecutionException
 from ..core.settings import get_settings
 from ..engines import Engine
-from ..execution.identifiers import generate_component_id
+from ..utils.dicts import update_dict
 from ..execution.schedule import Schedule
 from ..experiment.experiment import Experiment
 from ..experiment.parser import parse_experiment
@@ -22,7 +23,7 @@ from ..registration import Registration
 from ..utils.formatting import exception_to_str, msg
 from ..utils.host import get_host_info
 from ..utils.traits import Jsonable
-from .identifiers import (
+from ..utils.identifiers import (
     decode_experiment_id,
     encode_experiment_id,
     generate_experiment_id,
@@ -44,8 +45,6 @@ class Execution(Jsonable):
         project: Union[Project, Callable, str, dict] = None,
         seed: Union[int, None, str] = None,
     ):
-        self._components = None
-        self._components_cache = None
         self.function = None
 
         self.experiment = None
@@ -154,7 +153,10 @@ class Execution(Jsonable):
             seed = generate_experiment_id(random_state=seed, with_encoding=False)
         else:
             seed = generate_experiment_id(with_encoding=False)
+
         self.seed = seed
+
+        self.schedule.set_seed(seed)
 
         return self
 
@@ -163,7 +165,7 @@ class Execution(Jsonable):
             self.schedule = schedule
             return self
 
-        self.schedule = Schedule()
+        self.schedule = Schedule(seed=self.seed)
 
         config = ConfigInterface(
             self.project.parse_config(),
@@ -198,18 +200,32 @@ class Execution(Jsonable):
 
         return self
 
-    @property
-    def components(self):
-        if self.seed is None:
-            return []
+    def set_checkpoint(self, checkpoint):
+        def transformation(i, component, element):
+            element[1]["flags"]["CHECKPOINT"] = checkpoint
+            return element
 
-        if self._components is None or self._components_cache != self.seed:
-            self._components = generate_component_id(
-                k=len(self.schedule), random_state=self.seed
-            )
-            self._components_cache = self.seed
+        self.schedule.transform(transformation)
 
-        return self._components
+        return self
+
+    def set_version(self, config=None):
+        if isinstance(config, str):
+            config = ast.literal_eval(config)
+        elif callable(config):
+            self.schedule.transform(config)
+            return self
+
+        if not isinstance(config, dict):
+            raise ValueError("Version must be a dictionary or callable")
+
+        def transformation(i, component, element):
+            element[1]["args"] = update_dict(element[1]["args"], config)
+            return element
+
+        self.schedule.transform(transformation)
+
+        return self
 
     def is_submitted(self):
         try:
@@ -228,16 +244,6 @@ class Execution(Jsonable):
         ):
             pass
         return False
-
-    def filter(self, callback=None):
-        filtered = [
-            args[0]
-            for args in zip(
-                range(len(self.components)), self.components, self.schedule.serialize(),
-            )
-            if callback(*args)
-        ]
-        self.schedule.filter(lambda i, _: i in filtered)
 
     def submit(self):
         self.storage["experiment"] = self.experiment_id
@@ -487,6 +493,13 @@ class Execution(Jsonable):
                     msg("\t" + yaml.dump(c["args"]), color="blue")
 
         return self
+
+    def filter(self, callback=None):
+        self.schedule.filter(callback)
+
+    @property
+    def components(self):
+        return self.schedule.components
 
     def __repr__(self):
         experiment_id = self.experiment_id if isinstance(self.seed, int) else "None"

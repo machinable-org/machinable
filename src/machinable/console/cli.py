@@ -2,7 +2,7 @@ import click
 
 import pkg_resources
 
-from .execute import execute
+from .execute import execute, execution
 from .vendor.commands import vendor
 
 
@@ -22,6 +22,7 @@ def cli(ctx, version):
 
 cli.add_command(vendor)
 cli.add_command(execute)
+cli.add_command(execution)
 try:
     from .server import app, server
 

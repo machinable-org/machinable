@@ -307,14 +307,14 @@ class Project(Jsonable):
     def get_code_version(self):
         return {
             "project": get_commit(self.config_filepath),
-            "vendor": [
-                get_commit(
+            "vendor": {
+                vendor: get_commit(
                     os.path.join(
                         self.directory_path, "vendor", vendor, "machinable.yaml"
                     )
                 )
                 for vendor in [next(iter(d)) for d in self.get_config()["+"]]
-            ],
+            },
         }
 
     def reload_imports(self):
