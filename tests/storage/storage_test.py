@@ -37,7 +37,7 @@ def test_storage_component_interface():
     assert "test" in comp.store()
     assert len(comp.store()["$files"])
     assert len(comp.host) == 8
-    assert len(comp.get_records_writer()) == 2
+    assert len(comp.get_records()) == 2
 
     comp = ml.Storage(STORAGE_DIRECTORY).find("TTTTTT")
     assert comp.components.first().experiment.id == "TTTTTT"
@@ -46,7 +46,7 @@ def test_storage_component_interface():
 def test_storage_records_interface():
     obs = ml.Storage(STORAGE_DIRECTORY).find("tttttt").components.first()
     records = obs.records
-    custom = obs.get_records_writer("validation")
+    custom = obs.get_records("validation")
     assert custom.sum("iteration") == 15
     assert records.as_dataframe().size > 0
 

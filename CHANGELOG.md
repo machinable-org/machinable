@@ -2,6 +2,11 @@
 
 <!-- Please add changes under the Unreleased section that reads 'No current changes' otherwise -->
 
+## v2.1.0
+
+ - New CLI option `execution` that allows for resuming executions more easily
+ - Fix issue that prevented the status.json information to be written
+
 ## v2.0.1
 
  - Improved Slurm engine

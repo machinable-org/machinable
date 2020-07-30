@@ -8,6 +8,7 @@ import pendulum
 from fs import open_fs
 
 from ..utils.dicts import serialize, update_dict
+from ..utils.formatting import exception_to_str
 from .log import Log
 from .record import Record
 
@@ -150,7 +151,7 @@ class Store:
         self._status = dict()
         self._status["started_at"] = str(pendulum.now())
         self._status["finished_at"] = False
-        self.refresh_status()
+        self.refresh_status(log_errors=True)
 
         if not self.config["url"].startswith("mem://"):
             OutputRedirection.apply(
@@ -161,7 +162,7 @@ class Store:
         """Destroys the store instance"""
         # write finished status (not triggered in the case of an unhandled exception)
         self._status["finished_at"] = str(pendulum.now())
-        self.refresh_status()
+        self.refresh_status(log_errors=True)
 
         OutputRedirection.revert()
 
@@ -182,16 +183,24 @@ class Store:
             self.config["url"].split("osfs://")[-1], self.get_path(append)
         )
 
-    def refresh_status(self):
+    def refresh_status(self, log_errors=False):
         """Updates the status.json file with a heartbeat at the current time
         """
-        if not self.config.get("components", None):
-            return
+        if not self.config.get("component", None):
+            return False
+
         try:
             self._status["heartbeat_at"] = str(pendulum.now())
             self.write("status.json", self._status, overwrite=True, _meta=True)
-        except:
-            pass
+        except (IOError, Exception) as ex:
+            if log_errors:
+                self.log.error(
+                    f"Could not write status information. {exception_to_str(ex)}"
+                )
+
+            return ex
+
+        return True
 
     def get_record_writer(self, scope):
         """Creates or returns an instance of a record writer

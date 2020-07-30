@@ -128,17 +128,17 @@ class ComponentStorage:
     @property
     def records(self):
         """Returns the record interface"""
-        return self.get_records_writer("default")
+        return self.get_records("default")
 
     def has_records(self, scope="default"):
         """Returns True if records of given scope exist"""
         return bool(self.file(f"records/{scope}.p", default=False))
 
-    def get_records_writer(self, scope=None):
-        """Returns a record writer
+    def get_records(self, scope=None):
+        """Returns a record collection
 
         # Arguments
-        scope: The name of the record writer
+        scope: The name of the record scope
         """
         if scope is None:
             # return list of available scopes
@@ -148,7 +148,9 @@ class ComponentStorage:
                     return [s[:-5] for s in scopes if s.endswith(".json")]
             except:
                 return []
-        return RecordCollection(self.file(f"records/{scope}.p", reload=self.is_alive()))
+        return RecordCollection(
+            self.file(f"records/{scope}.p", default=[], reload=self.is_alive())
+        )
 
     @property
     def started_at(self):
