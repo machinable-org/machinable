@@ -64,7 +64,7 @@ class ComponentStorage:
         name: Key or filename of the object that is to be retrieved. If None, a list of available objects is returned
         """
         if name is None:
-            store = self.file("store.json", reload=self.is_alive())
+            store = self.file("store.json", reload=self.is_alive(), default={})
             try:
                 with open_fs(self.url) as filesystem:
                     files = filesystem.listdir("store")
