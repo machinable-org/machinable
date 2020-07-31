@@ -3,6 +3,7 @@
   - fooba: foo.bar
 scientific: 5e-6
 outsource: $/outsourced.yaml
+${envvarkey:-default}: $envvarvalue
 mixins:
   - mixins.trait=trait:
       key:

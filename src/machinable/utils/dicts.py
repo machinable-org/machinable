@@ -99,3 +99,25 @@ def dot_map(d=None):
     if d is None:
         d = {}
     return DotMap(d)
+
+
+def options_dict(arguments):
+    """
+    ['--option', 'value', '--enabled', '--option2', 'value2']
+    -> { 'option': 'value', 'enabled': True, 'option2': 'value2' }
+    :param arguments:
+    :return:
+    """
+    args = {}
+    for i in range(len(arguments)):
+        if not arguments[i].startswith("--"):
+            continue
+        key = arguments[i][2:]
+        try:
+            if not arguments[i + 1].startswith("--"):
+                args[key] = arguments[i + 1]
+            else:
+                args[key] = True
+        except IndexError:
+            args[key] = True
+    return args

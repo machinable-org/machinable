@@ -2,13 +2,14 @@ import os
 import re
 from typing import Callable
 
+from expandvars import expandvars
 import yaml
 
 
 class Loader(yaml.SafeLoader):
-    def __init__(self, stream):
+    def __init__(self, stream, cwd="./"):
         if isinstance(stream, str):
-            self._root = "./"
+            self._root = cwd
         else:
             # from filestream
             self._root = os.path.split(stream.name)[0]
@@ -23,8 +24,7 @@ class Loader(yaml.SafeLoader):
 
         filename = os.path.join(self._root, target)
 
-        with open(filename, "r") as f:
-            return yaml.load(f, Loader)
+        return from_file(filename)
 
 
 # Support $/ notation for includes
@@ -47,6 +47,23 @@ Loader.add_implicit_resolver(
     list("-+0123456789."),
 )
 
+
+def from_string(text, cwd="./"):
+    # expand environment variables
+    protected = (
+        text.replace("$/", "~INCLUDE~")
+        .replace("$.", "~REFERENCE~")
+        .replace("$self.", "~SELFREF~")
+    )
+    parsed = (
+        expandvars(protected)
+        .replace("~INCLUDE~", "$/")
+        .replace("~REFERENCE~", "$.")
+        .replace("~SELFREF~", "$self.")
+    )
+    return yaml.load(parsed, lambda stream: Loader(stream, cwd))
+
+
 sentinel = object()
 
 
@@ -57,13 +74,9 @@ def from_file(filename, default=sentinel):
         return None
 
     with open(filename, "r") as f:
-        config = yaml.load(f, Loader)
+        text = f.read()
 
-    return config
-
-
-def from_string(text):
-    return yaml.load(text, Loader)
+    return from_string(text, os.path.abspath(os.path.dirname(filename)))
 
 
 def from_callable(callable: Callable, default=sentinel):

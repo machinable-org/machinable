@@ -2,6 +2,10 @@
 
 <!-- Please add changes under the Unreleased section that reads 'No current changes' otherwise -->
 
+## Unreleased
+
+ - Environment variable expansion in machinable.yaml
+
 ## v2.1.0
 
  - New CLI option `execution` that allows for resuming executions more easily

@@ -1,8 +1,16 @@
+import os
+from unittest.mock import patch
 from machinable.config.loader import from_callable, from_file
 
 
+@patch.dict(
+    os.environ, {"envvarkey": "ENVVARTESTKEY", "envvarvalue": "ENVVARTESTVALUE"}
+)
 def test_config_loader_from_file():
     data = from_file("./test_project/machinable.yaml")
+
+    # envvar resolving
+    assert data["ENVVARTESTKEY"] == "ENVVARTESTVALUE"
 
     # outsourcing $/
     assert data["outsource"]["hello"] == "success"

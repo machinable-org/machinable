@@ -7,7 +7,7 @@ import unittest
 from machinable.config.mapping import ConfigMap
 
 
-def test_evaluate():
+def test_config_mapping_evaluate():
     m = ConfigMap(
         {
             "test": 1,
@@ -23,7 +23,7 @@ def test_evaluate():
     print(m)
 
 
-def test_versions():
+def test_config_mapping_versions():
     m = ConfigMap(
         {
             "test": 1,
@@ -37,6 +37,14 @@ def test_versions():
     assert len(v) == 3
     assert "a" in v
     assert m["~b"].get_versioning()[0] == "d"
+
+
+def test_config_mapping_diff():
+    m = ConfigMap({"test": 1, "~a": {"a": "1"},})
+    assert (
+        "root['test']"
+        in m.get_deep_diff({"test": 2, "~a": {"a": "1"},})["values_changed"]
+    )
 
 
 class TestReadme(unittest.TestCase):

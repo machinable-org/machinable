@@ -161,6 +161,11 @@ class ConfigMap(DotMap):
     def get_versioning(self):
         return [k[1:] for k in self.keys() if k.startswith("~")]
 
+    def get_deep_diff(self, obj, *args, **kwargs):
+        from deepdiff import DeepDiff
+
+        return DeepDiff(self.toDict(), obj, *args, **kwargs)
+
     def __getitem__(self, k, evaluate=None):
         if (
             k not in self._map
@@ -190,6 +195,7 @@ class ConfigMap(DotMap):
             "_evaluated",
             "_ipython_canary_method_should_not_exist_",
             "get_versioning",
+            "get_deep_diff",
         }:
             super(DotMap, self).__setattr__(k, v)
         else:
@@ -203,6 +209,7 @@ class ConfigMap(DotMap):
             "_evaluated",
             "_ipython_canary_method_should_not_exist_",
             "get_versioning",
+            "get_deep_diff",
         }:
             return super(DotMap, self).__getattr__(k)
 
@@ -218,6 +225,8 @@ class ConfigMap(DotMap):
 _reserved_keys = ["_map", "_dynamic", "_evaluate", "_evaluated"]
 _used_keys = [
     "toDict",
+    "get_deep_diff",
+    "get_versioning",
     "pprint",
     "items",
     "next",
