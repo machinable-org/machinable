@@ -1,5 +1,6 @@
 import os
 from unittest.mock import patch
+
 from machinable.config.loader import from_callable, from_file
 
 

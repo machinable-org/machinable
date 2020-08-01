@@ -8,7 +8,7 @@ import os
 def get_commit(filename, search_parent_directories=False):
     # git
     try:
-        from git import Repo, InvalidGitRepositoryError
+        from git import InvalidGitRepositoryError, Repo
 
         try:
             directory = os.path.dirname(filename)

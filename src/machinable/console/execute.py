@@ -2,8 +2,8 @@ import os
 
 import click
 
-from ..filesystem import parse_fs_url
 from ..execution.execution import Execution
+from ..filesystem import parse_fs_url
 
 
 @click.command()

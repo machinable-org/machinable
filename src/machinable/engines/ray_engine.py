@@ -82,8 +82,8 @@ class RayEngine(Engine):
     ):
         # local import to enable Ray driver use without ray[tune] dependencies
         import ray.tune
-        from ray.tune.trainable import Trainable
         from ray.tune.result import DONE
+        from ray.tune.trainable import Trainable
 
         if args is None:
             args = []

@@ -9,4 +9,7 @@ observable
 gitignore_parser
 click
 pendulum>=2.1.0
+setproctitle
 sh
+GitPython
+expandvars

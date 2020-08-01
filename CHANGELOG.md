@@ -5,6 +5,7 @@
 ## Unreleased
 
  - Environment variable expansion in machinable.yaml
+ - Reduced import dependencies in __init__.py
 
 ## v2.1.0
 

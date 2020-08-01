@@ -4,11 +4,14 @@ import random
 import string
 from keyword import iskeyword
 
-import setproctitle
-
 
 def set_process_title(title):
-    setproctitle.setproctitle(title)
+    try:
+        import setproctitle
+
+        setproctitle.setproctitle(title)
+    except (ImportError, ModuleNotFoundError):
+        pass
     # tmux
     if (
         os.environ.get("TERM", None) == "screen"

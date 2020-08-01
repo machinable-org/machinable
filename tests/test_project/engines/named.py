@@ -1,3 +1,4 @@
-import machinable as ml
+from machinable.engines.detached_engine import DetachedEngine as Detached
+from machinable.engines.native_engine import NativeEngine as Native
 
-ml.engines.Detached(ml.engines.Native())
+Detached(Native())

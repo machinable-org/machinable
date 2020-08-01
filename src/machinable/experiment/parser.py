@@ -1,8 +1,8 @@
 import copy
 import random
 
-from ..utils.identifiers import encode_experiment_id, generate_component_id
 from ..utils.dicts import update_dict
+from ..utils.identifiers import encode_experiment_id, generate_component_id
 from ..utils.utils import generate_seed
 
 

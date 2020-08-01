@@ -4,7 +4,6 @@ import os
 from datetime import datetime as dt
 from typing import Any, Callable, Union
 
-import fs
 import pendulum
 import yaml
 
@@ -12,7 +11,6 @@ from ..config.interface import ConfigInterface
 from ..core.exceptions import ExecutionException
 from ..core.settings import get_settings
 from ..engines import Engine
-from ..utils.dicts import update_dict
 from ..execution.schedule import Schedule
 from ..experiment.experiment import Experiment
 from ..experiment.parser import parse_experiment
@@ -20,14 +18,12 @@ from ..filesystem import open_fs
 from ..project import Project
 from ..project.export import Export
 from ..registration import Registration
+from ..utils.dicts import update_dict
 from ..utils.formatting import exception_to_str, msg
 from ..utils.host import get_host_info
+from ..utils.identifiers import (decode_experiment_id, encode_experiment_id,
+                                 generate_experiment_id)
 from ..utils.traits import Jsonable
-from ..utils.identifiers import (
-    decode_experiment_id,
-    encode_experiment_id,
-    generate_experiment_id,
-)
 
 
 def to_color(experiment_id):
@@ -228,6 +224,9 @@ class Execution(Jsonable):
         return self
 
     def is_submitted(self):
+        # todo: use FileSystem abstraction
+        import fs
+
         try:
             storage = fs.open_fs(
                 os.path.join(self.storage["url"], self.storage.get("directory", "")),

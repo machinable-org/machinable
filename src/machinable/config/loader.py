@@ -2,8 +2,8 @@ import os
 import re
 from typing import Callable
 
-from expandvars import expandvars
 import yaml
+from expandvars import expandvars
 
 
 class Loader(yaml.SafeLoader):
