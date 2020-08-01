@@ -6,10 +6,7 @@ import os
 import pickle
 import sys
 
-import gitignore_parser
-from fs.zipfs import WriteZipFS
-
-from machinable.utils.utils import is_valid_variable_name
+from ..utils.utils import is_valid_variable_name
 
 from ..config.loader import from_callable as load_config_from_callable
 from ..config.loader import from_file as load_config_file
@@ -241,6 +238,9 @@ class Project(Jsonable):
         # Returns
         True on completion
         """
+        import gitignore_parser
+        from fs.zipfs import WriteZipFS
+
         if opener is None:
             opener = open
 

@@ -3,7 +3,6 @@ import os
 from datetime import datetime as dt
 from typing import Any, Callable, Union
 
-import fs
 import pendulum
 import yaml
 
@@ -212,6 +211,9 @@ class Execution(Jsonable):
         return self._components
 
     def is_submitted(self):
+        # todo: use FileSystem abstraction
+        import fs
+
         try:
             storage = fs.open_fs(
                 os.path.join(self.storage["url"], self.storage.get("directory", "")),

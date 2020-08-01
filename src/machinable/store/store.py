@@ -5,7 +5,7 @@ import os
 import sys
 
 import pendulum
-from fs import open_fs
+
 
 from ..utils.dicts import serialize, update_dict
 from .log import Log
@@ -136,6 +136,9 @@ class Store:
 
         if "://" not in self.config["url"]:
             self.config["url"] = "osfs://" + self.config["url"]
+
+        # todo: migrate to FileSystem abstraction
+        from fs import open_fs
 
         self.filesystem = open_fs(self.config["url"], create=True)
         self.filesystem.makedirs(

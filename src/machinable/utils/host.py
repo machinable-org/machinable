@@ -4,8 +4,6 @@ import platform
 import socket
 import sys
 
-import pkg_resources
-
 from ..registration import Registration
 
 _getters = {}
@@ -63,6 +61,8 @@ def _argv():
 @register_host_info
 def _machinable_version():
     try:
+        import pkg_resources
+
         return pkg_resources.require("machinable")[0].version
     except:  # noqa: E722
         return "unknown"
