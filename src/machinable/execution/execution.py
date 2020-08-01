@@ -21,8 +21,11 @@ from ..registration import Registration
 from ..utils.dicts import update_dict
 from ..utils.formatting import exception_to_str, msg
 from ..utils.host import get_host_info
-from ..utils.identifiers import (decode_experiment_id, encode_experiment_id,
-                                 generate_experiment_id)
+from ..utils.identifiers import (
+    decode_experiment_id,
+    encode_experiment_id,
+    generate_experiment_id,
+)
 from ..utils.traits import Jsonable
 
 

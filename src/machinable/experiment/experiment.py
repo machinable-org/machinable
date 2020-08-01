@@ -53,6 +53,17 @@ class ExperimentComponent(Jsonable):
 
         raise ValueError(f"Invalid arguments: {args}")
 
+    @classmethod
+    def get_storage(cls, experiment_storage_url):
+        """Returns a [ExperimentStorage](#) for the given URL
+
+        # Arguments
+        experiment_storage_url: String, filesystem URL
+        """
+        from ..storage.experiment import ExperimentStorage
+
+        return ExperimentStorage(experiment_storage_url)
+
     def unpack(self):
         if isinstance(self.version, list):
             return [

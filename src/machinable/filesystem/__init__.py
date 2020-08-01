@@ -1,6 +1,6 @@
-
 def open_fs(config):
     from .filesystem import FileSystem
+
     return FileSystem(config)
 
 

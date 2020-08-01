@@ -270,6 +270,17 @@ class Component(Mixin):
 
         self.on_after_init()
 
+    @classmethod
+    def get_storage(cls, component_storage_url):
+        """Returns a [ComponentStorage](#) for the given URL
+
+        # Arguments
+        component_storage_url: String, filesystem URL
+        """
+        from ..storage.component import ComponentStorage
+
+        return ComponentStorage(component_storage_url)
+
     def bind(self, mixin, attribute):
         """Binds a mixin to the components
 
