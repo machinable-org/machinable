@@ -23,14 +23,10 @@ def get_settings(reload=False, file="~/.machinable/settings.yaml"):
             {
                 "cache": {"imports": False},
                 "imports": {},
-                "database": {
-                    "default": "sqlite",
-                    "sqlite": {"driver": "sqlite", "database": ":memory:"},
-                },
                 "tmp_directory": "userdata://machinable:machinable/tmp",
                 "default_storage": "mem://",
                 "default_engine": None,
-                "engines": {"native": {"processes": 1}},
+                "default_index": None,
             },
             _settings,
         )

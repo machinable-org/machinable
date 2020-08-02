@@ -3,57 +3,47 @@ import os
 import pendulum
 
 from ..config.mapping import config_map
-from ..filesystem import open_fs, parse_fs_url
+from ..filesystem import open_fs
+from ..storage.models.filesystem import StorageFileSystemModel
 from .collections import RecordCollection
 
 sentinel = object()
 
 
+def _reload_time(component):
+    finished_at = component.is_finished()
+    if finished_at is False:
+        return True
+    else:
+        return finished_at
+
+
 class ComponentStorage:
     def __init__(self, url: str, experiment=None):
-        if "://" not in url:
-            url = "osfs://" + url
-        self.url = url
-        resource = os.path.normpath(parse_fs_url(self.url)["resource"])
-        self._path = os.path.basename(resource)
-        if len(self._path) != 12:
+        self._model = StorageFileSystemModel.create(url)
+        if self._model.component_id is None:
             raise ValueError(
                 "The provided URL is not a valid component storage directory"
             )
         self._experiment = experiment
-        self._cache = dict()
 
     @property
     def id(self):
         """Returns the component storage ID"""
-        return self._path
+        return self._model.component_id
+
+    @property
+    def url(self):
+        return self._model.url
 
     @property
     def experiment(self):
-        """The experiment of this observation"""
+        """The experiment of this component"""
         from .experiment import ExperimentStorage
 
         if not isinstance(self._experiment, ExperimentStorage):
             self._experiment = ExperimentStorage(self.url)
         return self._experiment
-
-    def file(self, filepath, default=sentinel, reload=False):
-        """Returns the content of a file in the component storage
-
-        # Arguments
-        filepath: Relative filepath
-        reload: If True, cache will be ignored
-        """
-        if filepath not in self._cache or reload:
-            try:
-                with open_fs(self.url) as filesystem:
-                    self._cache[filepath] = filesystem.load_file(filepath)
-            except FileNotFoundError:
-                if default is not sentinel:
-                    return default
-                raise
-
-        return self._cache[filepath]
 
     def store(self, name=None):
         """Retrieves element from the write
@@ -64,7 +54,9 @@ class ComponentStorage:
         name: Key or filename of the object that is to be retrieved. If None, a list of available objects is returned
         """
         if name is None:
-            store = self.file("store.json", reload=self.is_alive(), default={})
+            store = self._model.file(
+                "store.json", default={}, reload=_reload_time(self)
+            )
             try:
                 with open_fs(self.url) as filesystem:
                     files = filesystem.listdir("store")
@@ -77,7 +69,7 @@ class ComponentStorage:
 
         if os.path.splitext(name)[1] == "":
             try:
-                return self.file("store.json", reload=self.is_alive())[name]
+                return self._model.file("store.json", reload=_reload_time(self))[name]
             except (FileNotFoundError, TypeError, KeyError) as ex:
                 return ex
 
@@ -89,12 +81,12 @@ class ComponentStorage:
     @property
     def config(self):
         """Returns the component config"""
-        return config_map(self.file("component.json")["config"])
+        return config_map(self._model.file("component.json")["config"])
 
     @property
     def flags(self):
         """Returns the component flags"""
-        return config_map(self.file("component.json")["flags"])
+        return config_map(self._model.file("component.json")["flags"])
 
     @property
     def tuning(self):
@@ -103,27 +95,29 @@ class ComponentStorage:
 
     @property
     def components(self):
-        return [config_map(component) for component in self.file("components.json")]
+        return [
+            config_map(component) for component in self._model.file("components.json")
+        ]
 
     @property
     def host(self):
         """Returns information of the host"""
-        return config_map(self.file("host.json"))
+        return config_map(self._model.file("host.json"))
 
     @property
     def state(self):
         """Returns information of component state"""
-        return config_map(self.file("state.json", reload=self.is_alive()))
+        return config_map(self._model.file("state.json", reload=_reload_time(self)))
 
     @property
     def log(self):
         """Returns the content of the log file"""
-        return self.file("log.txt", reload=self.is_alive())
+        return self._model.file("log.txt", reload=_reload_time(self))
 
     @property
     def output(self):
         """Returns the content of the log file"""
-        return self.file("output.log", reload=self.is_alive())
+        return self._model.file("output.log", reload=_reload_time(self))
 
     @property
     def records(self):
@@ -132,7 +126,7 @@ class ComponentStorage:
 
     def has_records(self, scope="default"):
         """Returns True if records of given scope exist"""
-        return bool(self.file(f"records/{scope}.p", default=False))
+        return bool(self._model.file(f"records/{scope}.p", default=False))
 
     def get_records(self, scope=None):
         """Returns a record collection
@@ -149,7 +143,9 @@ class ComponentStorage:
             except:
                 return []
         return RecordCollection(
-            self.file(f"records/{scope}.p", default=[], reload=self.is_alive())
+            self._model.file(
+                f"records/{scope}.p", default=[], reload=_reload_time(self)
+            )
         )
 
     @property
@@ -173,20 +169,26 @@ class ComponentStorage:
 
     @property
     def status(self):
-        return config_map(self.file("status.json", reload=True))
+        return config_map(self._model.file("status.json", reload=True))
 
     def is_finished(self):
         """True if finishing time has been written"""
-        status = self.file("status.json", default={"finished_at": False}, reload=True)
+        status = self._model.file(
+            "status.json", default={"finished_at": False}, reload=True
+        )
         return bool(status["finished_at"])
 
     def is_started(self):
-        status = self.file("status.json", default={"started_at": False}, reload=True)
+        status = self._model.file(
+            "status.json", default={"started_at": False}, reload=True
+        )
         return bool(status["started_at"])
 
     def is_alive(self):
         """True if not finished and last heartbeat occurred less than 30 seconds ago"""
-        status = self.file("status.json", default={"heartbeat_at": None}, reload=True)
+        status = self._model.file(
+            "status.json", default={"heartbeat_at": None}, reload=True
+        )
         if not status["heartbeat_at"]:
             return False
 
@@ -201,7 +203,7 @@ class ComponentStorage:
             index = [
                 i
                 for i, c in enumerate(
-                    self.experiment.file("execution.json")["components"]
+                    self.experiment._model.file("execution.json")["components"]
                 )
                 if c == self.id
             ][0]
@@ -211,7 +213,7 @@ class ComponentStorage:
 
     def __getattr__(self, item):
         # resolve sub-component alias
-        aliases = self.flags.get("COMPONENTS_ALIAS", {})
+        aliases = self.flags.create("COMPONENTS_ALIAS", {})
         try:
             return self.components[aliases[item]]
         except (TypeError, KeyError, IndexError):

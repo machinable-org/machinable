@@ -5,6 +5,7 @@ from .engines import Engine
 from .execution import Execution
 from .experiment import Experiment
 from .experiment import ExperimentComponent as C
+from .indexes import Index
 from .project import Project
 from .storage import Storage
 
@@ -13,6 +14,7 @@ def execute(
     experiment: Union[Experiment, Any],
     storage: Union[dict, str] = None,
     engine: Union[Engine, str, dict, None] = None,
+    index: Union[Index, str, dict, None] = None,
     project: Union[Project, Callable, str, dict] = None,
     seed: Union[int, None, str] = None,
 ) -> Execution:
@@ -28,6 +30,7 @@ def execute(
         [pyFilesystem URLs](https://pyfilesystem.readthedocs.io/en/latest/filesystems.html)
     engine: machinable.Engine|Dict|String|None, engine that handles execution,
         e.g. 'local' or 'ray' etc.
+    index: machinable.Index|Dict|String|None, index that tracks this execution
     project: Project|Dict|String|None, project used, defaults to current working directory
     seed: Integer|String|None, determines the global random seed. If None, a random seed will be generated.
         To re-use the same random seed of a previous execution, you can pass in its [experiment ID](.)
@@ -64,14 +67,16 @@ def execute(
     """
     if callable(experiment):
         # decorator use
-        if None not in (storage, engine, project, seed):
+        if None not in (storage, engine, index, project, seed):
             raise ValueError(
                 "execute decorator takes no arguments; "
                 "call the decorated function with arguments instead."
             )
         functional_component = experiment
 
-        def wrapper(experiment, storage=None, engine=None, project=None, seed=None):
+        def wrapper(
+            experiment, storage=None, engine=None, index=None, project=None, seed=None
+        ):
             project = Project.create(project)
             project.default_component = functional_component
             return (
@@ -79,6 +84,7 @@ def execute(
                     experiment=experiment,
                     storage=storage,
                     engine=engine,
+                    index=index,
                     project=project,
                     seed=seed,
                 )
@@ -93,6 +99,7 @@ def execute(
             experiment=experiment,
             storage=storage,
             engine=engine,
+            index=index,
             project=project,
             seed=seed,
         )

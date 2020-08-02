@@ -20,7 +20,7 @@ schema = make_executable_schema(
 graphql = GraphQL(schema, keepalive=True)
 
 routes = [
-    Route("/filesystem/storage/{url:path}/{filename:path}", endpoint=storage_resolver,)
+    Route("/filesystem/storage/{url:path}/{filename:path}", endpoint=storage_resolver)
 ]
 
 middleware = [

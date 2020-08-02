@@ -1,5 +1,5 @@
 from .base import Collection
 
 
-class ExperimentCollection(Collection):
+class ExperimentStorageCollection(Collection):
     pass

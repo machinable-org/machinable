@@ -113,6 +113,9 @@ class Store:
 
     def __init__(self, config=None, component=None):
         self._component = component
+
+        # todo: refactor to use Storage abstraction
+
         if isinstance(config, dict):
             config = copy.deepcopy(config)
 

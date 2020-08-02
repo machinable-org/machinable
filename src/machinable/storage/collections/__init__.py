@@ -1,4 +1,4 @@
 from .base import Collection, collect
-from .components import ComponentCollection
-from .experiments import ExperimentCollection
+from .components import ComponentStorageCollection
+from .experiments import ExperimentStorageCollection
 from .records import RecordCollection

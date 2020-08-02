@@ -15,6 +15,7 @@ from ..execution.schedule import Schedule
 from ..experiment.experiment import Experiment
 from ..experiment.parser import parse_experiment
 from ..filesystem import open_fs
+from ..indexes import Index
 from ..project import Project
 from ..project.export import Export
 from ..registration import Registration
@@ -41,6 +42,7 @@ class Execution(Jsonable):
         experiment: Union[Experiment, Any],
         storage: Union[dict, str] = None,
         engine: Union[Engine, str, dict, None] = None,
+        index: Union[Index, str, dict, None] = None,
         project: Union[Project, Callable, str, dict] = None,
         seed: Union[int, None, str] = None,
     ):
@@ -49,6 +51,7 @@ class Execution(Jsonable):
         self.experiment = None
         self.storage = None
         self.engine = None
+        self.index = None
         self.project = None
         self.seed = None
 
@@ -72,6 +75,7 @@ class Execution(Jsonable):
         self.set_storage(storage)
         self.set_experiment(experiment)
         self.set_engine(engine)
+        self.set_index(index)
         self.set_seed(seed)
 
     def __call__(self, experiment, storage=None, engine=None, project=None, seed=None):
@@ -118,6 +122,8 @@ class Execution(Jsonable):
         return self
 
     def set_storage(self, storage):
+        # todo: refactor to use the Storage abstraction
+
         if storage is None:
             storage = get_settings()["default_storage"]
 
@@ -137,6 +143,14 @@ class Execution(Jsonable):
             engine = get_settings()["default_engine"]
 
         self.engine = Engine.create(engine)
+
+        return self
+
+    def set_index(self, index):
+        if index is None:
+            index = get_settings()["default_index"]
+
+        self.index = Index.create(index)
 
         return self
 
@@ -265,16 +279,12 @@ class Execution(Jsonable):
 
             storage = self.engine.storage_middleware(self.storage)
 
-            with open_fs(
-                {
-                    "url": os.path.join(
-                        storage.get("url", "mem://"),
-                        storage.get("directory", ""),
-                        storage["experiment"],
-                    ),
-                    "create": True,
-                }
-            ) as filesystem:
+            url = os.path.join(
+                storage.get("url", "mem://"),
+                storage.get("directory", ""),
+                storage["experiment"],
+            )
+            with open_fs({"url": url, "create": True}) as filesystem:
 
                 if code_backup:
                     self.project.backup_source_code(opener=filesystem.open)
@@ -300,6 +310,9 @@ class Execution(Jsonable):
                         "code_version": code_version,
                     },
                 )
+
+            # todo: pass the data directly as an StorageFileSystemModel
+            self.index.add(url)
 
         return self.engine.submit(self)
 

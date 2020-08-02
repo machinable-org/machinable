@@ -77,6 +77,7 @@ class SlurmEngine(Engine):
         code = f"""
         import machinable as ml
         e = ml.Execution.from_storage('{url}')
+        e.set_engine('native')
         e.set_storage({execution.storage})
         e.set_project(ml.Project.from_json('{project}'))
         e.filter(lambda i, component, _: component == '$COMPONENT_ID')

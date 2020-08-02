@@ -1,30 +1,30 @@
 import pytest
 
-import machinable as ml
+from machinable import Index, Storage
+from machinable.storage.experiment import ExperimentStorage
 
 STORAGE_DIRECTORY = "./_test_data/storage"
 
 
 def test_storage_interface():
-    storage = ml.Storage(STORAGE_DIRECTORY)
-    # storage
-    storage.reset()
-    assert len(storage._index["url"]) == 0
-    storage.add(STORAGE_DIRECTORY)
-    assert len(storage._index["url"]) == 1
-    # re-add does not re-add
-    for k in range(3):
-        storage.add(STORAGE_DIRECTORY)
-    assert len(storage._index["url"]) == 1
+    storage = Storage(STORAGE_DIRECTORY)
+    assert isinstance(storage.config, dict)
+    assert storage.config["url"] == "osfs://" + STORAGE_DIRECTORY
 
-    # standard queries
-    assert storage.find("tttttt").components.first().config.test
-    assert len(storage.find("tttttt").components) == 4
-    assert len(storage.find_all()) == 4
+
+def test_experiment_storage_interface():
+    with pytest.raises(ValueError):
+        ExperimentStorage("./_test_data/storage/tttttt/tbAXUwxGJzA8")
+
+    o = ExperimentStorage("./_test_data/storage/tttttt")
+    assert o.id == "tttttt"
+    assert o.url == "osfs://./_test_data/storage/tttttt"
+    assert o.components.first().config.test
+    assert len(o.components) == 4
 
 
 def test_storage_component_interface():
-    comp = ml.Storage(STORAGE_DIRECTORY).find("tttttt").components.first()
+    comp = Index(url=STORAGE_DIRECTORY).find("tttttt").components.first()
     assert comp.experiment.id == "tttttt"
     assert comp.experiment.code_version.project.path is None
     assert comp.flags.NAME == "nodes.observations"
@@ -39,12 +39,12 @@ def test_storage_component_interface():
     assert len(comp.host) == 8
     assert len(comp.get_records()) == 2
 
-    comp = ml.Storage(STORAGE_DIRECTORY).find("TTTTTT")
+    comp = Index(url=STORAGE_DIRECTORY).find("TTTTTT")
     assert comp.components.first().experiment.id == "TTTTTT"
 
 
 def test_storage_records_interface():
-    obs = ml.Storage(STORAGE_DIRECTORY).find("tttttt").components.first()
+    obs = Index(url=STORAGE_DIRECTORY).find("tttttt").components.first()
     records = obs.records
     custom = obs.get_records("validation")
     assert custom.sum("iteration") == 15
@@ -52,7 +52,7 @@ def test_storage_records_interface():
 
 
 def test_collections():
-    task = ml.Storage(STORAGE_DIRECTORY).find("tttttt")
+    task = Index(url=STORAGE_DIRECTORY).find("tttttt")
     import numpy as np
 
     def o(x):
