@@ -3,6 +3,7 @@ import os
 import platform
 import socket
 import sys
+import getpass
 
 from ..registration import Registration
 
@@ -46,6 +47,11 @@ def _machine():
 @register_host_info
 def _python_version():
     return platform.python_version()
+
+
+@register_host_info
+def _user():
+    return getpass.getuser()
 
 
 @register_host_info

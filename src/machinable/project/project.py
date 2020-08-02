@@ -18,7 +18,7 @@ from ..registration import Registration
 from ..utils.dicts import update_dict
 from ..utils.traits import Jsonable
 from ..utils.utils import is_valid_variable_name
-from ..utils.vcs import get_commit
+from ..utils.vcs import get_commit, get_root_commit
 from .manager import fetch_imports
 
 
@@ -305,6 +305,7 @@ class Project(Jsonable):
 
     def get_code_version(self):
         return {
+            "id": get_root_commit(self.config_filepath),
             "project": get_commit(self.config_filepath),
             "vendor": {
                 vendor: get_commit(
