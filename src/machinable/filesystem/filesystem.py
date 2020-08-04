@@ -105,7 +105,7 @@ class FileSystem:
                         mode += "b"
                     with filesystem.open(filepath, mode) as f:
                         pickle.dump(data, f)
-                elif ext == ".txt":
+                elif ext in [".txt", ".diff"]:
                     with filesystem.open(filepath, mode) as f:
                         f.write(data)
                 else:

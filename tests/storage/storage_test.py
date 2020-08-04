@@ -26,7 +26,7 @@ def test_experiment_storage_interface():
 def test_storage_component_interface():
     comp = Index(url=STORAGE_DIRECTORY).find("tttttt").components.first()
     assert comp.experiment.id == "tttttt"
-    assert comp.experiment.code_version.project.path is None
+    assert comp.experiment.code_version.project.path.endswith("machinable.git")
     assert comp.flags.NAME == "nodes.observations"
     assert comp.config.to_test == "observations"
     assert comp.schedule.component.args.to_test == comp.config.to_test
@@ -36,7 +36,7 @@ def test_storage_component_interface():
     assert comp.store("key") == "value"
     assert "test" in comp.store()
     assert len(comp.store()["$files"])
-    assert len(comp.host) == 8
+    assert len(comp.host) == 9
     assert len(comp.get_records()) == 2
 
     comp = Index(url=STORAGE_DIRECTORY).find("TTTTTT")

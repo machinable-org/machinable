@@ -18,7 +18,7 @@ from ..registration import Registration
 from ..utils.dicts import update_dict
 from ..utils.traits import Jsonable
 from ..utils.utils import is_valid_variable_name
-from ..utils.vcs import get_commit, get_root_commit
+from ..utils.vcs import get_commit, get_root_commit, get_diff
 from .manager import fetch_imports
 
 
@@ -316,6 +316,9 @@ class Project(Jsonable):
                 for vendor in [next(iter(d)) for d in self.get_config()["+"]]
             },
         }
+
+    def get_diff(self):
+        return get_diff(self.config_filepath)
 
     def reload_imports(self):
         vendor_caching = self.options["vendor_caching"]

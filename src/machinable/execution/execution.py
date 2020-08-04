@@ -291,9 +291,6 @@ class Execution(Jsonable):
 
                 code_version = self.project.get_code_version()
 
-                filesystem.save_file("execution.json", self.serialize())
-                filesystem.save_file("schedule.json", self.schedule.serialize())
-                filesystem.save_file("host.json", get_host_info())
                 filesystem.save_file(
                     "code.json",
                     {
@@ -310,6 +307,11 @@ class Execution(Jsonable):
                         "code_version": code_version,
                     },
                 )
+                filesystem.save_file("code.diff", self.project.get_diff())
+
+                filesystem.save_file("execution.json", self.serialize())
+                filesystem.save_file("schedule.json", self.schedule.serialize())
+                filesystem.save_file("host.json", get_host_info())
 
             # todo: pass the data directly as an StorageFileSystemModel
             self.index.add(url)
