@@ -69,8 +69,8 @@ def parse_property(obj, path, options, level="##"):
 
 def parse_class(obj, path, options):
     signature = inspect.signature(obj)
-    level = options.create("level", "###")
-    if options.create("header", True):
+    level = options.get("level", "###")
+    if options.get("header", True):
         md = "## " + obj.__name__ + "\n``" + path + str(signature) + "``\n\n"
     else:
         md = "``" + path + str(signature) + "``\n\n"
@@ -82,10 +82,10 @@ def parse_class(obj, path, options):
         # filter no-docs
         array = [m for m in array if getattr(obj, m).__doc__ is not None]
 
-        if options.create("include", False):
+        if options.get("include", False):
             return [m for m in array if m in options["include"]]
 
-        if options.create("exclude", False):
+        if options.get("exclude", False):
             return [m for m in array if m not in options["exclude"]]
 
         return array
