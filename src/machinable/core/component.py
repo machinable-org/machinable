@@ -235,7 +235,9 @@ class Component(Mixin):
         The initialisation and its events ought to be side-effect free, meaning the application state is preserved
         as if no execution would have happened.
         """
-        self.on_before_init(config, flags, node)
+        on_before_init = self.on_before_init(config, flags, node)
+        if isinstance(on_before_init, tuple):
+            config, flags, node = on_before_init
 
         self._node: Optional[Component] = node
         self._components: Optional[List[Component]] = None
@@ -245,8 +247,11 @@ class Component(Mixin):
         self.__mixin__ = None
         self.component_state = ComponentState()
 
-        if self.on_init(config, flags, node) is False:
+        on_init = self.on_init(config, flags, node)
+        if on_init is False:
             return
+        if isinstance(on_init, tuple):
+            config, flags, node = on_init
 
         if config is None:
             config = {}
