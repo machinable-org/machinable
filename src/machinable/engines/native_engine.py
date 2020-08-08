@@ -24,7 +24,7 @@ class NativeEngine(Engine):
 
         pool = Pool(processes=self.processes, maxtasksperchild=1)
         for index, result in pool.imap_unordered(
-            self.pool_process, execution.schedule.iterate(execution.storage),
+            self.pool_process, execution.schedule.iterate(execution.storage.config),
         ):
             execution.set_result(result, index)
 

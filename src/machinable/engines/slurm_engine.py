@@ -100,7 +100,7 @@ class SlurmEngine(Engine):
             resources,
             args,
             kwargs,
-        ) in execution.schedule.iterate(execution.storage):
+        ) in execution.schedule.iterate(execution.storage.config):
             component_id = component["flags"]["COMPONENT_ID"]
             script = f"{self.script}\n"
             script += f"#SBATCH --job-name={execution.experiment_id}:{component_id}\n"

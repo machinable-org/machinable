@@ -1,3 +1,4 @@
+import os
 import copy
 
 from ..utils.dicts import update_dict
@@ -46,30 +47,13 @@ class Storage:
 
         return Storage(args)
 
-    @classmethod
-    def get_component(cls, url):
-        """Returns a [ComponentStorage](#) for the given URL
-
-        # Arguments
-        url: String, filesystem URL
-        """
-        from .component import ComponentStorage
-
-        return ComponentStorage(url)
-
-    @classmethod
-    def get_experiment(cls, url):
-        """Returns a [ExperimentStorage](#) for the given URL
-
-        # Arguments
-        url: String, filesystem URL
-        """
-        from .experiment import ExperimentStorage
-
-        return ExperimentStorage(url)
+    def get_url(self):
+        return os.path.join(
+            self.config["url"], self.config["directory"], self.config["experiment"]
+        )
 
     def __str__(self):
         return self.__repr__()
 
     def __repr__(self):
-        return f"Storage <{self.config['url']}>"
+        return f"Storage <{self.get_url()}>"

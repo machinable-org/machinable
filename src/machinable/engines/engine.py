@@ -115,7 +115,7 @@ class Engine(Jsonable):
             resources,
             args,
             kwargs,
-        ) in execution.schedule.iterate(execution.storage):
+        ) in execution.schedule.iterate(execution.storage.config):
             i, result = self.process(
                 index,
                 execution_type,

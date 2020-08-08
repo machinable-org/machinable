@@ -6,6 +6,7 @@ from typing import Union
 
 from ..filesystem import open_fs
 from ..storage.experiment import ExperimentStorage
+from ..storage.component import ComponentStorage
 from ..storage.models.filesystem import StorageFileSystemModel
 from ..utils.dicts import update_dict
 from ..utils.formatting import exception_to_str
@@ -106,6 +107,24 @@ class Index(Jsonable):
         return _register[index](*arg, **args)
 
     @classmethod
+    def load_component(cls, url):
+        """Returns a [ComponentStorage](#) for the given URL
+
+        # Arguments
+        url: String, filesystem URL
+        """
+        return ComponentStorage(url)
+
+    @classmethod
+    def load_experiment(cls, url):
+        """Returns a [ExperimentStorage](#) for the given URL
+
+        # Arguments
+        url: String, filesystem URL
+        """
+        return ExperimentStorage(url)
+
+    @classmethod
     def unserialize(cls, serialized):
         return cls.create(serialized)
 
@@ -142,6 +161,8 @@ class Index(Jsonable):
                 if not decode_experiment_id(name, or_fail=False):
                     continue
                 self.add(filesystem.get_url(path))
+
+        return self
 
     def __str__(self):
         return self.__repr__()

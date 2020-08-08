@@ -1,5 +1,4 @@
 import ast
-import copy
 import os
 from datetime import datetime as dt
 from typing import Any, Callable, Union
@@ -11,6 +10,7 @@ from ..config.interface import ConfigInterface
 from ..core.exceptions import ExecutionException
 from ..core.settings import get_settings
 from ..engines import Engine
+from ..storage import Storage
 from ..execution.schedule import Schedule
 from ..experiment.experiment import Experiment
 from ..experiment.parser import parse_experiment
@@ -49,7 +49,7 @@ class Execution(Jsonable):
         self.function = None
 
         self.experiment = None
-        self.storage = None
+        self.storage = Storage()
         self.engine = None
         self.index = None
         self.project = None
@@ -117,24 +117,15 @@ class Execution(Jsonable):
                 experiment_directory = dt.now().strftime(experiment_directory)
             except ValueError:
                 pass
-            self.storage["directory"] = experiment_directory.strip("/")
+            self.storage.config["directory"] = experiment_directory.strip("/")
 
         return self
 
     def set_storage(self, storage):
-        # todo: refactor to use the Storage abstraction
-
         if storage is None:
             storage = get_settings()["default_storage"]
 
-        if isinstance(storage, dict):
-            storage = copy.deepcopy(storage)
-        elif isinstance(storage, str):
-            storage = {"url": storage}
-        else:
-            storage = {}
-
-        self.storage = storage
+        self.storage = Storage.create(storage)
 
         return self
 
@@ -246,7 +237,9 @@ class Execution(Jsonable):
 
         try:
             storage = fs.open_fs(
-                os.path.join(self.storage["url"], self.storage.get("directory", "")),
+                os.path.join(
+                    self.storage.config["url"], self.storage.config["directory"]
+                ),
                 create=False,
             )
             return storage.isdir(self.experiment_id)
@@ -262,7 +255,7 @@ class Execution(Jsonable):
         return False
 
     def submit(self):
-        self.storage["experiment"] = self.experiment_id
+        self.storage.config["experiment"] = self.experiment_id
 
         if not self.is_submitted():
             if len(self.schedule) == 0:
@@ -272,12 +265,12 @@ class Execution(Jsonable):
             self.started_at = str(now)
             # do not backup on mem:// filesystem unless explicitly set to True
             code_backup = self.code_backup
-            if code_backup is None and not self.storage.get("url", "mem://").startswith(
+            if code_backup is None and not self.storage.config["url"].startswith(
                 "mem://"
             ):
                 code_backup = True
 
-            storage = self.engine.storage_middleware(self.storage)
+            storage = self.engine.storage_middleware(self.storage.config)
 
             url = os.path.join(
                 storage.get("url", "mem://"),
@@ -482,8 +475,7 @@ class Execution(Jsonable):
             f"\nExecution: {self.experiment_id}\n----------", color="header",
         )
         msg(
-            f"Storage: {os.path.join(self.storage.get('url', 'mem://'), self.storage.get('directory', ''))}",
-            color="blue",
+            f"Storage: {self.storage}", color="blue",
         )
         msg(f"Engine: {repr(self.engine)}", color="blue")
         msg(f"Project: {repr(self.project)}", color="blue")
@@ -532,14 +524,7 @@ class Execution(Jsonable):
 
     def __repr__(self):
         experiment_id = self.experiment_id if isinstance(self.seed, int) else "None"
-        storage = (
-            os.path.join(
-                self.storage.get("url", "-"), self.storage.get("directory", "")
-            )
-            if isinstance(self.storage, dict)
-            else "-"
-        )
-        return f"Execution <{experiment_id}> ({storage})"
+        return f"Execution <{experiment_id}> ({self.storage})"
 
     def __str__(self):
         return self.__repr__()

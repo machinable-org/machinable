@@ -25,7 +25,7 @@ class RayEngine(Engine):
 
         results = [
             self.process(*arguments)
-            for arguments in execution.schedule.iterate(execution.storage)
+            for arguments in execution.schedule.iterate(execution.storage.config)
         ]
 
         for index, result in results:

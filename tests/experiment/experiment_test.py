@@ -65,4 +65,4 @@ def test_experiment_directory():
         "@/test_project/experiments/auto_directory", project="./test_project",
     )
     e.set_schedule()
-    assert e.storage["directory"][:-2] == "test_project 20"
+    assert e.storage.config["directory"][:-2] == "test_project 20"
