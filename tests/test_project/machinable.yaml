@@ -101,6 +101,12 @@ components:
       nested:
         method: hello()
       global_method: global_conf(works=True)
+  - inherited_flatness:
+      flat.can.be.useful: False
+      inherited.flat: value
+  - flattened_notation^inherited_flatness:
+      flat.can.be.useful: True
+      flat.can_also_save_space: ' '
 components:nodes:
   - observations:
       id: -1

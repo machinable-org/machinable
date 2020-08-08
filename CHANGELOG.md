@@ -4,6 +4,7 @@
 
 ## Unreleased
 
+ - Support for flattened dict notation
  - Environment variable expansion in machinable.yaml
  - Reduced import dependencies in __init__.py
 

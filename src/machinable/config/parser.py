@@ -7,6 +7,7 @@ from ..utils.dicts import get_or_fail, read_path_dict, update_dict
 from ..utils.formatting import exception_to_str, msg
 from ..utils.utils import is_valid_variable_name
 from .mapping import _reserved_keys, _used_keys
+from flatten_dict import unflatten
 
 
 class ModuleClass(object):
@@ -247,6 +248,9 @@ def parse_module_list(
         return modules
 
     for module, args in collection.items():
+
+        if isinstance(args, dict) and args.get("_unflatten", True):
+            args = unflatten(args, splitter="dot")
 
         # copy the default import prefix
         module_import_prefix = import_prefix

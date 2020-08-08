@@ -107,3 +107,31 @@ def test_computed_versioning():
     e, m = to_config(test_project, t)
     assert e["alpha"] == 3.14
     assert e["cond"] == 0
+
+
+def test_unflatten_arguments():
+    test_project = Project("./test_project")
+
+    # machinable.yaml
+    t = Experiment().component("flattened_notation")
+    c, _ = to_config(test_project, t)
+    assert "flat" in c
+    assert c["inherited"]["flat"] == "value"
+    assert c["flat"]["can"]["be"]["useful"]
+    assert c["flat"]["can_also_save_space"] == " "
+
+    # experiment
+    t = Experiment().component(
+        "flattened_notation",
+        {
+            "flat.merge": "merged",
+            "more.nested.values": "here",
+            "flat.can_also_save_space": "overwritten",
+        },
+    )
+    c, _ = to_config(test_project, t)
+    assert "flat" in c
+    assert c["flat"]["can"]["be"]["useful"]
+    assert c["flat"]["can_also_save_space"] == "overwritten"
+    assert c["flat"]["merge"] == "merged"
+    assert c["more"]["nested"]["values"] == "here"

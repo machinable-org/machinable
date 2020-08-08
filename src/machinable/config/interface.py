@@ -3,6 +3,7 @@ import inspect
 from collections import OrderedDict
 
 import yaml
+from flatten_dict import unflatten
 
 from ..config.mapping import config_map
 from ..experiment import ExperimentComponent
@@ -235,6 +236,10 @@ class ConfigInterface:
                     for key in k.keys():
                         if callable(k[key]):
                             k[key] = self.call_with_context(k[key], config)
+
+                    # unflatten
+                    if k.get("_unflatten", True):
+                        k = unflatten(k, splitter="dot")
 
                 # merge with version
                 version = update_dict(version, k)
