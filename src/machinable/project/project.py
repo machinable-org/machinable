@@ -318,7 +318,7 @@ class Project(Jsonable):
         }
 
     def get_diff(self):
-        return get_diff(self.config_filepath)
+        return get_diff(self.config_filepath) or ""
 
     def reload_imports(self):
         vendor_caching = self.options["vendor_caching"]

@@ -10,18 +10,28 @@ from ..utils.traits import Jsonable
 from ..utils.utils import set_process_title
 
 _register = {
-    "native": "machinable.engines.native_engine",
-    "ray": "machinable.engines.ray_engine",
-    "detached": "machinable.engines.detached_engine",
-    "remote": "machinable.engines.remote_engine",
-    "dry": "machinable.engines.dry_engine",
-    "slurm": "machinable.engines.slurm_engine",
+    "native": "machinable.engine.native_engine",
+    "ray": "machinable.engine.ray_engine",
+    "detached": "machinable.engine.detached_engine",
+    "remote": "machinable.engine.remote_engine",
+    "dry": "machinable.engine.dry_engine",
+    "slurm": "machinable.engine.slurm_engine",
 }
 
 _latest = [None]
 
 
 class Engine(Jsonable):
+    def __new__(cls, *args, **kwargs):
+        # Engine is an abstract class for which instantiation is meaningless.
+        # Instead, we return the default NativeEngine
+        if cls is Engine:
+            from .native_engine import NativeEngine
+
+            return super().__new__(NativeEngine)
+
+        return super().__new__(cls)
+
     @classmethod
     def latest(cls):
         return _latest[0]
@@ -41,7 +51,7 @@ class Engine(Jsonable):
         if isinstance(args, Engine):
             return args
 
-        resolved = resolve_instance(args, Engine, "engines")
+        resolved = resolve_instance(args, Engine, "engine")
         if resolved is not None:
             return resolved
 

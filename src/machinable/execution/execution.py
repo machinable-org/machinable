@@ -9,13 +9,13 @@ import yaml
 from ..config.interface import ConfigInterface
 from ..core.exceptions import ExecutionException
 from ..core.settings import get_settings
-from ..engines import Engine
+from ..engine import Engine
 from ..storage import Storage
 from ..execution.schedule import Schedule
 from ..experiment.experiment import Experiment
 from ..experiment.parser import parse_experiment
 from ..filesystem import open_fs
-from ..indexes import Index
+from ..index import Index
 from ..project import Project
 from ..project.export import Export
 from ..registration import Registration
@@ -141,7 +141,7 @@ class Execution(Jsonable):
         if index is None:
             index = get_settings()["default_index"]
 
-        self.index = Index.create(index)
+        self.index = Index.get(index)
 
         return self
 

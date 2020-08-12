@@ -6,7 +6,6 @@ from typing import Union
 
 from ..filesystem import open_fs
 from ..storage.experiment import ExperimentStorage
-from ..storage.component import ComponentStorage
 from ..storage.models.filesystem import StorageFileSystemModel
 from ..utils.dicts import update_dict
 from ..utils.formatting import exception_to_str
@@ -15,8 +14,8 @@ from ..utils.importing import resolve_instance
 from ..utils.traits import Jsonable
 
 _register = {
-    "native": "machinable.indexes.native_index",
-    "sql": "machinable.indexes.sql_index",
+    "native": "machinable.index.native_index",
+    "sql": "machinable.index.sql_index",
 }
 
 _latest = [None]
@@ -24,19 +23,14 @@ _latest = [None]
 
 class Index(Jsonable):
     def __new__(cls, *args, **kwargs):
-        if cls == Index:
-            if len(args) > 1:
-                raise TypeError(
-                    f"__init__() takes from 0 to 1 positional arguments but {len(args)} given"
-                )
-            if len(args) == 1:
-                kwargs["type"] = args[0]
-            return cls.create(kwargs)
-        else:
-            try:
-                return super(Index, cls).__new__(cls, *args, **kwargs)
-            except TypeError:
-                return object.__new__(cls)
+        # Index is an abstract class for which instantiation is meaningless.
+        # Instead, we return the default NativeIndex
+        if cls is Index:
+            from .native_index import NativeIndex
+
+            return super().__new__(NativeIndex)
+
+        return super().__new__(cls)
 
     @classmethod
     def latest(cls):
@@ -53,11 +47,11 @@ class Index(Jsonable):
         _register[name] = index
 
     @classmethod
-    def create(cls, args):
+    def get(cls, args):
         if isinstance(args, Index):
             return args
 
-        resolved = resolve_instance(args, Index, "indexes")
+        resolved = resolve_instance(args, Index, "index")
         if resolved is not None:
             return resolved
 
@@ -105,24 +99,6 @@ class Index(Jsonable):
             raise ValueError(f"Index could not be found.")
 
         return _register[index](*arg, **args)
-
-    @classmethod
-    def load_component(cls, url):
-        """Returns a [ComponentStorage](#) for the given URL
-
-        # Arguments
-        url: String, filesystem URL
-        """
-        return ComponentStorage(url)
-
-    @classmethod
-    def load_experiment(cls, url):
-        """Returns a [ExperimentStorage](#) for the given URL
-
-        # Arguments
-        url: String, filesystem URL
-        """
-        return ExperimentStorage(url)
 
     @classmethod
     def unserialize(cls, serialized):

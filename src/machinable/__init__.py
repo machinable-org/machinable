@@ -1,11 +1,11 @@
 from typing import Any, Callable, Union
 
 from .core import Component, Mixin
-from .engines import Engine
+from .engine import Engine
 from .execution import Execution
 from .experiment import Experiment
 from .experiment import ExperimentComponent as C
-from .indexes import Index
+from .index import Index
 from .project import Project
 from .storage import Storage
 

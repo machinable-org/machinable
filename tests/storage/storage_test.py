@@ -1,9 +1,15 @@
+import os
 import pytest
 
-from machinable import Index, Storage
+from machinable import Storage
+from machinable.storage import get_experiment
 from machinable.storage.experiment import ExperimentStorage
 
 STORAGE_DIRECTORY = "./_test_data/storage"
+
+
+def get_path(path):
+    return os.path.join(STORAGE_DIRECTORY, path)
 
 
 def test_storage_interface():
@@ -24,7 +30,7 @@ def test_experiment_storage_interface():
 
 
 def test_storage_component_interface():
-    comp = Index(url=STORAGE_DIRECTORY).find("tttttt").components.first()
+    comp = get_experiment(get_path("tttttt")).components.first()
     assert comp.experiment.id == "tttttt"
     assert comp.experiment.code_version.project.path.endswith("machinable.git")
     assert comp.flags.NAME == "nodes.observations"
@@ -39,29 +45,29 @@ def test_storage_component_interface():
     assert len(comp.host) == 9
     assert len(comp.get_records()) == 2
 
-    comp = Index(url=STORAGE_DIRECTORY).find("TTTTTT")
+    comp = get_experiment(get_path("subdirectory/TTTTTT"))
     assert comp.components.first().experiment.id == "TTTTTT"
 
 
 def test_storage_records_interface():
-    obs = Index(url=STORAGE_DIRECTORY).find("tttttt").components.first()
-    records = obs.records
-    custom = obs.get_records("validation")
+    comp = get_experiment(get_path("tttttt")).components.first()
+    records = comp.records
+    custom = comp.get_records("validation")
     assert custom.sum("iteration") == 15
     assert records.as_dataframe().size > 0
 
 
 def test_collections():
-    task = Index(url=STORAGE_DIRECTORY).find("tttttt")
+    experiment = get_experiment(get_path("tttttt"))
     import numpy as np
 
     def o(x):
         return x.records.pluck("number")
 
-    assert max(task.components.section(o, reduce=np.var)) > 0
+    assert max(experiment.components.section(o, reduce=np.var)) > 0
     # df = task.components.as_dataframe()
     # assert df.size == 4 * 12
-    r = task.components.first().records
+    r = experiment.components.first().records
     num_elements = len(r.pluck("number"))
     with pytest.raises(KeyError):
         r.pluck("not_existing")

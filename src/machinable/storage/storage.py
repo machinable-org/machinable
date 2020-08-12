@@ -4,6 +4,8 @@ import copy
 from ..utils.dicts import update_dict
 from ..utils.importing import resolve_instance
 
+_latest = [None]
+
 
 class Storage:
     def __init__(self, config=None):
@@ -32,6 +34,16 @@ class Storage:
 
         if "://" not in self.config["url"]:
             self.config["url"] = "osfs://" + self.config["url"]
+
+        Storage.set_latest(self)
+
+    @classmethod
+    def latest(cls):
+        return _latest[0]
+
+    @classmethod
+    def set_latest(cls, latest):
+        _latest[0] = latest
 
     @classmethod
     def create(cls, args):
