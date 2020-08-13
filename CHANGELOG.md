@@ -4,6 +4,12 @@
 
 ## Unreleased
 
+No current changes
+
+## v2.2.0
+
+ - Experimental Index() interface
+ - Storage configuration can be written in modules using the Storage() interface
  - Support for flattened dict notation
  - Environment variable expansion in machinable.yaml
  - Reduced import dependencies in __init__.py
