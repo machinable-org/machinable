@@ -76,11 +76,11 @@ class StorageFileSystemModel(Model):
           If datetime, file will be reloaded if cached version is older than the date
         """
         if isinstance(reload, pendulum.DateTime):
-            if filepath not in self._meta_data:
-                reload = True
-            else:
-                loaded_at = self._meta_data[filepath].create("loaded_at")
+            try:
+                loaded_at = self._meta_data[filepath]["loaded_at"]
                 reload = reload >= loaded_at
+            except KeyError:
+                reload = True
 
         if filepath not in self._data or reload:
             with open_fs(self.url) as filesystem:

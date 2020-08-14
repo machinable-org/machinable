@@ -213,7 +213,7 @@ class ComponentStorage:
 
     def __getattr__(self, item):
         # resolve sub-component alias
-        aliases = self.flags.create("COMPONENTS_ALIAS", {})
+        aliases = self.flags.get("COMPONENTS_ALIAS", {})
         try:
             return self.components[aliases[item]]
         except (TypeError, KeyError, IndexError):
