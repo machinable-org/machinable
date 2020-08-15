@@ -438,10 +438,6 @@ class Component(Mixin):
         # prepare child components and invoke on_create event
         inject_components(self, self.components, self.on_create)
 
-        checkpoint = self.flags.get("CHECKPOINT", False)
-        if checkpoint:
-            self.restore_checkpoint(checkpoint)
-
         self.on_after_create()
 
         self.component_state.created = True
@@ -594,15 +590,15 @@ class Component(Mixin):
 
         return checkpoint
 
-    def restore_checkpoint(self, filepath=None):
+    def restore_checkpoint(self, checkpoint):
         """Restores a checkpoint
 
         # Arguments
         filepath: Checkpoint filepath
         """
         if self.store is not None:
-            self.store.log.info(f"Restoring checkpoint {filepath}")
-        return self.on_restore(filepath)
+            self.store.log.info(f"Restoring checkpoint `{checkpoint}`")
+        return self.on_restore(checkpoint)
 
     def serialize(self):
         return {
@@ -670,11 +666,11 @@ class Component(Mixin):
         """
         pass
 
-    def on_restore(self, checkpoint_file: str):
+    def on_restore(self, checkpoint):
         """Implements the restore checkpoint functionality of the components
 
         # Arguments
-        checkpoint_path: String, source directory
+        checkpoint: Checkpoint specification
         timestep: Integer, counting number of checkpoint
 
         # Returns
