@@ -99,9 +99,9 @@ class Execution(Jsonable):
             experiment_directory = Registration.get().experiment_directory
         if callable(experiment_directory):
             experiment_directory = experiment_directory()
-            if experiment_directory is True:
+            if not isinstance(experiment_directory, str):
                 # use default value
-                experiment_directory = "&PROJECT/&MODULE"
+                experiment_directory = None
         if isinstance(experiment_directory, str):
             # replace magic variables
             project_name = self.project.name if self.project else ""

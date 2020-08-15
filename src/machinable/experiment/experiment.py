@@ -118,7 +118,7 @@ class Experiment(Jsonable):
     def set_latest(cls, latest):
         _latest[0] = latest
 
-    def directory(self, path: str = "&PROJECT/&MODULE"):
+    def directory(self, path: str):
         """Set the directory of the experiment
 
         Relative path that gets appended to the storage directory of this experiment
