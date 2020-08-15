@@ -6,6 +6,10 @@
 
 No current changes
 
+## v2.2.1
+
+- Make `dataset` dependency optional
+
 ## v2.2.0
 
  - Experimental Index() interface
