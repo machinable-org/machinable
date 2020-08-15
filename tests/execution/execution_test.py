@@ -36,6 +36,6 @@ def test_execution_continuation():
     assert os.path.isdir(
         f"./_test_data/storage/tttttt/experiments/{execution.experiment_id}"
     )
-    assert execution.storage.config["parent"]["url"].endswith(
+    assert execution.storage.config["ancestor"]["url"].endswith(
         "_test_data/storage/tttttt"
     )

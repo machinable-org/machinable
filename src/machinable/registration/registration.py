@@ -31,6 +31,28 @@ class Registration:
         cls.instance = Registration()
         return cls.instance
 
+    def on_before_submit(self, execution):
+        """Event triggered before submission of an execution
+
+        Return False to prevent the execution
+
+        # Arguments
+        execution: machinable.Execution object
+        """
+        pass
+
+    def on_submit(self, execution, is_resubmission):
+        """Event triggered during submission of an execution
+
+        Note that the execution has already been written and modifications
+        have no effect. Use on_before_submission instead.
+
+        # Arguments
+        execution: machinable.Execution object
+        is_resubmission: Boolean indicating whether execution is an existing resubmission
+        """
+        pass
+
     def experiment_directory(self):
         """
         Overwrites the default experiment directory.

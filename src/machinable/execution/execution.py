@@ -243,6 +243,9 @@ class Execution(Jsonable):
         return False
 
     def submit(self):
+        if Registration.get().on_before_submit(self) is False:
+            return False
+
         self.storage.config["experiment"] = self.experiment_id
 
         # check if URL is an existing experiment
@@ -260,7 +263,8 @@ class Execution(Jsonable):
         except (ValueError, KeyError):
             pass
 
-        if not self.is_submitted():
+        is_submitted = self.is_submitted()
+        if not is_submitted:
             if len(self.schedule) == 0:
                 self.set_schedule()
             now = pendulum.now()
@@ -310,6 +314,8 @@ class Execution(Jsonable):
 
             # todo: pass the data directly as an StorageFileSystemModel
             self.index.add(url)
+
+        Registration.get().on_submit(self, is_submitted)
 
         return self.engine.submit(self)
 
