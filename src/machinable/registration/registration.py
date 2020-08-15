@@ -52,9 +52,3 @@ class Registration:
         is_resubmission: Boolean indicating whether execution is an existing resubmission
         """
         pass
-
-    def experiment_directory(self):
-        """
-        Overwrites the default experiment directory.
-        """
-        return None

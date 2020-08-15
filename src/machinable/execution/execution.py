@@ -96,12 +96,7 @@ class Execution(Jsonable):
         # compute experiment directory
         experiment_directory = self.experiment.specification.get("directory", None)
         if experiment_directory is None:
-            experiment_directory = Registration.get().experiment_directory
-        if callable(experiment_directory):
-            experiment_directory = experiment_directory()
-            if not isinstance(experiment_directory, str):
-                # use default value
-                experiment_directory = None
+            experiment_directory = get_settings()["default_directory"]
         if isinstance(experiment_directory, str):
             # replace magic variables
             project_name = self.project.name if self.project else ""
