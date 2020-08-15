@@ -120,6 +120,7 @@ components:nodes:
         version: 0
   - timings:
       test: 1
+  - continuation:
 components:workers:
   - interactive:
       id: 1

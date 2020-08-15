@@ -33,7 +33,7 @@ class FileSystem:
             self._fs = open_fs(
                 self.config["url"], create=self.config.get("create", False)
             )
-        except errors.CreateFailed:
+        except (errors.ResourceNotFound, errors.CreateFailed):
             raise FileNotFoundError(f"Directory {self.config['url']} does not exist")
         return self
 

@@ -11,6 +11,7 @@ import pendulum
 from ..config.mapping import ConfigMap, ConfigMethod, config_map
 from ..config.parser import ModuleClass, parse_mixins
 from ..registration import Registration
+from ..storage.component import ComponentStorage
 from ..store import Store
 from ..store.log import Log
 from ..store.record import Record

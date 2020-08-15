@@ -50,9 +50,6 @@ class StorageFileSystemModel(Model):
         if isinstance(args, StorageFileSystemModel):
             return args
 
-        if isinstance(args, str):
-            return StorageFileSystemModel({"url": args})
-
         return StorageFileSystemModel(args)
 
     @property

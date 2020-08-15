@@ -11,6 +11,7 @@ from ..core.exceptions import ExecutionException
 from ..core.settings import get_settings
 from ..engine import Engine
 from ..storage import Storage
+from ..storage.models.filesystem import StorageFileSystemModel
 from ..execution.schedule import Schedule
 from ..experiment.experiment import Experiment
 from ..experiment.parser import parse_experiment
@@ -232,30 +233,32 @@ class Execution(Jsonable):
         return self
 
     def is_submitted(self):
-        # todo: use FileSystem abstraction
-        import fs
-
         try:
-            storage = fs.open_fs(
-                os.path.join(
-                    self.storage.config["url"], self.storage.config["directory"]
-                ),
-                create=False,
-            )
-            return storage.isdir(self.experiment_id)
-        except (
-            AttributeError,
-            KeyError,
-            TypeError,
-            ValueError,
-            fs.errors.ResourceNotFound,
-            fs.errors.CreateFailed,
-        ):
+            with open_fs(self.storage.config["url"]) as filesystem:
+                return filesystem.isdir(
+                    os.path.join(self.storage.config["directory"], self.experiment_id)
+                )
+        except (FileNotFoundError, AttributeError, KeyError, TypeError, ValueError):
             pass
         return False
 
     def submit(self):
         self.storage.config["experiment"] = self.experiment_id
+
+        # check if URL is an existing experiment
+        try:
+            target = StorageFileSystemModel(self.storage.config["url"])
+            if target.file("execution.json", default={})["id"] == target.experiment_id:
+                # register URL as parent storage and rewrite to experiments/ subdirectory
+                self.storage.config["parent"] = {
+                    "url": self.storage.config["url"],
+                    "experiment": target.experiment_id,
+                }
+                self.storage.config["url"] = os.path.join(
+                    self.storage.config["url"], "experiments"
+                )
+        except (ValueError, KeyError):
+            pass
 
         if not self.is_submitted():
             if len(self.schedule) == 0:
@@ -301,7 +304,6 @@ class Execution(Jsonable):
                     },
                 )
                 filesystem.save_file("code.diff", self.project.get_diff())
-
                 filesystem.save_file("execution.json", self.serialize())
                 filesystem.save_file("schedule.json", self.schedule.serialize())
                 filesystem.save_file("host.json", get_host_info())
