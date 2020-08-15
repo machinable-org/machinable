@@ -244,6 +244,7 @@ class Execution(Jsonable):
         self.storage.config["experiment"] = self.experiment_id
 
         # check if URL is an existing experiment
+        derived_from = None
         try:
             target = StorageFileSystemModel(self.storage.config["url"])
             if target.is_valid():
@@ -255,6 +256,7 @@ class Execution(Jsonable):
                 self.storage.config["url"] = os.path.join(
                     self.storage.config["url"], "experiments"
                 )
+                derived_from = self.storage.config["ancestor"]["url"]
         except (ValueError, KeyError):
             pass
 
@@ -262,6 +264,13 @@ class Execution(Jsonable):
         if not is_submitted:
             if len(self.schedule) == 0:
                 self.set_schedule()
+
+            def set_derived_from_flag(i, component, element):
+                element[1]["flags"]["DERIVED_FROM_STORAGE"] = derived_from
+                return element
+
+            self.schedule.transform(set_derived_from_flag)
+
             now = pendulum.now()
             self.timestamp = now.timestamp()
             self.started_at = str(now)

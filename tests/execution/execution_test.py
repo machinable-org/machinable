@@ -33,6 +33,7 @@ def test_execution_continuation():
         project="./test_project",
     )
     execution.submit()
+    assert execution.schedule._result[0] is None  # no exception occurred
     assert os.path.isdir(
         f"./_test_data/storage/tttttt/experiments/{execution.experiment_id}"
     )
