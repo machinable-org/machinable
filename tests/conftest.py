@@ -49,6 +49,19 @@ def pytest_sessionstart(session):
         project="./test_project",
     )
 
+    # sub-experiments
+    ml.execute(
+        ml.Experiment().component("nodes.observations").directory("subexperiment"),
+        os.path.join(path, "tttttt"),
+        seed="SUBEXP",
+        project="./test_project",
+    )
+    ml.execute(
+        ml.Experiment().component("nodes.observations").directory("sub/test"),
+        os.path.join(path, "tttttt"),
+        project="./test_project",
+    )
+
     ml.execute(
         ml.Experiment()
         .components(("nodes.observations", {"id": 4}))

@@ -1,15 +1,15 @@
 import os
-
+from typing import Union, Optional
 import pendulum
 
 from ..config.mapping import config_map
-from .collections import ComponentStorageCollection
+from .collections import ComponentStorageCollection, ExperimentStorageCollection
 from .component import ComponentStorage
 from .models.filesystem import StorageFileSystemModel
 
 
 class ExperimentStorage:
-    def __init__(self, url: str):
+    def __init__(self, url: Union[str, StorageFileSystemModel]):
         self._model = StorageFileSystemModel.create(url)
         if self._model.component_id is not None:
             raise ValueError(
@@ -18,17 +18,17 @@ class ExperimentStorage:
         self._components = {}
 
     @property
-    def id(self):
+    def id(self) -> str:
         """6-digit experiment ID, e.g. F4K3r6"""
         return self._model.experiment_id
 
     @property
-    def url(self):
+    def url(self) -> str:
         """Returns the file system URL"""
         return self._model.url
 
     @property
-    def seed(self):
+    def seed(self) -> int:
         """Returns the global random seed used in the experiment"""
         return self._model.file("execution.json")["seed"]
 
@@ -78,7 +78,7 @@ class ExperimentStorage:
         return self._model.file("schedule.json")
 
     @property
-    def components(self):
+    def components(self) -> ComponentStorageCollection:
         """List of components
         """
         if len(self._components) == 0:
@@ -90,6 +90,28 @@ class ExperimentStorage:
             }
 
         return ComponentStorageCollection(list(self._components.values()))
+
+    @property
+    def experiments(self) -> ExperimentStorageCollection:
+        """Returns a collection of derived experiments
+        """
+        return ExperimentStorageCollection(
+            [ExperimentStorage(url) for url in self._model.experiments()]
+        )
+
+    @property
+    def ancestor(self) -> Optional["ExperimentStorage"]:
+        """Returns parent experiment or None if experiment is independent
+        """
+        if self.url.find("/experiments/") == -1:
+            return None
+        try:
+            model = StorageFileSystemModel(self.url.rsplit("/experiments/")[0])
+            if not model.is_valid():
+                return None
+            return ExperimentStorage(model)
+        except ValueError:
+            return None
 
     def __len__(self):
         """Returns the number of components in this experiment"""

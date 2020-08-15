@@ -28,6 +28,12 @@ def test_experiment_storage_interface():
     assert o.components.first().config.test
     assert len(o.components) == 4
 
+    experiments = o.experiments
+    assert len(experiments) >= 2
+    assert len(experiments.filter(lambda x: x.id == "SUBEXP")) == 1
+    assert all(experiments.transform(lambda x: x.ancestor.id == "tttttt"))
+    assert o.ancestor is None
+
 
 def test_storage_component_interface():
     comp = get_experiment(get_path("tttttt")).components.first()

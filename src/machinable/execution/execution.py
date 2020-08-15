@@ -248,9 +248,9 @@ class Execution(Jsonable):
         # check if URL is an existing experiment
         try:
             target = StorageFileSystemModel(self.storage.config["url"])
-            if target.file("execution.json", default={})["id"] == target.experiment_id:
+            if target.is_valid():
                 # register URL as parent storage and rewrite to experiments/ subdirectory
-                self.storage.config["parent"] = {
+                self.storage.config["ancestor"] = {
                     "url": self.storage.config["url"],
                     "experiment": target.experiment_id,
                 }

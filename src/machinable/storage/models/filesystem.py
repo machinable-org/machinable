@@ -64,6 +64,11 @@ class StorageFileSystemModel(Model):
     def component_id(self):
         return self._data["component_id"]
 
+    def is_valid(self):
+        return (
+            self.file("execution.json", default={}).get("id", "") == self.experiment_id
+        )
+
     def file(self, filepath, default=sentinel, reload=False):
         """Returns the content of a file in the storage
 
@@ -90,3 +95,19 @@ class StorageFileSystemModel(Model):
                     raise
 
         return self._data[filepath]
+
+    def experiments(self):
+        experiments = []
+        try:
+            with open_fs(os.path.join(self.url, "experiments")) as filesystem:
+                for path, info in filesystem.walk.info(exclude_dirs=["experiments"]):
+                    if not info.is_dir:
+                        continue
+                    directory, name = os.path.split(path)
+                    if not decode_experiment_id(name, or_fail=False):
+                        continue
+                    experiments.append(filesystem.get_url(path))
+        except FileNotFoundError:
+            pass
+        finally:
+            return experiments
