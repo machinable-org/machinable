@@ -10,6 +10,7 @@ from ..config.interface import ConfigInterface
 from ..core.exceptions import ExecutionException
 from ..core.settings import get_settings
 from ..engine import Engine
+from ..utils.importing import resolve_instance
 from ..storage import Storage
 from ..storage.models.filesystem import StorageFileSystemModel
 from ..execution.schedule import Schedule
@@ -35,6 +36,9 @@ def to_color(experiment_id):
     return "".join(
         [encode_experiment_id(decode_experiment_id(c) % 16) for c in experiment_id]
     )
+
+
+_latest = [None]
 
 
 class Execution(Jsonable):
@@ -89,6 +93,34 @@ class Execution(Jsonable):
             # decorator invocation
             self.project.default_component = self.function
             return self
+
+    @classmethod
+    def latest(cls):
+        return _latest[0]
+
+    @classmethod
+    def set_latest(cls, latest):
+        _latest[0] = latest
+
+    @classmethod
+    def create(self, args):
+        if isinstance(args, Execution):
+            return args
+
+        if args is None:
+            return Execution()
+
+        resolved = resolve_instance(args, Execution, "executions")
+        if resolved is not None:
+            return resolved
+
+        if isinstance(args, dict):
+            return Execution(**args)
+
+        if isinstance(args, (list, tuple)):
+            return Execution(*args)
+
+        raise ValueError(f"Invalid argument: {args}")
 
     def set_experiment(self, experiment):
         self.experiment = Experiment.create(experiment)

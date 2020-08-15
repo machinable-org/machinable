@@ -45,19 +45,21 @@ def execution(url, storage, engine, project, checkpoint, version, seed):
     """
     Resumes an execution from a storage URL
     """
-    if "://" not in url:
-        url = "osfs://" + url
-
-    # parse URL
     component_id = None
-    resource = os.path.normpath(parse_fs_url(url)["resource"])
-    path = os.path.basename(resource)
-    if len(path) == 12:
-        # if component, switch to experiment
-        component_id = path
-        url = url.replace("/" + component_id, "")
+    if url[0] == "@":
+        execution = Execution.create(url)
+    else:
+        if "://" not in url:
+            url = "osfs://" + url
+        # parse URL
+        resource = os.path.normpath(parse_fs_url(url)["resource"])
+        path = os.path.basename(resource)
+        if len(path) == 12:
+            # if component, switch to experiment
+            component_id = path
+            url = url.replace("/" + component_id, "")
 
-    execution = Execution.from_storage(url)
+        execution = Execution.from_storage(url)
 
     if version == "&":
         version = click.edit("{}", extension=".py")
