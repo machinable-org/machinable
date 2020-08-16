@@ -1,5 +1,6 @@
 import os
-from typing import Union, Optional
+from typing import Optional, Union
+
 import pendulum
 
 from ..config.mapping import config_map

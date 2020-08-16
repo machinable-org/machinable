@@ -4,7 +4,7 @@ import sys
 import pytest
 
 import machinable as ml
-from machinable import Component
+from machinable import Component, Storage
 from machinable.core.component import inject_components
 
 
@@ -27,7 +27,7 @@ def test_on_iterate():
                 return StopIteration
 
     iterator = TestIterate()
-    iterator.dispatch([], {"component": "12345"})
+    iterator.dispatch([], Storage({"component": "1235"}).config)
     iterator.create()
     iterator.execute()
 
@@ -39,7 +39,7 @@ def test_on_iterate():
 
     # repeat with records writing
     iterator = TestIterate()
-    iterator.dispatch([], {"component": "12345"})
+    iterator.dispatch([], Storage({"component": "12345"}).config)
     iterator.create()
     iterator.USE_RECORDS = True
     iterator.execute()

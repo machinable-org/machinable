@@ -1,14 +1,16 @@
 import os
-import shutil
 
 import numpy as np
 
-from machinable import Experiment, execute
+from machinable import Experiment, Storage, execute
 from machinable.store import Store
 
 
 def test_store_writer():
-    store = Store({"component": "12345"})
+    store = Store(
+        component=None,
+        config=Storage({"experiment": "ABCDEF", "component": "12345"}).config,
+    )
 
     # write
     store.write("test.txt", "test me")
@@ -42,31 +44,3 @@ def test_store_writer():
 
 def test_records_timing():
     execute(Experiment().components("timings"), project="./test_project")
-
-
-def test_output_redirection(capsys, helpers):
-    storage = helpers.tmp_directory("output_redirection")
-
-    for mode in ["SYS_AND_FILE", "FILE_ONLY", "DISCARD"]:
-        if os.path.exists(storage):
-            shutil.rmtree(storage, ignore_errors=True)
-
-        print("non-captured")
-        o = Store({"component": "654321", "url": storage, "output_redirection": mode})
-        print("captured")
-        o.destroy()
-        print("non-captured-again")
-        if mode == "DISCARD":
-            assert not os.path.isfile(os.path.join(storage, "654321/output.log"))
-        else:
-            with open(os.path.join(storage, "654321/output.log"), "r") as f:
-                assert f.read() == "captured\n"
-
-        assert (
-            capsys.readouterr().out
-            == {
-                "SYS_AND_FILE": "non-captured\ncaptured\nnon-captured-again\n",
-                "FILE_ONLY": "non-captured\nnon-captured-again\n",
-                "DISCARD": "non-captured\nnon-captured-again\n",
-            }[mode]
-        )

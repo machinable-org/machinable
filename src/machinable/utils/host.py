@@ -1,9 +1,9 @@
+import getpass
 import inspect
 import os
 import platform
 import socket
 import sys
-import getpass
 
 from ..registration import Registration
 

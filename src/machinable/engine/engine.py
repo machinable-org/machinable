@@ -6,8 +6,8 @@ from ..core.exceptions import ExecutionException
 from ..utils.dicts import update_dict
 from ..utils.formatting import exception_to_str, msg
 from ..utils.importing import resolve_instance
+from ..utils.system import set_process_title
 from ..utils.traits import Jsonable
-from ..utils.utils import set_process_title
 
 _register = {
     "native": "machinable.engine.native_engine",

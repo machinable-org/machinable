@@ -1,5 +1,5 @@
-import os
 import copy
+import os
 
 from ..utils.dicts import update_dict
 from ..utils.importing import resolve_instance

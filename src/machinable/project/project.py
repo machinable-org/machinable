@@ -18,7 +18,7 @@ from ..registration import Registration
 from ..utils.dicts import update_dict
 from ..utils.traits import Jsonable
 from ..utils.utils import is_valid_variable_name
-from ..utils.vcs import get_commit, get_root_commit, get_diff
+from ..utils.vcs import get_commit, get_diff, get_root_commit
 from .manager import fetch_imports
 
 

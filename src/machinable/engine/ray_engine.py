@@ -120,10 +120,10 @@ class RayEngine(Engine):
                 storage_config["allow_overwrites"] = True
 
                 self.node = component["class"](node_args, node_flags)
-                self.components, self.store = self.node.dispatch(
+                self.components = self.node.dispatch(
                     components_config, storage_config, self, lifecycle=False
                 )
-                self.node.create(self.components, self.store)
+                self.node.create(self.components)
                 self.node.execute()
                 self._node_execution_iterations = -1
 
@@ -151,10 +151,10 @@ class RayEngine(Engine):
                             self.node.store.has_records()
                             and not self.node.store.record.empty()
                         ):
-                            self.store.record[
+                            self.node.store.record[
                                 "_iteration"
                             ] = self._node_execution_iterations
-                            self.store.record.save()
+                            self.node.store.record.save()
                 except (KeyboardInterrupt, StopIteration):
                     callback = StopIteration
 

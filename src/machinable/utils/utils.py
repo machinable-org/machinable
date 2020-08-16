@@ -5,21 +5,6 @@ import string
 from keyword import iskeyword
 
 
-def set_process_title(title):
-    try:
-        import setproctitle
-
-        setproctitle.setproctitle(title)
-    except (ImportError, ModuleNotFoundError):
-        pass
-    # tmux
-    if (
-        os.environ.get("TERM", None) == "screen"
-        and os.environ.get("TMUX", None) is not None
-    ):
-        os.system(f"printf '\033]2;%s\033\\' '{title}'")
-
-
 def get_file_hash(filepath):
     """Returns a hash value of a file
 

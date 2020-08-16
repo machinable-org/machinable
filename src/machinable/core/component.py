@@ -11,15 +11,15 @@ import pendulum
 from ..config.mapping import ConfigMap, ConfigMethod, config_map
 from ..config.parser import ModuleClass, parse_mixins
 from ..registration import Registration
-from ..storage.component import ComponentStorage
 from ..store import Store
 from ..store.log import Log
 from ..store.record import Record
 from ..utils.dicts import update_dict
 from ..utils.formatting import exception_to_str
 from ..utils.host import get_host_info
+from ..utils.system import OutputRedirection, set_process_title
 from ..utils.traits import Jsonable
-from ..utils.utils import apply_seed, set_process_title
+from ..utils.utils import apply_seed
 from .events import Events
 from .exceptions import ExecutionException
 
@@ -245,7 +245,9 @@ class Component(Mixin):
         self._store: Optional[Store] = None
         self._events = Events()
         self._actor_config = None
+        self._storage_config = None
         self.__mixin__ = None
+        self.component_status = dict()
         self.component_state = ComponentState()
 
         on_init = self.on_init(config, flags, node)
@@ -360,16 +362,36 @@ class Component(Mixin):
             if self.node is None and self.on_seeding() is not False:
                 self.set_seed()
 
-            if self.on_init_storage(storage_config) is not False:
-                store = Store(config=storage_config, component=self)
-                self.on_after_init_storage(store)
-            else:
-                store = None
+            self.on_init_storage(storage_config)
+
+            self._storage_config = storage_config
+            self.store = Store(component=self, config=storage_config)
+
+            if not storage_config["url"].startswith("mem://"):
+                OutputRedirection.apply(
+                    self._storage_config["output_redirection"],
+                    self.store.get_stream,
+                    "output.log",
+                )
+
+            self.store.write("host.json", get_host_info(), _meta=True)
+            self.store.write("component.json", self.serialize(), _meta=True)
+            self.store.write(
+                "components.json",
+                [component.serialize() for component in self.components]
+                if self.components
+                else [],
+                _meta=True,
+            )
+            self.component_state.save(self)
+
+            self.component_status["started_at"] = str(pendulum.now())
+            self.component_status["finished_at"] = False
+            self.refresh_status(log_errors=True)
 
             if self.node is None:
                 self.events.heartbeats(seconds=self.flags.get("HEARTBEAT", 15))
-                if store is not None:
-                    self.events.on("heartbeat", store.refresh_status)
+                self.events.on("heartbeat", self.refresh_status)
 
             if self.on_init_components(components_config) is not False:
                 components = []
@@ -391,9 +413,9 @@ class Component(Mixin):
                 components = None
 
             if not lifecycle:
-                return components, store
+                return components
 
-            self.create(components, store)
+            self.create(components)
 
             if self.node is None:
                 set_process_title(repr(self))
@@ -413,7 +435,7 @@ class Component(Mixin):
 
         return status
 
-    def create(self, components=None, store=None):
+    def create(self, components=None):
         """Creates the components
 
         ::: tip
@@ -421,16 +443,12 @@ class Component(Mixin):
         event of the node components. See [on_create](#on_create) for details.
         :::
 
-        Triggers create events of the lifecycle and restores the components from provided checkpoint if any
+        Triggers create events of the lifecycle
 
         # Arguments
-        components: Optional list of child components instances that are used by the components
-        store: Optional store instance to be used by the components
+        components: Optional list of sub components instances that are used by the components
         """
         self.on_before_create()
-
-        if store is not None:
-            self.store = store
 
         if components is not None:
             self.components = components
@@ -453,19 +471,6 @@ class Component(Mixin):
         :::
         """
         self.on_before_execute()
-
-        if self.store:
-            self.store.statistics["on_execute_start"] = pendulum.now().timestamp()
-            self.store.write("host.json", get_host_info(), _meta=True)
-            self.store.write("component.json", self.serialize(), _meta=True)
-            self.store.write(
-                "components.json",
-                [component.serialize() for component in self.components]
-                if self.components
-                else [],
-                _meta=True,
-            )
-            self.component_state.save(self)
 
         try:
             status = self.on_execute()
@@ -536,10 +541,54 @@ class Component(Mixin):
         self.component_state.destroyed = True
         self.component_state.save(self)
 
-        if self.store:
-            self.store.destroy()
+        # write finished status (not triggered in the case of an unhandled exception)
+        self.component_status["finished_at"] = str(pendulum.now())
+        self.refresh_status(log_errors=True)
+
+        OutputRedirection.revert()
 
         self.on_after_destroy()
+
+    def refresh_status(self, log_errors=False):
+        """Updates the status.json file with a heartbeat at the current time
+        """
+        try:
+            self.component_status["heartbeat_at"] = str(pendulum.now())
+            self.store.write(
+                "status.json", self.component_status, overwrite=True, _meta=True
+            )
+        except (IOError, Exception) as ex:
+            if log_errors:
+                self.log.error(
+                    f"Could not write status information. {exception_to_str(ex)}"
+                )
+
+            return ex
+
+        return True
+
+    def get_url(self, append=""):
+        """Returns the storage URL of the component"""
+        return os.path.join(
+            self._storage_config["url"],
+            os.path.join(
+                self._storage_config.get("directory", ""),
+                self._storage_config["experiment"],
+                self._storage_config.get("component", ""),
+                append,
+            ),
+        )
+
+    def local_directory(self, append=""):
+        """Returns the local storage filesystem path, or False if non-local
+
+        # Returns
+        Local filesystem path, or False if non-local
+        """
+        if not self._storage_config["url"].startswith("osfs://"):
+            return False
+
+        return os.path.join(self.get_url().split("osfs://")[-1], append)
 
     def set_seed(self, seed=None) -> bool:
         """Applies a global random seed
@@ -690,13 +739,7 @@ class Component(Mixin):
 
     def on_init_storage(self, storage_config: Dict):
         """Lifecycle event triggered at write initialisation
-
-        Return False to prevent the default write instantiation
         """
-        pass
-
-    def on_after_init_storage(self, storage: Store):
-        """Lifecycle event triggered after store initialisation"""
         pass
 
     def on_after_create(self):
@@ -763,8 +806,13 @@ class Component(Mixin):
 
         flags = getattr(self, "flags", {})
         r = f"Component <{flags.get('EXPERIMENT_ID', '-')}:{flags.get('UID', '-')}>"
-        if isinstance(getattr(self, "store", None), Store):
-            r += f" ({self.store.get_url()})"
+        if self._storage_config is not None:
+            url = os.path.join(
+                self._storage_config.get("directory", ""),
+                self._storage_config.get("experiment", ""),
+                self._storage_config.get("component", ""),
+            )
+            r += f" ({url})"
         return r
 
     def __str__(self):
@@ -821,8 +869,7 @@ class FunctionalComponent:
                 if key == "_store":
                     payload["store"] = storage_config
                 else:
-                    store = Store(storage_config)
-                    store.statistics["on_execute_start"] = pendulum.now().timestamp()
+                    store = Store(component=self, config=storage_config)
                     store.write("host.json", get_host_info(), _meta=True)
                     store.write(
                         "component",

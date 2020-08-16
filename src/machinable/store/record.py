@@ -83,10 +83,7 @@ class Record:
         elif isinstance(timestamp, (float, int)):
             timestamp = pendulum.from_timestamp(timestamp)
 
-        if "on_execute_start" not in self.store.statistics:
-            self.store.statistics["on_execute_start"] = pendulum.now().timestamp()
-
-        start = self.store.statistics["on_execute_start"]
+        start = self.store.created_at
 
         if mode == "iteration":
             if len(self.history) > 0:
@@ -160,8 +157,8 @@ class Record:
         self.history.append(data)
 
         if self.scope == "default":
-            if hasattr(self.store, "events"):
-                self.store.events.trigger("store.record.on_save", data)
+            if hasattr(self.store.component, "events"):
+                self.store.component.events.trigger("store.record.on_save", data)
 
         # json
         with self.store.get_stream(f"records/{self.scope}.json", "w") as f:
@@ -176,7 +173,7 @@ class Record:
                 self.store.events.trigger("store.on_change", "record.save")
 
         if echo:
-            msg(self.store.directory())
+            msg(self.store.get_url())
             msg(prettydict(data, sort_keys=True))
 
         return data

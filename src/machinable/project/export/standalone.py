@@ -91,7 +91,7 @@ def open_fs(storage, *args, **kwargs):
     return FileSystem(storage)
 
 
-# !include machinable.store.store.OutputRedirection
+# !include machinable.utils.system.OutputRedirection
 
 
 # !include machinable.store.store.Store

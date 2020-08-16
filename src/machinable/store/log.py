@@ -1,4 +1,5 @@
 import logging
+import os
 import sys
 
 
@@ -16,8 +17,8 @@ class Log:
     config: dict, configuration options
     """
 
-    def __init__(self, observer, config=None):
-        self.store = observer
+    def __init__(self, store, config=None):
+        self.store = store
         self.config = config
         self.logger = self._get_logger()
 
@@ -30,9 +31,17 @@ class Log:
 
         ch = logging.StreamHandler(sys.stdout)
         ch.setLevel(logging.DEBUG)
+        url = os.path.join(
+            self.store.config["url"],
+            os.path.join(
+                self.store.config.get("directory", ""),
+                self.store.config["experiment"],
+                self.store.config.get("component", ""),
+            ),
+        )
         ch.setFormatter(
             logging.Formatter(
-                fmt=f"{self.store.directory()}; %(asctime)s; %(levelname)s: %(message)s",
+                fmt=f"{url}; %(asctime)s; %(levelname)s: %(message)s",
                 datefmt="%Y-%m-%d %H:%M:%S",
             )
         )
@@ -54,8 +63,6 @@ class Log:
     def __getattr__(self, item):
         def forward(*args, **kwargs):
             method = getattr(self.logger, item)
-            if hasattr(self.store, "events"):
-                self.store.events.trigger("store.on_change", "log." + item)
             return method(*args, **kwargs)
 
         return forward
