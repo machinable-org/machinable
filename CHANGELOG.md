@@ -6,6 +6,15 @@
 
 No current changes
 
+## v2.3.0
+
+- Rewrites storage to experiments/ subfolder if experiment exists
+- New storage APIs to discover related experiments
+- Introduce global on_submit event
+- Disable automatic checkpoint handling in favour of increased user control
+- Executions loading via @ import shorthand
+- SqlIndex that can persist experiments in SQL-type databases
+
 ## v2.2.1
 
 - Make `dataset` dependency optional
