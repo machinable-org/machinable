@@ -1,4 +1,6 @@
+from ..storage.experiment import ExperimentStorage
 from .index import Index
+import json
 
 try:
     import dataset
@@ -19,10 +21,26 @@ class SqlIndex(Index):
         return {"type": "sql", "database": self.database}
 
     def _add(self, model):
-        raise NotImplementedError
+        table = self._db["experiments"]
+        table.insert(
+            {
+                k.replace(".json", "_json"): json.dumps(v) if k.endswith(".json") else v
+                for k, v in model.serialize().items()
+            }
+        )
 
     def _find(self, experiment_id: str):
-        raise NotImplementedError
+        table = self._db["experiments"]
+        experiment = table.find_one(experiment_id=experiment_id)
+        if experiment is None:
+            return None
+
+        return ExperimentStorage(
+            {
+                k.replace("_json", ".json"): json.loads(v) if k.endswith("_json") else v
+                for k, v in experiment.items()
+            }
+        )
 
     def __str__(self):
         return self.__repr__()

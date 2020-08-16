@@ -58,7 +58,7 @@ class FileSystem:
 
                     with filesystem.open(filepath, "rb") as f:
                         data = np.load(f, allow_pickle=True)
-                elif ext in [".txt", ".log"]:
+                elif ext in [".txt", ".log", ".diff"]:
                     with filesystem.open(filepath, "r") as f:
                         data = f.read()
                 else:

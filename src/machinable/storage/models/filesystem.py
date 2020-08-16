@@ -39,9 +39,9 @@ class StorageFileSystemModel(Model):
                 # if component, switch to experiment
                 data["component_id"] = data["experiment_id"]
                 data["experiment_id"] = os.path.basename(os.path.dirname(resource))
-            else:
-                data["component_id"] = None
             decode_experiment_id(data["experiment_id"], or_fail=True)
+        if "component_id" not in data:
+            data["component_id"] = None
         self._meta_data = {}
         self._data = data
 
@@ -63,6 +63,19 @@ class StorageFileSystemModel(Model):
     @property
     def component_id(self):
         return self._data["component_id"]
+
+    @property
+    def unique_id(self):
+        if "unique_id" not in self._data:
+            if self.component_id is not None:
+                with open_fs(self.url.replace(self.component_id, "")) as filesystem:
+                    execution = filesystem.load_file("execution.json")
+            else:
+                execution = self.file("execution.json")
+            self._data["unique_id"] = (
+                self.experiment_id + ":" + execution["components"][0]
+            )
+        return self._data["unique_id"]
 
     def is_valid(self):
         return (
@@ -111,3 +124,39 @@ class StorageFileSystemModel(Model):
             pass
         finally:
             return experiments
+
+    def serialize(self):
+        if self.component_id is None:
+            # experiment
+            return {
+                "unique_id": self.unique_id,
+                "url": self.url,
+                "experiment_id": self.experiment_id,
+                "code.json": self.file("code.json"),
+                "execution.json": self.file("execution.json"),
+                "schedule.json": self.file("schedule.json"),
+                # excluded, since not constant sized
+                # "host.json": self.file("host.json"),
+                # "code.diff": self.file("code.diff")
+            }
+        else:
+            # component
+            return {
+                "unique_id": self.unique_id,
+                "url": self.url,
+                "experiment_id": self.experiment_id,
+                "component_id": self.component_id,
+                "component.json": self.file("component.json"),
+                "components.json": self.file("components.json"),
+                "state.json": self.file("state.json"),
+                "status.json": self.file("status.json"),
+                # excluded, since not constant sized
+                # "output.log": self.file("output.log"),
+                # "log.txt": self.file("log.txt"),
+                # "store.json": self.file("store.json"),
+                # "host.json": self.file("host.json")
+            }
+
+    @classmethod
+    def unserialize(cls, serialized):
+        return cls(serialized)

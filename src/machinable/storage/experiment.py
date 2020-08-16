@@ -10,7 +10,7 @@ from .models.filesystem import StorageFileSystemModel
 
 
 class ExperimentStorage:
-    def __init__(self, url: Union[str, StorageFileSystemModel]):
+    def __init__(self, url: Union[str, dict, StorageFileSystemModel]):
         self._model = StorageFileSystemModel.create(url)
         if self._model.component_id is not None:
             raise ValueError(

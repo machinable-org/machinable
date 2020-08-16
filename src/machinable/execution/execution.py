@@ -302,6 +302,7 @@ class Execution(Jsonable):
                 return element
 
             self.schedule.transform(set_derived_from_flag)
+            storage = self.engine.storage_middleware(self.storage.config)
 
             now = pendulum.now()
             self.timestamp = now.timestamp()
@@ -313,43 +314,40 @@ class Execution(Jsonable):
             ):
                 code_backup = True
 
-            storage = self.engine.storage_middleware(self.storage.config)
+            # collect and write execution data
+            data = {
+                "url": os.path.join(
+                    storage.get("url", "mem://"),
+                    storage.get("directory", ""),
+                    storage["experiment"],
+                ),
+                "code.json": {
+                    "resolvers": {
+                        "experiment": getattr(
+                            self.experiment, "_resolved_by_expression", None
+                        ),
+                        "storage": None,
+                        "engine": getattr(self.engine, "_resolved_by_expression", None),
+                    },
+                    "code_backup": code_backup,
+                    "code_version": self.project.get_code_version(),
+                },
+                "code.diff": self.project.get_diff(),
+                "execution.json": self.serialize(),
+                "schedule.json": self.schedule.serialize(),
+                "host.json": get_host_info(),
+            }
 
-            url = os.path.join(
-                storage.get("url", "mem://"),
-                storage.get("directory", ""),
-                storage["experiment"],
-            )
-            with open_fs({"url": url, "create": True}) as filesystem:
-
+            with open_fs({"url": data["url"], "create": True}) as filesystem:
                 if code_backup:
                     self.project.backup_source_code(opener=filesystem.open)
 
-                code_version = self.project.get_code_version()
+                for k, v in data.items():
+                    if k.find(".") == -1:
+                        continue
+                    filesystem.save_file(name=k, data=v)
 
-                filesystem.save_file(
-                    "code.json",
-                    {
-                        "resolvers": {
-                            "experiment": getattr(
-                                self.experiment, "_resolved_by_expression", None
-                            ),
-                            "storage": None,
-                            "engine": getattr(
-                                self.engine, "_resolved_by_expression", None
-                            ),
-                        },
-                        "code_backup": code_backup,
-                        "code_version": code_version,
-                    },
-                )
-                filesystem.save_file("code.diff", self.project.get_diff())
-                filesystem.save_file("execution.json", self.serialize())
-                filesystem.save_file("schedule.json", self.schedule.serialize())
-                filesystem.save_file("host.json", get_host_info())
-
-            # todo: pass the data directly as an StorageFileSystemModel
-            self.index.add(url)
+            self.index.add(data)
 
         Registration.get().on_submit(self, is_submitted)
 
