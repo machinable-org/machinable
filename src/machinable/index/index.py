@@ -5,9 +5,10 @@ import os
 from typing import Union
 
 from ..filesystem import open_fs
-from ..storage.experiment import StorageExperiment
-from ..storage.models.filesystem import StorageFileSystemModel
 from ..storage.collections import ExperimentStorageCollection
+from ..storage.experiment import StorageExperiment
+from ..storage.models import StorageExperimentModel
+from ..storage.models.filesystem import StorageExperimentFileSystemModel
 from ..utils.dicts import update_dict
 from ..utils.formatting import exception_to_str
 from ..utils.identifiers import decode_experiment_id
@@ -105,14 +106,14 @@ class Index(Jsonable):
     def unserialize(cls, serialized):
         return cls.create(serialized)
 
-    def add(self, url):
+    def add(self, model):
         """Adds an experiment to the index
 
         # Arguments
-        model: String, filesystem URL of the experiment
+        model: String|dict|StorageExperimentModel, filesystem URL, data or storage model of the experiment
         """
+        model = StorageExperimentModel.create(model, StorageExperimentFileSystemModel)
 
-        model = StorageFileSystemModel.create(url)
         self._add(model)
 
         return self
@@ -153,7 +154,7 @@ class Index(Jsonable):
         # return {"type": "module_name", ...}
         raise NotImplementedError
 
-    def _add(self, model: StorageFileSystemModel):
+    def _add(self, model):
         raise NotImplementedError
 
     def _find(self, experiment_id: str) -> Union[StorageExperiment, None]:

@@ -57,7 +57,7 @@ class Storage:
         if isinstance(args, dict):
             args = copy.deepcopy(args)
 
-        return Storage(args)
+        return cls(args)
 
     def get_url(self):
         return os.path.join(

@@ -1,4 +1,5 @@
 from ..storage.experiment import StorageExperiment
+from ..storage.models.filesystem import StorageExperimentFileSystemModel
 from .index import Index
 
 
@@ -12,7 +13,7 @@ class NativeIndex(Index):
         return {"type": "native"}
 
     def _add(self, model):
-        self._db[model.experiment_id] = model.url
+        self._db[model.experiment_id] = model
 
     def _find(self, experiment_id: str):
         try:

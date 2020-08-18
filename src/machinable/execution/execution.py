@@ -19,7 +19,7 @@ from ..project import Project
 from ..project.export import Export
 from ..registration import Registration
 from ..storage import Storage
-from ..storage.models.filesystem import StorageFileSystemModel
+from ..storage.models.filesystem import StorageExperimentFileSystemModel
 from ..utils.dicts import update_dict
 from ..utils.formatting import exception_to_str, msg
 from ..utils.host import get_host_info
@@ -278,8 +278,8 @@ class Execution(Jsonable):
         # check if URL is an existing experiment
         derived_from = None
         try:
-            target = StorageFileSystemModel(self.storage.config["url"])
-            if target.is_valid():
+            target = StorageExperimentFileSystemModel(self.storage.config["url"])
+            if target.exists():
                 # register URL as parent storage and rewrite to experiments/ subdirectory
                 self.storage.config["ancestor"] = {
                     "url": self.storage.config["url"],
@@ -520,6 +520,7 @@ class Execution(Jsonable):
             f"Storage: {self.storage}", color="blue",
         )
         msg(f"Engine: {repr(self.engine)}", color="blue")
+        msg(f"Index: {repr(self.index)}", color="blue")
         msg(f"Project: {repr(self.project)}", color="blue")
 
         for (

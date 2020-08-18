@@ -1,13 +1,14 @@
 import os
+from typing import Union
 
 import pendulum
 
 from ..config.mapping import config_map
 from ..filesystem import open_fs
-from ..storage.models.filesystem import StorageFileSystemModel
+from ..storage.models import StorageComponentModel
+from ..utils.utils import sentinel
 from .collections import RecordCollection
-
-sentinel = object()
+from .models.filesystem import StorageComponentFileSystemModel
 
 
 def _reload_time(component):
@@ -19,12 +20,10 @@ def _reload_time(component):
 
 
 class StorageComponent:
-    def __init__(self, url: str, experiment=None):
-        self._model = StorageFileSystemModel.create(url)
-        if self._model.component_id is None:
-            raise ValueError(
-                "The provided URL is not a valid component storage directory"
-            )
+    def __init__(self, url: Union[str, dict, StorageComponentModel], experiment=None):
+        self._model = StorageComponentModel.create(
+            url, template=StorageComponentFileSystemModel
+        )
         self._experiment = experiment
 
     @property
@@ -41,6 +40,7 @@ class StorageComponent:
         """The experiment of this component"""
         from .experiment import StorageExperiment
 
+        # todo: fix url here and add regression test
         if not isinstance(self._experiment, StorageExperiment):
             self._experiment = StorageExperiment(self.url)
         return self._experiment

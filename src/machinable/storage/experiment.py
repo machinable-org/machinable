@@ -6,17 +6,16 @@ import pendulum
 from ..config.mapping import config_map
 from .collections import ComponentStorageCollection, ExperimentStorageCollection
 from .component import StorageComponent
-from .models.filesystem import StorageFileSystemModel
+from .models import StorageExperimentModel
+from .models.filesystem import StorageExperimentFileSystemModel
 
 
 class StorageExperiment:
-    def __init__(self, url: Union[str, dict, StorageFileSystemModel]):
-        self._model = StorageFileSystemModel.create(url)
-        if self._model.component_id is not None:
-            raise ValueError(
-                "URL is a component URL. Use StorageComponent interface instead."
-            )
-        self._components = {}
+    def __init__(self, url: Union[str, dict, StorageExperimentModel]):
+        self._model = StorageExperimentModel.create(
+            url, template=StorageExperimentFileSystemModel
+        )
+        self._components = []
 
     @property
     def id(self) -> str:
@@ -83,21 +82,25 @@ class StorageExperiment:
         """List of components
         """
         if len(self._components) == 0:
-            self._components = {
-                component: StorageComponent(
-                    os.path.join(self.url, component), experiment=self
+            self._components = [
+                StorageComponent(
+                    self._model.component_model(os.path.join(self.url, component)),
+                    experiment=self,
                 )
                 for component in self._model.file("execution.json")["components"]
-            }
+            ]
 
-        return ComponentStorageCollection(list(self._components.values()))
+        return ComponentStorageCollection(self._components)
 
     @property
     def experiments(self) -> ExperimentStorageCollection:
         """Returns a collection of derived experiments
         """
         return ExperimentStorageCollection(
-            [StorageExperiment(url) for url in self._model.experiments()]
+            [
+                StorageExperiment(self._model.experiment_model(url))
+                for url in self._model.experiments()
+            ]
         )
 
     @property
@@ -107,8 +110,8 @@ class StorageExperiment:
         if self.url.find("/experiments/") == -1:
             return None
         try:
-            model = StorageFileSystemModel(self.url.rsplit("/experiments/")[0])
-            if not model.is_valid():
+            model = self._model.experiment_model(self.url.rsplit("/experiments/")[0])
+            if not model.exists():
                 return None
             return StorageExperiment(model)
         except ValueError:
