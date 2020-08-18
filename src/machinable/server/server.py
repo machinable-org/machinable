@@ -7,7 +7,7 @@ from starlette.middleware import Middleware
 from starlette.middleware.cors import CORSMiddleware
 from starlette.routing import Route
 
-from .filesystem import storage_resolver
+from .filesystem import filesystem_resolver
 from .graphql import mutation, query, scalar_types, subscription
 
 dir_path = os.path.dirname(os.path.realpath(__file__))
@@ -19,9 +19,7 @@ schema = make_executable_schema(
 
 graphql = GraphQL(schema, keepalive=True)
 
-routes = [
-    Route("/filesystem/storage/{url:path}/{filename:path}", endpoint=storage_resolver)
-]
+routes = [Route("/filesystem/{url:path}/{filename:path}", endpoint=filesystem_resolver)]
 
 middleware = [
     Middleware(

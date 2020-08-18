@@ -4,7 +4,7 @@ import pytest
 
 from machinable import Storage
 from machinable.storage import get_experiment
-from machinable.storage.experiment import ExperimentStorage
+from machinable.storage.experiment import StorageExperiment
 
 STORAGE_DIRECTORY = "./_test_data/storage"
 
@@ -21,9 +21,9 @@ def test_storage_interface():
 
 def test_experiment_storage_interface():
     with pytest.raises(ValueError):
-        ExperimentStorage("./_test_data/storage/tttttt/tbAXUwxGJzA8")
+        StorageExperiment("./_test_data/storage/tttttt/tbAXUwxGJzA8")
 
-    o = ExperimentStorage("./_test_data/storage/tttttt")
+    o = StorageExperiment("./_test_data/storage/tttttt")
     assert o.id == "tttttt"
     assert o.url == "osfs://./_test_data/storage/tttttt"
     assert o.components.first().config.test

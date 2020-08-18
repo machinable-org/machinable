@@ -5,16 +5,16 @@ import pendulum
 
 from ..config.mapping import config_map
 from .collections import ComponentStorageCollection, ExperimentStorageCollection
-from .component import ComponentStorage
+from .component import StorageComponent
 from .models.filesystem import StorageFileSystemModel
 
 
-class ExperimentStorage:
+class StorageExperiment:
     def __init__(self, url: Union[str, dict, StorageFileSystemModel]):
         self._model = StorageFileSystemModel.create(url)
         if self._model.component_id is not None:
             raise ValueError(
-                "URL is a component URL. Use ComponentStorage interface instead."
+                "URL is a component URL. Use StorageComponent interface instead."
             )
         self._components = {}
 
@@ -84,7 +84,7 @@ class ExperimentStorage:
         """
         if len(self._components) == 0:
             self._components = {
-                component: ComponentStorage(
+                component: StorageComponent(
                     os.path.join(self.url, component), experiment=self
                 )
                 for component in self._model.file("execution.json")["components"]
@@ -97,11 +97,11 @@ class ExperimentStorage:
         """Returns a collection of derived experiments
         """
         return ExperimentStorageCollection(
-            [ExperimentStorage(url) for url in self._model.experiments()]
+            [StorageExperiment(url) for url in self._model.experiments()]
         )
 
     @property
-    def ancestor(self) -> Optional["ExperimentStorage"]:
+    def ancestor(self) -> Optional["StorageExperiment"]:
         """Returns parent experiment or None if experiment is independent
         """
         if self.url.find("/experiments/") == -1:
@@ -110,7 +110,7 @@ class ExperimentStorage:
             model = StorageFileSystemModel(self.url.rsplit("/experiments/")[0])
             if not model.is_valid():
                 return None
-            return ExperimentStorage(model)
+            return StorageExperiment(model)
         except ValueError:
             return None
 

@@ -1,0 +1,4 @@
+type StorageExperiment {
+    id: String
+    started_at: DateTime
+}

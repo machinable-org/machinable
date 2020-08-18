@@ -5,8 +5,9 @@ import os
 from typing import Union
 
 from ..filesystem import open_fs
-from ..storage.experiment import ExperimentStorage
+from ..storage.experiment import StorageExperiment
 from ..storage.models.filesystem import StorageFileSystemModel
+from ..storage.collections import ExperimentStorageCollection
 from ..utils.dicts import update_dict
 from ..utils.formatting import exception_to_str
 from ..utils.identifiers import decode_experiment_id
@@ -123,10 +124,13 @@ class Index(Jsonable):
         experiment: String, experiment ID. If None, all available index will be returned.
 
         # Returns
-        Instance or collection of machinable.storage.ExperimentStorage
+        Instance or collection of machinable.storage.StorageExperiment
         """
         decode_experiment_id(experiment_id, or_fail=True)
         return self._find(experiment_id)
+
+    def find_latest(self, limit=10, since=None):
+        return ExperimentStorageCollection(self._find_latest(limit=limit, since=since))
 
     def add_from_storage(self, url):
         with open_fs(url) as filesystem:
@@ -152,7 +156,10 @@ class Index(Jsonable):
     def _add(self, model: StorageFileSystemModel):
         raise NotImplementedError
 
-    def _find(self, experiment_id: str) -> Union[ExperimentStorage, None]:
+    def _find(self, experiment_id: str) -> Union[StorageExperiment, None]:
+        raise NotImplementedError
+
+    def _find_latest(self, limit=10, since=None):
         raise NotImplementedError
 
     def __repr__(self):

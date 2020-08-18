@@ -1,4 +1,4 @@
-from ..storage.experiment import ExperimentStorage
+from ..storage.experiment import StorageExperiment
 from .index import Index
 
 
@@ -16,7 +16,7 @@ class NativeIndex(Index):
 
     def _find(self, experiment_id: str):
         try:
-            return ExperimentStorage(self._db[experiment_id])
+            return StorageExperiment(self._db[experiment_id])
         except KeyError:
             return None
 

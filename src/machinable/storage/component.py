@@ -18,7 +18,7 @@ def _reload_time(component):
         return finished_at
 
 
-class ComponentStorage:
+class StorageComponent:
     def __init__(self, url: str, experiment=None):
         self._model = StorageFileSystemModel.create(url)
         if self._model.component_id is None:
@@ -39,10 +39,10 @@ class ComponentStorage:
     @property
     def experiment(self):
         """The experiment of this component"""
-        from .experiment import ExperimentStorage
+        from .experiment import StorageExperiment
 
-        if not isinstance(self._experiment, ExperimentStorage):
-            self._experiment = ExperimentStorage(self.url)
+        if not isinstance(self._experiment, StorageExperiment):
+            self._experiment = StorageExperiment(self.url)
         return self._experiment
 
     def store(self, name=None):
