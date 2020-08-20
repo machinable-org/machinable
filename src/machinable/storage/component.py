@@ -42,7 +42,7 @@ class StorageComponent:
 
         # todo: fix url here and add regression test
         if not isinstance(self._experiment, StorageExperiment):
-            self._experiment = StorageExperiment(self.url)
+            self._experiment = StorageExperiment(self._model.experiment_model(self.url))
         return self._experiment
 
     def store(self, name=None):

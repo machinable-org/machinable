@@ -19,29 +19,25 @@ except ImportError:
 
 
 class StorageSqlModel:
-    def __init__(self, data, meta_data=None, db=None):
+    def __init__(self, data, meta_data=None, db=None, table=None):
         self._db = db
-        self._migrated = {}
+        self._table = table
         super().__init__(data, meta_data)
 
     def experiment_model(self, data, meta_data=None):
-        return StorageExperimentSqlModel(data, meta_data, db=self._db)
+        return StorageExperimentSqlModel(
+            data, meta_data, db=self._db, table=self._table
+        )
 
     def component_model(self, data, meta_data=None):
-        return StorageComponentSqlModel(data, meta_data, db=self._db)
+        return StorageComponentSqlModel(data, meta_data, db=self._db, table=self._table)
 
-    def migrate(self, tables=None):
-        if tables is None:
-            # all
-            tables = ["experiments"]
+    def migrate(self, table=None):
+        if table is None:
+            return [self.migrate(table) for table in ["experiments", "components"]]
 
-        if isinstance(tables, str):
-            tables = [tables]
-
-        for table in tables:
-            if table in self._migrated:
-                continue
-            t = self._db[table]
+        if table == "experiments":
+            t = self._db["experiments"]
             t.create_column("unique_id", self._db.types.string)
             t.create_column("url", self._db.types.string)
             t.create_column("experiment_id", self._db.types.string)
@@ -51,13 +47,33 @@ class StorageSqlModel:
             t.create_column("host_json", self._db.types.json)
             t.create_column("meta_label", self._db.types.text)
             t.create_column("meta_comments", self._db.types.text)
+            return t
 
-            self._migrated[table] = True
+        if table == "components":
+            t = self._db["components"]
+            t.create_column("unique_id", self._db.types.string)
+            t.create_column("url", self._db.types.string)
+            t.create_column("experiment_id", self._db.types.string)
+            t.create_column("component_id", self._db.types.string)
+            t.create_column("started_at", self._db.types.datetime)
+            t.create_column("finished_at", self._db.types.datetime)
+            t.create_column("heartbeat_at", self._db.types.datetime)
+            t.create_column("component_json", self._db.types.json)
+            t.create_column("components_json", self._db.types.json)
+            t.create_column("state_json", self._db.types.json)
+            t.create_column("host_json", self._db.types.json)
+            return t
 
 
 class StorageExperimentSqlModel(StorageSqlModel, StorageExperimentFileSystemModel):
-    @classmethod
-    def from_database_model(cls, model, db):
+    @property
+    def table(self):
+        if self._table is None:
+            self._table = self.migrate("experiments")
+        return self._table
+
+    @staticmethod
+    def model_to_data(model):
         data = {}
         for field in ["unique_id", "url", "experiment_id", "started_at"]:
             if model[field] is not None:
@@ -66,31 +82,51 @@ class StorageExperimentSqlModel(StorageSqlModel, StorageExperimentFileSystemMode
             if model[file] is not None:
                 data[file.replace("_", ".")] = json.loads(model[file])
         meta_data = {"label": model["meta_label"], "comments": model["meta_comments"]}
-        return cls(data, meta_data, db=db)
+        return data, meta_data
+
+    @staticmethod
+    def data_to_model(self):
+        pass
+
+    @classmethod
+    def from_database(cls, model, db):
+        return cls(*cls.model_to_data(model), db=db)
 
     def as_experiment(self):
         return StorageExperiment(self)
 
     def fill(self, data, meta_data=None):
         super(StorageExperimentFileSystemModel, self).fill(data, meta_data)
-        self.migrate()
-        table = self._db["experiments"]
-        table.insert_ignore(
-            row={
-                "unique_id": self.unique_id,
-                "url": self.url,
-                "experiment_id": self.experiment_id,
-                "execution_json": json.dumps(self.file("execution.json")),
-                "code_json": json.dumps(self.file("code.json")),
-                "host_json": json.dumps(self.file("host.json")),
-                "started_at": pendulum.parse(self.file("execution.json")["started_at"]),
-            },
-            keys=["unique_id"],
-        )
+        row = self.table.find_one(unique_id=self.unique_id)
+        if row is not None:
+            # use data from the database if available
+            self._data, self._meta_data = self.model_to_data(row)
+        else:
+            # otherwise, read the data from the filesystem and write to database
+            self.table.insert(
+                {
+                    "unique_id": self.unique_id,
+                    "url": self.url,
+                    "experiment_id": self.experiment_id,
+                    "execution_json": json.dumps(self.file("execution.json")),
+                    "code_json": json.dumps(self.file("code.json")),
+                    "host_json": json.dumps(self.file("host.json")),
+                    "started_at": pendulum.parse(
+                        self.file("execution.json")["started_at"]
+                    ),
+                }
+            )
 
 
 class StorageComponentSqlModel(StorageSqlModel, StorageComponentFileSystemModel):
-    pass
+    @property
+    def table(self):
+        if self._table is None:
+            self._table = self.migrate("components")
+        return self._table
+
+    def fill(self, data, meta_data=None):
+        super(StorageComponentFileSystemModel, self).fill(data, meta_data)
 
 
 class SqlIndex(Index):
@@ -112,7 +148,7 @@ class SqlIndex(Index):
         if model is None:
             return None
 
-        return StorageExperimentSqlModel.from_database_model(
+        return StorageExperimentSqlModel.from_database(
             model, db=self._db
         ).as_experiment()
 
@@ -123,9 +159,7 @@ class SqlIndex(Index):
         else:
             condition = {">=": since}
         return [
-            StorageExperimentSqlModel.from_database_model(
-                model, db=self._db
-            ).as_experiment()
+            StorageExperimentSqlModel.from_database(model, db=self._db).as_experiment()
             for model in table.find(
                 started_at=condition, _limit=limit, order_by="started_at"
             )
