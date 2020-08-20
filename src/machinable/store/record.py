@@ -3,7 +3,7 @@ import datetime
 import json
 import pickle
 from collections import OrderedDict
-
+import os
 import pendulum
 
 from ..utils.formatting import msg, prettydict, serialize
@@ -173,7 +173,7 @@ class Record:
                 self.store.events.trigger("store.on_change", "record.save")
 
         if echo:
-            msg(self.store.get_url())
+            msg(os.path.join(self.store.config["url"], self.store.get_path()))
             msg(prettydict(data, sort_keys=True))
 
         return data
