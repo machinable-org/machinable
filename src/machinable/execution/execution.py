@@ -83,6 +83,9 @@ class Execution(Jsonable):
         self.set_index(index)
         self.set_seed(seed)
 
+        self._behavior = {"raise_exceptions": False}
+        self.failures = 0
+
     def __call__(self, experiment, storage=None, engine=None, project=None, seed=None):
         self.set_storage(storage)
         self.set_experiment(experiment)
@@ -259,6 +262,12 @@ class Execution(Jsonable):
 
         return self
 
+    def set_behavior(self, **settings):
+        unknown_options = set(settings.keys()) - {"raise_exceptions"}
+        if len(unknown_options) > 0:
+            raise ValueError(f"Invalid options: {unknown_options}")
+        self._behavior.update(settings)
+
     def is_submitted(self):
         try:
             with open_fs(self.storage.config["url"]) as filesystem:
@@ -273,6 +282,7 @@ class Execution(Jsonable):
         if Registration.get().on_before_submit(self) is False:
             return False
 
+        self.failures = 0
         self.storage.config["experiment"] = self.experiment_id
 
         # check if URL is an existing experiment
@@ -357,6 +367,9 @@ class Execution(Jsonable):
         if index is None:
             index = len(self.schedule) - 1
         if isinstance(result, ExecutionException):
+            self.failures += 1
+            if self._behavior["raise_exceptions"]:
+                raise result
             self.engine.log(
                 f"Submission {self.components[index]} of experiment {self.experiment_id} failed "
                 f"({index + 1}/{len(self.schedule)}). "
