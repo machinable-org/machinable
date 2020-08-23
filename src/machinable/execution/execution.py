@@ -19,7 +19,7 @@ from ..project import Project
 from ..project.export import Export
 from ..registration import Registration
 from ..storage import Storage
-from ..storage.models.filesystem import StorageExperimentFileSystemModel
+from ..storage.experiment import StorageExperiment
 from ..utils.dicts import update_dict
 from ..utils.formatting import exception_to_str, msg
 from ..utils.host import get_host_info
@@ -288,18 +288,18 @@ class Execution(Jsonable):
         # check if URL is an existing experiment
         derived_from = None
         try:
-            target = StorageExperimentFileSystemModel(self.storage.config["url"])
-            if target.exists():
+            with open_fs(self.storage.config["url"]) as filesystem:
+                experiment_id = filesystem.load_file("execution.json")["experiment_id"]
                 # register URL as parent storage and rewrite to experiments/ subdirectory
                 self.storage.config["ancestor"] = {
                     "url": self.storage.config["url"],
-                    "experiment": target.experiment_id,
+                    "experiment": experiment_id,
                 }
                 self.storage.config["url"] = os.path.join(
                     self.storage.config["url"], "experiments"
                 )
                 derived_from = self.storage.config["ancestor"]["url"]
-        except (ValueError, KeyError):
+        except (ValueError, KeyError, FileNotFoundError):
             pass
 
         is_submitted = self.is_submitted()
@@ -325,12 +325,12 @@ class Execution(Jsonable):
                 code_backup = True
 
             # collect and write execution data
+            url = os.path.join(
+                storage.get("url", "mem://"),
+                storage.get("directory", ""),
+                storage["experiment"],
+            )
             data = {
-                "url": os.path.join(
-                    storage.get("url", "mem://"),
-                    storage.get("directory", ""),
-                    storage["experiment"],
-                ),
                 "code.json": {
                     "resolvers": {
                         "experiment": getattr(
@@ -348,16 +348,14 @@ class Execution(Jsonable):
                 "host.json": get_host_info(),
             }
 
-            with open_fs({"url": data["url"], "create": True}) as filesystem:
+            with open_fs({"url": url, "create": True}) as filesystem:
                 if code_backup:
                     self.project.backup_source_code(opener=filesystem.open)
 
                 for k, v in data.items():
-                    if k.find(".") == -1:
-                        continue
                     filesystem.save_file(name=k, data=v)
 
-            self.index.add(data)
+            self.index.add(StorageExperiment(url, data))
 
         Registration.get().on_submit(self, is_submitted)
 
@@ -501,7 +499,7 @@ class Execution(Jsonable):
 
     def serialize(self):
         return {
-            "id": self.experiment_id,
+            "experiment_id": self.experiment_id,
             "seed": self.seed,
             "timestamp": self.timestamp,
             "started_at": self.started_at,

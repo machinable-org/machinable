@@ -26,11 +26,14 @@ _latest = [None]
 class Index(Jsonable):
     def __new__(cls, *args, **kwargs):
         # Index is an abstract class for which instantiation is meaningless.
-        # Instead, we return the default NativeIndex
+        # Instead, we return an appropriate default subclass
         if cls is Index:
-            from .native_index import NativeIndex
+            try:
+                from .sql_index import SqlIndex as Instance
+            except ImportError:
+                from .native_index import NativeIndex as Instance
 
-            return super().__new__(NativeIndex)
+            return super().__new__(Instance)
 
         return super().__new__(cls)
 
@@ -104,17 +107,17 @@ class Index(Jsonable):
 
     @classmethod
     def unserialize(cls, serialized):
-        return cls.create(serialized)
+        return cls.get(serialized)
 
-    def add(self, model):
+    def add(self, experiment):
         """Adds an experiment to the index
 
         # Arguments
-        model: String|dict|StorageExperimentModel, filesystem URL, data or storage model of the experiment
+        model: String|StorageExperiment, filesystem URL or experiment
         """
-        model = StorageExperimentModel.create(model, StorageExperimentFileSystemModel)
+        experiment = StorageExperiment.get(experiment)
 
-        self._add(model)
+        self._add(experiment)
 
         return self
 
@@ -154,7 +157,7 @@ class Index(Jsonable):
         # return {"type": "module_name", ...}
         raise NotImplementedError
 
-    def _add(self, model):
+    def _add(self, experiment):
         raise NotImplementedError
 
     def _find(self, experiment_id: str) -> Union[StorageExperiment, None]:

@@ -21,39 +21,39 @@ def test_storage_interface():
 
 def test_experiment_storage_interface():
     with pytest.raises(ValueError):
+        # non-existent
         StorageExperiment("./_test_data/storage/tttttt/tbAXUwxGJzA8")
 
-    o = StorageExperiment("./_test_data/storage/tttttt")
-    assert o.id == "tttttt"
+    o = StorageExperiment.get("./_test_data/storage/tttttt")
+    assert o.experiment_id == "tttttt"
     assert o.url == "osfs://./_test_data/storage/tttttt"
     assert o.components.first().config.test
     assert len(o.components) == 4
 
     experiments = o.experiments
     assert len(experiments) >= 2
-    assert len(experiments.filter(lambda x: x.id == "SUBEXP")) == 1
-    assert all(experiments.transform(lambda x: x.ancestor.id == "tttttt"))
+    assert len(experiments.filter(lambda x: x.experiment_id == "SUBEXP")) == 1
+    assert all(experiments.transform(lambda x: x.ancestor.experiment_id == "tttttt"))
     assert o.ancestor is None
 
 
 def test_storage_component_interface():
     comp = get_experiment(get_path("tttttt")).components.first()
-    assert comp.experiment.id == "tttttt"
+    assert comp.experiment.experiment_id == "tttttt"
     assert comp.experiment.code_version.project.path.endswith("machinable.git")
     assert comp.flags.NAME == "nodes.observations"
     assert comp.config.to_test == "observations"
-    assert comp.schedule.component.args.to_test == comp.config.to_test
     assert len(comp.components) == 0
     assert comp.store("data.json")["observation_id"] > 0
     assert comp.store("test") == 2
     assert comp.store("key") == "value"
     assert "test" in comp.store()
-    assert len(comp.store()["$files"])
+    assert len(comp.store()["__files"])
     assert len(comp.host) == 9
     assert len(comp.get_records()) == 2
 
     comp = get_experiment(get_path("subdirectory/TTTTTT"))
-    assert comp.components.first().experiment.id == "TTTTTT"
+    assert comp.components.first().experiment.experiment_id == "TTTTTT"
 
 
 def test_storage_records_interface():

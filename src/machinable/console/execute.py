@@ -3,7 +3,7 @@ import os
 import click
 
 from ..execution.execution import Execution
-from ..filesystem import parse_fs_url
+from ..filesystem import parse_storage_url
 
 
 @click.command()
@@ -51,13 +51,11 @@ def execution(url, storage, engine, project, checkpoint, version, seed):
     else:
         if "://" not in url:
             url = "osfs://" + url
-        # parse URL
-        resource = os.path.normpath(parse_fs_url(url)["resource"])
-        path = os.path.basename(resource)
-        if len(path) == 12:
-            # if component, switch to experiment
-            component_id = path
-            url = url.replace("/" + component_id, "")
+
+        # if component URL, switch to corresponding experiment URL
+        parsed = parse_storage_url(url)
+        if parsed["component_id"] is not None:
+            url = url.replace("/" + parsed["component_id"], "")
 
         execution = Execution.from_storage(url)
 
