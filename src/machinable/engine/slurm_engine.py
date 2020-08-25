@@ -61,8 +61,8 @@ class SlurmEngine(Engine):
 
     def _submit(self, execution):
         url = os.path.join(
-            execution.storage["url"],
-            execution.storage.get("directory", ""),
+            execution.storage.config["url"],
+            execution.storage.config.get("directory", ""),
             execution.experiment_id,
         )
 
@@ -78,7 +78,7 @@ class SlurmEngine(Engine):
         import machinable as ml
         e = ml.Execution.from_storage('{url}')
         e.set_engine('native')
-        e.set_storage({execution.storage})
+        e.set_storage({execution.storage.config})
         e.set_project(ml.Project.from_json('{project}'))
         e.filter(lambda i, component, _: component == '$COMPONENT_ID')
         e.submit()
