@@ -1,6 +1,7 @@
 import json
 
 import pendulum
+import collections
 
 from ..storage.experiment import StorageExperiment
 from ..storage.models import StorageModel, StorageExperimentModel, StorageComponentModel
@@ -20,12 +21,15 @@ except ImportError:
 
 
 class StorageSqlModel(StorageModel):
-    def __init__(self, url, database, data=None):
+    def __init__(self, url, database):
+        self._data = None
+        if isinstance(url, collections.Mapping):
+            self._data = url
+            url = url["url"]
         super().__init__(url)
         if isinstance(database, str):
             database = dataset.connect(database)
         self._db = database
-        self._data = data
         self._filesystem_model = None
 
     def experiment_model(self, url):
@@ -45,7 +49,7 @@ class StorageExperimentSqlModel(StorageSqlModel, StorageExperimentModel):
                 self._data = self.insert()
 
         if filepath in ["execution.json", "code.json", "host.json"]:
-            return self._data[filepath.replace(".", "_")]
+            return json.loads(self._data[filepath.replace(".", "_")])
 
         return self.filesystem_model.file(filepath)
 
@@ -133,9 +137,7 @@ class SqlIndex(Index):
         if model is None:
             return None
 
-        return StorageExperimentSqlModel(
-            model["url"], database=self._db, data=model
-        ).as_experiment()
+        return StorageExperimentSqlModel(model, database=self._db).as_experiment()
 
     def _find_latest(self, limit=10, since=None):
         table = self._table("experiments")
@@ -144,9 +146,7 @@ class SqlIndex(Index):
         else:
             condition = {">=": since}
         return [
-            StorageExperimentSqlModel(
-                model["url"], database=self._db, data=model
-            ).as_experiment()
+            StorageExperimentSqlModel(model, database=self._db).as_experiment()
             for model in table.find(
                 started_at=condition, _limit=limit, order_by="started_at"
             )
