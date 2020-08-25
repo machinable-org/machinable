@@ -5,12 +5,17 @@ from machinable.core.settings import get_settings
 from ..utils.formatting import msg
 
 
+def fetch_link(source, target):
+    os.symlink(source, target, target_is_directory=True)
+    return True
+
+
 def fetch_directory(source, target):
     if not os.path.isdir(source):
         raise ValueError(f"{source} is not a directory")
 
     # we use symlink rather than copy for performance and consistency
-    os.symlink(source, os.path.join(target), target_is_directory=True)
+    fetch_link(source, target)
 
     return True
 
@@ -28,6 +33,10 @@ def fetch_import(source, target):
     # git
     if source.startswith("git+"):
         return fetch_git(source[4:], target)
+
+    # symlink
+    if source.startswith("link+"):
+        return fetch_link(source[5:], target)
 
     # default: directory
     return fetch_directory(source, target)
