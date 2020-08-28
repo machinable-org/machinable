@@ -1,6 +1,8 @@
 import copy
 import os
 
+from .experiment import StorageExperiment
+
 from ..utils.dicts import update_dict
 from ..utils.importing import resolve_instance
 
@@ -63,6 +65,9 @@ class Storage:
         return os.path.join(
             self.config["url"], self.config["directory"], self.config["experiment"]
         )
+
+    def get_experiment(self):
+        return StorageExperiment(self.get_url())
 
     def __str__(self):
         return self.__repr__()
