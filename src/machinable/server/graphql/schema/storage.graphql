@@ -1,0 +1,38 @@
+type StorageExperiment {
+    unique_id: String
+    url: String
+    experiment_id: String
+    seed: Float
+    timestamp: Float
+    code_backup: Boolean
+    code_diff: String
+    code_version: JSON @json
+    host: JSON @json
+    started_at: DateTime
+    finished_at: DateTime
+    is_finished: Boolean @method
+    is_started: Boolean @method
+    components: [StorageComponent]
+    experiments: [StorageExperiment]
+    ancestor: StorageExperiment
+}
+
+type StorageComponent {
+    unique_id: String
+    url: String
+    component_id: String
+    config: JSON @json
+    flags: JSON @json
+    tuning: Boolean
+    components: [JSON] @json
+    host: JSON @json
+    state: JSON @json
+    started_at: DateTime
+    heartbeat_at: DateTime
+    finished_at: DateTime
+    is_finished: Boolean @method
+    is_started: Boolean @method
+    is_active: Boolean @method
+    is_incomplete: Boolean @method
+    experiment: StorageExperiment
+}

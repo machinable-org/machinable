@@ -1,10 +1,9 @@
 import copy
 import os
 
-from .experiment import StorageExperiment
-
 from ..utils.dicts import update_dict
 from ..utils.importing import resolve_instance
+from .experiment import StorageExperiment
 
 _latest = [None]
 
@@ -59,7 +58,7 @@ class Storage:
         if isinstance(args, dict):
             args = copy.deepcopy(args)
 
-        return Storage(args)
+        return cls(args)
 
     def get_url(self):
         return os.path.join(

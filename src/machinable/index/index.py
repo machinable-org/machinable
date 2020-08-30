@@ -5,8 +5,10 @@ import os
 from typing import Union
 
 from ..filesystem import open_fs
-from ..storage.experiment import ExperimentStorage
-from ..storage.models.filesystem import StorageFileSystemModel
+from ..storage.collections import ExperimentStorageCollection
+from ..storage.experiment import StorageExperiment
+from ..storage.models import StorageExperimentModel
+from ..storage.models.filesystem import StorageExperimentFileSystemModel
 from ..utils.dicts import update_dict
 from ..utils.formatting import exception_to_str
 from ..utils.identifiers import decode_experiment_id
@@ -24,11 +26,14 @@ _latest = [None]
 class Index(Jsonable):
     def __new__(cls, *args, **kwargs):
         # Index is an abstract class for which instantiation is meaningless.
-        # Instead, we return the default NativeIndex
+        # Instead, we return an appropriate default subclass
         if cls is Index:
-            from .native_index import NativeIndex
+            try:
+                from .sql_index import SqlIndex as Instance
+            except ImportError:
+                from .native_index import NativeIndex as Instance
 
-            return super().__new__(NativeIndex)
+            return super().__new__(Instance)
 
         return super().__new__(cls)
 
@@ -102,17 +107,17 @@ class Index(Jsonable):
 
     @classmethod
     def unserialize(cls, serialized):
-        return cls.create(serialized)
+        return cls.get(serialized)
 
-    def add(self, url):
+    def add(self, experiment):
         """Adds an experiment to the index
 
         # Arguments
-        model: String, filesystem URL of the experiment
+        model: String|StorageExperiment, filesystem URL or experiment
         """
+        experiment = StorageExperiment.get(experiment)
 
-        model = StorageFileSystemModel.create(url)
-        self._add(model)
+        self._add(experiment)
 
         return self
 
@@ -123,10 +128,13 @@ class Index(Jsonable):
         experiment: String, experiment ID. If None, all available index will be returned.
 
         # Returns
-        Instance or collection of machinable.storage.ExperimentStorage
+        Instance or collection of machinable.storage.StorageExperiment
         """
         decode_experiment_id(experiment_id, or_fail=True)
         return self._find(experiment_id)
+
+    def find_latest(self, limit=10, since=None):
+        return ExperimentStorageCollection(self._find_latest(limit=limit, since=since))
 
     def add_from_storage(self, url):
         with open_fs(url) as filesystem:
@@ -149,10 +157,13 @@ class Index(Jsonable):
         # return {"type": "module_name", ...}
         raise NotImplementedError
 
-    def _add(self, model: StorageFileSystemModel):
+    def _add(self, experiment):
         raise NotImplementedError
 
-    def _find(self, experiment_id: str) -> Union[ExperimentStorage, None]:
+    def _find(self, experiment_id: str) -> Union[StorageExperiment, None]:
+        raise NotImplementedError
+
+    def _find_latest(self, limit=10, since=None):
         raise NotImplementedError
 
     def __repr__(self):

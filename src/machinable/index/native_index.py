@@ -1,4 +1,3 @@
-from ..storage.experiment import ExperimentStorage
 from .index import Index
 
 
@@ -11,17 +10,19 @@ class NativeIndex(Index):
     def serialize(self):
         return {"type": "native"}
 
-    def _add(self, model):
-        self._db[model.experiment_id] = model.url
+    def _add(self, experiment):
+        self._db[experiment.experiment_id] = experiment
 
     def _find(self, experiment_id: str):
         try:
-            return ExperimentStorage(self._db[experiment_id])
+            return self._db[experiment_id]
         except KeyError:
             return None
 
-    def reset(self):
-        self._db = {}
+    def _find_latest(self, limit=10, since=None):
+        raise NotImplementedError(
+            "This index does not support find_latest() operations. Consider using the SqlIndex instead."
+        )
 
     def __repr__(self):
         return f"NativeIndex"

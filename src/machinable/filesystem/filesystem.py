@@ -6,8 +6,7 @@ import pickle
 from fs import errors, open_fs
 
 from ..utils.dicts import serialize
-
-sentinel = object()
+from ..utils.utils import sentinel
 
 
 class FileSystem:

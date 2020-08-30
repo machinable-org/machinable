@@ -4,8 +4,8 @@ The storage abstraction provides a high-level interface to retrieve data that is
 
 {% machinable.Storage %}
 
-{% machinable.storage.experiment.ExperimentStorage %}
+{% machinable.storage.experiment.StorageExperiment %}
 
-{% machinable.storage.component.ComponentStorage %}
+{% machinable.storage.component.StorageComponent %}
 
 {% machinable.storage.collections.Collection %}

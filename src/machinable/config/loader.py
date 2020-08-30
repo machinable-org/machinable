@@ -5,6 +5,8 @@ from typing import Callable
 import yaml
 from expandvars import expandvars
 
+from ..utils.utils import sentinel
+
 
 class Loader(yaml.SafeLoader):
     def __init__(self, stream, cwd="./"):
@@ -62,9 +64,6 @@ def from_string(text, cwd="./"):
         .replace("~SELFREF~", "$self.")
     )
     return yaml.load(parsed, lambda stream: Loader(stream, cwd))
-
-
-sentinel = object()
 
 
 def from_file(filename, default=sentinel):

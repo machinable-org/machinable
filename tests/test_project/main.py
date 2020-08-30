@@ -1,3 +1,3 @@
 import machinable as ml
 
-ml.execute("thenode")
+assert ml.execute("thenode").failures == 0

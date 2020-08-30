@@ -4,24 +4,47 @@ from typing import Optional, Union
 import pendulum
 
 from ..config.mapping import config_map
+from ..utils.utils import sentinel
 from .collections import ComponentStorageCollection, ExperimentStorageCollection
-from .component import ComponentStorage
-from .models.filesystem import StorageFileSystemModel
+from .component import StorageComponent
+from .models import StorageExperimentModel
+from .models.filesystem import StorageExperimentFileSystemModel
 
 
-class ExperimentStorage:
-    def __init__(self, url: Union[str, dict, StorageFileSystemModel]):
-        self._model = StorageFileSystemModel.create(url)
-        if self._model.component_id is not None:
-            raise ValueError(
-                "URL is a component URL. Use ComponentStorage interface instead."
-            )
-        self._components = {}
+class StorageExperiment:
+    def __init__(self, url: Union[str, dict, StorageExperimentModel], cache=None):
+        self._model = StorageExperimentModel.create(
+            url, template=StorageExperimentFileSystemModel
+        )
+        self._cache = cache or {}
 
-    @property
-    def id(self) -> str:
-        """6-digit experiment ID, e.g. F4K3r6"""
-        return self._model.experiment_id
+    @classmethod
+    def get(cls, args):
+        if isinstance(args, StorageExperiment):
+            return args
+
+        if isinstance(args, (list, tuple)):
+            return cls(*args)
+
+        return cls(args)
+
+    def file(self, filepath, default=sentinel, reload=False):
+        """Returns the content of a file in the storage
+
+        # Arguments
+        filepath: Relative filepath
+        default: Optional default if file cannot be found.
+        reload: If True, cache will be ignored.
+        """
+        if filepath not in self._cache or reload is not False:
+            try:
+                self._cache[filepath] = self._model.file(filepath)
+            except FileNotFoundError:
+                if default is not sentinel:
+                    return default
+                raise
+
+        return self._cache[filepath]
 
     @property
     def url(self) -> str:
@@ -29,19 +52,37 @@ class ExperimentStorage:
         return self._model.url
 
     @property
+    def unique_id(self):
+        if "unique_id" not in self._cache:
+            self._cache["unique_id"] = (
+                self.experiment_id + "_" + self.components[0].component_id
+            )
+        return self._cache["unique_id"]
+
+    @property
+    def experiment_id(self) -> str:
+        """6-digit experiment ID, e.g. F4K3r6"""
+        return self.file("execution.json")["experiment_id"]
+
+    @property
     def seed(self) -> int:
         """Returns the global random seed used in the experiment"""
-        return self._model.file("execution.json")["seed"]
+        return self.file("execution.json")["seed"]
 
     @property
     def timestamp(self):
         """Returns the timestamp of the experiment"""
-        return self._model.file("execution.json")["timestamp"]
+        return self.file("execution.json")["timestamp"]
 
     @property
     def code_backup(self):
         """True if code backup is available"""
-        return self._model.file("code.json")["code_backup"]
+        return self.file("code.json")["code_backup"]
+
+    @property
+    def code_diff(self):
+        """Git diff"""
+        return self.file("code.diff")
 
     @property
     def code_version(self):
@@ -55,68 +96,97 @@ class ExperimentStorage:
         vendor: Dict of vendor project information with the same structure as above
         ```
         """
-        return config_map(self._model.file("code.json")["code_version"])
+        if "code_version" not in self._cache:
+            self._cache["code_version"] = config_map(
+                self.file("code.json")["code_version"]
+            )
+        return self._cache["code_version"]
 
     @property
     def started_at(self):
         """Start of execution
         """
-        return pendulum.parse(self._model.file("execution.json")["started_at"])
+        if "started_at" not in self._cache:
+            self._cache["started_at"] = pendulum.parse(
+                self.file("execution.json")["started_at"]
+            )
+        return self._cache["started_at"]
+
+    @property
+    def finished_at(self):
+        """Finish time of the execution or False if not finished"""
+        if self._cache.get("finished_at", False) is False:
+            finished_at = self.components.map(lambda c: c.finished_at)
+            if False in finished_at:
+                self._cache["finished_at"] = False
+            else:
+                self._cache["finished_at"] = finished_at.sort(reverse=True).first()
+                # notify model
+                self._model.submit("finished_at", self._cache["finished_at"])
+        return self._cache["finished_at"]
+
+    def is_finished(self):
+        """True if finishing time has been written"""
+        return bool(self.finished_at)
+
+    def is_started(self):
+        """True if starting time has been written"""
+        return bool(self.started_at)
 
     @property
     def host(self):
         """Returns information on the experiment host"""
-        return config_map(self._model.file("host.json"))
-
-    @property
-    def output(self):
-        """Returns the captured output"""
-        return self._model.file("output.log")
-
-    @property
-    def schedule(self):
-        """Returns the experiment schedule"""
-        return self._model.file("schedule.json")
+        if "host" not in self._cache:
+            self._cache["host"] = config_map(self.file("host.json"))
+        return self._cache["host"]
 
     @property
     def components(self) -> ComponentStorageCollection:
         """List of components
         """
-        if len(self._components) == 0:
-            self._components = {
-                component: ComponentStorage(
-                    os.path.join(self.url, component), experiment=self
-                )
-                for component in self._model.file("execution.json")["components"]
-            }
+        if "components" not in self._cache:
+            self._cache["components"] = ComponentStorageCollection(
+                [
+                    StorageComponent(
+                        self._model.component_model(os.path.join(self.url, component)),
+                        experiment=self,
+                    )
+                    for component in self.file("execution.json")["components"]
+                ]
+            )
 
-        return ComponentStorageCollection(list(self._components.values()))
+        return self._cache["components"]
 
     @property
     def experiments(self) -> ExperimentStorageCollection:
         """Returns a collection of derived experiments
         """
         return ExperimentStorageCollection(
-            [ExperimentStorage(url) for url in self._model.experiments()]
+            [
+                StorageExperiment(self._model.experiment_model(url))
+                for url in self._model.experiments()
+            ]
         )
 
     @property
-    def ancestor(self) -> Optional["ExperimentStorage"]:
+    def ancestor(self) -> Optional["StorageExperiment"]:
         """Returns parent experiment or None if experiment is independent
         """
         if self.url.find("/experiments/") == -1:
             return None
         try:
-            model = StorageFileSystemModel(self.url.rsplit("/experiments/")[0])
-            if not model.is_valid():
+            model = self._model.experiment_model(
+                self.url.rsplit("/experiments/", maxsplit=1)[0]
+            )
+            if not model.exists():
                 return None
-            return ExperimentStorage(model)
+            return StorageExperiment(model)
         except ValueError:
             return None
 
     def __len__(self):
         """Returns the number of components in this experiment"""
-        return len(self._model.file("execution.json")["components"])
+        return len(self.file("execution.json")["components"])
 
     def __iter__(self):
         yield from self.components
@@ -125,4 +195,4 @@ class ExperimentStorage:
         return self.__repr__()
 
     def __repr__(self):
-        return f"Storage: Experiment <{self.id}>"
+        return f"Storage: Experiment <{self.experiment_id}>"

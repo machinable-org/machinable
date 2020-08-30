@@ -9,7 +9,7 @@ from machinable.core.component import inject_components
 
 
 def test_core_config_method():
-    ml.execute("configmethods", project="./test_project")
+    assert ml.execute("configmethods", project="./test_project").failures == 0
 
 
 def test_on_iterate():
@@ -182,7 +182,16 @@ def test_hidden_mixins():
     sys.path.insert(0, os.path.join(os.getcwd(), "test_project"))
 
     # hidden mixins that are only part of the imported project but not referenced in the project that imports them
-    ml.execute(ml.Experiment().components("inherited_mixin"), project="./test_project")
-    ml.execute(
-        ml.Experiment().components("direct_mixin_inheritance"), project="./test_project"
+    assert (
+        ml.execute(
+            ml.Experiment().components("inherited_mixin"), project="./test_project"
+        ).failures
+        == 0
+    )
+    assert (
+        ml.execute(
+            ml.Experiment().components("direct_mixin_inheritance"),
+            project="./test_project",
+        ).failures
+        == 0
     )

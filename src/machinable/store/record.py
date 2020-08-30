@@ -1,6 +1,7 @@
 import copy
 import datetime
 import json
+import os
 import pickle
 from collections import OrderedDict
 
@@ -173,7 +174,7 @@ class Record:
                 self.store.events.trigger("store.on_change", "record.save")
 
         if echo:
-            msg(self.store.get_url())
+            msg(os.path.join(self.store.config["url"], self.store.get_path()))
             msg(prettydict(data, sort_keys=True))
 
         return data

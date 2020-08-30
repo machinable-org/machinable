@@ -4,6 +4,8 @@ import random
 import string
 from keyword import iskeyword
 
+sentinel = object()
+
 
 def get_file_hash(filepath):
     """Returns a hash value of a file

@@ -43,4 +43,7 @@ def test_store_writer():
 
 
 def test_records_timing():
-    execute(Experiment().components("timings"), project="./test_project")
+    assert (
+        execute(Experiment().components("timings"), project="./test_project").failures
+        == 0
+    )
