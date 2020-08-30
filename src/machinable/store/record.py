@@ -1,9 +1,10 @@
 import copy
 import datetime
 import json
+import os
 import pickle
 from collections import OrderedDict
-import os
+
 import pendulum
 
 from ..utils.formatting import msg, prettydict, serialize

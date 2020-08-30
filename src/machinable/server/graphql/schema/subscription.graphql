@@ -4,5 +4,5 @@ type IndexSubscriptionDelta {
 }
 
 type Subscription {
-    index(index: JSON!, limit: Int): [IndexSubscriptionDelta]
+    index(index: JSON!, limit: Int): IndexSubscriptionDelta
 }

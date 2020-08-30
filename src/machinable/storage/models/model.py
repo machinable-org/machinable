@@ -1,8 +1,4 @@
-import os
-
 from ...filesystem import parse_storage_url
-from ...utils.identifiers import decode_experiment_id
-from ...utils.utils import sentinel
 
 
 class StorageModel:
@@ -86,7 +82,6 @@ class StorageComponentModel(StorageModel):
 
     def prefetch(self):
         return {
-            "unique_id": self.unique_id,
             "url": self.url,
             "experiment_id": self.experiment_id,
             "component_id": self.component_id,

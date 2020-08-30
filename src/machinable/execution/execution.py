@@ -517,6 +517,10 @@ class Execution(Jsonable):
         return execution
 
     @property
+    def unique_id(self):
+        return self.experiment_id + "_" + self.components[0]
+
+    @property
     def experiment_id(self):
         return encode_experiment_id(self.seed)
 

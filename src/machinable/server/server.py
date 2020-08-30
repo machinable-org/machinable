@@ -8,12 +8,13 @@ from starlette.middleware.cors import CORSMiddleware
 from starlette.routing import Route
 
 from .filesystem import filesystem_resolver
-from .graphql import mutation, query, scalar_types, subscription
+from .graphql import directives, mutation, query, scalar_types, subscription
 
 dir_path = os.path.dirname(os.path.realpath(__file__))
 schema = make_executable_schema(
     load_schema_from_path(os.path.join(dir_path, "graphql/schema/")),
     [*scalar_types, query, mutation, subscription],
+    directives=directives,
 )
 
 

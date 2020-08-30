@@ -4,10 +4,10 @@ from typing import Optional, Union
 import pendulum
 
 from ..config.mapping import config_map
+from ..utils.utils import sentinel
 from .collections import ComponentStorageCollection, ExperimentStorageCollection
 from .component import StorageComponent
 from .models import StorageExperimentModel
-from ..utils.utils import sentinel
 from .models.filesystem import StorageExperimentFileSystemModel
 
 
@@ -50,6 +50,14 @@ class StorageExperiment:
     def url(self) -> str:
         """Returns the file system URL"""
         return self._model.url
+
+    @property
+    def unique_id(self):
+        if "unique_id" not in self._cache:
+            self._cache["unique_id"] = (
+                self.experiment_id + "_" + self.components[0].component_id
+            )
+        return self._cache["unique_id"]
 
     @property
     def experiment_id(self) -> str:
@@ -104,6 +112,7 @@ class StorageExperiment:
             )
         return self._cache["started_at"]
 
+    @property
     def finished_at(self):
         """Finish time of the execution or False if not finished"""
         if self._cache.get("finished_at", False) is False:
@@ -111,12 +120,18 @@ class StorageExperiment:
             if False in finished_at:
                 self._cache["finished_at"] = False
             else:
-                self._cache["finished_at"] = finished_at.sort(
-                    lambda x, y: x > y
-                ).first()
+                self._cache["finished_at"] = finished_at.sort(reverse=True).first()
                 # notify model
                 self._model.submit("finished_at", self._cache["finished_at"])
         return self._cache["finished_at"]
+
+    def is_finished(self):
+        """True if finishing time has been written"""
+        return bool(self.finished_at)
+
+    def is_started(self):
+        """True if starting time has been written"""
+        return bool(self.started_at)
 
     @property
     def host(self):

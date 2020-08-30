@@ -61,9 +61,12 @@ class StorageComponent:
         return self._cache[filepath]
 
     @property
-    def component_id(self):
-        """Returns the component storage ID"""
-        return self._model.component_id
+    def unique_id(self):
+        if "unique_id" not in self._cache:
+            self._cache["unique_id"] = (
+                self.experiment.experiment_id + "_" + self.component_id
+            )
+        return self._cache["unique_id"]
 
     @property
     def url(self):
@@ -71,9 +74,14 @@ class StorageComponent:
         return self._model.url
 
     @property
+    def component_id(self):
+        """Returns the component storage ID"""
+        return self._model.component_id
+
+    @property
     def experiment(self):
         """The experiment of this component"""
-        if "experiment" not in self._cache:
+        if self._cache["experiment"] is None:
             from .experiment import StorageExperiment
 
             parsed = parse_storage_url(self.url)
@@ -262,6 +270,7 @@ class StorageComponent:
         return bool(self.status["finished_at"])
 
     def is_started(self):
+        """True if starting time has been written"""
         return bool(self.status["started_at"])
 
     def is_active(self):

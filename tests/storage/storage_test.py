@@ -19,7 +19,7 @@ def test_storage_interface():
     assert storage.config["url"] == "osfs://" + STORAGE_DIRECTORY
 
 
-def test_experiment_storage_interface():
+def test_storage_experiment():
     with pytest.raises(ValueError):
         # non-existent
         StorageExperiment("./_test_data/storage/tttttt/tbAXUwxGJzA8")
@@ -37,7 +37,7 @@ def test_experiment_storage_interface():
     assert o.ancestor is None
 
 
-def test_storage_component_interface():
+def test_component_storage():
     comp = get_experiment(get_path("tttttt")).components.first()
     assert comp.experiment.experiment_id == "tttttt"
     assert comp.experiment.code_version.project.path.endswith("machinable.git")
@@ -56,7 +56,7 @@ def test_storage_component_interface():
     assert comp.components.first().experiment.experiment_id == "TTTTTT"
 
 
-def test_storage_records_interface():
+def test_storage_component_records():
     comp = get_experiment(get_path("tttttt")).components.first()
     records = comp.records
     custom = comp.get_records("validation")

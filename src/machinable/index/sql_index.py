@@ -1,15 +1,14 @@
+import collections
 import json
 
 import pendulum
-import collections
 
 from ..storage.experiment import StorageExperiment
-from ..storage.models import StorageModel, StorageExperimentModel, StorageComponentModel
+from ..storage.models import StorageComponentModel, StorageExperimentModel, StorageModel
 from ..storage.models.filesystem import (
     StorageComponentFileSystemModel,
     StorageExperimentFileSystemModel,
 )
-from ..utils.utils import sentinel
 from .index import Index
 
 try:
@@ -66,8 +65,8 @@ class StorageExperimentSqlModel(StorageSqlModel, StorageExperimentModel):
         table = self._db["experiments"]
         execution_json = model.file("execution.json")
         row = {
-            "url": self.url,
-            "experiment_id": self.experiment_id,
+            "url": model.url,
+            "experiment_id": model.experiment_id,
             "execution_json": json.dumps(execution_json),
             "code_json": json.dumps(model.file("code.json")),
             "host_json": json.dumps(model.file("host.json")),
@@ -116,20 +115,7 @@ class SqlIndex(Index):
         return {"type": "sql", "database": self.database}
 
     def _add(self, experiment):
-        table = self._table("experiments")
-        # todo: merge this with insert() function of the model
-        #  and avoid json.dumps after json.loads() by reading
-        #  file contents directly
-        table.insert(
-            {
-                "url": experiment.url,
-                "experiment_id": experiment.experiment_id,
-                "execution_json": json.dumps(experiment.file("execution.json")),
-                "code_json": json.dumps(experiment.file("code.json")),
-                "host_json": json.dumps(experiment.file("host.json")),
-                "started_at": experiment.started_at,
-            }
-        )
+        StorageExperimentSqlModel(experiment.url, database=self._db).insert(experiment)
 
     def _find(self, experiment_id: str):
         table = self._table("experiments")
@@ -144,7 +130,7 @@ class SqlIndex(Index):
         if since is None:
             condition = {"<=": pendulum.now()}
         else:
-            condition = {">=": since}
+            condition = {">": since}
         return [
             StorageExperimentSqlModel(model, database=self._db).as_experiment()
             for model in table.find(
