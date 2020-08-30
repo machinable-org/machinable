@@ -8,7 +8,6 @@ def test_console_execution():
     result = runner.invoke(execution, ["./_test_data/storage/tttttt"])
     assert result.exit_code == 0
     result = runner.invoke(execution, ["./_test_data/storage/tttttt/tQtsVCNijRLR"])
-    assert result.exception
-    assert str(result.exception).startswith("Execution schedule is empty")
+    assert result.exit_code == 0
     result = runner.invoke(execution, ["@test"])
     assert str(result.exception).find("ModuleNotFoundError") != -1
