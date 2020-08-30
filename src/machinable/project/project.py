@@ -52,12 +52,11 @@ class Project(Jsonable):
             # automatic naming
             self.options["name"] = os.path.basename(self.directory_path)
 
-        if (
-            os.path.exists(self.directory_path)
-            and self.is_root()
-            and self.directory_path not in sys.path
-        ):
-            sys.path.insert(0, self.directory_path)
+        if os.path.exists(self.directory_path) and self.directory_path not in sys.path:
+            if self.is_root():
+                sys.path.insert(0, self.directory_path)
+            else:
+                sys.path.append(self.directory_path)
 
     def __repr__(self):
         return f"Project({self.directory_path})"
