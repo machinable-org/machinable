@@ -316,7 +316,7 @@ class Experiment(Jsonable):
             multiple=True,
         )
 
-    def version(self, config=None, **kwargs):
+    def version(self, config=None):
         """Applies a configuration update
 
         Selected components use the default configuration as specified in the machinable.yaml.
@@ -325,30 +325,19 @@ class Experiment(Jsonable):
         want to apply the version locally, use the version parameter in the local method.
 
         # Arguments
-        config: Configuration update represented as dictionary
+        config: Configuration update dictionary
 
         # Examples
         ```python
-        import machinable as ml
-        experiment = ml.Experiment().components('evolution').components('sgd')
+        from machinable import Experiment
+        experiment = Experiment().components('evolution').components('sgd')
         # use a dictionary to override configuration values
-        experiment.version({'data': {'shuffle': True}, 'components': {'lr': 0.01}})
-        # or kwargs
-        experiment.version(data={'shuffle': True}, components={'lr': 0.01})
-        # use a specified version of the machinable.yaml
-        experiment.version(data='~shuffled')
-        # use a mixin configuration
-        experiment.version(data='_mnist_')
+        experiment.version({'data': {'shuffle': True}, 'lr': 0.01})
         ```
         """
-        if config is None:
-            config_version = copy.deepcopy(kwargs)
-        else:
-            if isinstance(config, dict):
-                config_version = copy.deepcopy(config)
-            else:
-                config_version = {"components": copy.deepcopy(config)}
-
+        # We wrap the version under a components key to allow for future extension where
+        #  overrides are specific to main or sub-components only etc.
+        config_version = {"components": copy.deepcopy(config)}
         self._spec("version", config_version, multiple=True)
 
         return self
