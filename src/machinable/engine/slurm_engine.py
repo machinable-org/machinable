@@ -103,6 +103,7 @@ class SlurmEngine(Engine):
         ) in execution.schedule.iterate(execution.storage.config):
             component_id = component["flags"]["COMPONENT_ID"]
             script = f"{self.script}\n"
+            script += f"export MACHINABLE_PROJECT={execution.project.directory_path}\n"
             script += f"#SBATCH --job-name={execution.experiment_id}:{component_id}\n"
             script += f"#SBATCH -o {os.path.join(script_url.replace('osfs://', ''), component_id + '.out')}\n"
             try:
@@ -116,10 +117,6 @@ class SlurmEngine(Engine):
                 script += self.commands["after_script"] + ";\n"
             except KeyError:
                 pass
-
-            script = script.replace(
-                "%PROJECT_DIRECTORY%", execution.project.directory_path
-            )
 
             # write script to disk
             target = os.path.join(
