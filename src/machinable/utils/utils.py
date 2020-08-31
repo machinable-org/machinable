@@ -88,6 +88,10 @@ def is_valid_variable_name(name):
     return name.isidentifier() and not iskeyword(name)
 
 
+def is_valid_module_path(name):
+    return all(map(is_valid_variable_name, name.split(".")))
+
+
 def random_str(length, random_state=None):
     if random_state is None or isinstance(random_state, int):
         random_state = random.Random(random_state)

@@ -128,22 +128,26 @@ class Execution(Jsonable):
     def set_experiment(self, experiment):
         self.experiment = Experiment.create(experiment)
 
-        # compute experiment directory
+        # experiment directory
         experiment_directory = self.experiment.specification.get("directory", None)
         if experiment_directory is None:
             experiment_directory = get_settings()["default_directory"]
         if isinstance(experiment_directory, str):
             # replace magic variables
-            project_name = self.project.name if self.project else ""
-            experiment_directory = experiment_directory.replace(
-                "&PROJECT", project_name
-            )
-            module_name = (
-                self.experiment._resolved_module_origin
-                if hasattr(self.experiment, "_resolved_module_origin")
-                else ""
-            )
-            experiment_directory = experiment_directory.replace("&MODULE", module_name)
+            if experiment_directory.find("&PROJECT") != -1:
+                project_name = self.project.name if self.project else ""
+                experiment_directory = experiment_directory.replace(
+                    "&PROJECT", project_name.replace(".", "/")
+                )
+            if experiment_directory.find("&MODULE") != -1:
+                module_name = (
+                    self.experiment._resolved_module_origin
+                    if hasattr(self.experiment, "_resolved_module_origin")
+                    else ""
+                )
+                experiment_directory = experiment_directory.replace(
+                    "&MODULE", module_name
+                )
             try:
                 experiment_directory = dt.now().strftime(experiment_directory)
             except ValueError:
@@ -336,7 +340,9 @@ class Execution(Jsonable):
                         "experiment": getattr(
                             self.experiment, "_resolved_by_expression", None
                         ),
-                        "storage": None,
+                        "storage": getattr(
+                            self.storage, "_resolved_by_expression", None
+                        ),
                         "engine": getattr(self.engine, "_resolved_by_expression", None),
                     },
                     "code_backup": code_backup,

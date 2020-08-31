@@ -1,4 +1,5 @@
 # test_project.machinable.yaml
+name: test_project
 +:
   - fooba: foo.bar
 scientific: 5e-6

@@ -17,7 +17,7 @@ from ..core.settings import get_settings
 from ..registration import Registration
 from ..utils.dicts import update_dict
 from ..utils.traits import Jsonable
-from ..utils.utils import is_valid_variable_name
+from ..utils.utils import is_valid_variable_name, is_valid_module_path
 from ..utils.vcs import get_commit, get_diff, get_root_commit
 from .manager import fetch_imports
 
@@ -47,10 +47,6 @@ class Project(Jsonable):
         self.config = None
         self.parsed_config = None
         self._registration = None
-
-        if self.options["name"] is None:
-            # automatic naming
-            self.options["name"] = os.path.basename(self.directory_path)
 
         if os.path.exists(self.directory_path) and self.directory_path not in sys.path:
             if self.is_root():
@@ -86,11 +82,21 @@ class Project(Jsonable):
 
     @property
     def name(self):
-        return self.options["name"]
+        if self.options["name"] is None:
+            try:
+                self.options["name"] = self.get_config()["name"]
+            except KeyError:
+                raise KeyError(
+                    "Project name could not be determined. Add a 'name' key to the machinable.yaml"
+                )
 
-    @name.setter
-    def name(self, value):
-        self.options["name"] = value
+        if not is_valid_module_path(self.options["name"]):
+            raise ValueError(
+                f"Invalid project name: '{self.options['name']}'.\n"
+                f"Name must be a valid Python name or path, e.g. `valid_name.example`."
+            )
+
+        return self.options["name"]
 
     @property
     def config_filepath(self):
@@ -172,10 +178,6 @@ class Project(Jsonable):
 
     def exists(self):
         return os.path.isfile(self.directory_path)
-
-    def set_name(self, name):
-        self.options["name"] = name
-        return self
 
     @property
     def registration(self):

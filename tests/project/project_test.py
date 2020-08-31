@@ -1,6 +1,6 @@
 import os
 import shutil
-
+import pytest
 from machinable.project import Project
 
 
@@ -25,10 +25,8 @@ def test_project_config():
 def test_project_name():
     test_project = Project("./test_project")
     assert test_project.name == "test_project"
-    test_project.set_name("test")
-    assert test_project.name == "test"
-    test_project.name = "name"
-    assert test_project.name == "name"
+    with pytest.raises(ValueError):
+        name = Project({"name": "invalid$"}).name
 
 
 def test_project_parse_imports():

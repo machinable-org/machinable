@@ -1,4 +1,5 @@
 # fooba.machinable.yaml
+name: test_project.fooba
 +:
   - bedrock
 mixins:
