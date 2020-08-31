@@ -116,6 +116,7 @@ def test_unflatten_arguments():
     t = Experiment().component("flattened_notation")
     c, _ = to_config(test_project, t)
     assert "flat" in c
+    assert c["flat"]["nested"] is True
     assert c["inherited"]["flat"] == "value"
     assert c["flat"]["can"]["be"]["useful"]
     assert c["flat"]["can_also_save_space"] == " "
@@ -135,3 +136,11 @@ def test_unflatten_arguments():
     assert c["flat"]["can_also_save_space"] == "overwritten"
     assert c["flat"]["merge"] == "merged"
     assert c["more"]["nested"]["values"] == "here"
+
+    # versions
+    t = Experiment().component("flattened_notation", "~flat_version")
+    c, _ = to_config(test_project, t)
+    assert "flat" in c
+    assert c["flat"]["can"]["be"]["useful"]
+    assert c["flat"]["nested"] is False
+    assert c["flat"]["version"] == 2

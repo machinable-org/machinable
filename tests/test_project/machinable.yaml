@@ -105,8 +105,15 @@ components:
       flat.can.be.useful: False
       inherited.flat: value
   - flattened_notation^inherited_flatness:
+      flat:
+        nested: True
       flat.can.be.useful: True
       flat.can_also_save_space: ' '
+      flat.version: 1
+      ~flat_version:
+        flat:
+          nested: False
+        flat.version: 2
 components:nodes:
   - observations:
       id: -1

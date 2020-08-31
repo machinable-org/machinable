@@ -237,9 +237,9 @@ class ConfigInterface:
                         if callable(k[key]):
                             k[key] = self.call_with_context(k[key], config)
 
-                    # unflatten
-                    if k.get("_unflatten", True):
-                        k = unflatten(k, splitter="dot")
+                # unflatten
+                if k.get("_unflatten", True):
+                    k = unflatten(k, splitter="dot")
 
                 # merge with version
                 version = update_dict(version, k)
