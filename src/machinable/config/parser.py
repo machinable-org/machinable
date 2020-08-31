@@ -285,11 +285,16 @@ def parse_module_list(
                         for m in parse_mixins(inherited["args"]["_mixins_"])
                     ]
             else:
-                inherited = get_or_fail(
-                    modules,
-                    auto_scope(parent, scope),
-                    error="Parent module '^{}' of " + module + " does not exist.",
-                )
+                if auto_scope(parent, scope) in modules:
+                    # use immediate parent in current scope
+                    inherited = modules[auto_scope(parent, scope)]
+                elif parent in modules:
+                    # otherwise fall back on global scope
+                    inherited = modules[parent]
+                else:
+                    raise KeyError(
+                        f"Parent module '^{parent}' of {module} does not exist."
+                    )
 
             # inherit the parent's config
             args = update_dict(inherited["args"], args, copy=True)

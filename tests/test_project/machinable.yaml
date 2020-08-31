@@ -134,5 +134,7 @@ components:workers:
       attr: worker
       ~test:
         version: 1
+  - inheritance_from_other_section^thenode:
+  - inheritance_from_outer_section^nodes.observations:
 components:failure:
   - exceptions:

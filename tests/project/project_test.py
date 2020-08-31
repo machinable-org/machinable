@@ -106,6 +106,10 @@ def test_parse_config():
     # args from imports correct?
     assert config["components"]["+.fooba.models.baseline"]["args"]["overwrite"]
 
+    # check scoped inheritance
+    assert config["components"]["inheritance_from_other_section"]["args"]["alpha"] == 0
+    assert config["components"]["inheritance_from_outer_section"]["args"]["id"] == -1
+
     # is importable?
     for k, v in config["components"].items():
         if k.find("@") != -1:
