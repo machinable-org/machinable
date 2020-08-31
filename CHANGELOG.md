@@ -2,9 +2,16 @@
 
 <!-- Please add changes under the Unreleased section that reads 'No current changes' otherwise -->
 
-## Unreleased
+## v2.4.0
 
-No current changes
+ - GraphQL server supports basic execution, index and storage APIs
+ - Allow config inheritance from outer scopes
+ - Optional project `name` in machinable.yaml
+ - New `get_experiment()` shortcut on Storage() instances
+ - Explicit symlink support for project dependencies
+ - Append vendor project directories to sys.path by default
+ - Execution.failure count property to detect failures more easily
+ - Removes deprecated v1 compatibility layer
 
 ## v2.3.0
 
