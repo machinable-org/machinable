@@ -7,6 +7,7 @@ from collections import OrderedDict
 
 import pendulum
 
+from ..filesystem import open_fs
 from ..utils.formatting import msg, prettydict, serialize
 
 
@@ -27,10 +28,14 @@ class Record:
         self.store = store
         self.config = config if config is not None else {}
         self.scope = scope
-        self.history = []
-        self._record = OrderedDict()
         # create records directory
         self.store.get_path("records", create=True)
+        # restore if existing
+        with open_fs(self.store.config["url"]) as filesystem:
+            self.history = filesystem.load_file(
+                self.store.get_path(f"records/{scope}.p"), default=[]
+            )
+        self._record = OrderedDict()
 
     def write(self, key, value, fmt=None):
         """Writes a cell value

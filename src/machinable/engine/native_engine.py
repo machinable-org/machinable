@@ -47,7 +47,7 @@ class NativeEngine(Engine):
     ):
         if resources is not None:
             self.log(
-                "Resource specification are currently not supported. Use Ray Engine instead.",
+                "Engine does not support resource specification. Skipping ...",
                 level="warn",
             )
 

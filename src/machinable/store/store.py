@@ -4,8 +4,10 @@ import os
 import pendulum
 
 from ..utils.dicts import serialize
+from ..utils.utils import sentinel
 from .log import Log
 from .record import Record
+from ..filesystem import open_fs
 
 try:
     import cPickle as pickle
@@ -30,17 +32,20 @@ class Store:
         self.config = config
 
         # todo: migrate to FileSystem abstraction
-        from fs import open_fs
+        from fs import open_fs as openfs_legacy
 
-        self.filesystem = open_fs(self.config["url"], create=True)
+        self.filesystem = openfs_legacy(self.config["url"], create=True)
         self.filesystem.makedirs(
             self.get_path(), recreate=self.config.get("allow_overwrites", False)
         )
 
         self._record_writers = {}
         self._log = None
-        self._store = {}
         self.created_at = pendulum.now().timestamp()
+
+        # restore if existing
+        with open_fs(self.config["url"]) as filesystem:
+            self._store = filesystem.load_file(self.get_path("store.json"), default={})
 
     def get_record_writer(self, scope):
         """Creates or returns an instance of a record writer
@@ -121,7 +126,7 @@ class Store:
 
         if not _meta:
             path = "store/" + path
-            self.filesystem.makedir(self.get_path(path), recreate=True)
+        self.filesystem.makedir(self.get_path(path), recreate=True)
         filepath = os.path.join(path, name)
 
         # todo: check overwrite for files
@@ -168,6 +173,12 @@ class Store:
             self.component.events.trigger(
                 "store.on_change", "store.save", {"name": name, "data": data}
             )
+
+    def read(self, name, default=sentinel, _meta=False):
+        if not _meta:
+            name = "store/" + name
+        with open_fs(self.config["url"]) as filesystem:
+            return filesystem.load_file(self.get_path(name), default)
 
     def get_stream(self, path, mode="r", *args, **kwargs):
         """Returns a file stream on the store write
