@@ -56,8 +56,15 @@ def test_computable_resources():
     t = ml.Experiment().component(
         "thenode", resources=lambda config: {"test": config["alpha"]}
     )
-    e = ml.Execution(t, project=test_project).set_schedule()
+    # only compute resources for engines that support a resource specification
+    e = ml.Execution(t, project=test_project, engine="native").set_schedule()
+    assert e.schedule._elements[0][3] is None
+    e = e.set_engine("slurm").set_schedule()
     assert e.schedule._elements[0][3]["test"] == 0
+    # default resources
+    t = ml.Experiment().component("nodes.observations")
+    e = ml.Execution(t, project=test_project, engine="slurm").set_schedule()
+    assert e.schedule._elements[0][3]["used_engine"] == "Slurm"
 
 
 def test_experiment_directory():

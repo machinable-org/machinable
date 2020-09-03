@@ -8,5 +8,9 @@ class DryEngine(Engine):
     def __repr__(self):
         return "Dry run"
 
+    @staticmethod
+    def supports_resources():
+        return False
+
     def _submit(self, execution):
         return execution

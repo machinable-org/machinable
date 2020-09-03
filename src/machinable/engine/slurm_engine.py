@@ -103,9 +103,9 @@ class SlurmEngine(Engine):
         ) in execution.schedule.iterate(execution.storage.config):
             component_id = component["flags"]["COMPONENT_ID"]
             script = f"{self.script}\n"
-            script += f"export MACHINABLE_PROJECT={execution.project.directory_path}\n"
-            script += f"#SBATCH --job-name={execution.experiment_id}:{component_id}\n"
+            script += f'#SBATCH --job-name="{execution.experiment_id}:{component_id}"\n'
             script += f"#SBATCH -o {os.path.join(script_url.replace('osfs://', ''), component_id + '.out')}\n"
+            script += f"export MACHINABLE_PROJECT={execution.project.directory_path}\n"
             try:
                 script += self.commands["before_script"] + ";\n"
             except KeyError:
@@ -175,4 +175,4 @@ class SlurmEngine(Engine):
         return storage
 
     def __repr__(self):
-        return f"Slurm()"
+        return f"Slurm"

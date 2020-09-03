@@ -9,6 +9,7 @@ import yaml
 from ..config.interface import ConfigInterface
 from ..core.exceptions import ExecutionException
 from ..core.settings import get_settings
+from ..config.mapping import config_map
 from ..engine import Engine
 from ..execution.schedule import Schedule
 from ..experiment.experiment import Experiment
@@ -215,24 +216,43 @@ class Execution(Jsonable):
         for index, (node, components, resources) in enumerate(
             parse_experiment(self.experiment, seed=self.seed)
         ):
-            node_config, components_config = config.get(node, components)
+            component_config, components_config = config.get(node, components)
 
             # compute resources
-            if callable(resources):
+            if isinstance(self.engine, Engine) and not self.engine.supports_resources():
+                if resources is not None:
+                    msg(
+                        "Engine does not support resource specification. Skipping ...",
+                        level="warn",
+                        color="header",
+                    )
+                    resources = None
+            elif callable(resources):
                 resources = config.call_with_context(
-                    resources, node_config, components_config
+                    resources, component_config, components_config
+                )
+            elif resources is None:
+
+                def m(c):
+                    c["config"] = c["args"]
+                    return config_map(c)
+
+                resources = Registration.get().default_resources(
+                    engine=self.engine,
+                    component=m(component_config),
+                    components=[m(component) for component in components_config],
                 )
 
             if "tune" in self.experiment.specification:
                 self.schedule.add_tune(
-                    component=node_config,
+                    component=component_config,
                     components=components_config,
                     resources=resources,
                     **self.experiment.specification["tune"]["arguments"],
                 )
             else:
                 self.schedule.add_execute(
-                    component=node_config,
+                    component=component_config,
                     components=components_config,
                     resources=resources,
                 )
@@ -369,7 +389,7 @@ class Execution(Jsonable):
 
     def set_result(self, result, index=None):
         if index is None:
-            index = len(self.schedule) - 1
+            index = len(self.schedule._result)
         if isinstance(result, ExecutionException):
             self.failures += 1
             if self._behavior["raise_exceptions"]:

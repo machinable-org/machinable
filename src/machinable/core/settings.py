@@ -2,7 +2,8 @@ import os
 
 import yaml
 
-from machinable.utils.dicts import update_dict
+from ..utils.dicts import update_dict
+from ..config.mapping import config_map
 
 _settings = None
 
@@ -19,17 +20,19 @@ def get_settings(reload=False, file="~/.machinable/settings.yaml"):
             _settings = {"_errors": f"Invalid configuration file: {e}"}
 
         # defaults
-        _settings = update_dict(
-            {
-                "cache": {"imports": False},
-                "imports": {},
-                "tmp_directory": "userdata://machinable:machinable/tmp",
-                "default_storage": "mem://",
-                "default_directory": None,
-                "default_engine": None,
-                "default_index": None,
-            },
-            _settings,
+        _settings = config_map(
+            update_dict(
+                {
+                    "cache": {"imports": False},
+                    "imports": {},
+                    "tmp_directory": "userdata://machinable:machinable/tmp",
+                    "default_storage": "mem://",
+                    "default_directory": None,
+                    "default_engine": None,
+                    "default_index": None,
+                },
+                _settings,
+            )
         )
 
     return _settings

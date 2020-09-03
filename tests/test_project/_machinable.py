@@ -1,4 +1,5 @@
 from machinable.registration import Registration
+from machinable.engine import Slurm
 
 
 class Project(Registration):
@@ -7,3 +8,7 @@ class Project(Registration):
 
     def host_test_info(self):
         return "test_info"
+
+    def default_resources(self, engine, component, components):
+        if isinstance(engine, Slurm):
+            return {"used_engine": "Slurm"}

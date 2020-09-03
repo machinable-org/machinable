@@ -52,3 +52,7 @@ class Registration:
         is_resubmission: Boolean indicating whether execution is an existing resubmission
         """
         pass
+
+    def default_resources(self, engine, component, components):
+        """Allows to specify global default resources"""
+        return None

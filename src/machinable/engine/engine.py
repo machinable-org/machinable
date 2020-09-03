@@ -101,6 +101,10 @@ class Engine(Jsonable):
     def unserialize(cls, serialized):
         return cls.create(serialized)
 
+    @staticmethod
+    def supports_resources():
+        return True
+
     def submit(self, execution):
         """Retrieves an execution instance for execution
 
@@ -147,7 +151,7 @@ class Engine(Jsonable):
         return storage
 
     def log(self, text, level="info"):
-        msg("Engine: " + text, level, color="blue")
+        msg("[Engine] " + text, level, color="header")
 
     def __str__(self):
         return self.__repr__()

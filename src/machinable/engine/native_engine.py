@@ -11,6 +11,10 @@ class NativeEngine(Engine):
 
         Engine.set_latest(self)
 
+    @staticmethod
+    def supports_resources():
+        return False
+
     def __repr__(self):
         return "Native"
 
@@ -45,11 +49,5 @@ class NativeEngine(Engine):
         args=None,
         kwargs=None,
     ):
-        if resources is not None:
-            self.log(
-                "Engine does not support resource specification. Skipping ...",
-                level="warn",
-            )
-
         nd = component["class"](component["args"], component["flags"])
         return nd.dispatch(components, storage)

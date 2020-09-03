@@ -2,6 +2,11 @@
 
 <!-- Please add changes under the Unreleased section that reads 'No current changes' otherwise -->
 
+## Unreleased
+
+ - Specify default resources in Registration
+ - Engines can specify support for resource specification
+
 ## v2.4.0
 
  - GraphQL server supports basic execution, index and storage APIs

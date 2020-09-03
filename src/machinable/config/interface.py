@@ -94,7 +94,7 @@ class ConfigInterface:
             elif key == "flags":
                 payload["flags"] = config_map(node["flags"])
             elif components is not None and key == "components":
-                payload["components"] = [component for component in components]
+                payload["components"] = components
             elif resources is not None and key == "resources":
                 payload["resources"] = resources
             else:
