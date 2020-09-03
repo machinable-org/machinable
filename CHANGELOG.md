@@ -4,6 +4,7 @@
 
 ## Unreleased
 
+ - Configuration updates are validated to only override existing keys to guard against unrecognised typos
  - Specify default resources in Registration
  - Engines can specify support for resource specification
 
