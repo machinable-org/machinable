@@ -244,7 +244,7 @@ class ConfigInterface:
                 # merge with version
                 version = update_dict(version, k)
 
-        config["args"] = update_dict(config["args"], version)
+        config["args"] = update_dict(config["args"], version, preserve_schema=True)
 
         # remove unused versions
         config["args"] = {

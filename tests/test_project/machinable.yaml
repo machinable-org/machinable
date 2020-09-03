@@ -23,7 +23,17 @@ components:
   - thenode:
       timeout: 0
       a: through_config_method(1)
+      b:
       alpha: 0
+      works:
+      nested:
+      added:
+      q:
+      key:
+        mixing:
+        very:
+      beta:
+        test:
       ~one:
         alpha: 1
         beta:
@@ -69,6 +79,12 @@ components:
   - thechildren=cool:
       alpha: 0
       bla: blub
+      key:
+        mixing:
+        very:
+        overwritten:
+      beta:
+        test: False
       ~local:
         bla: boo
         a: 5
@@ -108,9 +124,11 @@ components:
   - flattened_notation^inherited_flatness:
       flat:
         nested: True
+        merge:
       flat.can.be.useful: True
       flat.can_also_save_space: ' '
       flat.version: 1
+      more.nested.values: False
       ~flat_version:
         flat:
           nested: False
@@ -124,6 +142,10 @@ components:nodes:
           - 2
           - 3
       to_test: 'observations'
+      test: False
+      corrupt: False
+      attr:
+      version:
       ~test:
         version: 0
   - timings:
@@ -133,6 +155,7 @@ components:workers:
   - interactive:
       id: 1
       attr: worker
+      version:
       ~test:
         version: 1
   - inheritance_from_other_section^thenode:

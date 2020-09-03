@@ -173,8 +173,8 @@ def parse_references(config, root=None, this=None, validate=False):
                     )
                 if k in _used_keys:
                     msg(
-                        f"The configuration key '{k}' is a build-in mapping name and should not be used"
-                        f"in machinable configuration keys as any dot-notation will become ambiguous.",
+                        f"The configuration key '{k}' is a build-in mapping name and should not be used "
+                        f"in machinable configuration keys since dot-notation will become ambiguous.",
                         level="warning",
                         color="fail",
                     )

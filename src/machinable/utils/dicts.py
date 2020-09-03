@@ -20,16 +20,33 @@ def get_or_fail(dict_likes, key, error="'{}' not found", options=None):
     raise KeyError(error.format(key) + options)
 
 
-def update_dict(d, update=None, copy=False):
+def update_dict(d, update=None, copy=False, preserve_schema=False):
+    if preserve_schema is True:
+        preserve_schema = ""
     if d is None:
         d = {}
     if copy:
         d = d.copy()
-    if not update or update is None:
+    if not update:
         return d
     for k, v in update.items():
+        # if preserve_schema, check that key is present in update target
+        if isinstance(preserve_schema, str):
+            if not isinstance(d, Mapping) or k not in d:
+                if not preserve_schema.startswith("~"):
+                    raise KeyError(
+                        f"Invalid key: `{preserve_schema}{'.' if preserve_schema else ''}{k}` cannot be updated."
+                    )
+        if not isinstance(d, Mapping):
+            raise ValueError("d must be a mapping")
         if isinstance(v, Mapping):
-            d[k] = update_dict(d.get(k, {}), v, copy=copy)
+            # pass key path down to next level
+            path = preserve_schema
+            if isinstance(path, str):
+                if len(path) > 0:
+                    path += "."
+                path += k
+            d[k] = update_dict(d.get(k, {}), v, copy=copy, preserve_schema=path)
         else:
             d[k] = v
     return d

@@ -102,11 +102,11 @@ def test_computed_versioning():
     test_project = Project("./test_project")
 
     t = Experiment().components(
-        ("thenode", {"alpha": lambda: 3.14, "cond": lambda config: config.alpha})
+        ("thenode", {"alpha": lambda: 3.14, "b": lambda config: config.alpha})
     )
     e, m = to_config(test_project, t)
     assert e["alpha"] == 3.14
-    assert e["cond"] == 0
+    assert e["b"] == 0
 
 
 def test_unflatten_arguments():
