@@ -24,6 +24,11 @@ def collect_updates(version):
     return collection
 
 
+def mapped_config(config):
+    config["config"] = config["args"]
+    return config_map(config)
+
+
 class ConfigInterface:
     def __init__(self, parsed_config, version=None, default_class=None):
         self.data = parsed_config
@@ -75,7 +80,7 @@ class ConfigInterface:
         )
 
     @staticmethod
-    def call_with_context(function, node, components=None, resources=None):
+    def call_with_context(function, component, components=None, resources=None):
         signature = inspect.signature(function)
         payload = OrderedDict()
 
@@ -87,14 +92,14 @@ class ConfigInterface:
                     f"for example lambda(node, components, resources)"
                 )
 
-            if key == "node":
-                payload["node"] = config_map(node)
+            if key == "component":
+                payload["component"] = mapped_config(component)
             elif key == "config":
-                payload["config"] = config_map(node["args"])
+                payload["config"] = config_map(component["args"])
             elif key == "flags":
-                payload["flags"] = config_map(node["flags"])
+                payload["flags"] = config_map(component["flags"])
             elif components is not None and key == "components":
-                payload["components"] = components
+                payload["components"] = [mapped_config(c) for c in components]
             elif resources is not None and key == "resources":
                 payload["resources"] = resources
             else:

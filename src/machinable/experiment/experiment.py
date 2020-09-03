@@ -256,12 +256,11 @@ class Experiment(Jsonable):
 
         You can condition the resource specification on the configuration, for example:
         ```python
-        resources = lambda(config): {'gpu': config.num_gpus }
+        resources = lambda(engine, component, components): {'gpu': component.config.num_gpus }
         ```
-        The arguments of the callable are passed in only if requested by the signature. Options are:
-        node - The full component specification
-        config - alias for node.args
-        flags - alias for node.flags
+        The arguments of the callable are:
+        engine - The engine instance
+        component - The full component specification (config, flags, module)
         components - List of sub-component specifications
         """
         return self.components(

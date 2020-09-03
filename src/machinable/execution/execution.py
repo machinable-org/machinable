@@ -6,7 +6,7 @@ from typing import Any, Callable, Union
 import pendulum
 import yaml
 
-from ..config.interface import ConfigInterface
+from ..config.interface import ConfigInterface, mapped_config
 from ..core.exceptions import ExecutionException
 from ..core.settings import get_settings
 from ..config.mapping import config_map
@@ -228,19 +228,20 @@ class Execution(Jsonable):
                     )
                     resources = None
             elif callable(resources):
-                resources = config.call_with_context(
-                    resources, component_config, components_config
+                resources = resources(
+                    engine=self.engine,
+                    component=mapped_config(component_config),
+                    components=[
+                        mapped_config(component) for component in components_config
+                    ],
                 )
             elif resources is None:
-
-                def m(c):
-                    c["config"] = c["args"]
-                    return config_map(c)
-
                 resources = Registration.get().default_resources(
                     engine=self.engine,
-                    component=m(component_config),
-                    components=[m(component) for component in components_config],
+                    component=mapped_config(component_config),
+                    components=[
+                        mapped_config(component) for component in components_config
+                    ],
                 )
 
             if "tune" in self.experiment.specification:

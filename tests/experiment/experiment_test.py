@@ -54,7 +54,10 @@ def test_experiment_config():
 def test_computable_resources():
     test_project = Project("./test_project")
     t = ml.Experiment().component(
-        "thenode", resources=lambda config: {"test": config["alpha"]}
+        "thenode",
+        resources=lambda engine, component, components: {
+            "test": component.config["alpha"]
+        },
     )
     # only compute resources for engines that support a resource specification
     e = ml.Execution(t, project=test_project, engine="native").set_schedule()
