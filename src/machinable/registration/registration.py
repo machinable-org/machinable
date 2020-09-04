@@ -53,6 +53,34 @@ class Registration:
         """
         pass
 
+    def on_before_component_import(self, module, baseclass, default):
+        """Event triggered before a component is imported from a module
+
+        You can prevent the import and return a component from this method to be used instead.
+
+        # Arguments
+        module: String, the module path that is about to be imported
+        baseclass: The component baseclass (either Component or Mixin)
+        default: Optional default component that will be used if import fails
+        """
+        return None
+
+    def on_component_import(self, component_candidate, module, baseclass, default):
+        """Event triggered during component import from a module
+
+        You can override the component candidate by returning a component from this method.
+
+        # Arguments
+        component_candidate: Imported component candidate.
+          Can also be instance of ImportError if the import failed or AttributeError if
+          the imported module did not contain a component which allows you to implement
+          a custom exception behaviour.
+        module: String, the module path that is about to be imported
+        baseclass: The component baseclass (either Component or Mixin)
+        default: Optional default component that will be used if import fails
+        """
+        return None
+
     def default_resources(self, engine, component, components):
         """Allows to specify global default resources"""
         return None

@@ -77,14 +77,14 @@ def test_component_injection():
         def on_create_no_params(self):
             pass
 
-        def on_create_manual(self, node, first, _second, third):
-            assert node is None
+        def on_create_manual(self, first, _second, third):
+            assert self.node is None
             assert isinstance(first, DummyChild)
             assert isinstance(_second, DummyChild)
             assert isinstance(third, DummyChild)
 
-        def on_create_manual_with_node(self, node, first, _second, third):
-            assert isinstance(node, DummyChild)
+        def on_create_manual_with_node(self, first, _second, third):
+            assert isinstance(self.node, DummyChild)
             assert isinstance(first, DummyChild)
             assert isinstance(_second, DummyChild)
             assert isinstance(third, DummyChild)

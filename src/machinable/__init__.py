@@ -65,12 +65,16 @@ def execute(
     The execution returns an machinable.Execution object that contains the
     result of the execution
     """
-    if callable(experiment):
+    from inspect import isclass
+
+    if not isinstance(experiment, Experiment) and (
+        isclass(experiment) or callable(experiment)
+    ):
         # decorator use
         if None not in (storage, engine, index, project, seed):
             raise ValueError(
                 "execute decorator takes no arguments; "
-                "call the decorated function with arguments instead."
+                "call the decorated object with arguments instead."
             )
         functional_component = experiment
 

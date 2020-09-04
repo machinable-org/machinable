@@ -1,5 +1,6 @@
 from machinable.registration import Registration
 from machinable.engine import Slurm
+from nodes.default_fallback import DefaultFallback
 
 
 class Project(Registration):
@@ -12,3 +13,7 @@ class Project(Registration):
     def default_resources(self, engine, component, components):
         if isinstance(engine, Slurm):
             return {"used_engine": "Slurm"}
+
+    def on_before_component_import(self, module, baseclass, default):
+        if module.endswith("uses_default_module"):
+            return DefaultFallback

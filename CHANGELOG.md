@@ -3,7 +3,9 @@
 <!-- Please add changes under the Unreleased section that reads 'No current changes' otherwise -->
 
 ## Unreleased
-
+ 
+ - Execution/execute can now be used to decorate Components classes
+ - New `on_component_import` events in Registration
  - Configuration updates are validated to only override existing keys to guard against unrecognised typos
  - Specify default resources in Registration
  - Engines can specify support for resource specification

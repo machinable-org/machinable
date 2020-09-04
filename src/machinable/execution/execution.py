@@ -1,5 +1,6 @@
 import ast
 import os
+import inspect
 from datetime import datetime as dt
 from typing import Any, Callable, Union
 
@@ -67,12 +68,14 @@ class Execution(Jsonable):
         self.code_version = None
         self.started_at = None
 
-        if callable(experiment):
+        if not isinstance(experiment, Experiment) and (
+            inspect.isclass(experiment) or callable(experiment)
+        ):
             # decorator use
-            if None not in (storage, engine, project, seed):
+            if None not in (storage, engine, index, project, seed):
                 raise ValueError(
                     "Execution decorator takes no arguments; "
-                    "call the decorated function with arguments instead."
+                    "call the decorated object with arguments instead."
                 )
             self.function = experiment
             return
@@ -87,11 +90,14 @@ class Execution(Jsonable):
         self._behavior = {"raise_exceptions": False}
         self.failures = 0
 
-    def __call__(self, experiment, storage=None, engine=None, project=None, seed=None):
+    def __call__(
+        self, experiment, storage=None, engine=None, index=None, project=None, seed=None
+    ):
+        self.set_project(project)
         self.set_storage(storage)
         self.set_experiment(experiment)
         self.set_engine(engine)
-        self.set_project(project)
+        self.set_index(index)
         self.set_seed(seed)
         if self.function is not None:
             # decorator invocation

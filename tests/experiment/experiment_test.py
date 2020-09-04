@@ -70,6 +70,12 @@ def test_computable_resources():
     assert e.schedule._elements[0][3]["used_engine"] == "Slurm"
 
 
+def test_default_component():
+    test_project = Project("./test_project")
+    t = ml.Experiment().component("uses_default_module")
+    ml.execute(t, project=test_project)
+
+
 def test_experiment_directory():
     e = ml.Execution(
         "@/test_project/experiments/auto_directory", project="./test_project",

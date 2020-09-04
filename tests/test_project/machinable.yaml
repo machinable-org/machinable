@@ -133,6 +133,8 @@ components:
         flat:
           nested: False
         flat.version: 2
+  - uses_default_module:
+      works: True
 components:nodes:
   - observations:
       id: -1

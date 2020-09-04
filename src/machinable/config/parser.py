@@ -7,6 +7,7 @@ from flatten_dict import unflatten
 from ..utils.dicts import get_or_fail, read_path_dict, update_dict
 from ..utils.formatting import exception_to_str, msg
 from ..utils.utils import is_valid_variable_name
+from ..registration import Registration
 from .mapping import _reserved_keys, _used_keys
 
 
@@ -20,7 +21,16 @@ class ModuleClass(object):
     def load(self, instantiate=True, default=None):
         if default is None:
             default = self.default_class
-        module_class = default
+
+        # allow overrides
+        registration = Registration.get()
+        on_before_component_import = registration.on_before_component_import(
+            module=self.module_name, baseclass=self.baseclass, default=default
+        )
+        if on_before_component_import is not None:
+            return on_before_component_import
+
+        module_class = None
         try:
             module = importlib.import_module(self.module_name)
             try:
@@ -41,19 +51,34 @@ class ModuleClass(object):
                     break
 
             if module_class is None:
-                raise AttributeError(
+                module_class = AttributeError(
                     f"Could not load module class from module '{self.module_name}'. "
                     f"Make sure the module contains a class that inherits from "
                     f"the baseclass 'machinable.{self.baseclass.__name__}'"
                 )
         except ImportError as e:
             if default is None:
-                raise ImportError(
+                module_class = ImportError(
                     f"Could not import module '{self.module_name}' "
                     f"that is specified in the machinable.yaml. "
                     f"The following exception occurred: {exception_to_str(e)}. "
                     f"If the module is a directory, consider creating an __init__.py."
                 )
+
+        on_component_import = registration.on_component_import(
+            component_candidate=module_class,
+            module=self.module_name,
+            baseclass=self.baseclass,
+            default=default,
+        )
+        if on_component_import is not None:
+            return on_component_import
+
+        if isinstance(module_class, (ImportError, AttributeError)):
+            raise module_class
+
+        if module_class is None:
+            module_class = default
 
         if not instantiate:
             return module_class

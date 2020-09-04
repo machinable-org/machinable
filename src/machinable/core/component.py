@@ -59,30 +59,23 @@ def inject_components(component, components, on_create):
                 f"on_create only allows simple positional or keyword arguments"
             )
 
-        if index == 0 and key != "node":
-            raise TypeError(
-                f"First argument of on_create has to be 'node', received '{key}' instead."
-            )
+        try:
+            c = components[index]
+            alias = parameter.name
+            if not parameter.name.startswith("_"):
+                c.create()
+                alias = parameter.name[1:]
+            payload[parameter.name] = c
+            component.flags.COMPONENTS_ALIAS[alias] = index
+        except IndexError:
+            if parameter.default is parameter.empty:
+                raise TypeError(
+                    f"Component {component.__class__.__name__}.on_create requires "
+                    f"a component argument '{parameter.name}'. Please specify the "
+                    f"component in Experiment.components()."
+                )
 
-        if key == "node":
-            payload["node"] = component.node
-        else:
-            try:
-                c = components[index - 1]
-                alias = parameter.name
-                if not parameter.name.startswith("_"):
-                    c.create()
-                    alias = parameter.name[1:]
-                payload[parameter.name] = c
-                component.flags.COMPONENTS_ALIAS[alias] = index - 1
-            except IndexError:
-                if parameter.default is parameter.empty:
-                    raise TypeError(
-                        f"Component {component.__class__.__name__}.on_create requires a components "
-                        f"'{parameter.name}' but only {len(components)} were provided."
-                    )
-
-                payload[parameter.name] = parameter.default
+            payload[parameter.name] = parameter.default
 
     on_create(**payload)
 
@@ -439,8 +432,8 @@ class Component(Mixin):
         """Creates the components
 
         ::: tip
-        This method is triggered automatically. However, child components creation can be suppressed in the on_create
-        event of the node components. See [on_create](#on_create) for details.
+        This method is triggered automatically. However, sub-component creation can be suppressed in the on_create
+        event of the node component. See [on_create](#on_create) for details.
         :::
 
         Triggers create events of the lifecycle
@@ -453,7 +446,7 @@ class Component(Mixin):
         if components is not None:
             self.components = components
 
-        # prepare child components and invoke on_create event
+        # prepare sub components and invoke on_create event
         inject_components(self, self.components, self.on_create)
 
         self.on_after_create()
@@ -856,11 +849,11 @@ class FunctionalComponent:
                 # disallow *args and **kwargs
                 raise TypeError(
                     f"Component only allows simple positional or keyword arguments,"
-                    f"for example my_component(node, components, store)"
+                    f"for example my_component(component, components, store)"
                 )
 
-            if key == "node":
-                payload["node"] = config_map(self.node)
+            if key == "component":
+                payload["component"] = config_map(self.node)
             elif key == "components":
                 payload["components"] = [
                     config_map(component) for component in components
@@ -889,7 +882,7 @@ class FunctionalComponent:
                 raise ValueError(
                     f"Unrecognized argument: '{key}'. "
                     f"Components take the following arguments: "
-                    f"'node', 'components' and 'store'"
+                    f"'component', 'components' and 'store'"
                 )
 
         try:

@@ -1,6 +1,6 @@
 import os
 
-from machinable import Execution, Experiment, execute
+from machinable import Execution, Experiment, execute, Component
 
 
 def test_execution_from_storage():
@@ -9,15 +9,38 @@ def test_execution_from_storage():
     e.submit()
 
 
-def test_execute_decorator():
+def test_execution_decorators():
+    t = Experiment().components("thenode", "thechildren")
+
     @execute
-    def run(node, components, store):
-        assert node.config.alpha == 0
-        store.log.info("Custom training with learning_rate=" + str(node.config.a))
+    def run(component, components, store):
+        assert component.config.alpha == 0
+        store.log.info("Custom training with learning_rate=" + str(component.config.a))
         assert components[0].config.alpha == 0
 
-    t = Experiment().components("thenode", "thechildren")
-    run(t, seed=1, project="./test_project")
+    assert run(t, seed=1, project="./test_project").failures == 0
+
+    @Execution
+    def run_2(component, components, store):
+        assert component.config.alpha == 0
+        store.log.info("Execution decorator")
+        assert components[0].config.alpha == 0
+
+    assert run_2(t, seed=1, project="./test_project").submit().failures == 0
+
+    @execute
+    class Test(Component):
+        def config_through_config_method(self, arg):
+            return arg
+
+    assert Test(t, seed=1, project="./test_project").failures == 0
+
+    @Execution
+    class Test_2(Component):
+        def config_through_config_method(self, arg):
+            return arg
+
+    assert Test_2(t, seed=1, project="./test_project").submit().failures == 0
 
 
 def test_execution_setters():
