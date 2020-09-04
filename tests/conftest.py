@@ -61,8 +61,8 @@ def pytest_sessionstart(session):
     # sub-experiments
     assert (
         ml.execute(
-            ml.Experiment().component("nodes.observations").directory("subexperiment"),
-            os.path.join(path, "tttttt"),
+            ml.Experiment().component("nodes.observations"),
+            {"url": os.path.join(path, "tttttt"), "directory": "subexperiment"},
             seed="SUBEXP",
             project="./test_project",
         ).failures
@@ -70,8 +70,8 @@ def pytest_sessionstart(session):
     )
     assert (
         ml.execute(
-            ml.Experiment().component("nodes.observations").directory("sub/test"),
-            os.path.join(path, "tttttt"),
+            ml.Experiment().component("nodes.observations"),
+            {"url": os.path.join(path, "tttttt"), "directory": "sub/test"},
             project="./test_project",
         ).failures
         == 0
@@ -79,10 +79,8 @@ def pytest_sessionstart(session):
 
     assert (
         ml.execute(
-            ml.Experiment()
-            .components(("nodes.observations", {"id": 4}))
-            .directory("subdirectory"),
-            path,
+            ml.Experiment().components(("nodes.observations", {"id": 4})),
+            os.path.join(path, "subdirectory"),
             seed="TTTTTT",
             project="./test_project",
         ).failures

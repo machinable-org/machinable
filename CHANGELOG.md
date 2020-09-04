@@ -4,6 +4,7 @@
 
 ## Unreleased
  
+ - Directory specification is now part of the storage configuration
  - Execution/execute can now be used to decorate Components classes
  - New `on_component_import` events in Registration
  - Configuration updates are validated to only override existing keys to guard against unrecognised typos

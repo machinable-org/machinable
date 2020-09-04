@@ -4,6 +4,7 @@ from typing import Tuple, Type, Union
 
 from ..utils.importing import resolve_instance
 from ..utils.traits import Jsonable
+from ..utils.utils import is_valid_module_path
 
 
 class ExperimentComponent(Jsonable):
@@ -110,6 +111,16 @@ class Experiment(Jsonable):
         self._specs = OrderedDict()
         _latest[0] = self
 
+    def __repr__(self):
+        spec = self.specification
+        r = "Experiment"
+        if spec["name"] is not None:
+            r += f" <{spec['name']}>"
+        r += f" ({len(spec['components'])})"
+
+    def __str__(self):
+        return self.__repr__()
+
     @classmethod
     def latest(cls):
         return _latest[0]
@@ -117,25 +128,6 @@ class Experiment(Jsonable):
     @classmethod
     def set_latest(cls, latest):
         _latest[0] = latest
-
-    def directory(self, path: str):
-        """Set the directory of the experiment
-
-        Relative path that gets appended to the storage directory of this experiment
-
-        # Arguments
-        path: String, defines the directory name as string which may contain the following variables:
-            - &MODULE will be replaced by the experiment module name (empty if it can not be determined)
-            - &PROJECT will be replaced by project name (empty if it can not be determined)
-            - %x expressions will be replaced by strftime
-        """
-        if not isinstance(path, str):
-            raise ValueError("Name must be a string")
-        if path[0] == "/":
-            raise ValueError("Directory must be relative")
-        self._specs["directory"] = path
-
-        return self
 
     @classmethod
     def create(cls, args):
@@ -184,7 +176,7 @@ class Experiment(Jsonable):
         spec.setdefault("components", [])
         spec.setdefault("repeats", [])
         spec.setdefault("version", [])
-        spec.setdefault("directory", None)
+        spec.setdefault("name", None)
 
         self._cache = spec
 
@@ -232,6 +224,22 @@ class Experiment(Jsonable):
         task = __class__()
         task.specification = self.specification.copy()
         return task
+
+    def name(self, name: str):
+        """Sets an experiment name
+
+        # Arguments
+        name: String, experiment name.
+          Must be a valid Python variable name or path e.g. `my_name` or `example.name` etc.
+        """
+        if not is_valid_module_path(name):
+            raise ValueError(
+                "Name must be a valid Python variable name or path e.g. `my_name` or `example.name` etc. "
+                f"{name} given."
+            )
+        self._specs["name"] = name
+
+        return self
 
     def component(
         self, name, version=None, checkpoint=None, flags=None, resources=None
@@ -398,6 +406,7 @@ class Experiment(Jsonable):
 
         The arguments differ based on the used engine.
 
-        - Ray engine: Uses [Ray tune](https://ray.readthedocs.io/en/latest/tune.html) ([Argument reference](https://ray.readthedocs.io/en/latest/tune/api_docs/execution.html#tune-run))
+        - Ray engine: Uses [Ray tune](https://ray.readthedocs.io/en/latest/tune.html)
+          ([Argument reference](https://ray.readthedocs.io/en/latest/tune/api_docs/execution.html#tune-run))
         """
         return self._spec("tune", locals())

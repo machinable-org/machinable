@@ -74,11 +74,3 @@ def test_default_component():
     test_project = Project("./test_project")
     t = ml.Experiment().component("uses_default_module")
     ml.execute(t, project=test_project)
-
-
-def test_experiment_directory():
-    e = ml.Execution(
-        "@/test_project/experiments/auto_directory", project="./test_project",
-    )
-    e.set_schedule()
-    assert e.storage.config["directory"][:-2] == "test_project 20"

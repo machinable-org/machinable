@@ -19,6 +19,12 @@ class Storage:
         if isinstance(config, str):
             config = {"url": config}
 
+        # shorthand directory notation {"path/example"} -> {"directory": "path/example"}
+        if isinstance(config, set):
+            if len(config) != 1 or not isinstance(next(iter(config)), str):
+                raise ValueError(f"Invalid storage config: {config}")
+            config = {"directory": config.pop()}
+
         # default settings
         self.config = update_dict(
             {
@@ -59,6 +65,27 @@ class Storage:
             args = copy.deepcopy(args)
 
         return cls(args)
+
+    def set_directory(self, directory: str):
+        """Set the directory of the storage
+
+        Relative path that gets appended to the storage directory of this experiment
+
+        # Arguments
+        directory: String, defines the directory name as string which may contain the following variables:
+            - &EXPERIMENT will be replaced by the experiment name
+            - &PROJECT will be replaced by project name
+            - %x expressions will be replaced by strftime
+            The variables are expanded following GNU bash's variable expansion rules, e.g.
+             `&{EXPERIMENT:-default_value}` or `&{PROJECT:?}` can be used.
+        """
+        if not isinstance(directory, str):
+            raise ValueError("Name must be a string")
+        if directory[0] == "/":
+            raise ValueError("Directory must be relative")
+        self.config["directory"] = directory
+
+        return self
 
     def get_url(self):
         return os.path.join(
