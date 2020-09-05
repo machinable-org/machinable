@@ -7,7 +7,7 @@ from typing import Any, Callable, Union
 import pendulum
 import yaml
 
-from expandvars import expandvars
+from expandvars import expand
 from ..config.interface import ConfigInterface, mapped_config
 from ..core.exceptions import ExecutionException
 from ..core.settings import get_settings
@@ -293,35 +293,20 @@ class Execution(Jsonable):
 
         # expand variables in storage directory
         if isinstance(self.storage.config["directory"], str):
-            # simplify if proposed expandvars changes are accepted
-            # https://github.com/sayanarijit/expandvars/issues/25
-            # https://github.com/sayanarijit/expandvars/issues/26
-
-            _environ_project = os.environ.get("PROJECT")
+            # % variables
+            variables = dict()
             try:
-                project_name = self.project.name if self.project else None
+                variables["PROJECT"] = self.project.name if self.project else None
             except (KeyError, ValueError):
-                project_name = None
-            if project_name is not None:
-                os.environ["PROJECT"] = project_name
-            _environ_experiment = os.environ.get("EXPERIMENT")
-            experiment_name = (
+                variables["PROJECT"] = None
+
+            variables["EXPERIMENT"] = (
                 self.experiment.specification["name"] if self.experiment else ""
             )
-            if experiment_name is not None:
-                os.environ["EXPERIMENT"] = experiment_name
 
-            self.storage.config["directory"].replace("&", "$")
-            self.storage.config["directory"] = expandvars(
-                self.storage.config["directory"]
+            self.storage.config["directory"] = expand(
+                self.storage.config["directory"], environ=variables, var_symbol="&"
             )
-
-            if _environ_project is not None:
-                os.environ["PROJECT"] = _environ_project
-            if _environ_experiment is not None:
-                os.environ["EXPERIMENT"] = _environ_experiment
-            # ---
-
             # strftime variables
             try:
                 self.storage.config["directory"] = dt.now().strftime(
