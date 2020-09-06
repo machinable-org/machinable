@@ -2,7 +2,7 @@
 
 <!-- Please add changes under the Unreleased section that reads 'No current changes' otherwise -->
 
-## Unreleased
+## v2.5.0
  
  - Directory specification is now part of the storage configuration
  - Execution/execute can now be used to decorate Components classes
