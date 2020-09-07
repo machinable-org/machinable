@@ -301,7 +301,9 @@ class Execution(Jsonable):
                 variables["PROJECT"] = None
 
             variables["EXPERIMENT"] = (
-                self.experiment.specification["name"] if self.experiment else ""
+                self.experiment.specification["name"].replace(".", "/")
+                if self.experiment.specification["name"] is not None
+                else ""
             )
 
             self.storage.config["directory"] = expand(
@@ -567,11 +569,33 @@ class Execution(Jsonable):
             f"\nExecution: {self.experiment_id}\n----------", color="header",
         )
         msg(
-            f"Storage: {self.storage}", color="blue",
+            f"{repr(self.storage)}", color="blue",
         )
-        msg(f"Engine: {repr(self.engine)}", color="blue")
-        msg(f"Index: {repr(self.index)}", color="blue")
-        msg(f"Project: {repr(self.project)}", color="blue")
+        msg(f"{repr(self.engine)}", color="blue")
+        msg(f"{repr(self.index)}", color="blue")
+        msg(f"{repr(self.project)}", color="blue")
+        msg(f"Seed <{self.seed}>", color="blue")
+
+        def _flags(flags):
+            filtered = {
+                k: v
+                for k, v in flags.items()
+                if k
+                not in {
+                    "GLOBAL_SEED",
+                    "EXPERIMENT_ID",
+                    "SEED",
+                    "COMPONENT_ID",
+                    "REPEAT_SEED",
+                    "REPEAT_TOTAL",
+                    "REPEAT_NUMBER",
+                    "NAME",
+                    "MODULE",
+                }
+            }
+            if len(filtered) == 0:
+                return ""
+            return yaml.dump(filtered, default_flow_style=False)
 
         for (
             index,
@@ -582,29 +606,30 @@ class Execution(Jsonable):
             if shortened:
                 if index == 1:
                     msg(
-                        f"[ + {len(self.schedule) - 2} other experiments ]",
+                        f"[ + {len(self.schedule) - 2} other components ]",
                         color="header",
                     )
                 continue
 
             msg(
-                f"\n{self.components[index]} ({index + 1}/{len(self.schedule)})",
-                color="header",
+                f"\nComponent: {component['name']} <{self.components[index]}> ({index + 1}/{len(self.schedule)})",
+                color="green",
             )
 
-            msg(f"\nComponent: {component['name']}", color="yellow")
-            msg(f":: {component['flags']}")
             if len(component["versions"]) > 0:
                 msg(f">> {', '.join(component['versions'])}", color="green")
-            msg(yaml.dump(component["args"]), color="blue")
+            msg(_flags(component["flags"]))
+            msg(yaml.dump(component["args"], default_flow_style=False), color="blue")
 
             for c in components:
                 if c:
-                    msg(f"\t {c['name']}", color="yellow")
-                    msg(f"\t:: {c['flags']}")
+                    msg(f"\t{c['name']}", color="yellow")
                     if len(c["versions"]) > 0:
                         msg(f"\t>> {', '.join(c['versions'])}", color="green")
-                    msg("\t" + yaml.dump(c["args"]), color="blue")
+                    msg(_flags(c["flags"]))
+                    msg(
+                        yaml.dump(c["args"], default_flow_style=False), color="blue",
+                    )
 
         return self
 

@@ -2,6 +2,10 @@
 
 <!-- Please add changes under the Unreleased section that reads 'No current changes' otherwise -->
 
+## Unreleased
+
+ - Cleaner Execution.summary()
+
 ## v2.5.0
  
  - Directory specification is now part of the storage configuration

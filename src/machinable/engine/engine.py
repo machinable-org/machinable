@@ -157,7 +157,7 @@ class Engine(Jsonable):
         return self.__repr__()
 
     def __repr__(self):
-        return "machinable.Engine"
+        return "Engine"
 
     def execute(
         self,

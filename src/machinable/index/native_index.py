@@ -25,4 +25,4 @@ class NativeIndex(Index):
         )
 
     def __repr__(self):
-        return f"NativeIndex"
+        return f"Index <native>"

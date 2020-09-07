@@ -43,7 +43,7 @@ class RayEngine(Engine):
         return execution
 
     def __repr__(self):
-        return "Ray"
+        return "Engine <ray>"
 
     def execute(
         self,

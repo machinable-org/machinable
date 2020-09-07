@@ -55,7 +55,7 @@ class Project(Jsonable):
                 sys.path.append(self.directory_path)
 
     def __repr__(self):
-        return f"Project({self.directory_path})"
+        return f"Project <{self.directory_path}>"
 
     def __str__(self):
         return self.__repr__()

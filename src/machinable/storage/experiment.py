@@ -195,4 +195,4 @@ class StorageExperiment:
         return self.__repr__()
 
     def __repr__(self):
-        return f"Storage: Experiment <{self.experiment_id}>"
+        return f"StorageExperiment <{self.experiment_id}>"

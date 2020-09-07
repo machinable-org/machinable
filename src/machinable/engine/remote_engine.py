@@ -105,4 +105,4 @@ class RemoteEngine(Engine):
         return storage
 
     def __repr__(self):
-        return f"Remote({repr(self.engine)})"
+        return f"Engine <remote({repr(self.engine)})>"

@@ -73,7 +73,7 @@ class DetachedEngine(Engine):
         return cls.create(serialized)
 
     def __repr__(self):
-        return f"Detached({repr(self.engine)}, using={self.using})"
+        return f"Engine <detached({repr(self.engine)})>"
 
     def shell(self, command, name):
         return getattr(self, self.using + "_shell")(command, name)

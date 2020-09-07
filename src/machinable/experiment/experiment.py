@@ -148,6 +148,11 @@ class Experiment(Jsonable):
         if isinstance(args, tuple):
             return cls().components(*args)
 
+        if isinstance(args, list):
+            return cls().component(*args)
+
+        raise ValueError(f"Invalid arguments: {args}")
+
     def _spec(self, field, arguments, multiple=False, **kwargs):
         self._cache = None
 

@@ -16,7 +16,7 @@ class NativeEngine(Engine):
         return False
 
     def __repr__(self):
-        return "Native"
+        return "Engine <native>"
 
     def serialize(self):
         return {"type": "native", "processes": self.processes}

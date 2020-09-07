@@ -175,4 +175,4 @@ class SlurmEngine(Engine):
         return storage
 
     def __repr__(self):
-        return f"Slurm"
+        return f"Engine <slurm>"

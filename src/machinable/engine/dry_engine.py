@@ -6,7 +6,7 @@ class DryEngine(Engine):
         Engine.set_latest(self)
 
     def __repr__(self):
-        return "Dry run"
+        return "Engine <dry>"
 
     @staticmethod
     def supports_resources():

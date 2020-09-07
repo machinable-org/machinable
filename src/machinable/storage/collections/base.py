@@ -1333,10 +1333,10 @@ class Collection:
         return other != self.items
 
     def __str__(self):
-        if len(self.items) > 15:
-            items = ", ".join([repr(item) for item in self.items[:5]])
+        if len(self.items) > 5:
+            items = ", ".join([repr(item) for item in self.items[:2]])
             items += " ... "
-            items += ", ".join([repr(item) for item in self.items[-5:]])
+            items += ", ".join([repr(item) for item in self.items[-2:]])
         else:
             items = ", ".join([repr(item) for item in self.items])
         return f"Collection ({len(self.items)}) <{items}>"

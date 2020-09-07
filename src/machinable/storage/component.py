@@ -290,4 +290,4 @@ class StorageComponent:
         return self.__repr__()
 
     def __repr__(self):
-        return f"Storage: Component <{self.component_id}>"
+        return f"StorageComponent <{self.component_id}>"

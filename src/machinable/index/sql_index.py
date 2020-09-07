@@ -175,4 +175,4 @@ class SqlIndex(Index):
         return self.__repr__()
 
     def __repr__(self):
-        return f"SqlIndex"
+        return f"Index <sql+{self.database}>"
