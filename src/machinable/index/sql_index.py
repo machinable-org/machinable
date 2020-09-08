@@ -62,8 +62,11 @@ class StorageExperimentSqlModel(StorageSqlModel, StorageExperimentModel):
         if model is None:
             model = self.filesystem_model
 
-        table = self._db["experiments"]
-        execution_json = model.file("execution.json")
+        try:
+            execution_json = model.file("execution.json")
+        except FileNotFoundError:
+            return False
+
         row = {
             "url": model.url,
             "experiment_id": model.experiment_id,
@@ -72,6 +75,7 @@ class StorageExperimentSqlModel(StorageSqlModel, StorageExperimentModel):
             "host_json": json.dumps(model.file("host.json")),
             "started_at": pendulum.parse(execution_json["started_at"]),
         }
+        table = self._db["experiments"]
         table.insert(row)
         return row
 
