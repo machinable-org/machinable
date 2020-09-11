@@ -296,12 +296,12 @@ class Execution(Jsonable):
         if isinstance(self.storage.config["directory"], str):
             # % variables
             variables = dict()
-            try:
-                variables["PROJECT"] = (
-                    self.project.name.replace(".", "/") if self.project else None
-                )
-            except (KeyError, ValueError):
-                variables["PROJECT"] = None
+
+            variables["PROJECT"] = (
+                self.project.name.replace(".", "/")
+                if self.project.name is not None
+                else None
+            )
 
             variables["EXPERIMENT"] = (
                 self.experiment.specification["name"].replace(".", "/")
@@ -397,6 +397,12 @@ class Execution(Jsonable):
 
             self.index.add(StorageExperiment(url, data))
 
+            msg(
+                f"Execution: {self.experiment_id} <{url}> ({self.started_at})\n",
+                level="info",
+                color="header",
+            )
+
         Registration.get().on_submit(self, is_submitted)
 
         return self.engine.submit(self)
@@ -408,17 +414,19 @@ class Execution(Jsonable):
             self.failures += 1
             if self._behavior["raise_exceptions"]:
                 raise result
-            self.engine.log(
-                f"Submission {self.components[index]} of experiment {self.experiment_id} failed "
-                f"({index + 1}/{len(self.schedule)}). "
+            msg(
+                f"\nComponent <{self.components[index]}> of execution {self.experiment_id} failed "
+                f"({index + 1}/{len(self.schedule)})\n"
                 f"{exception_to_str(result)}",
                 level="error",
+                color="header",
             )
         else:
-            self.engine.log(
-                f"Submission {self.components[index]} of experiment {self.experiment_id} complete "
-                f"({index + 1}/{len(self.schedule)}). ",
+            msg(
+                f"\nComponent <{self.components[index]}> of execution {self.experiment_id} completed "
+                f"({index + 1}/{len(self.schedule)})\n",
                 level="info",
+                color="header",
             )
         self.schedule.set_result(result, index)
 
@@ -569,7 +577,10 @@ class Execution(Jsonable):
             self.set_schedule()
 
         msg(
-            f"\nExecution: {self.experiment_id}\n----------", color="header",
+            f"\nExecution: {self.experiment_id}\n-----------------", color="header",
+        )
+        msg(
+            f"{repr(self.experiment)}", color="blue",
         )
         msg(
             f"{repr(self.storage)}", color="blue",

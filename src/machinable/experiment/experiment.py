@@ -114,9 +114,10 @@ class Experiment(Jsonable):
     def __repr__(self):
         spec = self.specification
         r = "Experiment"
+        r += f" <{len(spec['components'])}>"
         if spec["name"] is not None:
-            r += f" <{spec['name']}>"
-        r += f" ({len(spec['components'])})"
+            r += f" ({spec['name']})"
+        return r
 
     def __str__(self):
         return self.__repr__()

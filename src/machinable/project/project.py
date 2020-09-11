@@ -9,12 +9,13 @@ import sys
 from ..config.loader import from_callable as load_config_from_callable
 from ..config.loader import from_file as load_config_file
 from ..config.loader import from_string as load_config_from_string
-from ..config.parser import ModuleClass, parse_module_list
+from ..config.parser import parse_module_list
 from ..core import Component as BaseComponent
 from ..core import Mixin as BaseMixin
 from ..core.component import FunctionalComponent
 from ..core.settings import get_settings
 from ..registration import Registration
+from ..utils.formatting import msg
 from ..utils.dicts import update_dict
 from ..utils.traits import Jsonable
 from ..utils.utils import is_valid_module_path, is_valid_variable_name
@@ -47,6 +48,7 @@ class Project(Jsonable):
         self.config = None
         self.parsed_config = None
         self._registration = None
+        self._name_exception = None
 
         if os.path.exists(self.directory_path) and self.directory_path not in sys.path:
             if self.is_root():
@@ -55,7 +57,11 @@ class Project(Jsonable):
                 sys.path.append(self.directory_path)
 
     def __repr__(self):
-        return f"Project <{self.directory_path}>"
+        r = "Project"
+        r += f" <{self.directory_path}>"
+        if self.name is not None:
+            r += f" ({self.name})"
+        return r
 
     def __str__(self):
         return self.__repr__()
@@ -83,18 +89,20 @@ class Project(Jsonable):
     @property
     def name(self):
         if self.options["name"] is None:
-            try:
-                self.options["name"] = self.get_config()["name"]
-            except KeyError:
-                raise KeyError(
-                    "Project name could not be determined. Add a 'name' key to the machinable.yaml"
-                )
+            self.options["name"] = self.get_config().get("name", None)
 
-        if not is_valid_module_path(self.options["name"]):
-            raise ValueError(
-                f"Invalid project name: '{self.options['name']}'.\n"
-                f"Name must be a valid Python name or path, e.g. `valid_name.example`."
-            )
+        if self.options["name"] is not None and not is_valid_module_path(
+            self.options["name"]
+        ):
+            if not self._name_exception:
+                msg(
+                    f"Invalid project name: '{self.options['name']}'.\n"
+                    f"Name must be a valid Python name or path, e.g. `valid_name.example`.",
+                    level="warning",
+                    color="fail",
+                )
+                self._name_exception = True
+            self.options["name"] = None
 
         return self.options["name"]
 

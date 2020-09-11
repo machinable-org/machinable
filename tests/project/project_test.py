@@ -27,8 +27,7 @@ def test_project_config():
 def test_project_name():
     test_project = Project("./test_project")
     assert test_project.name == "test_project"
-    with pytest.raises(ValueError):
-        name = Project({"name": "invalid$"}).name
+    assert Project({"name": "invalid$"}).name is None
 
 
 def test_project_parse_imports():
