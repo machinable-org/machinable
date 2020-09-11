@@ -9,7 +9,7 @@ import sys
 from ..config.loader import from_callable as load_config_from_callable
 from ..config.loader import from_file as load_config_file
 from ..config.loader import from_string as load_config_from_string
-from ..config.parser import parse_module_list, ModuleClass
+from ..config.parser import ModuleClass, parse_module_list
 from ..core import Component as BaseComponent
 from ..core import Mixin as BaseMixin
 from ..core.component import FunctionalComponent
@@ -17,7 +17,7 @@ from ..core.settings import get_settings
 from ..registration import Registration
 from ..utils.dicts import update_dict
 from ..utils.traits import Jsonable
-from ..utils.utils import is_valid_variable_name, is_valid_module_path
+from ..utils.utils import is_valid_module_path, is_valid_variable_name
 from ..utils.vcs import get_commit, get_diff, get_root_commit
 from .manager import fetch_imports
 

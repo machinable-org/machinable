@@ -1,5 +1,5 @@
-from machinable.registration import Registration
 from machinable.engine import Slurm
+from machinable.registration import Registration
 from nodes.default_fallback import DefaultFallback
 
 

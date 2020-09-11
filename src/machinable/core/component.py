@@ -367,15 +367,18 @@ class Component(Mixin):
                     "output.log",
                 )
 
-            self.store.write("host.json", get_host_info(), _meta=True)
-            self.store.write("component.json", self.serialize(), _meta=True)
-            self.store.write(
-                "components.json",
-                [component.serialize() for component in self.components]
-                if self.components
-                else [],
-                _meta=True,
-            )
+            if not self.store.exists("host.json", _meta=True):
+                self.store.write("host.json", get_host_info(), _meta=True)
+            if not self.store.exists("component.json", _meta=True):
+                self.store.write("component.json", self.serialize(), _meta=True)
+            if not self.store.exists("components.json", _meta=True):
+                self.store.write(
+                    "components.json",
+                    [component.serialize() for component in self.components]
+                    if self.components
+                    else [],
+                    _meta=True,
+                )
             self.component_state.save(self)
 
             self.component_status["started_at"] = str(pendulum.now())

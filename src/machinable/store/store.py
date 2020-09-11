@@ -3,11 +3,11 @@ import os
 
 import pendulum
 
+from ..filesystem import open_fs
 from ..utils.dicts import serialize
 from ..utils.utils import sentinel
 from .log import Log
 from .record import Record
-from ..filesystem import open_fs
 
 try:
     import cPickle as pickle
@@ -179,6 +179,12 @@ class Store:
             name = "store/" + name
         with open_fs(self.config["url"]) as filesystem:
             return filesystem.load_file(self.get_path(name), default)
+
+    def exists(self, name, _meta=False):
+        if not _meta:
+            name = "store/" + name
+        with open_fs(self.config["url"]) as filesystem:
+            return filesystem.exists(name)
 
     def get_stream(self, path, mode="r", *args, **kwargs):
         """Returns a file stream on the store write

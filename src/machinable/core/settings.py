@@ -2,8 +2,8 @@ import os
 
 import yaml
 
-from ..utils.dicts import update_dict
 from ..config.mapping import config_map
+from ..utils.dicts import update_dict
 
 _settings = None
 

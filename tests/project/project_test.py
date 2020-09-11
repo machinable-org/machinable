@@ -1,6 +1,8 @@
 import os
 import shutil
+
 import pytest
+
 from machinable.project import Project
 
 

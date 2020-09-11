@@ -104,7 +104,7 @@ class SlurmEngine(Engine):
             component_id = component["flags"]["COMPONENT_ID"]
             script = f"{self.script}\n"
             script += f'#SBATCH --job-name="{execution.experiment_id}:{component_id}"\n'
-            script += f"#SBATCH -o {os.path.join(script_url.replace('osfs://', ''), component_id + '.out')}\n"
+            script += f"#SBATCH -o {os.path.join(url.replace('osfs://', ''), component_id,  'output.log')}\n"
             script += f"export MACHINABLE_PROJECT={execution.project.directory_path}\n"
             try:
                 script += self.commands["before_script"] + ";\n"
@@ -171,6 +171,7 @@ class SlurmEngine(Engine):
             raise ValueError("Remote engine does not support temporary file systems")
 
         storage["allow_overwrites"] = True
+        storage["output_redirection"] = "DISABLED"  # use slurm log instead
 
         return storage
 

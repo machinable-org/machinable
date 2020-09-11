@@ -1,17 +1,17 @@
 import ast
-import os
 import inspect
+import os
 from datetime import datetime as dt
 from typing import Any, Callable, Union
 
 import pendulum
 import yaml
-
 from expandvars import expand
+
 from ..config.interface import ConfigInterface, mapped_config
+from ..config.mapping import config_map
 from ..core.exceptions import ExecutionException
 from ..core.settings import get_settings
-from ..config.mapping import config_map
 from ..engine import Engine
 from ..execution.schedule import Schedule
 from ..experiment.experiment import Experiment
@@ -273,6 +273,7 @@ class Execution(Jsonable):
         if len(unknown_options) > 0:
             raise ValueError(f"Invalid options: {unknown_options}")
         self._behavior.update(settings)
+        return self
 
     def is_submitted(self):
         try:
@@ -296,7 +297,9 @@ class Execution(Jsonable):
             # % variables
             variables = dict()
             try:
-                variables["PROJECT"] = self.project.name if self.project else None
+                variables["PROJECT"] = (
+                    self.project.name.replace(".", "/") if self.project else None
+                )
             except (KeyError, ValueError):
                 variables["PROJECT"] = None
 

@@ -1,6 +1,6 @@
 import os
 
-from machinable import Execution, Experiment, execute, Component
+from machinable import Component, Execution, Experiment, execute
 
 
 def test_execution_from_storage():
