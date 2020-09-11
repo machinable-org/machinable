@@ -65,6 +65,16 @@ class StorageExperiment:
         return self.file("execution.json")["experiment_id"]
 
     @property
+    def experiment_name(self) -> Optional[str]:
+        """Experiment name"""
+        return self.file("execution.json")["experiment_name"]
+
+    @property
+    def project_name(self) -> Optional[str]:
+        """Project name"""
+        return self.file("execution.json")["project_name"]
+
+    @property
     def seed(self) -> int:
         """Returns the global random seed used in the experiment"""
         return self.file("execution.json")["seed"]

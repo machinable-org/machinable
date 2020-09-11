@@ -398,7 +398,7 @@ class Execution(Jsonable):
             self.index.add(StorageExperiment(url, data))
 
             msg(
-                f"Execution: {self.experiment_id} <{url}> ({self.started_at})\n",
+                f"{self.experiment_id} <{url}> ({self.started_at})\n",
                 level="info",
                 color="header",
             )
@@ -415,7 +415,7 @@ class Execution(Jsonable):
             if self._behavior["raise_exceptions"]:
                 raise result
             msg(
-                f"\nComponent <{self.components[index]}> of execution {self.experiment_id} failed "
+                f"\nComponent <{self.components[index]}> of experiment {self.experiment_id} failed "
                 f"({index + 1}/{len(self.schedule)})\n"
                 f"{exception_to_str(result)}",
                 level="error",
@@ -423,7 +423,7 @@ class Execution(Jsonable):
             )
         else:
             msg(
-                f"\nComponent <{self.components[index]}> of execution {self.experiment_id} completed "
+                f"\nComponent <{self.components[index]}> of experiment {self.experiment_id} completed "
                 f"({index + 1}/{len(self.schedule)})\n",
                 level="info",
                 color="header",
@@ -552,6 +552,10 @@ class Execution(Jsonable):
             "timestamp": self.timestamp,
             "started_at": self.started_at,
             "components": self.components,
+            "project_name": self.project.name if self.project is not None else None,
+            "experiment_name": self.experiment.specification["name"]
+            if self.experiment is not None
+            else None,
         }
 
     @classmethod
@@ -577,7 +581,7 @@ class Execution(Jsonable):
             self.set_schedule()
 
         msg(
-            f"\nExecution: {self.experiment_id}\n-----------------", color="header",
+            f"\n{self.experiment_id}\n------", color="header",
         )
         msg(
             f"{repr(self.experiment)}", color="blue",
@@ -644,6 +648,8 @@ class Execution(Jsonable):
                     msg(
                         yaml.dump(c["args"], default_flow_style=False), color="blue",
                     )
+
+        msg("------\n", color="header")
 
         return self
 

@@ -26,6 +26,8 @@ def test_storage_experiment():
 
     o = StorageExperiment.get("./_test_data/storage/tttttt")
     assert o.experiment_id == "tttttt"
+    assert o.experiment_name is None
+    assert o.project_name == "test_project"
     assert o.url == "osfs://./_test_data/storage/tttttt"
     assert o.components.first().config.test
     assert len(o.components) == 4
