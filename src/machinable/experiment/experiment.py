@@ -244,6 +244,7 @@ class Experiment(Jsonable):
                 f"{name} given."
             )
         self._specs["name"] = name
+        self._cache = None
 
         return self
 

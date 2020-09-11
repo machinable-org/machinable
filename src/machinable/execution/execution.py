@@ -292,6 +292,11 @@ class Execution(Jsonable):
         self.failures = 0
         self.storage.config["experiment"] = self.experiment_id
 
+        # auto-name experiment if imported via @ directive
+        if self.experiment.specification["name"] is None:
+            if hasattr(self.experiment, "_resolved_module_name"):
+                self.experiment.name(self.experiment._resolved_module_name)
+
         # expand variables in storage directory
         if isinstance(self.storage.config["directory"], str):
             # % variables

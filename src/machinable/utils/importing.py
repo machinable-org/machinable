@@ -9,11 +9,9 @@ def resolve_instance(arg, instance_type, default_path=""):
         return None
 
     if arg.startswith("@/"):
-        origin = None
         module_name = arg.replace("@/", "")
     else:
         # if relative path @example insert default path
-        origin = arg[1:].replace(".", "/")
         module_name = arg.replace("@", os.path.join(default_path, ""), 1)
 
     module_name = module_name.replace("/", ".")
@@ -27,8 +25,7 @@ def resolve_instance(arg, instance_type, default_path=""):
         instance = instance_type.latest()
         if isinstance(instance, instance_type):
             instance._resolved_by_expression = arg
-            if origin:
-                instance._resolved_module_origin = origin
+            instance._resolved_module_name = module_name
             return instance
 
         raise ValueError(

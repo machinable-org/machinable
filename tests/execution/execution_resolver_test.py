@@ -18,8 +18,9 @@ def test_execution_resolve():
 
 
 def test_execution_resolvers():
-    execute(
+    execution = execute(
         "@/test_project/experiments",
         engine="@/test_project/engines",
         project="./test_project",
     )
+    assert execution.experiment.specification["name"] == "test_project.experiments"
