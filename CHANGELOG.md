@@ -4,6 +4,9 @@
 
 ## Unreleased
 
+ - Edit experiments from command line when prefixed with `:`
+ - Auto-name experiments when using @-directive
+ - Display experiment and project name in logging output
  - Cleaner Execution.summary()
 
 ## v2.5.0

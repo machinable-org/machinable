@@ -36,3 +36,20 @@ def resolve_instance(arg, instance_type, default_path=""):
             f"Could not import module @{module_name} "
             f"The following exception occurred: {exception_to_str(e)}. "
         )
+
+
+def resolve_instance_from_code(code, instance_type):
+    try:
+        instance_type.set_latest(None)
+        exec(code)
+
+        instance = instance_type.latest()
+        if isinstance(instance, instance_type):
+            instance._resolved_by_code = code
+            return instance
+
+        raise ValueError(f"Could not find any {instance_type.__name__} in code")
+    except Exception as e:
+        raise ImportError(
+            f"Could not evaluate code. The following exception occurred: {exception_to_str(e)}. "
+        )

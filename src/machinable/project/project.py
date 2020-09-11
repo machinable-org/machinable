@@ -15,8 +15,8 @@ from ..core import Mixin as BaseMixin
 from ..core.component import FunctionalComponent
 from ..core.settings import get_settings
 from ..registration import Registration
-from ..utils.formatting import msg
 from ..utils.dicts import update_dict
+from ..utils.formatting import msg
 from ..utils.traits import Jsonable
 from ..utils.utils import is_valid_module_path, is_valid_variable_name
 from ..utils.vcs import get_commit, get_diff, get_root_commit
