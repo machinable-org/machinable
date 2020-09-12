@@ -7,6 +7,7 @@ import sh
 
 from ..core.exceptions import ExecutionException
 from ..filesystem import open_fs
+from ..utils.formatting import exception_to_str
 from .engine import Engine
 
 
@@ -155,14 +156,19 @@ class SlurmEngine(Engine):
             # submit to slurm
             try:
                 p = sh.sbatch(*command)
-                execution.set_result(p)
-            except sh.ErrorReturnCode as ex:
+                execution.set_result(p, echo=False)
+            except Exception as ex:
+                if isinstance(ex, sh.ErrorReturnCode):
+                    message = ex.stderr.decode("utf-8")
+                else:
+                    message = exception_to_str(ex)
                 execution.set_result(
-                    ExecutionException(
-                        ex.stderr.decode("utf-8"), reason="engine_failure"
-                    )
+                    ExecutionException(message, reason="engine_failure"), echo=True,
                 )
-                self.log(f"Execution failed: {str(ex)}", level="error")
+
+        total = len(execution.schedule._result)
+        success = len(execution.schedule._result) - execution.failures
+        self.log(f"Submitted {success}/{total} jobs successfully")
 
         return execution
 

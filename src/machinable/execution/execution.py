@@ -412,27 +412,29 @@ class Execution(Jsonable):
 
         return self.engine.submit(self)
 
-    def set_result(self, result, index=None):
+    def set_result(self, result, index=None, echo=True):
         if index is None:
             index = len(self.schedule._result)
         if isinstance(result, ExecutionException):
             self.failures += 1
             if self._behavior["raise_exceptions"]:
                 raise result
-            msg(
-                f"\nComponent <{self.components[index]}> of experiment {self.experiment_id} failed "
-                f"({index + 1}/{len(self.schedule)})\n"
-                f"{exception_to_str(result)}",
-                level="error",
-                color="header",
-            )
+            if echo or echo == "success":
+                msg(
+                    f"\nComponent <{self.components[index]}> of experiment {self.experiment_id} failed "
+                    f"({index + 1}/{len(self.schedule)})\n"
+                    f"{exception_to_str(result)}",
+                    level="error",
+                    color="header",
+                )
         else:
-            msg(
-                f"\nComponent <{self.components[index]}> of experiment {self.experiment_id} completed "
-                f"({index + 1}/{len(self.schedule)})\n",
-                level="info",
-                color="header",
-            )
+            if echo or echo == "failure":
+                msg(
+                    f"\nComponent <{self.components[index]}> of experiment {self.experiment_id} completed "
+                    f"({index + 1}/{len(self.schedule)})\n",
+                    level="info",
+                    color="header",
+                )
         self.schedule.set_result(result, index)
 
     @classmethod
