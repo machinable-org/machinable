@@ -54,7 +54,18 @@ components:
 ```
 </Annotated>
 
-The components base provides a variety of interfaces that bootstrap the implementation of the components and are described below.
+## Execution
+
+The key idea of a component is to encapsulate an executable unit of your code. It is useful to think of them as 'functions' that you can call with different configuration arguments. In fact, executing a component is not very different from a standard function call:
+
+```python
+from machinable import execute
+execute("optimization")
+```
+
+Component [execution](execution.md) will be covered in greater detail later, but at this point, it is useful to think of it as a function call that provides arguments (i.e. the configuration, a random seed, a directory to store results etc.) and that triggers the component code. 
+
+The Component class can thus be seen as providing a variety of interfaces that bootstrap the implementation of the component function for given arguments.
 
 
 ## Life cycle
@@ -171,42 +182,6 @@ The method is executed whenever `self.config.learning_rate` is being accessed; a
 
 Config methods hence allow for the expression of arbitrary configuration dependencies and are a powerful tool for implementing complex configuration patterns more efficiently. They can also be useful for parsing configuration values into Python objects. For instance, you might define a config method `dtype` where `dtype: dtype('f32')` returns `np.float32` etc.
 
-## Sub-components
+## Composition
 
-In many cases, it can be useful to organise components in a hierarchical way. For example, your components may implement a certain prediction problem and you want to encapsulate different prediction strategies in sub-components. 
-
-machinable allows you to use components as sub-components, meaning they become available to a parent ``node`` components. Consider the following components:
-
-```python
-from machinable import Component
-
-# sub_component_example.py
-
-class PredictionStrategy(Component):
-    
-    def on_create(self):
-        self.model = ... # set up some model
-    
-    def predict(self, data):
-        return self.model.predict(data)
-
-# node_component_example.py
-
-from machinable import Component
-
-class PredictionBenchmark(Component):
-
-    def on_create(self, prediction_strategy):
-        self.prediction_strategy = prediction_strategy
-
-        # load data
-        self.data = ...
-
-        print(self.prediction_strategy.predict(self.data))
-```
-
-Here, the sub-component encapsulates the model while the node components implements the benchmark control flow. The sub-component becomes available as argument to the ``on_create`` event of the node components. 
-
-In general, the sub-components can access the parent node via ``self.node`` while the node components can access its sub-components via ``self.components``.
-
-To designate components as sub-components use the ``components`` argument of [Experiment.components()](./experiments.md) that will be discussed in the following section.
+Components can be composed together to form new components. Learn more about [Reusability & Composition](composition.md) of components.

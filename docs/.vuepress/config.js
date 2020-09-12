@@ -51,42 +51,43 @@ module.exports = ctx => ({
 function getGuideSidebar () {
   return [
     {
-      title: 'Preface',
-      collapsable: false,
-      children: [
-        '',
-        'at-glance'
-      ]
-    },
-    {
-      title: 'Getting started',
+      title: 'Essentials',
       collapsable: false,
       children: [
         'installation',
-        'project-structure',
-        'machinable-yaml'
-      ]
-    },
-    {
-      title: 'Concept',
-      collapsable: false,
-      children: [
+        '',
+        'projects',
+        'machinable-yaml',
         'components',
-        'experiments',
-        'storage'
       ]
     },
     {
-      title: 'Digging deeper',
+      title: 'Execution In-depth',
       collapsable: false,
       children: [
+        'execution',
+        'experiments',
+        'engines',
+      ]
+    },
+    {
+      title: 'Reusability & Composition',
+      collapsable: false,
+      children: [
+        'composition',
         'imports',
         'mixins',
-        'engines',
-        'tuning',
         'exporting'
       ]
-    }
+    },
+    {
+      title: 'Result retrieval',
+      collapsable: false,
+      children: [
+        'storage',
+        'indexes',
+      ]
+    },
   ]
 }
 
@@ -97,7 +98,7 @@ function getReferenceSidebar () {
       collapsable: false,
       sidebarDepth: 2,
       children: [
-        'component', 'execution', 'storage'
+        'component', 'execution', 'experiment', 'storage', 'engine', 'indexes'
       ]
     },
     {

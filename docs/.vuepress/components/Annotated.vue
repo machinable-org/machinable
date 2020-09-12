@@ -19,7 +19,7 @@ export default {
       canvas: null
     }
   },
-  props: ['name', 'debug'],
+  props: ['name', 'debug', 'color'],
   mounted() {
     this.annotations = this.$frontmatter.annotations[this.name];
     this.canvas = document.getElementById('annotation-canvas-' + this.name);
@@ -57,6 +57,7 @@ export default {
       div.style.top = (obj.y) + "px";
       div.style.width = (obj.width) + "px";
       div.style.height = (obj.height) + "px";
+      div.style.borderColor = this.color;
       if (this.debug) {
         div.style.display = 'block';
       }

@@ -91,7 +91,7 @@ annotations: {
 ---
 
 
-# machinable.yaml
+# machinable.yaml configuration file
 
 Let's take a closer look at the features of machinable's central configuration file `machinable.yaml` which lives at the project directory root:
 
