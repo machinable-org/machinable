@@ -17,13 +17,9 @@
 <br />
 <br />
 
-**machinable** is a modular configuration system for machine learning research. Using straight-forward conventions and a powerful configuration engine, it can help structuring your projects in a principled way to move quickly while enabling reuse and collaboration.
+**machinable** provides a system to manage configuration of machine learning projects more effectively. Using straight-forward conventions and a powerful configuration engine, it can help structure your projects in a principled way so you can move quickly while enabling reuse and collaboration.
 
-[Explore key features at a glance →](https://machinable.org/guide/at-glance.html)
-
-*Ready to start?*
-
-    $ pip install machinable
+Read the [user guide ](https://machinable.org/guide) to get started.
 
 ## Features
 
@@ -49,6 +45,3 @@
 - File system abstraction (in-memory, AWS S3, and more)
 - Flat-file result database with convenient query syntax
 
-### Documentation
-
-Read the [user guide ](https://machinable.org/guide) to get started.
