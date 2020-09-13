@@ -5,3 +5,6 @@ ariadne
 starlette
 uvicorn
 dataset
+ray[tune]
+pandas
+deepdiff
