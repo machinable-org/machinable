@@ -98,7 +98,7 @@ function getReferenceSidebar () {
       collapsable: false,
       sidebarDepth: 2,
       children: [
-        'component', 'execution', 'experiment', 'storage', 'engine', 'indexes'
+        'component', 'execution', 'experiment', 'storage', 'engine'
       ]
     },
     {

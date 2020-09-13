@@ -1,4 +1,4 @@
-# Index
+# Indexes
 
 {% machinable.index.native_index.NativeIndex %}
 
