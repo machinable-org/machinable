@@ -58,40 +58,11 @@ annotations: {
           "
         }
     ],
-    observations: [
-        {
-          x: 163, 
-          y: 18, 
-          width: 170,
-          height: 25, 
-          value: "
-          Data store is managed and abstracted, local or in the cloud
-          "
-        },
-        {
-          x: 345, 
-          y: 18, 
-          width: 285,
-          height: 25, 
-          value: "
-          Run queries against the store to find the observation data you need
-          "
-        },
-        {
-          x: 20, 
-          y: 43, 
-          width: 500,
-          height: 50, 
-          value: "
-          Retrieve results using a high-level interface that works particularly well in interactive environments
-          "
-        }
-    ]
 }
 ---
 
 
-# machinable.yaml configuration file
+# machinable.yaml
 
 Let's take a closer look at the features of machinable's central configuration file `machinable.yaml` which lives at the project directory root:
 

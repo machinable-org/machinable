@@ -64,13 +64,12 @@ execute("optimization")
 ```
 
 Component [execution](execution.md) will be covered in greater detail later, but at this point, it is useful to think of it as a function call that provides arguments (i.e. the configuration, a random seed, a directory to store results etc.) and that triggers the component code. 
-
-The Component class can thus be seen as providing a variety of interfaces that bootstrap the implementation of the component function for given arguments.
+The Component class can thus be seen as providing a variety of interfaces that bootstrap the implementation of the 'component function' for given arguments.
 
 
 ## Life cycle
 
-Components expose a number of life cycle events that can be overwritten to hook into the execution cycle at a certain point. All event methods start with `on_` and are documented in the [event reference](../reference/component.md#on-after-create). In the example above, the ``on_create`` and ``on_execute`` events are implemented and will thus be triggered during execution.
+Components expose a number of life cycle events that can be overwritten to hook into the execution 'function call' at a certain point. All event methods start with `on_` and are documented in the [event reference](../reference/component.md). In the example above, the ``on_create`` and ``on_execute`` events are implemented and will thus be triggered during execution.
 
 The components life cycle allows you to implement using any framework and standard python methods without worrying about the execution logic (i.e. configuration parsing, parallel execution, etc.). Moreover, the event paradigm provides a clear semantic while the object orientation enables flexible code sharing mechanisms (e.g. inheritance, [mixins](./mixins.md), etc.).
 

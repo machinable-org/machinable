@@ -1,6 +1,6 @@
 # Project structure
 
-*machinable* projects are build around two corresponding concepts: First, the `Component`s that contain the code that you would like to execute; and second, the `machinable.yaml` configuration file that specifies the default configuration associated with the component.
+*machinable* projects are build around two corresponding concepts: The `Component` that contains code that you would like to execute; and the `machinable.yaml` configuration file that specifies the default configuration associated with the component.
 
 The following sections will discuss these fundamentals in more detail. For now, let's focus on the file structure of the project. To create a machinable project, it's sufficient to create a folder or repository that contains a `machinable.yaml`:
 
@@ -32,6 +32,6 @@ From the example definition above you can guess that this project implements a l
     │   └── gradient_descent.py
     └── machinable.yaml
 
-While the directory structure and file names may differ from project to project, the `machinable.yaml` acts as global entry point.
+While the directory structure and file names may differ from project to project, the `machinable.yaml` acts as global entry point to any machinable project. In particular, it makes it easy inspect all relevant hyperparameters and the code organisation in one place.
 
 

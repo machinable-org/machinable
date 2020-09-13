@@ -36,4 +36,4 @@ Here, the sub-component encapsulates the model while the node components impleme
 
 In general, the sub-components can access the parent node via ``self.node`` while the node components can access its sub-components via ``self.components``.
 
-To designate components as sub-components use the ``components`` argument of [Experiment.components()](./experiments.md) that will be discussed in the following section.
+To designate components as sub-components use the ``components`` argument of [Experiment.components()](./experiments.md) method.

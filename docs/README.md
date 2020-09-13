@@ -81,41 +81,21 @@ annotations: {
           "
         },
         {
-          x: 136, 
-          y: 88, 
+          x: 125, 
+          y: 155, 
           width: 176,
           height: 25, 
           value: "
-          Save results hassle-free to local and remote locations, or use temporary store during development
-          "
-        }
-    ],
-    storage: [
-        {
-          x: 163, 
-          y: 18, 
-          width: 170,
-          height: 25, 
-          value: "
-          Data store is managed and abstracted, local or in the cloud
+          Save results to local and remote locations, or use temporary store during development
           "
         },
         {
-          x: 345, 
-          y: 18, 
-          width: 285,
+          x: 53, 
+          y: 175, 
+          width: 110,
           height: 25, 
           value: "
-          Run queries against the store to find the observation data you need
-          "
-        },
-        {
-          x: 20, 
-          y: 43, 
-          width: 500,
-          height: 50, 
-          value: "
-          Retrieve results using a high-level interface that works particularly well in interactive environments
+          Leverage hassle-free local or remote execution and implement your own 
           "
         }
     ]
@@ -146,25 +126,16 @@ components:
 ```
 </Annotated>
 
-Rapidly declare experiments in a fluent interface and take advantage of automatic parallelized execution - locally or in the cloud.
-
 <Annotated name="experiment" :debug="false">
 ```python
-expr = Experiment().component('biased_model', 
+experiment = Experiment().component('biased_model', 
                         [('~heavytailed', {'learning_rate': lr}) 
                         for lr in (0.25, 0.1, 0.5)]).repeat(3)
-execute(expr, 's3://bucket/results', engine='slurm')
-```
-</Annotated>
 
-
-Retrieve the configuration, results and execution information you need through a high-level query interface. 
-
-
-<Annotated name="storage" :debug="false">
-```python
-o = Storage('s3://bucket/results').components.first()
-plot(y=o.records.pluck('acc'), label=o.config.learning_rate)
-result = o.store('final_result.p')
+execute(
+    experiment, 
+    storage='s3://bucket/results', 
+    engine='ray'
+)
 ```
 </Annotated>

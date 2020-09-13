@@ -81,7 +81,7 @@ function getGuideSidebar () {
       ]
     },
     {
-      title: 'Result retrieval',
+      title: 'Results & Analysis',
       collapsable: false,
       children: [
         'storage',

@@ -20,7 +20,7 @@ annotations: {
           y: 155, 
           width: 400,
           height: 65, 
-          value: "Place your code under the on_create entry point"
+          value: "Place your code under the on_create method"
         }
     ]
 }
@@ -92,12 +92,13 @@ Or, using the command line:
 ```bash
 $ machinable execute ridge_regression
 ```
-While this seems not much different from running the script directly, the execution abstraction allows  in without changing any of the component code. In particular, machinable allows for: 
+While this seems not much different from running the script directly, the execution abstraction allows to easily and enhance your experimentation in without changing any of the component code. For example, machinable provides: 
 
-- Modification of the default parameters, including repeats and splitting (as used for cross-validation) and advanced hyperparameter tuning
-- Test
-
-
+- A way to efficiently modify hyperparameters, covering anything from minor changes to advanced hyperparameter tuning algorithms
+- Managed storage to capture any artifacts, logs, checkpoints, code backups etc.
+- Execution on arbitrary targets, e.g. remote execution via `Ray`, `Slurm` or `SSH` or custom implementation
+- Live-tracking and experiment databases
+- Managed randomness and reproducibility
 
 ## Next steps
 
