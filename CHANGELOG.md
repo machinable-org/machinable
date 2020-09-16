@@ -2,8 +2,9 @@
 
 <!-- Please add changes under the Unreleased section that reads 'No current changes' otherwise -->
 
-## Unreleased
+## 2.5.1
 
+ - Restructured documentation
  - Edit experiments from command line when prefixed with `:`
  - Auto-name experiments when using @-directive
  - Display experiment and project name in logging output

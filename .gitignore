@@ -11,6 +11,7 @@ package-lock.json
 
 # Temporary and binary files
 *~
+.temp
 *.py[cod]
 *.so
 *.cfg

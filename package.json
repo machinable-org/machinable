@@ -3,7 +3,8 @@
         "docs:dev": "vuepress dev docs",
         "docs:build": "vuepress build docs"
     },
-    "dependencies": {
-        "vuepress": "*"
+    "dependencies": {},
+    "devDependencies": {
+        "vuepress": "^1.5.4"
     }
 }
