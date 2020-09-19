@@ -11,24 +11,25 @@ from ..utils.utils import is_valid_variable_name
 from .mapping import _reserved_keys, _used_keys
 
 
-class ModuleClass(object):
-    def __init__(self, module_name, args=None, baseclass=None):
+class ModuleClass:
+    def __init__(self, module_name, args=None, baseclass=None, allow_overrides=True):
         self.module_name = module_name
         self.args = args
         self.baseclass = baseclass
         self.default_class = None
+        self.allow_overrides = allow_overrides
 
     def load(self, instantiate=True, default=None):
         if default is None:
             default = self.default_class
 
-        # allow overrides
-        registration = Registration.get()
-        on_before_component_import = registration.on_before_component_import(
-            module=self.module_name, baseclass=self.baseclass, default=default
-        )
-        if on_before_component_import is not None:
-            return on_before_component_import
+        if self.allow_overrides:
+            registration = Registration.get()
+            on_before_component_import = registration.on_before_component_import(
+                module=self.module_name, baseclass=self.baseclass, default=default
+            )
+            if on_before_component_import is not None:
+                return on_before_component_import
 
         module_class = None
         try:
@@ -65,14 +66,15 @@ class ModuleClass(object):
                     f"If the module is a directory, consider creating an __init__.py."
                 )
 
-        on_component_import = registration.on_component_import(
-            component_candidate=module_class,
-            module=self.module_name,
-            baseclass=self.baseclass,
-            default=default,
-        )
-        if on_component_import is not None:
-            return on_component_import
+        if self.allow_overrides:
+            on_component_import = registration.on_component_import(
+                component_candidate=module_class,
+                module=self.module_name,
+                baseclass=self.baseclass,
+                default=default,
+            )
+            if on_component_import is not None:
+                return on_component_import
 
         if isinstance(module_class, (ImportError, AttributeError)):
             raise module_class

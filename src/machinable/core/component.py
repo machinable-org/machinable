@@ -3,7 +3,6 @@ import inspect
 import os
 import re
 from collections import OrderedDict
-
 from typing import Dict, List, Optional, Union
 
 import pendulum
@@ -13,7 +12,6 @@ from ..config.parser import ModuleClass, parse_mixins
 from ..registration import Registration
 from ..store import Store
 from ..store.log import Log
-from .mixin import Mixin, MixinInstance
 from ..store.record import Record
 from ..utils.dicts import update_dict
 from ..utils.formatting import exception_to_str
@@ -23,6 +21,7 @@ from ..utils.traits import Jsonable
 from ..utils.utils import apply_seed
 from .events import Events
 from .exceptions import ExecutionException
+from .mixin import Mixin, MixinInstance
 
 
 def set_alias(obj, alias, value):

@@ -23,7 +23,7 @@ from ..project.export import Export
 from ..registration import Registration
 from ..storage import Storage
 from ..storage.experiment import StorageExperiment
-from ..utils.dicts import update_dict, merge_dict
+from ..utils.dicts import merge_dict, update_dict
 from ..utils.formatting import exception_to_str, msg
 from ..utils.host import get_host_info
 from ..utils.identifiers import (

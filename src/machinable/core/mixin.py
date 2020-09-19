@@ -1,9 +1,10 @@
 from inspect import getattr_static
+
 from ..config.parser import ModuleClass
 
 
 class MixinInstance:
-    def __init__(self, controller, mixin_class, attribute):
+    def __init__(self, controller, mixin_class, attribute=False):
         self._binding = {
             "controller": controller,
             "class": mixin_class,
@@ -19,7 +20,7 @@ class MixinInstance:
 
         if attribute is None:
             raise AttributeError(
-                f"Mixin '{self._binding['class'].__name__}' has no method '{item}'"
+                f"'{self._binding['class'].__name__}' has no method '{item}'"
             )
 
         if isinstance(attribute, property):
@@ -35,9 +36,10 @@ class MixinInstance:
 
         def bound_method(*args, **kwargs):
             # bind mixin instance to controller for mixin self reference
-            self._binding["controller"].__mixin__ = getattr(
-                self._binding["controller"], self._binding["attribute"]
-            )
+            if self._binding["attribute"] is not False:
+                self._binding["controller"].__mixin__ = getattr(
+                    self._binding["controller"], self._binding["attribute"]
+                )
             output = attribute(self._binding["controller"], *args, **kwargs)
 
             return output

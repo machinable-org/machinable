@@ -63,7 +63,7 @@ class Registration:
         baseclass: The component baseclass (either Component or Mixin)
         default: Optional default component that will be used if import fails
         """
-        return None
+        pass
 
     def on_component_import(self, component_candidate, module, baseclass, default):
         """Event triggered during component import from a module
@@ -79,7 +79,7 @@ class Registration:
         baseclass: The component baseclass (either Component or Mixin)
         default: Optional default component that will be used if import fails
         """
-        return None
+        pass
 
     def default_resources(self, engine, component, components):
         """Allows to specify global default resources"""
