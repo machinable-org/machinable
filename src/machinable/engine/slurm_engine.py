@@ -103,9 +103,12 @@ class SlurmEngine(Engine):
             kwargs,
         ) in execution.schedule.iterate(execution.storage.config):
             component_id = component["flags"]["COMPONENT_ID"]
+            component_path = os.path.join(url.replace("osfs://", ""), component_id)
+            os.makedirs(component_path, exist_ok=True)
             script = f"{self.script}\n"
             script += f'#SBATCH --job-name="{execution.experiment_id}:{component_id}"\n'
-            script += f"#SBATCH -o {os.path.join(url.replace('osfs://', ''), component_id,  'output.log')}\n"
+            script += f"#SBATCH -o {os.path.join(component_path,  'output.log')}\n"
+            script += "#SBATCH --open-mode=append\n"
             script += f"export MACHINABLE_PROJECT={execution.project.directory_path}\n"
             try:
                 script += self.commands["before_script"] + ";\n"
