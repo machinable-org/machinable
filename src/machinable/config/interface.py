@@ -25,6 +25,8 @@ def collect_updates(version):
 
 
 def mapped_config(config):
+    if isinstance(config, list):
+        return [mapped_config(c) for c in config]
     config["config"] = config["args"]
     return config_map(config)
 
@@ -99,7 +101,7 @@ class ConfigInterface:
             elif key == "flags":
                 payload["flags"] = config_map(component["flags"])
             elif components is not None and key == "components":
-                payload["components"] = [mapped_config(c) for c in components]
+                payload["components"] = mapped_config(components)
             elif resources is not None and key == "resources":
                 payload["resources"] = resources
             else:

@@ -105,6 +105,9 @@ class Engine(Jsonable):
     def supports_resources():
         return True
 
+    def canonicalize_resources(self, resources):
+        return resources
+
     def submit(self, execution):
         """Retrieves an execution instance for execution
 

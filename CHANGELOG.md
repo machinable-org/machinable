@@ -2,6 +2,10 @@
 
 <!-- Please add changes under the Unreleased section that reads 'No current changes' otherwise -->
 
+## Unreleased
+
+ - Add default_resources inheritance
+
 ## 2.5.1
 
  - Restructured documentation

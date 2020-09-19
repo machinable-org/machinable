@@ -63,7 +63,7 @@ def test_computable_resources():
     e = ml.Execution(t, project=test_project, engine="native").set_schedule()
     assert e.schedule._elements[0][3] is None
     e = e.set_engine("slurm").set_schedule()
-    assert e.schedule._elements[0][3]["test"] == 0
+    assert e.schedule._elements[0][3]["--test"] == 0
     # default resources
     t = ml.Experiment().component("nodes.observations")
     e = ml.Execution(t, project=test_project, engine="slurm").set_schedule()

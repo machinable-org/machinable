@@ -23,7 +23,7 @@ from ..project.export import Export
 from ..registration import Registration
 from ..storage import Storage
 from ..storage.experiment import StorageExperiment
-from ..utils.dicts import update_dict
+from ..utils.dicts import update_dict, merge_dict
 from ..utils.formatting import exception_to_str, msg
 from ..utils.host import get_host_info
 from ..utils.identifiers import (
@@ -208,22 +208,33 @@ class Execution(Jsonable):
                         color="header",
                     )
                     resources = None
-            elif callable(resources):
-                resources = resources(
+            else:
+                if callable(resources):
+                    resources = resources(
+                        engine=self.engine,
+                        component=mapped_config(component_config),
+                        components=mapped_config(components_config),
+                    )
+
+                default_resources = Registration.get().default_resources(
                     engine=self.engine,
                     component=mapped_config(component_config),
-                    components=[
-                        mapped_config(component) for component in components_config
-                    ],
+                    components=mapped_config(components_config),
                 )
-            elif resources is None:
-                resources = Registration.get().default_resources(
-                    engine=self.engine,
-                    component=mapped_config(component_config),
-                    components=[
-                        mapped_config(component) for component in components_config
-                    ],
-                )
+
+                if resources is None and default_resources is not None:
+                    # use default resources
+                    resources = default_resources
+                elif resources is not None and default_resources is not None:
+                    # merge with default resources
+                    if resources.pop("_inherit_defaults", True) is not False:
+                        canonicalize_resources = getattr(
+                            self.engine, "canonicalize_resources", lambda x: x
+                        )
+                        resources = merge_dict(
+                            canonicalize_resources(default_resources),
+                            canonicalize_resources(resources),
+                        )
 
             if "tune" in self.experiment.specification:
                 self.schedule.add_tune(

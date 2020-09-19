@@ -132,31 +132,16 @@ class SlurmEngine(Engine):
             st = os.stat(target)
             os.chmod(target, st.st_mode | stat.S_IEXEC)
 
-            # parse resource arguments
-            if resources is None:
-                resources = {}
-            elif isinstance(resources, str):
-                resources = {"args", [resources]}
-            elif isinstance(resources, (tuple, list)):
-                resources = {"args": list(resources)}
-
-            arguments = resources.get("args", [])
-            if isinstance(arguments, str):
-                arguments = [arguments]
-
-            command = []
-            for a in arguments:
-                if a.startswith("--"):
-                    command.append(a)
-                    continue
-                if a.startswith("-"):
-                    command.extend(a.split(" ", maxsplit=1))
-            command.append(target)
-
             # submit to slurm
             try:
-                p = sh.sbatch(*command)
-                execution.set_result(p, echo=False)
+                sbatch_arguments = [
+                    k + "=" + v
+                    for k, v in self.canonicalize_resources(resources).items()
+                ]
+                p = sh.sbatch(*sbatch_arguments)
+                output = p.stdout.decode("utf-8")
+                slurm_id = int(output.rsplit(" ", maxsplit=1)[-1])
+                execution.set_result({"slurm_id": slurm_id}, echo=False)
             except Exception as ex:
                 if isinstance(ex, sh.ErrorReturnCode):
                     message = ex.stderr.decode("utf-8")
@@ -180,6 +165,76 @@ class SlurmEngine(Engine):
         storage["output_redirection"] = "DISABLED"  # use slurm log instead
 
         return storage
+
+    def canonicalize_resources(self, resources):
+        if resources is None:
+            return {}
+
+        shorthands = {
+            "A": "account",
+            "B": "extra-node-info",
+            "C": "constraint",
+            "c": "cpus-per-task",
+            "d": "dependency",
+            "D": "workdir",
+            "e": "error",
+            "F": "nodefile",
+            "H": "hold",
+            "h": "help",
+            "I": "immediate",
+            "i": "input",
+            "J": "job-name",
+            "k": "no-kill",
+            "L": "licenses",
+            "M": "clusters",
+            "m": "distribution",
+            "N": "nodes",
+            "n": "ntasks",
+            "O": "overcommit",
+            "o": "output",
+            "p": "partition",
+            "Q": "quiet",
+            "s": "share",
+            "t": "time",
+            "u": "usage",
+            "V": "version",
+            "v": "verbose",
+            "w": "nodelist",
+            "x": "exclude",
+            "g": "geometry",
+            "R": "no-rotate",
+        }
+
+        canonicalized = {}
+        for k, v in resources.items():
+            prefix = ""
+            if k.startswith("-/"):
+                prefix = "-/"
+                k = k[2:]
+
+            if k.startswith("--"):
+                # already correct
+                canonicalized[prefix + k] = v
+                continue
+            if k.startswith("-"):
+                # -p => --partition
+                try:
+                    canonicalized[prefix + "--" + shorthands[k[1]]] = v
+                    continue
+                except KeyError:
+                    raise ValueError(f"Invalid short option: {k}")
+            if len(k) == 1:
+                # p => --partition
+                try:
+                    canonicalized[prefix + "--" + shorthands[k]] = v
+                    continue
+                except KeyError:
+                    raise ValueError(f"Invalid short option: -{k}")
+            else:
+                # option => --option
+                canonicalized[prefix + "--" + k] = v
+
+        return canonicalized
 
     def __repr__(self):
         return f"Engine <slurm>"

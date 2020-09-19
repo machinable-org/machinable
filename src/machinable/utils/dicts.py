@@ -1,4 +1,5 @@
 from typing import Mapping
+import copy
 
 import pendulum
 from dotmap import DotMap
@@ -50,6 +51,21 @@ def update_dict(d, update=None, copy=False, preserve_schema=False):
         else:
             d[k] = v
     return d
+
+
+def merge_dict(d, update):
+    if d is None:
+        d = {}
+    if not update:
+        return d
+    d_ = copy.deepcopy(d)
+    update_ = copy.deepcopy(update)
+    # apply removals (e.g. -/remove_me)
+    removals = [k for k, v in update.items() if k.startswith("-/") and not v]
+    for removal in removals:
+        d_.pop(removal[2:], None)
+        update_.pop(removal, None)
+    return update_dict(d_, update_)
 
 
 def read_path_dict(dict_like, path):
