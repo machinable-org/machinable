@@ -9,7 +9,6 @@ import pendulum
 
 from ..config.mapping import ConfigMap, ConfigMethod, config_map
 from ..config.parser import parse_mixins
-from ..utils.importing import ModuleClass
 from ..registration import Registration
 from ..store import Store
 from ..store.log import Log
@@ -17,6 +16,7 @@ from ..store.record import Record
 from ..utils.dicts import update_dict
 from ..utils.formatting import exception_to_str
 from ..utils.host import get_host_info
+from ..utils.importing import ModuleClass
 from ..utils.system import OutputRedirection, set_process_title
 from ..utils.traits import Jsonable
 from ..utils.utils import apply_seed

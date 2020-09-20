@@ -1,9 +1,9 @@
 import regex
 from flatten_dict import unflatten
-from ..utils.importing import ModuleClass
 
 from ..utils.dicts import get_or_fail, read_path_dict, update_dict
 from ..utils.formatting import msg
+from ..utils.importing import ModuleClass
 from ..utils.utils import is_valid_variable_name
 from .mapping import _reserved_keys, _used_keys
 

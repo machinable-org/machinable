@@ -4,11 +4,11 @@ import os
 import ray
 from ray.exceptions import RayActorError
 
-from ..utils.importing import ModuleClass
 from ..core.component import FunctionalComponent
 from ..core.exceptions import ExecutionException
 from ..utils.dicts import update_dict
 from ..utils.formatting import exception_to_str
+from ..utils.importing import ModuleClass
 from .engine import Engine
 
 
