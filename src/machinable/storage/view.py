@@ -1,14 +1,9 @@
+import inspect
+
 from ..core.mixin import Mixin, MixinInstance
-from ..utils.importing import resolve_instance
+from ..utils.importing import ModuleClass
 
 _register = {"experiment": [], "component": []}
-
-
-def _bind_view(target, instance):
-    for view in _register[target]:
-        if view.on_bind(instance) is not False:
-            return MixinInstance(instance, view)
-    return None
 
 
 class View(Mixin):
@@ -27,18 +22,32 @@ class View(Mixin):
             _register[k] = []
 
     @classmethod
+    def bind(cls, target, instance):
+        for view in _register[target]:
+            on_bind = getattr(view, "on_bind", lambda x: True)
+            if on_bind(instance) is not False:
+                return MixinInstance(instance, view)
+        return None
+
+    @classmethod
     def component(cls, view):
-        resolved = resolve_instance(view, cls, "views")
-        if resolved is not None:
-            view = resolved
-        _register["component"].append(view)
+        if isinstance(view, str):
+            view = ModuleClass(view, baseclass=View)
+        else:
+            if not inspect.isclass(view):
+                raise ValueError(f"View has to be a class")
+        _register["component"].insert(0, view)
+        return view
 
     @classmethod
     def experiment(cls, view):
-        resolved = resolve_instance(view, cls, "views")
-        if resolved is not None:
-            view = resolved
-        _register["experiment"].append(view)
+        if isinstance(view, str):
+            view = ModuleClass(view, baseclass=View)
+        else:
+            if not inspect.isclass(view):
+                raise ValueError(f"View has to be a class")
+        _register["experiment"].insert(0, view)
+        return view
 
     @classmethod
     def on_bind(cls, instance):

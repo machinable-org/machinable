@@ -3,20 +3,21 @@ from machinable.storage import View, get_experiment
 
 def test_storage_view():
     @View.experiment
-    class ExperimentView(View):
+    class ExperimentView:
         def forward(self):
             return self.experiment_id
 
         def ref(self):
             return self.view.forward()
 
-    @View.component
-    class ComponentView(View):
+    class ComponentView:
         def forward(self):
             return self.component_id
 
         def ref(self):
             return self.view.forward()
+
+    View.component(ComponentView)
 
     e = get_experiment("./_test_data/storage/tttttt")
     assert e.view.forward() == "tttttt"

@@ -8,7 +8,8 @@ from flatten_dict import unflatten
 from ..config.mapping import config_map
 from ..experiment import ExperimentComponent
 from ..utils.dicts import update_dict
-from .parser import ModuleClass, parse_mixins
+from .parser import parse_mixins
+from ..utils.importing import ModuleClass
 
 
 def collect_updates(version):

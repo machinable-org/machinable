@@ -8,7 +8,8 @@ from typing import Dict, List, Optional, Union
 import pendulum
 
 from ..config.mapping import ConfigMap, ConfigMethod, config_map
-from ..config.parser import ModuleClass, parse_mixins
+from ..config.parser import parse_mixins
+from ..utils.importing import ModuleClass
 from ..registration import Registration
 from ..store import Store
 from ..store.log import Log

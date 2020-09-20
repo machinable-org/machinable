@@ -9,7 +9,7 @@ from ..storage.models import StorageComponentModel
 from ..utils.utils import sentinel
 from .collections import RecordCollection
 from .models.filesystem import StorageComponentFileSystemModel
-from .view import _bind_view
+from .view import View
 
 
 class StorageComponent:
@@ -290,7 +290,7 @@ class StorageComponent:
     @property
     def view(self):
         """Returns the registered view"""
-        return _bind_view("component", self)
+        return View.bind("component", self)
 
     def __str__(self):
         return self.__repr__()

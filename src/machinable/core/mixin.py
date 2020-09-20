@@ -1,6 +1,6 @@
 from inspect import getattr_static
 
-from ..config.parser import ModuleClass
+from ..utils.importing import ModuleClass
 
 
 class MixinInstance:

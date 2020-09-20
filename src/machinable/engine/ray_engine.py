@@ -4,7 +4,7 @@ import os
 import ray
 from ray.exceptions import RayActorError
 
-from ..config.parser import ModuleClass
+from ..utils.importing import ModuleClass
 from ..core.component import FunctionalComponent
 from ..core.exceptions import ExecutionException
 from ..utils.dicts import update_dict

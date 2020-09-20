@@ -1,7 +1,7 @@
 import copy
 import random
 
-from ..config.parser import ModuleClass
+from ..utils.importing import ModuleClass
 from ..core.component import Component as BaseComponent
 from ..utils.identifiers import encode_experiment_id, generate_component_id
 from ..utils.traits import Jsonable
