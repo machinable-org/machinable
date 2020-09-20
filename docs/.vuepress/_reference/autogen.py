@@ -1,10 +1,14 @@
 import ast
+import click
 import glob
 import importlib
 import inspect
 import os
 import re
 import types
+
+
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(os.path.dirname(__file__))))
 
 
 def get_file_list():
@@ -170,5 +174,23 @@ def generate(filepath=None):
         f.write(parse(filepath))
 
 
+def generate_cli():
+    from machinable.console.cli import cli
+
+    def get_help(cmd, parent=None):
+        ctx = click.core.Context(cli, info_name=cmd.name, parent=parent)
+        result = cmd.get_help(ctx) + "\n\n"
+        commands = getattr(cmd, "commands", {})
+        for sub_command in commands.values():
+            result += get_help(sub_command, ctx) + "\n\n"
+        return result
+
+    output = "\n\n## --help\n\nUse the `--help` option to inspect options\n\n```\n"
+    output += get_help(cli) + "\n```\n"
+    with open(os.path.join(ROOT, "reference", "cli.md"), "a",) as f:
+        f.write(output)
+
+
 if __name__ == "__main__":
     generate()
+    generate_cli()

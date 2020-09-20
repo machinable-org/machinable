@@ -62,7 +62,7 @@ Importing provides you with another level of modularity and makes it easy to mai
 
 ### Global dependencies
 
-Rather than re-downloading dependencies manually for every project, you can overwrite how dependency should be resolved in the `~/machinable/settings.yaml`:
+Rather than re-downloading dependencies manually for every project, you can overwrite how dependency should be resolved in the [`~/machinable/settings.yaml`](../reference/settings.md):
 ```yaml
 imports:
   imported_project: /opt/imported_project

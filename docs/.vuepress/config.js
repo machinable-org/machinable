@@ -98,15 +98,22 @@ function getReferenceSidebar () {
       collapsable: false,
       sidebarDepth: 2,
       children: [
-        'component', 'execution', 'experiment', 'storage', 'engine', 'indexes'
+        'machinable_yaml',
+        'component',
+        'execution',
+        'experiment',
+        'storage',
+        'engine',
+        'indexes'
       ]
     },
     {
-      title: 'CLI',
+      title: 'System',
       collapsable: false,
       sidebarDepth: 2,
       children: [
-        'cli'
+        'cli',
+        'settings'
       ]
     }
   ]
