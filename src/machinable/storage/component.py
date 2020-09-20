@@ -292,6 +292,18 @@ class StorageComponent:
         """Returns the registered view"""
         return View.bind("component", self)
 
+    def serialize(self):
+        return {
+            "experiment_id": self.experiment.experiment_id,
+            "experiment_name": self.experiment.experiment_name,
+            "project_name": self.experiment.project_name,
+            "component_id": self.component_id,
+            "component": self,
+            "started_at": self.started_at,
+            "heartbeat_at": self.heartbeat_at,
+            "finished_at": self.finished_at,
+        }
+
     def __str__(self):
         return self.__repr__()
 

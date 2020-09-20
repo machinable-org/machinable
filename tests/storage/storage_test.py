@@ -74,8 +74,8 @@ def test_collections():
         return x.records.pluck("number")
 
     assert max(experiment.components.section(o, reduce=np.var)) > 0
-    # df = task.components.as_dataframe()
-    # assert df.size == 4 * 12
+    df = experiment.components.as_dataframe()
+    assert df.size == 4 * 8
     r = experiment.components.first().records
     num_elements = len(r.pluck("number"))
     with pytest.raises(KeyError):
