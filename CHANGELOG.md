@@ -2,12 +2,13 @@
 
 <!-- Please add changes under the Unreleased section that reads 'No current changes' otherwise -->
 
-## Unreleased
+## v2.5.2
 
+ - Improved reference documentation
  - Experimental storage View API
  - Add default_resources inheritance
 
-## 2.5.1
+## v2.5.1
 
  - Restructured documentation
  - Edit experiments from command line when prefixed with `:`
