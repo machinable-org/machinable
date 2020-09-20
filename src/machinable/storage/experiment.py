@@ -9,6 +9,7 @@ from .collections import ComponentStorageCollection, ExperimentStorageCollection
 from .component import StorageComponent
 from .models import StorageExperimentModel
 from .models.filesystem import StorageExperimentFileSystemModel
+from .view import View
 
 
 class StorageExperiment:
@@ -193,6 +194,11 @@ class StorageExperiment:
             return StorageExperiment(model)
         except ValueError:
             return None
+
+    @property
+    def view(self):
+        """Returns the registered view"""
+        return View.bind("experiment", self)
 
     def __len__(self):
         """Returns the number of components in this experiment"""

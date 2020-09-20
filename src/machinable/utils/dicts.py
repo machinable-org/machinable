@@ -1,5 +1,5 @@
-from typing import Mapping
 import copy
+from typing import Mapping
 
 import pendulum
 from dotmap import DotMap

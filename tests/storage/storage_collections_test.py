@@ -5,11 +5,26 @@
 
 from unittest import TestCase
 
-from machinable.storage.collections import Collection, collect
+from machinable.storage.collections import (
+    Collection,
+    collect,
+    ExperimentStorageCollection,
+    ComponentStorageCollection,
+)
+from machinable.storage import get_experiment
 
 
 def test_collect():
     assert isinstance(collect([1, 2]), Collection)
+
+
+def test_experiment_collection():
+    c = ExperimentStorageCollection(
+        [get_experiment("./_test_data/storage/tttttt") for _ in range(3)]
+    )
+    cc = c.components
+    assert isinstance(cc, ComponentStorageCollection)
+    assert len(cc) == 4
 
 
 class CollectionTestCase(TestCase):

@@ -3,13 +3,12 @@ import inspect
 import os
 import re
 from collections import OrderedDict
-from inspect import getattr_static
 from typing import Dict, List, Optional, Union
 
 import pendulum
 
 from ..config.mapping import ConfigMap, ConfigMethod, config_map
-from ..config.parser import ModuleClass, parse_mixins
+from ..config.parser import parse_mixins
 from ..registration import Registration
 from ..store import Store
 from ..store.log import Log
@@ -17,11 +16,13 @@ from ..store.record import Record
 from ..utils.dicts import update_dict
 from ..utils.formatting import exception_to_str
 from ..utils.host import get_host_info
+from ..utils.importing import ModuleClass
 from ..utils.system import OutputRedirection, set_process_title
 from ..utils.traits import Jsonable
 from ..utils.utils import apply_seed
 from .events import Events
 from .exceptions import ExecutionException
+from .mixin import Mixin, MixinInstance
 
 
 def set_alias(obj, alias, value):
@@ -160,57 +161,6 @@ class ComponentState(Jsonable):
         )
 
 
-class MixinInstance:
-    def __init__(self, controller, mixin_class, attribute):
-        self.config = {
-            "controller": controller,
-            "class": mixin_class,
-            "attribute": attribute,
-        }
-
-    def __getattr__(self, item):
-        # lazy-load class
-        if isinstance(self.config["class"], ModuleClass):
-            self.config["class"] = self.config["class"].load(instantiate=False)
-
-        attribute = getattr(self.config["class"], item, None)
-
-        if attribute is None:
-            raise AttributeError(
-                f"Mixin '{self.config['class'].__name__}' has no method '{item}'"
-            )
-
-        if isinstance(attribute, property):
-            return attribute.fget(self.config["controller"])
-
-        if not callable(attribute):
-            return attribute
-
-        if isinstance(getattr_static(self.config["class"], item), staticmethod):
-            return attribute
-
-        # if attribute is non-static method we decorate it to pass in the controller
-
-        def bound_method(*args, **kwargs):
-            # bind mixin instance to controller for mixin self reference
-            self.config["controller"].__mixin__ = getattr(
-                self.config["controller"], self.config["attribute"]
-            )
-            output = attribute(self.config["controller"], *args, **kwargs)
-
-            return output
-
-        return bound_method
-
-
-class Mixin:
-    """
-    Mixin base class. All machinable mixins must inherit from this base class.
-    """
-
-    pass
-
-
 class Component(Mixin):
     """
     Component base class. All machinable components must inherit from this class.
@@ -272,7 +222,7 @@ class Component(Mixin):
         self.on_after_init()
 
     def bind(self, mixin, attribute):
-        """Binds a mixin to the components
+        """Binds a mixin to the component
 
         # Arguments
         mixin: Mixin module or class
@@ -280,7 +230,7 @@ class Component(Mixin):
         """
         if isinstance(mixin, str):
             mixin = ModuleClass(mixin.replace("+.", "vendor."), baseclass=Mixin)
-            setattr(self, attribute, MixinInstance(self, mixin, attribute))
+        setattr(self, attribute, MixinInstance(self, mixin, attribute))
 
     @property
     def config(self) -> ConfigMap:

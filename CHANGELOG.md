@@ -4,6 +4,7 @@
 
 ## Unreleased
 
+ - Experimental storage View API
  - Add default_resources inheritance
 
 ## 2.5.1

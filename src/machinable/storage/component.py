@@ -9,6 +9,7 @@ from ..storage.models import StorageComponentModel
 from ..utils.utils import sentinel
 from .collections import RecordCollection
 from .models.filesystem import StorageComponentFileSystemModel
+from .view import View
 
 
 class StorageComponent:
@@ -285,6 +286,11 @@ class StorageComponent:
     def is_incomplete(self):
         """Shorthand for is_started() and not (is_active() or is_finished())"""
         return self.is_started() and not (self.is_active() or self.is_finished())
+
+    @property
+    def view(self):
+        """Returns the registered view"""
+        return View.bind("component", self)
 
     def __str__(self):
         return self.__repr__()

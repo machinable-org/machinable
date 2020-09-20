@@ -7,7 +7,7 @@ import re
 import shutil
 from collections import namedtuple
 
-from ...config.parser import ModuleClass
+from ...utils.importing import ModuleClass
 from . import standalone
 
 
