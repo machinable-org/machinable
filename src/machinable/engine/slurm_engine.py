@@ -138,7 +138,7 @@ class SlurmEngine(Engine):
             # submit to slurm
             try:
                 sbatch_arguments = [
-                    k + "=" + v
+                    k + "=" + v if v is not None else k
                     for k, v in self.canonicalize_resources(resources).items()
                 ]
                 p = sh.sbatch(*sbatch_arguments)

@@ -61,7 +61,7 @@ def merge_dict(d, update):
     d_ = copy.deepcopy(d)
     update_ = copy.deepcopy(update)
     # apply removals (e.g. -/remove_me)
-    removals = [k for k, v in update.items() if k.startswith("-/") and not v]
+    removals = [k for k, v in update.items() if k.startswith("-/")]
     for removal in removals:
         d_.pop(removal[2:], None)
         update_.pop(removal, None)
