@@ -72,22 +72,23 @@ Whenever you execute an experiment, machinable generates a unique 6-digit experi
 
 </Annotated>
 
-While it is possible to read and navigate the folder manually, machinable provides interfaces for efficient data retrieval that allows you to query the storage like a database.
+While it is possible to read and navigate the folder manually, machinable provides interfaces for efficient data retrieval. 
+One advantage when working with the storage abstraction is that it removes the overhead of thinking about how the data is actually being stored and read from the disk.
 
 ::: tip
 The storage interface is read-only, meaning it will never modify or remove data generated during the execution.
 :::
 
-## Retrieving data
+## Retrieving experiment data
 
-To load the data from a storage location, you can use the `get_experiment` method.
+To load an experiment from a storage location, you can use the `get_experiment` method.
 
 ```python
 from machinable.storage import get_experiment
 experiment = get_experiment("~/results/9eW1PC")
 ```
 
-The returned [ExperimentStorage](../reference/storage.md#experimentstorage) provides convenient access to the experiment's data.
+The returned [ExperimentStorage](../reference/storage.md#experimentstorage) provides simplified access to the experiment's data.
 
 ```python
 experiment.experiment_id
@@ -107,14 +108,28 @@ experiment.components
 >>> Collection (1) <Storage: Component <d4tSlSA744Di>>
 ```
 
-The collection interface forms a wrapper for working with the list of components and provides a wealth of manipulation operations. For example, we could select the components that have already finished executing: 
+The collection interface forms a wrapper for working with the lists and provides a wealth of manipulation operations. For example, we could select the components that have already finished executing: 
 
 ```python
 experiment.components.filter(lambda x: x.is_finished()).first()
 ```
 
-The [collection reference documentation](../reference/storage.md#collection) provides a comprehensive overview over available options.
+::: tip
+If `pandas` is available, you can turn the collection into a dataframe using the `as_dataframe()` method.
+:::
 
-In practice, the interfaces allow you to quickly retrieve the data that is needed to analyse the results. One of the key advantages when working with the storage abstraction is that it removes the overhead of thinking about how the data is actually being stored and read from the disk. Compared with manual result management, it can significantly reduce the effort to organize, retrieve and analyse results.
+The [collection reference documentation](../reference/storage.md#collection) provides a comprehensive overview of all available options. 
 
-When using the storage interface, however, you still need to keep track of the storage locations like `~/results/9eW1PC` to find your data. At the same time, the read-only interface cannot be used to annotate the experiments. To organise many experiments more effectively, you can use an [Index](./index.md) that will be discussed in the following section.
+### Searching a directory
+
+You can recursively retrieve all experiments within a directory using the `get_experiments` method that returns a collection of the found experiments.
+
+```python
+from machinable.storage import get_experiments
+get_experiments("~/results")
+>>> Collection (1) <Storage: Experiment <9eW1PC>>
+```
+
+### Managing experiments
+
+The discussed storage interfaces are fairly minimal when it comes to organisation of your experiments. It's up to you to keep track of storage locations, and the read-only interface means you cannot save annotations or comments. To organise and query many experiments more effectively, you can use [Indexes](./index.md) that provide database-like features covered in the next section.

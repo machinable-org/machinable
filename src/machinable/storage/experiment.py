@@ -200,6 +200,15 @@ class StorageExperiment:
         """Returns the registered view"""
         return View.bind("experiment", self)
 
+    def serialize(self):
+        return {
+            "experiment_id": self.experiment_id,
+            "experiment_name": self.experiment_name,
+            "project_name": self.project_name,
+            "experiment": self,
+            "started_at": self.started_at,
+        }
+
     def __len__(self):
         """Returns the number of components in this experiment"""
         return len(self.file("execution.json")["components"])

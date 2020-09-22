@@ -133,6 +133,9 @@ class Index(Jsonable):
         decode_experiment_id(experiment_id, or_fail=True)
         return self._find(experiment_id)
 
+    def find_all(self):
+        return ExperimentStorageCollection(self._find_all())
+
     def find_latest(self, limit=10, since=None):
         return ExperimentStorageCollection(self._find_latest(limit=limit, since=since))
 
@@ -163,7 +166,10 @@ class Index(Jsonable):
     def _find(self, experiment_id: str) -> Union[StorageExperiment, None]:
         raise NotImplementedError
 
-    def _find_latest(self, limit=10, since=None):
+    def _find_all(self) -> ExperimentStorageCollection:
+        raise NotImplementedError
+
+    def _find_latest(self, limit=10, since=None) -> ExperimentStorageCollection:
         raise NotImplementedError
 
     def __repr__(self):

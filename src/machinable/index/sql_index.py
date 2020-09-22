@@ -142,6 +142,10 @@ class SqlIndex(Index):
             )
         ]
 
+    def _find_all(self):
+        table = self._table("experiments")
+        return table.all()
+
     def _table(self, name):
         self._migrate()
         return self._db[name]

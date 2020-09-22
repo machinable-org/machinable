@@ -22,3 +22,14 @@ def get_experiment(url):
     from .experiment import StorageExperiment
 
     return StorageExperiment(url)
+
+
+def get_experiments(url):
+    """Returns all experiments located in the given URL
+
+    # Arguments
+    url: String, filesystem URL
+    """
+    from ..index.native_index import NativeIndex
+
+    return NativeIndex().add_from_storage(url).find_all()

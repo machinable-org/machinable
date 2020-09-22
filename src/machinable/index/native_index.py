@@ -19,6 +19,9 @@ class NativeIndex(Index):
         except KeyError:
             return None
 
+    def _find_all(self):
+        return list(self._db.values())
+
     def _find_latest(self, limit=10, since=None):
         raise NotImplementedError(
             "This index does not support find_latest() operations. Consider using the SqlIndex instead."

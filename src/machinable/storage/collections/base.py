@@ -1184,6 +1184,17 @@ class Collection:
 
         return np.array(self.items)
 
+    def as_dataframe(self):
+        """Returns collection as Pandas dataframe
+        """
+        data = {k: [] for k in self._items[0].serialize().keys()}
+        for item in self._items:
+            for k, v in item.serialize().items():
+                data[k].append(v)
+        import pandas
+
+        return pandas.DataFrame.from_dict(data)
+
     def as_table(self, mode="html", headers=(), **kwargs):
         """Converts the collection into a table
 

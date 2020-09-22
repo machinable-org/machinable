@@ -1,4 +1,4 @@
-# Index
+# Indexes
 
 Indexes allow you to build a database to keep track of your experiments. 
 

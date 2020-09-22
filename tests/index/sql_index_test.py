@@ -16,3 +16,4 @@ def test_sql_index(helpers):
     since = latest.first().started_at
     experiments = index.find_latest(since=since)
     assert len(experiments) == 0
+    assert len(index.find_all()) > 0
