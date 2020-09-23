@@ -153,6 +153,8 @@ components:nodes:
   - timings:
       test: 1
   - continuation:
+  - session:
+      value: test
 components:workers:
   - interactive:
       id: 1

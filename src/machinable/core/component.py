@@ -23,6 +23,7 @@ from ..utils.utils import apply_seed
 from .events import Events
 from .exceptions import ExecutionException
 from .mixin import Mixin, MixinInstance
+from .session import _SESSION
 
 
 def set_alias(obj, alias, value):
@@ -298,6 +299,9 @@ class Component(Mixin):
         actor_config=None,
         lifecycle=True,
     ):
+        # export to session
+        _SESSION["component"] = self
+
         # Prepares and dispatches the components lifecycle and returns its result
         try:
             self._actor_config = actor_config
@@ -378,6 +382,9 @@ class Component(Mixin):
                 reason="exception",
                 message=f"The following exception occurred: {ex}\n{exception_to_str(ex)}",
             )
+
+        # unset from session
+        _SESSION["component"] = None
 
         return status
 
