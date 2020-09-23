@@ -122,11 +122,11 @@ The [collection reference documentation](../reference/storage.md#collection) pro
 
 ### Searching a directory
 
-You can recursively retrieve all experiments within a directory using the `get_experiments` method that returns a collection of the found experiments.
+You can recursively retrieve all experiments within a directory using the `find_experiments` method that returns a collection of the found experiments.
 
 ```python
-from machinable.storage import get_experiments
-get_experiments("~/results")
+from machinable.storage import find_experiments
+find_experiments("~/results")
 >>> Collection (1) <Storage: Experiment <9eW1PC>>
 ```
 

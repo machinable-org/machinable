@@ -1,4 +1,4 @@
-matrix:
+:qmatrix:
   include:
     - language: node_js
       node_js:

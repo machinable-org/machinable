@@ -6,7 +6,7 @@ The storage abstraction provides a high-level interface to retrieve data that is
 
 {% machinable.storage.get_experiment %}
 
-{% machinable.storage.get_experiments %}
+{% machinable.storage.find_experiments %}
 
 {% machinable.storage.get_component %}
 

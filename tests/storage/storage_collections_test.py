@@ -5,13 +5,13 @@
 
 from unittest import TestCase
 
+from machinable.storage import get_experiment
 from machinable.storage.collections import (
     Collection,
-    collect,
-    ExperimentStorageCollection,
     ComponentStorageCollection,
+    ExperimentStorageCollection,
+    collect,
 )
-from machinable.storage import get_experiment
 
 
 def test_collect():

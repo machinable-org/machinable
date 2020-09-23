@@ -1,5 +1,4 @@
 import ast
-import click
 import glob
 import importlib
 import inspect
@@ -7,6 +6,7 @@ import os
 import re
 import types
 
+import click
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(os.path.dirname(__file__))))
 

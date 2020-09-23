@@ -1,7 +1,6 @@
-from nodes.default_fallback import DefaultFallback
-
 from machinable.engine import Slurm
 from machinable.registration import Registration
+from nodes.default_fallback import DefaultFallback
 
 
 class Project(Registration):

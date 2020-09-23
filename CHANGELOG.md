@@ -2,6 +2,10 @@
 
 <!-- Please add changes under the Unreleased section that reads 'No current changes' otherwise -->
 
+# Unreleased
+
+- New `find_experiments` method to simplify recursive search for experiments in a given directory
+
 ## v2.5.2
 
  - Improved reference documentation

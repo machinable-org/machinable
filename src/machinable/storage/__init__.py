@@ -24,8 +24,8 @@ def get_experiment(url):
     return StorageExperiment(url)
 
 
-def get_experiments(url):
-    """Returns all experiments located in the given URL
+def find_experiments(url):
+    """Searches given URL recursively to return a collection of its experiments
 
     # Arguments
     url: String, filesystem URL

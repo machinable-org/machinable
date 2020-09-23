@@ -3,7 +3,7 @@ import os
 import pytest
 
 from machinable import Storage
-from machinable.storage import get_experiment, get_experiments
+from machinable.storage import find_experiments, get_experiment
 from machinable.storage.experiment import StorageExperiment
 
 STORAGE_DIRECTORY = "./_test_data/storage"
@@ -83,5 +83,5 @@ def test_collections():
     nones = r.pluck_or_none("not_existing")
     assert all([e is None for e in nones])
 
-    experiments = get_experiments(get_path(""))
+    experiments = find_experiments(get_path(""))
     assert experiments.take(2).as_dataframe().size == 10
