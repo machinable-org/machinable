@@ -1,7 +1,6 @@
 from typing import Any, Callable, Union
 
 from .core import Component, Mixin
-from .core.session import get
 from .engine import Engine
 from .execution import Execution
 from .experiment import Experiment

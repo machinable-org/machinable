@@ -1,10 +1,13 @@
 import machinable
+from machinable.session import get
 import pytest
 
 
 def test_session():
-    assert machinable.get("component") is None
+    assert machinable.session.get("component", default=None) is None
     assert machinable.execute("session", project="./test_project").failures == 0
-    assert machinable.get("component") is None
+    assert machinable.session.get("component", default=None) is None
     with pytest.raises(ValueError):
-        machinable.get("invalid")
+        machinable.session.get("invalid", default=None)
+    with pytest.raises(RuntimeError):
+        get("component")

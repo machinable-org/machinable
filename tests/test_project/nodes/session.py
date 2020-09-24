@@ -2,9 +2,9 @@ from machinable import Component
 
 
 def get_value():
-    import machinable
+    from machinable.session import get
 
-    return machinable.get("config").value
+    return get("config").value
 
 
 class SessionTesting(Component):
