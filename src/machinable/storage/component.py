@@ -8,17 +8,14 @@ from ..filesystem import open_fs, parse_storage_url
 from ..storage.models import StorageComponentModel
 from ..utils.utils import sentinel
 from .collections import RecordCollection
-from .models.filesystem import StorageComponentFileSystemModel
-from .view import View
+from .views.views import get as get_view
 
 
 class StorageComponent:
     def __init__(
         self, url: Union[str, dict, StorageComponentModel], experiment=None, cache=None
     ):
-        self._model = StorageComponentModel.create(
-            url, template=StorageComponentFileSystemModel
-        )
+        self._model = StorageComponentModel.create(url)
         self._cache = cache or {}
         self._cache["experiment"] = experiment
 
@@ -48,16 +45,15 @@ class StorageComponent:
                 reload = True
 
         if filepath not in self._cache or reload:
-            with open_fs(self.url) as filesystem:
-                try:
-                    self._cache[filepath] = filesystem.load_file(filepath)
-                    if filepath not in self._cache["_files"]:
-                        self._cache["_files"][filepath] = {}
-                    self._cache["_files"][filepath]["loaded_at"] = pendulum.now()
-                except FileNotFoundError:
-                    if default is not sentinel:
-                        return default
-                    raise
+            try:
+                self._cache[filepath] = self._model.file(filepath)
+                if filepath not in self._cache["_files"]:
+                    self._cache["_files"][filepath] = {}
+                self._cache["_files"][filepath]["loaded_at"] = pendulum.now()
+            except FileNotFoundError:
+                if default is not sentinel:
+                    return default
+                raise
 
         return self._cache[filepath]
 
@@ -290,7 +286,17 @@ class StorageComponent:
     @property
     def view(self):
         """Returns the registered view"""
-        return View.bind("component", self)
+        return get_view("component", self)
+
+    def __getattr__(self, item):
+        if item.startswith("_") and item.endswith("_"):
+            view = get_view("component", self, name=item)
+            if view is not None:
+                return view
+
+        raise AttributeError(
+            f"{self.__class__.__name__} object has no attribute {item}"
+        )
 
     def serialize(self):
         return {

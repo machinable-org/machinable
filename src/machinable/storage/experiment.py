@@ -8,15 +8,12 @@ from ..utils.utils import sentinel
 from .collections import ComponentStorageCollection, ExperimentStorageCollection
 from .component import StorageComponent
 from .models import StorageExperimentModel
-from .models.filesystem import StorageExperimentFileSystemModel
-from .view import View
+from .views.views import get as get_view
 
 
 class StorageExperiment:
     def __init__(self, url: Union[str, dict, StorageExperimentModel], cache=None):
-        self._model = StorageExperimentModel.create(
-            url, template=StorageExperimentFileSystemModel
-        )
+        self._model = StorageExperimentModel.create(url)
         self._cache = cache or {}
 
     @classmethod
@@ -198,7 +195,17 @@ class StorageExperiment:
     @property
     def view(self):
         """Returns the registered view"""
-        return View.bind("experiment", self)
+        return get_view("experiment", self)
+
+    def __getattr__(self, item):
+        if item.startswith("_") and item.endswith("_"):
+            view = get_view("experiment", self, name=item)
+            if view is not None:
+                return view
+
+        raise AttributeError(
+            f"{self.__class__.__name__} object has no attribute {item}"
+        )
 
     def serialize(self):
         return {

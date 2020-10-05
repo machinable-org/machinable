@@ -1,4 +1,10 @@
 from ...filesystem import parse_storage_url
+from ...utils.importing import ModuleClass
+
+_register = {
+    "experiment": None,
+    "component": None,
+}
 
 
 class StorageModel:
@@ -15,14 +21,25 @@ class StorageModel:
         self.component_id = parsed["component_id"]
 
     @classmethod
-    def create(cls, args, template=None):
-        if isinstance(args, StorageModel):
-            return args
+    def clear(cls, types=None):
+        if types is None:
+            types = ["experiment", "component"]
+        if isinstance(types, str):
+            types = [types]
+        for k in types:
+            _register[k] = None
 
-        if template is not None:
-            return template(args)
+    @classmethod
+    def component(cls, model=None):
+        if isinstance(model, str):
+            model = ModuleClass(model, baseclass=StorageComponentModel)
+        _register["component"] = model
 
-        return cls(args)
+    @classmethod
+    def experiment(cls, model=None):
+        if isinstance(model, str):
+            model = ModuleClass(model, baseclass=StorageExperimentModel)
+        _register["component"] = model
 
     def submit(self, key, value):
         pass
@@ -33,10 +50,10 @@ class StorageModel:
     def file(self, filepath):
         raise NotImplementedError
 
-    def experiment_model(self, data):
+    def experiment_model(self, url):
         raise NotImplementedError
 
-    def component_model(self, data):
+    def component_model(self, url):
         raise NotImplementedError
 
 
@@ -45,6 +62,20 @@ class StorageExperimentModel(StorageModel):
         super().__init__(data)
         if self.component_id is not None:
             raise ValueError("The provided URL is not a valid experiment storage URL/")
+
+    @classmethod
+    def create(cls, args):
+        if isinstance(args, StorageExperimentModel):
+            return args
+
+        # find registered default
+        if _register["experiment"] is not None:
+            return _register["experiment"](args)
+
+        # use global default
+        from .filesystem import StorageExperimentFileSystemModel
+
+        return StorageExperimentFileSystemModel(args)
 
     def exists(self):
         try:
@@ -73,6 +104,20 @@ class StorageComponentModel(StorageModel):
         super().__init__(data)
         if self.component_id is None:
             raise ValueError("The provided URL is not a valid component storage URL")
+
+    @classmethod
+    def create(cls, args):
+        if isinstance(args, StorageComponentModel):
+            return args
+
+        # find registered default
+        if _register["component"] is not None:
+            return _register["component"](args)
+
+        # use global default
+        from .filesystem import StorageComponentFileSystemModel
+
+        return StorageComponentFileSystemModel(args)
 
     def exists(self):
         try:

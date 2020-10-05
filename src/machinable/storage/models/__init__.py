@@ -1,1 +1,1 @@
-from .model import StorageComponentModel, StorageExperimentModel, StorageModel
+from .models import StorageComponentModel, StorageExperimentModel, StorageModel

@@ -1,11 +1,8 @@
 import os
 
-import pendulum
-
 from ...filesystem import open_fs
 from ...utils.identifiers import decode_experiment_id
-from ...utils.utils import sentinel
-from .model import StorageComponentModel, StorageExperimentModel
+from .models import StorageComponentModel, StorageExperimentModel
 
 
 class StorageFileSystemModel:
@@ -13,11 +10,11 @@ class StorageFileSystemModel:
         with open_fs(self.url) as filesystem:
             return filesystem.load_file(filepath)
 
-    def experiment_model(self, data):
-        return StorageExperimentFileSystemModel(data)
+    def experiment_model(self, url):
+        return StorageExperimentFileSystemModel(url)
 
-    def component_model(self, data):
-        return StorageComponentFileSystemModel(data)
+    def component_model(self, url):
+        return StorageComponentFileSystemModel(url)
 
 
 class StorageExperimentFileSystemModel(StorageFileSystemModel, StorageExperimentModel):

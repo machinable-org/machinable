@@ -4,7 +4,7 @@ from ..utils.importing import ModuleClass
 
 
 class MixinInstance:
-    def __init__(self, controller, mixin_class, attribute=False):
+    def __init__(self, controller, mixin_class, attribute=None):
         self._binding = {
             "controller": controller,
             "class": mixin_class,
@@ -36,7 +36,7 @@ class MixinInstance:
 
         def bound_method(*args, **kwargs):
             # bind mixin instance to controller for mixin self reference
-            if self._binding["attribute"] is not False:
+            if self._binding["attribute"] is not None:
                 self._binding["controller"].__mixin__ = getattr(
                     self._binding["controller"], self._binding["attribute"]
                 )

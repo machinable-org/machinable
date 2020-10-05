@@ -1,5 +1,4 @@
 from .storage import Storage
-from .view import View
 
 
 def get_component(url):
