@@ -30,6 +30,9 @@ def test_storage_experiment():
     assert o.project_name == "test_project"
     assert o.url == "osfs://./_test_data/storage/tttttt"
     assert o.components.first().config.test
+    assert o.host.test_info == "test_info"
+    assert o.host.test_info_static == "static_test_info"
+    assert len(o.host) == 10
     assert len(o.components) == 4
 
     experiments = o.experiments
@@ -51,7 +54,7 @@ def test_component_storage():
     assert comp.store("key") == "value"
     assert "test" in comp.store()
     assert len(comp.store()["__files"])
-    assert len(comp.host) == 9
+    assert len(comp.host) == 10
     assert len(comp.get_records()) == 2
 
     comp = get_experiment(get_path("subdirectory/TTTTTT"))

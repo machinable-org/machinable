@@ -1,1 +1,1 @@
-from .views import StorageExperimentView, StorageComponentView, StorageView
+from .views import StorageComponentView, StorageExperimentView, StorageView

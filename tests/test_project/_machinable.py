@@ -7,6 +7,10 @@ class Project(Registration):
     def config_global_conf(self, works=False):
         return works
 
+    @staticmethod
+    def host_test_info_static():
+        return "static_test_info"
+
     def host_test_info(self):
         return "test_info"
 

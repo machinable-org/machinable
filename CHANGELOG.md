@@ -4,6 +4,7 @@
 
 # Unreleased
 
+- Support static host info methods in Registration 
 - New `find_experiments` method to simplify recursive search for experiments in a given directory
 
 ## v2.5.2

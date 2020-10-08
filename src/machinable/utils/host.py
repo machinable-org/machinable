@@ -21,7 +21,8 @@ def get_host_info(registration=True):
     if registration:
         registration = Registration.get()
         for name, method in inspect.getmembers(
-            registration, predicate=inspect.ismethod
+            registration,
+            predicate=lambda x: inspect.isfunction(x) or inspect.ismethod(x),
         ):
             if name.startswith("host_"):
                 _getters[name[5:]] = method
