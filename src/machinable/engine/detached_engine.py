@@ -51,13 +51,9 @@ class DetachedEngine(Engine):
 
         return execution
 
-    def storage_middleware(self, storage):
-        if storage.get("url", "mem://").startswith("mem://"):
+    def on_before_storage_creation(self, execution):
+        if execution.storage.config.get("url", "mem://").startswith("mem://"):
             raise ValueError("Detached engine does not support temporary file systems")
-
-        storage["allow_overwrites"] = True
-
-        return storage
 
     def serialize(self):
         return {

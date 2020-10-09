@@ -317,7 +317,7 @@ class Component(Mixin):
 
             if not storage_config["url"].startswith("mem://"):
                 OutputRedirection.apply(
-                    self._storage_config["output_redirection"],
+                    self.flags["OUTPUT_REDIRECTION"],
                     self.storage.get_stream,
                     "output.log",
                 )

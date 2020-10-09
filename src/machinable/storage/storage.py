@@ -33,7 +33,6 @@ class Storage:
                 "records": {},
                 "directory": "",
                 "experiment": "",
-                "output_redirection": "SYS_AND_FILE",  # DISABLED, FILE_ONLY, SYS_AND_FILE, DISCARD
             },
             config,
             copy=True,

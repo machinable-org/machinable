@@ -142,6 +142,20 @@ class ConfigInterface:
         config["flags"]["NAME"] = name
         config["flags"]["MODULE"] = config["module"]
 
+        # output redirection
+        if "OUTPUT_REDIRECTION" not in config["flags"]:
+            config["flags"]["OUTPUT_REDIRECTION"] = "SYS_AND_FILE"
+        if config["flags"]["OUTPUT_REDIRECTION"] not in (
+            "SYS_AND_FILE",
+            "DISABLED",
+            "FILE_ONLY",
+            "SYS_AND_FILE",
+            "DISCARD",
+        ):
+            raise ValueError(
+                f"Invalid OUTPUT_REDIRECTION mode: {config['flags']['OUTPUT_REDIRECTION']}"
+            )
+
         # carry over global evaluation config
         if "_evaluate" not in config["args"]:
             config["args"]["_evaluate"] = self.data["_evaluate"]

@@ -160,14 +160,16 @@ class SlurmEngine(Engine):
 
         return execution
 
-    def storage_middleware(self, storage):
-        if storage.get("url", "mem://").startswith("mem://"):
+    def on_before_storage_creation(self, execution):
+        if execution.storage.config.get("url", "mem://").startswith("mem://"):
             raise ValueError("Remote engine does not support temporary file systems")
 
-        storage["allow_overwrites"] = True
-        storage["output_redirection"] = "DISABLED"  # use slurm log instead
+        # disable output redirection and rely on Slurm output log instead
+        def disable_output_redirection(i, component, element):
+            element[1]["flags"]["OUTPUT_REDIRECTION"] = "DISABLED"
+            return element
 
-        return storage
+        execution.schedule.transform(disable_output_redirection)
 
     def canonicalize_resources(self, resources):
         if resources is None:

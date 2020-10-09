@@ -96,13 +96,9 @@ class RemoteEngine(Engine):
 
         return execution
 
-    def storage_middleware(self, storage):
-        if storage.get("url", "mem://").startswith("mem://"):
+    def on_before_storage_creation(self, execution):
+        if execution.storage.config.get("url", "mem://").startswith("mem://"):
             raise ValueError("Remote engine does not support temporary file systems")
-
-        storage["allow_overwrites"] = True
-
-        return storage
 
     def __repr__(self):
         return f"Engine <remote({repr(self.engine)})>"

@@ -150,8 +150,8 @@ class Engine(Jsonable):
     def process(self, index, execution_type, *args, **kwargs):
         return index, getattr(self, execution_type)(*args, **kwargs)
 
-    def storage_middleware(self, storage):
-        return storage
+    def on_before_storage_creation(self, execution):
+        pass
 
     def log(self, text, level="info"):
         msg("[Engine] " + text, level, color="header")

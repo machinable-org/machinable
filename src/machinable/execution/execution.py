@@ -366,11 +366,15 @@ class Execution(Jsonable):
                 return element
 
             self.schedule.transform(set_derived_from_flag)
-            storage = self.engine.storage_middleware(self.storage.config)
 
             now = pendulum.now()
             self.timestamp = now.timestamp()
             self.started_at = str(now)
+
+            # allow engine and registration to make changes before storage submission
+            self.engine.on_before_storage_creation(self)
+            Registration.get().on_before_storage_creation(self)
+
             # do not backup on mem:// filesystem unless explicitly set to True
             code_backup = self.code_backup
             if code_backup is None and not self.storage.config["url"].startswith(
@@ -380,9 +384,9 @@ class Execution(Jsonable):
 
             # collect and write execution data
             url = os.path.join(
-                storage.get("url", "mem://"),
-                storage.get("directory", ""),
-                storage["experiment"],
+                self.storage.config.get("url", "mem://"),
+                self.storage.config.get("directory", ""),
+                self.storage.config["experiment"],
             )
             data = {
                 "code.json": {

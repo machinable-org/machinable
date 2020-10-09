@@ -2,6 +2,11 @@
 
 <!-- Please add changes under the Unreleased section that reads 'No current changes' otherwise -->
 
+# Unreleased
+
+- New registration event `on_before_storage_creation`
+- Control the output redirection via OUTPUT_REDIRECTION flag
+
 # v2.6.0
 
 - Deprecates self.store in favor of self.storage

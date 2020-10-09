@@ -41,6 +41,14 @@ class Registration:
         """
         pass
 
+    def on_before_storage_creation(self, execution):
+        """Event triggered right before the storage is created
+
+        # Arguments
+        execution: machinable.Execution object
+        """
+        pass
+
     def on_submit(self, execution, is_resubmission):
         """Event triggered during submission of an execution
 
