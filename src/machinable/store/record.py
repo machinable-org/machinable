@@ -176,7 +176,7 @@ class Record:
 
         if self.scope == "default":
             if hasattr(self.store, "events"):
-                self.store.events.trigger("store.on_change", "record.save")
+                self.store.events.trigger("storage.on_change", "record.save")
 
         if echo:
             msg(os.path.join(self.store.config["url"], self.store.get_path()))

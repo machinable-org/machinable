@@ -13,17 +13,19 @@ def test_execution_decorators():
     t = Experiment().components("thenode", "thechildren")
 
     @execute
-    def run(component, components, store):
+    def run(component, components, storage):
         assert component.config.alpha == 0
-        store.log.info("Custom training with learning_rate=" + str(component.config.a))
+        storage.log.info(
+            "Custom training with learning_rate=" + str(component.config.a)
+        )
         assert components[0].config.alpha == 0
 
     assert run(t, seed=1, project="./test_project").failures == 0
 
     @Execution
-    def run_2(component, components, store):
+    def run_2(component, components, storage):
         assert component.config.alpha == 0
-        store.log.info("Execution decorator")
+        storage.log.info("Execution decorator")
         assert components[0].config.alpha == 0
 
     assert run_2(t, seed=1, project="./test_project").submit().failures == 0

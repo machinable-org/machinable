@@ -19,12 +19,13 @@ class StorageComponent:
         self._cache = cache or {}
         self._cache["experiment"] = experiment
 
-    def file(self, filepath, default=sentinel, reload=None):
+    def read_file(self, filepath, default=sentinel, reload=None):
         """Returns the content of a file in the storage
 
         # Arguments
         filepath: Relative filepath
-        reload: If True, cache will be ignored. If datetime, file will be reloaded if cached version is older than the date
+        reload: If True, cache will be ignored. If datetime, file will be reloaded
+                if cached version is older than the date
         """
         if reload is None:
             finished_at = self.finished_at
@@ -90,48 +91,32 @@ class StorageComponent:
 
         return self._cache["experiment"]
 
-    def store(self, name=None):
-        """Retrieves element from the store
-
-        This is the counterpart to the ``store.write`` method.
+    def read_data(self, name=None, default=sentinel):
+        """Retrieves a data object from the storage
 
         # Arguments
-        name: Key or filename of the object that is to be retrieved. If None, a list of available objects is returned
+        name: Name of the data object. If None, a list of available objects is returned
         """
-        if isinstance(name, str) and os.path.splitext(name)[1] != "":
-            return self._model.file(os.path.join("store", name))
-
-        if "store" in self._cache:
-            store = self._cache["store"]
-        else:
-            try:
-                store = self._model.file("store.json")
-            except FileNotFoundError:
-                store = {}
-
-            with open_fs(self.url) as filesystem:
-                store["__files"] = filesystem.listdir("store")
-
-            if self.is_finished():
-                self._cache["store"] = store
-
         if name is None:
-            return store
+            with open_fs(self.url) as filesystem:
+                return filesystem.listdir("data")
 
-        return store[name]
+        return self.read_file(os.path.join("data", name), default)
 
     @property
     def config(self):
         """Returns the component config"""
         if "config" not in self._cache:
-            self._cache["config"] = config_map(self.file("component.json")["config"])
+            self._cache["config"] = config_map(
+                self.read_file("component.json")["config"]
+            )
         return self._cache["config"]
 
     @property
     def flags(self):
         """Returns the component flags"""
         if "flags" not in self._cache:
-            self._cache["flags"] = config_map(self.file("component.json")["flags"])
+            self._cache["flags"] = config_map(self.read_file("component.json")["flags"])
         return self._cache["flags"]
 
     @property
@@ -143,7 +128,7 @@ class StorageComponent:
     def components(self):
         if "components" not in self._cache:
             self._cache["components"] = [
-                config_map(component) for component in self.file("components.json")
+                config_map(component) for component in self.read_file("components.json")
             ]
 
         return self._cache["components"]
@@ -152,7 +137,7 @@ class StorageComponent:
     def host(self):
         """Returns information of the host"""
         if "host" not in self._cache:
-            self._cache["host"] = config_map(self.file("host.json"))
+            self._cache["host"] = config_map(self.read_file("host.json"))
         return self._cache["host"]
 
     @property
@@ -161,7 +146,7 @@ class StorageComponent:
         if "state" in self._cache:
             return self._cache["state"]
 
-        state = config_map(self.file("state.json"))
+        state = config_map(self.read_file("state.json"))
         if self.is_finished():
             self._cache["state"] = state
 
@@ -172,7 +157,7 @@ class StorageComponent:
         if "log" in self._cache:
             return self._cache["log"]
 
-        log = self.file("log.txt")
+        log = self.read_file("log.txt")
 
         if self.is_finished():
             self._cache["log"] = log
@@ -184,7 +169,7 @@ class StorageComponent:
         if "output" in self._cache:
             return self._cache["output"]
 
-        output = self.file("output.log")
+        output = self.read_file("output.log")
 
         if self.is_finished():
             self._cache["output"] = output
@@ -220,7 +205,7 @@ class StorageComponent:
         if "records." + scope in self._cache:
             return self._cache["records." + scope]
 
-        records = RecordCollection(self.file(f"records/{scope}.p"))
+        records = RecordCollection(self.read_file(f"records/{scope}.p"))
 
         if self.is_finished():
             self._cache["records." + scope] = records

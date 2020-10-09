@@ -19,7 +19,7 @@ class Store:
     """Store interface
 
     ::: tip
-    Becomes available as ``self.store``
+    Becomes available as ``self.storage``
     :::
 
     # Arguments
@@ -43,19 +43,15 @@ class Store:
         self._log = None
         self.created_at = pendulum.now().timestamp()
 
-        # restore if existing
-        with open_fs(self.config["url"]) as filesystem:
-            self._store = filesystem.load_file(self.get_path("store.json"), default={})
-
-    def get_record_writer(self, scope):
+    def get_record_writer(self, scope=None):
         """Creates or returns an instance of a record writer
 
         # Arguments
-        scope: Name of the record writer
-
-        # Returns
-        machinable.store.record.Record
+        scope: Name of the record writer. If None, a dict of all registered writers will be returned
         """
+        if scope is None:
+            return self._record_writers
+
         if scope not in self._record_writers:
             self._record_writers[scope] = Record(
                 store=self, config=self.config["records"], scope=scope
@@ -64,25 +60,14 @@ class Store:
         return self._record_writers[scope]
 
     @property
-    def record_writers(self):
-        """Returns a mapping of all record writers (scope => RecordWriter)"""
-        return self._record_writers
-
-    @property
     def record(self):
         """Record interface
-
-        # Returns
-        machinable.store.record.Record
         """
         return self.get_record_writer("default")
 
     @property
     def log(self):
         """Log interface
-
-        # Returns
-        machinable.store.log.Log
         """
         if self._log is None:
             self._log = Log(store=self, config=self.config["log"])
@@ -100,7 +85,7 @@ class Store:
         """
         return scope in self._record_writers
 
-    def has_logs(self):
+    def has_log(self):
         """Determines whether log writer exists
 
         # Returns
@@ -108,16 +93,24 @@ class Store:
         """
         return self._log is not None
 
-    def write(self, name, data, overwrite=False, _meta=False):
+    def has_file(self, name):
+        with open_fs(self.config["url"]) as filesystem:
+            return filesystem.exists(name)
+
+    def write(self, name, data, overwrite=True, _meta=False):
+        # deprecated alias
+        return self.save_data(name, data, overwrite, _meta)
+
+    def save_file(self, filepath, data):
+        return self.save_data(filepath, data, overwrite=True, _meta=True)
+
+    def save_data(self, name, data, overwrite=True, _meta=False):
         """Stores a data object
 
         # Arguments
-        name: String, name identifier.
-            You can provide an extension to instruct machinable to write the data in its own file and not as part
-            of a dictionary with other stored values.
-            Supported formats are .json (JSON), .npy (numpy), .p (pickle), .txt (txt)
+        name: String, name identifier. Supported formats are .json (JSON), .npy (numpy), .p (pickle), .txt (txt)
         data: The data object
-        overwrite: Boolean, if True existing values will be overwritten
+        overwrite: Boolean, if False existing values won't be overwritten if existing
         """
         mode = "w" if overwrite else "a"
         path = os.path.dirname(name)
@@ -125,23 +118,13 @@ class Store:
         _, ext = os.path.splitext(name)
 
         if not _meta:
-            path = "store/" + path
+            path = "data/" + path
         self.filesystem.makedir(self.get_path(path), recreate=True)
         filepath = os.path.join(path, name)
 
         # todo: check overwrite for files
 
-        if ext == "":
-            # automatic handling
-            if name in self._store and not overwrite:
-                raise ValueError(
-                    f"'{name}' already exist. "
-                    f"Use overwrite=True if you intent to overwrite existing data"
-                )
-            self._store[name] = data
-            with self.get_stream("store.json", "w") as f:
-                f.write(json.dumps(self._store, ensure_ascii=False, default=serialize))
-        elif ext == ".json":
+        if ext == ".json":
             # json
             with self.get_stream(filepath, mode) as f:
                 f.write(json.dumps(data, ensure_ascii=False, default=serialize))
@@ -171,23 +154,34 @@ class Store:
 
         if hasattr(self.component, "events"):
             self.component.events.trigger(
-                "store.on_change", "store.save", {"name": name, "data": data}
+                "storage.on_change", "storage.save", {"name": name, "data": data}
             )
 
-    def read(self, name, default=sentinel, _meta=False):
-        if not _meta:
-            name = "store/" + name
-        with open_fs(self.config["url"]) as filesystem:
-            return filesystem.load_file(self.get_path(name), default)
+    def get_url(self, append=""):
+        """Returns the storage URL of the component"""
+        return os.path.join(
+            self.config["url"],
+            os.path.join(
+                self.config.get("directory", ""),
+                self.config["experiment"],
+                self.config.get("component", ""),
+                append,
+            ),
+        )
 
-    def exists(self, name, _meta=False):
-        if not _meta:
-            name = "store/" + name
-        with open_fs(self.config["url"]) as filesystem:
-            return filesystem.exists(name)
+    def local_directory(self, append=""):
+        """Returns the local storage filesystem path, or False if non-local
+
+        # Returns
+        Local filesystem path, or False if non-local
+        """
+        if not self.config["url"].startswith("osfs://"):
+            return False
+
+        return os.path.join(self.get_url().split("osfs://")[-1], append)
 
     def get_stream(self, path, mode="r", *args, **kwargs):
-        """Returns a file stream on the store write
+        """Returns a file stream on the storage
 
         # Arguments
         path: Relative file path

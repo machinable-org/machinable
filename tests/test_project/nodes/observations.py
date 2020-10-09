@@ -29,12 +29,12 @@ class Observations(Component):
 
         if self.config.get("test") is True:
             # custom records
-            self.store.get_record_writer("validation")["iteration"] = iteration
-            self.store.get_record_writer("validation").save()
+            self.storage.get_record_writer("validation")["iteration"] = iteration
+            self.storage.get_record_writer("validation").save()
 
-        self.store.write("test", 2, overwrite=True)
+        self.storage.save_data("test_data.json", 2)
         if iteration == 1:
-            self.store.write("test.txt", f"hello from observation {self.config.id}")
-            self.store.write("data.json", {"observation_id": self.config.id})
-            self.store.write("key", "value")
-            self.store.write("test", 1, overwrite=True)
+            self.storage.save_data(
+                "test.txt", f"hello from observation {self.config.id}"
+            )
+            self.storage.save_data("data.json", {"observation_id": self.config.id})

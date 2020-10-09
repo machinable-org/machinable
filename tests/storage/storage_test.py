@@ -49,11 +49,7 @@ def test_component_storage():
     assert comp.flags.NAME == "nodes.observations"
     assert comp.config.to_test == "observations"
     assert len(comp.components) == 0
-    assert comp.store("data.json")["observation_id"] > 0
-    assert comp.store("test") == 2
-    assert comp.store("key") == "value"
-    assert "test" in comp.store()
-    assert len(comp.store()["__files"])
+    assert comp.read_data("data.json")["observation_id"] > 0
     assert len(comp.host) == 10
     assert len(comp.get_records()) == 2
 

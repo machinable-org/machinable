@@ -144,9 +144,9 @@ class ComponentState(Jsonable):
 
     @staticmethod
     def save(component):
-        if component.node is not None or component.store is None:
+        if component.node is not None or component.storage is None:
             return False
-        component.store.write(
+        component.storage.write(
             "state.json",
             {
                 "component": component.component_state.serialize(),
@@ -185,7 +185,7 @@ class Component(Mixin):
 
         self._node: Optional[Component] = node
         self._components: Optional[List[Component]] = None
-        self._store: Optional[Store] = None
+        self._storage = None
         self._events = Events()
         self._actor_config = None
         self._storage_config = None
@@ -261,25 +261,30 @@ class Component(Mixin):
         self._components = value
 
     @property
-    def store(self) -> Store:
-        if self._store is None and isinstance(self.node, Component):
-            # forward to node store if available
-            return self.node.store
-        return self._store
+    def store(self):
+        # deprecated alias
+        return self.storage
 
-    @store.setter
-    def store(self, value):
-        self._store = value
+    @property
+    def storage(self):
+        if self._storage is None and isinstance(self.node, Component):
+            # forward to node store if available
+            return self.node.storage
+        return self._storage
+
+    @storage.setter
+    def storage(self, value):
+        self._storage = value
 
     @property
     def record(self) -> Record:
         """Record writer instance"""
-        return self.store.record
+        return self.storage.record
 
     @property
     def log(self) -> Log:
         """Log writer instance"""
-        return self.store.log
+        return self.storage.log
 
     @property
     def events(self) -> Events:
@@ -308,26 +313,25 @@ class Component(Mixin):
             self.on_init_storage(storage_config)
 
             self._storage_config = storage_config
-            self.store = Store(component=self, config=storage_config)
+            self.storage = Store(component=self, config=storage_config)
 
             if not storage_config["url"].startswith("mem://"):
                 OutputRedirection.apply(
                     self._storage_config["output_redirection"],
-                    self.store.get_stream,
+                    self.storage.get_stream,
                     "output.log",
                 )
 
-            if not self.store.exists("host.json", _meta=True):
-                self.store.write("host.json", get_host_info(), _meta=True)
-            if not self.store.exists("component.json", _meta=True):
-                self.store.write("component.json", self.serialize(), _meta=True)
-            if not self.store.exists("components.json", _meta=True):
-                self.store.write(
+            if not self.storage.has_file("host.json"):
+                self.storage.save_file("host.json", get_host_info())
+            if not self.storage.has_file("component.json"):
+                self.storage.save_file("component.json", self.serialize())
+            if not self.storage.has_file("components.json"):
+                self.storage.save_file(
                     "components.json",
                     [component.serialize() for component in self.components]
                     if self.components
                     else [],
-                    _meta=True,
                 )
             self.component_state.save(self)
 
@@ -442,12 +446,12 @@ class Component(Mixin):
                     if self.on_after_execute_iteration(iteration) is not False:
                         # trigger records.save() automatically
                         if (
-                            self.store
-                            and self.store.has_records()
-                            and not self.store.record.empty()
+                            self.storage
+                            and self.storage.has_records()
+                            and not self.storage.record.empty()
                         ):
-                            self.store.record["_iteration"] = iteration
-                            self.store.record.save()
+                            self.record["_iteration"] = iteration
+                            self.record.save()
                 except (KeyboardInterrupt, StopIteration):
                     callback = StopIteration
 
@@ -500,9 +504,7 @@ class Component(Mixin):
         """
         try:
             self.component_status["heartbeat_at"] = str(pendulum.now())
-            self.store.write(
-                "status.json", self.component_status, overwrite=True, _meta=True
-            )
+            self.storage.save_file("status.json", self.component_status)
         except (IOError, Exception) as ex:
             if log_errors:
                 self.log.error(
@@ -512,29 +514,6 @@ class Component(Mixin):
             return ex
 
         return True
-
-    def get_url(self, append=""):
-        """Returns the storage URL of the component"""
-        return os.path.join(
-            self._storage_config["url"],
-            os.path.join(
-                self._storage_config.get("directory", ""),
-                self._storage_config["experiment"],
-                self._storage_config.get("component", ""),
-                append,
-            ),
-        )
-
-    def local_directory(self, append=""):
-        """Returns the local storage filesystem path, or False if non-local
-
-        # Returns
-        Local filesystem path, or False if non-local
-        """
-        if not self._storage_config["url"].startswith("osfs://"):
-            return False
-
-        return os.path.join(self.get_url().split("osfs://")[-1], append)
 
     def set_seed(self, seed=None) -> bool:
         """Applies a global random seed
@@ -564,16 +543,16 @@ class Component(Mixin):
             timestep: int = len(self.component_state.checkpoints)
 
         if path is None:
-            if not self.store:
+            if not self.storage:
                 raise ValueError("You need to specify a checkpoint path")
 
-            fs_prefix, basepath = self.store.config["url"].split("://")
+            fs_prefix, basepath = self.storage.config["url"].split("://")
             if fs_prefix != "osfs":
                 # todo: support non-local filesystems via automatic sync
                 raise NotImplementedError(
                     "Checkpointing to non-os file systems is currently not supported."
                 )
-            checkpoint_path = self.store.get_path("checkpoints", create=True)
+            checkpoint_path = self.storage.get_path("checkpoints", create=True)
             path = os.path.join(os.path.expanduser(basepath), checkpoint_path)
 
         checkpoint = self.on_save(path, timestep)
@@ -591,8 +570,8 @@ class Component(Mixin):
         # Arguments
         filepath: Checkpoint filepath
         """
-        if self.store is not None:
-            self.store.log.info(f"Restoring checkpoint `{checkpoint}`")
+        if self.storage is not None:
+            self.log.info(f"Restoring checkpoint `{checkpoint}`")
         return self.on_restore(checkpoint)
 
     def serialize(self):
@@ -811,26 +790,24 @@ class FunctionalComponent:
                 payload["components"] = [
                     config_map(component) for component in components
                 ]
-            elif key == "store" or key == "_store":
-                if key == "_store":
-                    payload["store"] = storage_config
+            elif key == "storage" or key == "_storage":
+                if key == "_storage":
+                    payload["storage"] = storage_config
                 else:
-                    store = Store(component=self, config=storage_config)
-                    store.write("host.json", get_host_info(), _meta=True)
-                    store.write(
-                        "component",
+                    storage = Store(component=self, config=storage_config)
+                    storage.save_file("host.json", get_host_info())
+                    storage.save_file(
+                        "component.json",
                         {"config": self.node["config"], "flags": self.node["flags"]},
-                        _meta=True,
                     )
-                    store.write(
-                        "components",
+                    storage.save_file(
+                        "components.json",
                         [
                             {"config": c["config"], "flags": c["flags"]}
                             for c in components
                         ],
-                        _meta=True,
                     )
-                    payload["store"] = store
+                    payload["storage"] = storage
             else:
                 raise ValueError(
                     f"Unrecognized argument: '{key}'. "

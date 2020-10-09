@@ -2,9 +2,10 @@
 
 <!-- Please add changes under the Unreleased section that reads 'No current changes' otherwise -->
 
-# Unreleased
+# v2.6.0
 
-- Support static host info methods in Registration 
+- Deprecates self.store in favor of self.storage
+- Support static host info methods in registration 
 - New `find_experiments` method to simplify recursive search for experiments in a given directory
 
 ## v2.5.2

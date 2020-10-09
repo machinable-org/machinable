@@ -98,13 +98,13 @@ For convenience, the dict interface can be accessed using the `.` object notatio
 
 Flags are configuration values that are associated with the particular execution, for example the random seeds or worker IDs. They are accessible via the `self.flags` object, that supports the `.` object notation. You can add your own flags through basic assignment, e.g. ``self.flags.counter = 1``. To avoid name collision, all native machinable flags use UPPERCASE (e.g. ``self.flags.SEED``).
 
-## self.store
+## self.storage
 
-The interface `self.store` allows for the storing of data and results of the components. Note that you don't have to specify where the data is being stored. machinable will manage unique directories automatically. The data can later be retrieved using the [Storage](./storage.md) interface.
+`self.storage` provides access to the storage directory of the component (each component directy name is unique and managed automatically so you don't have to specify where the data is being stored). The data can later be retrieved using the [storage interfaces](./storage.md).
 
 **Log**
 
-`self.store.log` or `self.log` provides a standard logger interface that outputs to the console and a log file.
+`self.storage.log` or `self.log` provides a standard logger interface that outputs to the console and a log file.
 
 ``` python
 self.log.info('Component created')
@@ -113,7 +113,7 @@ self.log.debug('Component initialized')
 
 **Records**
 
-`self.store.record` or `self.record` provides an interface for tabular logging, that is, storing recurring data points at each iteration. The results become available as a table where each row represents each iteration.
+`self.storage.record` or `self.record` provides an interface for tabular logging, that is, storing recurring data points at each iteration. The results become available as a table where each row represents each iteration.
 
 ``` python
 for iteration in range(10):
@@ -129,27 +129,22 @@ for iteration in range(10):
 
 If you use the `on_execute_iteration` event, iteration information and `record.save()` will be triggered automatically at the end of each iteration.
 
-Sometimes it is useful to have multiple tabular loggers, for example to record training and validation performance separately. You can create custom record loggers using `self.store.get_record_writer(scope)` which returns a new instance of a record writer that you can use just like the main record writer.
+Sometimes it is useful to have multiple tabular loggers, for example to record training and validation performance separately. You can create custom record loggers using `self.storage.get_record_writer(scope)` which returns a new instance of a record writer that you can use just like the main record writer.
 
-**Store**
+**Custom data**
 
-You can use `self.store.write()` to write any other Python object, for example:
+Any other data can be stored in the `data/` subdirectory. 
 
-```python
-self.store.write('final_accuracy', [0.85, 0.92])
-```
-Note that to protect unintended data loss, overwriting will fail unless the ``overwrite`` argument is explicitly set. 
-
-For larger data structures, it can be more suitable to write data in specific file formats by appending a file extension, i.e.:
+You can use `self.storage.write_data()` to write any other Python object, for example:
 
 ``` python
-self.store.write('data.txt', 'a string')
-self.store.write('data.p', generic_object)
-self.store.write('data.json', jsonable_object)
-self.store.write('data.npy', numpy_array)
+self.storage.save_data('data.txt', 'a string')
+self.storage.save_data('data.p', generic_object)
+self.storage.save_data('data.json', jsonable_object)
+self.storage.save_data('data.npy', numpy_array)
 ```
 
-Refer to the store [reference](./components.md#store) for more details.
+To protect against unintended data loss, you can set `overwrite=False`.
 
 ## Config methods
 
