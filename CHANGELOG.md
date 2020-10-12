@@ -4,6 +4,7 @@
 
 # Unreleased
 
+- Support .json and .yaml files as version arguments
 - jsonl based record writer for continuous writes 
 - Removes deprecated self.store
 - New registration event `on_before_storage_creation`

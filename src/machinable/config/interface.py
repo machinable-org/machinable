@@ -41,11 +41,10 @@ class ConfigInterface:
         self.default_class = default_class
 
     def _get_version(self, name, config, current=None):
-        # from yaml string
-        if not name.startswith("~") and not (
-            name.startswith("_") and name.endswith("_")
-        ):
-            return yaml.load(name, Loader=yaml.FullLoader)
+        # from yaml file
+        if name.endswith(".yaml") or name.endswith(".json"):
+            with open(name) as f:
+                return yaml.load(f, Loader=yaml.FullLoader)
 
         # from mixin
         if name.startswith("_") and name.endswith("_"):
@@ -56,6 +55,10 @@ class ConfigInterface:
                     f"Mixin '{name}' not available.\n"
                     f"Did you register it under 'mixins'?\n"
                 )
+
+        # from yaml string
+        if not name.startswith("~"):
+            return yaml.load(name, Loader=yaml.FullLoader)
 
         # from local version
         if name in config:

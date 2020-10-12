@@ -97,6 +97,10 @@ def test_config_versioning():
     assert m["alpha"] == 0
     assert m["key"]["mixing"] == "is"
 
+    t = Experiment().components(("thenode", "./test_project/version_override.json"))
+    e, m = to_config(test_project, t)
+    assert e["alpha"] == 10
+
 
 def test_computed_versioning():
     test_project = Project("./test_project")
