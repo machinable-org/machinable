@@ -259,7 +259,8 @@ class Component(Mixin):
         self._components = value
 
     @property
-    def storage(self):
+    def storage(self) -> Storage:
+        """Storage interface"""
         if self._storage is None and isinstance(self.node, Component):
             # forward to node store if available
             return self.node.storage
@@ -285,6 +286,7 @@ class Component(Mixin):
 
     @property
     def events(self) -> Events:
+        """Event interface"""
         return self._events
 
     def __getattr__(self, name):
