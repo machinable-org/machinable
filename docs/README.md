@@ -86,7 +86,7 @@ annotations: {
           width: 176,
           height: 25, 
           value: "
-          Save results to local and remote locations, or use temporary store during development
+          Save results to local and remote locations, or use temporary storage during development
           "
         },
         {

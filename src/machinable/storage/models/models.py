@@ -61,7 +61,7 @@ class StorageExperimentModel(StorageModel):
     def __init__(self, data):
         super().__init__(data)
         if self.component_id is not None:
-            raise ValueError("The provided URL is not a valid experiment storage URL/")
+            self.component_id = None
 
     @classmethod
     def create(cls, args):

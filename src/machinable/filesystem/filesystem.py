@@ -87,6 +87,8 @@ class FileSystem:
 
         try:
             with self as filesystem:
+                # make sure directory exists
+                filesystem.makedirs(path, recreate=True)
                 if ext == ".json":
                     # json
                     with filesystem.open(filepath, mode) as f:
@@ -104,7 +106,7 @@ class FileSystem:
                         mode += "b"
                     with filesystem.open(filepath, mode) as f:
                         pickle.dump(data, f)
-                elif ext in [".txt", ".diff"]:
+                elif ext in [".txt", ".log", ".diff"]:
                     with filesystem.open(filepath, mode) as f:
                         f.write(data)
                 else:
@@ -115,7 +117,11 @@ class FileSystem:
         except errors.FSError as ex:
             raise IOError(str(ex))
 
-    # forward function calls to fs
+    # forward function calls to underlying fs
 
     def __getattr__(self, item):
+        if self._fs is None:
+            self._fs = open_fs(
+                self.config["url"], create=self.config.get("create", False)
+            )
         return getattr(self._fs, item)

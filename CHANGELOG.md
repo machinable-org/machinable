@@ -4,6 +4,8 @@
 
 # Unreleased
 
+- jsonl based record writer for continuous writes 
+- Removes deprecated self.store
 - New registration event `on_before_storage_creation`
 - Control the output redirection via OUTPUT_REDIRECTION flag
 

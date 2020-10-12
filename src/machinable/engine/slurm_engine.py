@@ -63,7 +63,7 @@ class SlurmEngine(Engine):
     def _submit(self, execution):
         url = os.path.join(
             execution.storage.config["url"],
-            execution.storage.config.get("directory", ""),
+            execution.storage.config["directory"] or "",
             execution.experiment_id,
         )
 

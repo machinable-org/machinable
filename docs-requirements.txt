@@ -8,3 +8,4 @@ dataset
 ray[tune]
 pandas
 deepdiff
+jsonlines

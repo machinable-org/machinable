@@ -13,3 +13,4 @@ setproctitle
 sh
 GitPython
 expandvars
+jsonlines

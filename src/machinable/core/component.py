@@ -10,9 +10,9 @@ import pendulum
 from ..config.mapping import ConfigMap, ConfigMethod, config_map
 from ..config.parser import parse_mixins
 from ..registration import Registration
-from ..store import Store
-from ..store.log import Log
-from ..store.record import Record
+from ..storage import Storage
+from ..storage.log import Log
+from ..storage.record import Record
 from ..utils.dicts import update_dict
 from ..utils.formatting import exception_to_str
 from ..utils.host import get_host_info
@@ -125,10 +125,10 @@ class ComponentState(Jsonable):
     def __init__(
         self, created=False, executed=False, destroyed=False, checkpoints=None
     ):
+        self.created = created
+        self.executed = executed
+        self.destroyed = destroyed
         self.checkpoints = checkpoints or []
-        self.created = False
-        self.executed = False
-        self.destroyed = False
 
     def serialize(self):
         return {
@@ -146,7 +146,7 @@ class ComponentState(Jsonable):
     def save(component):
         if component.node is not None or component.storage is None:
             return False
-        component.storage.write(
+        component.storage.save_file(
             "state.json",
             {
                 "component": component.component_state.serialize(),
@@ -157,7 +157,6 @@ class ComponentState(Jsonable):
                 else None,
             },
             overwrite=True,
-            _meta=True,
         )
 
 
@@ -185,10 +184,9 @@ class Component(Mixin):
 
         self._node: Optional[Component] = node
         self._components: Optional[List[Component]] = None
-        self._storage = None
-        self._events = Events()
+        self._storage: Optional[Storage] = None
+        self._events: Events = Events()
         self._actor_config = None
-        self._storage_config = None
         self.__mixin__ = None
         self.component_status = dict()
         self.component_state = ComponentState()
@@ -261,11 +259,6 @@ class Component(Mixin):
         self._components = value
 
     @property
-    def store(self):
-        # deprecated alias
-        return self.storage
-
-    @property
     def storage(self):
         if self._storage is None and isinstance(self.node, Component):
             # forward to node store if available
@@ -279,7 +272,11 @@ class Component(Mixin):
     @property
     def record(self) -> Record:
         """Record writer instance"""
-        return self.storage.record
+        return self.storage.get_records(
+            "default",
+            events=self.events,
+            created_at=self.component_status["started_at"],
+        )
 
     @property
     def log(self) -> Log:
@@ -293,7 +290,7 @@ class Component(Mixin):
     def __getattr__(self, name):
         # Mixins and dynamic attributes are set during construction; this helps suppressing IDE warnings
         raise AttributeError(
-            f"{self.__class__.__name__} components has not attribute {name}"
+            f"{self.__class__.__name__} component has not attribute {name}"
         )
 
     def dispatch(
@@ -312,8 +309,11 @@ class Component(Mixin):
 
             self.on_init_storage(storage_config)
 
-            self._storage_config = storage_config
-            self.storage = Store(component=self, config=storage_config)
+            self.storage = Storage.create(storage_config)
+
+            self.component_status["started_at"] = str(pendulum.now())
+            self.component_status["finished_at"] = False
+            self.refresh_status(log_errors=True)
 
             if not storage_config["url"].startswith("mem://"):
                 OutputRedirection.apply(
@@ -334,10 +334,6 @@ class Component(Mixin):
                     else [],
                 )
             self.component_state.save(self)
-
-            self.component_status["started_at"] = str(pendulum.now())
-            self.component_status["finished_at"] = False
-            self.refresh_status(log_errors=True)
 
             if self.node is None:
                 self.events.heartbeats(seconds=self.flags.get("HEARTBEAT", 15))
@@ -443,15 +439,7 @@ class Component(Mixin):
 
                 try:
                     callback = self.on_execute_iteration(iteration)
-                    if self.on_after_execute_iteration(iteration) is not False:
-                        # trigger records.save() automatically
-                        if (
-                            self.storage
-                            and self.storage.has_records()
-                            and not self.storage.record.empty()
-                        ):
-                            self.record["_iteration"] = iteration
-                            self.record.save()
+                    self.on_after_execute_iteration(iteration)
                 except (KeyboardInterrupt, StopIteration):
                     callback = StopIteration
 
@@ -731,13 +719,8 @@ class Component(Mixin):
 
         flags = getattr(self, "flags", {})
         r = f"Component <{flags.get('EXPERIMENT_ID', '-')}:{flags.get('UID', '-')}>"
-        if self._storage_config is not None:
-            url = os.path.join(
-                self._storage_config.get("directory", ""),
-                self._storage_config.get("experiment", ""),
-                self._storage_config.get("component", ""),
-            )
-            r += f" ({url})"
+        if self.storage is not None:
+            r += f" ({self.storage.get_url()})"
         return r
 
     def __str__(self):
@@ -794,7 +777,7 @@ class FunctionalComponent:
                 if key == "_storage":
                     payload["storage"] = storage_config
                 else:
-                    storage = Store(component=self, config=storage_config)
+                    storage = Storage.create(storage_config)
                     storage.save_file("host.json", get_host_info())
                     storage.save_file(
                         "component.json",

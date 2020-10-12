@@ -2,10 +2,10 @@
 # https://github.com/sdispater/backpack/blob/master/tests/collections/test_collection.py
 # The copyright and license agreement can be found in the ThirdPartyNotices.txt file at the root of this repository.
 
-
+import pytest
 from unittest import TestCase
 
-from machinable.storage import get_experiment
+from machinable.storage import get_experiment, find_experiments
 from machinable.storage.collections import (
     Collection,
     ComponentStorageCollection,
@@ -25,6 +25,27 @@ def test_experiment_collection():
     cc = c.components
     assert isinstance(cc, ComponentStorageCollection)
     assert len(cc) == 4
+
+
+def test_component_collection():
+    experiment = get_experiment("./_test_data/storage/tttttt")
+    import numpy as np
+
+    def o(x):
+        return x.records.pluck("number")
+
+    assert max(experiment.components.section(o, reduce=np.var)) > 0
+    df = experiment.components.as_dataframe()
+    assert df.size == 4 * 8
+    r = experiment.components.first().records
+    num_elements = len(r.pluck("number"))
+    with pytest.raises(KeyError):
+        r.pluck("not_existing")
+    nones = r.pluck_or_none("not_existing")
+    assert all([e is None for e in nones])
+
+    experiments = find_experiments("./_test_data/storage/tttttt")
+    assert experiments.take(2).as_dataframe().size == 10
 
 
 class CollectionTestCase(TestCase):

@@ -29,8 +29,8 @@ class Observations(Component):
 
         if self.config.get("test") is True:
             # custom records
-            self.storage.get_record_writer("validation")["iteration"] = iteration
-            self.storage.get_record_writer("validation").save()
+            self.storage.get_records("validation")["iteration"] = iteration
+            self.storage.get_records("validation").save()
 
         self.storage.save_data("test_data.json", 2)
         if iteration == 1:
@@ -38,3 +38,5 @@ class Observations(Component):
                 "test.txt", f"hello from observation {self.config.id}"
             )
             self.storage.save_data("data.json", {"observation_id": self.config.id})
+
+        self.record.save()

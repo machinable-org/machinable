@@ -23,37 +23,30 @@ def test_on_iterate():
 
             if self.USE_RECORDS:
                 self.record["hello"] = iteration
+
+            self.record.save()
+
             if iteration == 5:
                 return StopIteration
 
     iterator = TestIterate()
-    iterator.dispatch([], Storage({"component": "1235"}).config)
+    iterator.dispatch([], {"url": "mem://"})
     iterator.create()
     iterator.execute()
 
     # iteration working
     assert iterator.ITER == 5
 
-    # there should be no records
-    assert "default" not in iterator.store._record_writers
-
     # repeat with records writing
     iterator = TestIterate()
-    iterator.dispatch([], Storage({"component": "12345"}).config)
+    iterator.dispatch([], {"url": "mem://"})
     iterator.create()
     iterator.USE_RECORDS = True
     iterator.execute()
 
-    # records should now be available
-    assert "default" in iterator.store._record_writers
-    # records should be empty because they have been saved
+    assert "default" in iterator.storage._record_writers
     assert iterator.record.empty()
-    # there should be 5 records
-    assert len(iterator.record.history) == 6
-    # they should contain _iteration
-    print(iterator.record.history)
-    for i in range(len(iterator.record.history)):
-        assert iterator.record.history[i]["_iteration"] == i
+    assert iterator.record._meta_data["length"] == 6
 
 
 def test_interaction():

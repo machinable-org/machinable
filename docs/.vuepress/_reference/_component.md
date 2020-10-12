@@ -2,8 +2,8 @@
 
 {% machinable.Component::{'header': False, 'level': '##'} %}
 
-{% machinable.store.Store %}
+{% machinable.storage.Storage %}
 
-{% machinable.store.record.Record %}
+{% machinable.storage.record.Record %}
 
-{% machinable.store.log.Log %}
+{% machinable.storage.log.Log %}

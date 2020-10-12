@@ -60,10 +60,10 @@ def config_map(d=None):
 # !include machinable.utils.formatting.prettydict
 
 
-# !include machinable.store.record.Record
+# !include machinable.storage.record.Record
 
 
-# !include machinable.store.log.Log
+# !include machinable.storage.log.Log
 
 
 class FileSystem:
@@ -94,7 +94,7 @@ def open_fs(storage, *args, **kwargs):
 # !include machinable.utils.system.OutputRedirection
 
 
-# !include machinable.store.store.Store
+# !include machinable.storage.storage.Storage
 
 
 # !include machinable.core.component.set_alias

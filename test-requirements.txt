@@ -13,3 +13,4 @@ ariadne
 starlette
 uvicorn
 dataset
+jsonlines

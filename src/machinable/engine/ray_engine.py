@@ -66,16 +66,13 @@ class RayEngine(Engine):
                 component["args"], component["flags"]
             )
 
-        # destroy events class as independent instances will be recreated in the local workers
-        storage["events"] = None
-
         return nd.dispatch.remote(components, storage, nd)
 
     def tune(
         self,
         component,
         components=None,
-        store=None,
+        storage=None,
         resources=None,
         args=None,
         kwargs=None,
@@ -89,9 +86,6 @@ class RayEngine(Engine):
             args = []
         if kwargs is None:
             kwargs = {}
-
-        if "events" in store:
-            del store["events"]
 
         class MachinableTuningComponent(Trainable):
             def _setup(self, config):
@@ -115,9 +109,8 @@ class RayEngine(Engine):
                         components[i]["args"], components_update[i]
                     )
 
-                storage_config = copy.deepcopy(store)
+                storage_config = copy.deepcopy(storage)
                 storage_config["url"] = "../../../"
-                storage_config["allow_overwrites"] = True
 
                 self.node = component["class"](node_args, node_flags)
                 self.components = self.node.dispatch(
@@ -147,21 +140,12 @@ class RayEngine(Engine):
                         is not False
                     ):
                         # trigger records.save() automatically
-                        if (
-                            self.node.store.has_records()
-                            and not self.node.store.record.empty()
-                        ):
-                            self.node.store.record[
-                                "_iteration"
-                            ] = self._node_execution_iterations
-                            self.node.store.record.save()
+                        if not self.node.record.empty():
+                            self.node.record.save()
                 except (KeyboardInterrupt, StopIteration):
                     callback = StopIteration
 
-                if len(self.node.record.history) > self._node_execution_iterations:
-                    data = self.node.record.history[-1].copy()
-                else:
-                    data = {}
+                data = self.node.record.latest or {}
 
                 data[DONE] = callback is StopIteration
 
@@ -176,21 +160,19 @@ class RayEngine(Engine):
             def _stop(self):
                 self.node.destroy()
 
-        if "url" not in store:
-            store["url"] = "~/ray_results"
+        if not storage["url"].startswith("osfs://"):
+            raise ValueError(
+                "Storage has to be local; use sync options of Ray tune to copy to remote."
+            )
 
-        if store["url"].find("://") != -1:
-            fs_prefix, local_dir = store["url"].split("://")
-            if fs_prefix != "osfs":
-                raise ValueError(
-                    "Store has to be local; use upload_dir or sync options of Ray tune to copy to remote."
-                )
-        else:
-            local_dir = store["url"]
-
-        kwargs["name"] = os.path.join(store["experiment"], store["component"])
+        kwargs["name"] = os.path.join(storage["experiment"], storage["component"])
         kwargs["resources_per_trial"] = resources
-        kwargs["local_dir"] = local_dir
+        kwargs["local_dir"] = os.path.join(
+            storage["url"].split("osfs://")[-1],
+            storage["directory"] or "",
+            storage["experiment"] or "",
+            storage["component"] or "",
+        )
 
         output = ray.tune.run(MachinableTuningComponent, *args, **kwargs)
 

@@ -64,7 +64,7 @@ Whenever you execute an experiment, machinable generates a unique 6-digit experi
     │   │   ├── host.json
     │   │   ├── log.txt
     │   │   ├── state.json
-    │   │   └── store.json
+    │   │   └── data/
     │   ├── ... 
     │   ├── host.json
     │   └── execution.json
@@ -132,4 +132,4 @@ find_experiments("~/results")
 
 ### Managing experiments
 
-The discussed storage interfaces are fairly minimal when it comes to organisation of your experiments. It's up to you to keep track of storage locations, and the read-only interface means you cannot save annotations or comments. To organise and query many experiments more effectively, you can use [Indexes](./index.md) that provide database-like features covered in the next section.
+The discussed storage interfaces are fairly minimal when it comes to organisation of your experiments. In particular, they require you to keep track of storage locations. To organise and query many experiments more effectively, you can use [Indexes](./index.md) that provide database-like features covered in the next section.

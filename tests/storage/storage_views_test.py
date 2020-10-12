@@ -28,9 +28,6 @@ def test_storage_views():
         def test(self):
             return "hello"
 
-    from machinable.storage.views.views import _register
-
-    print(_register)
     e = get_experiment("./_test_data/storage/tttttt")
     assert e.view.forward() == "tttttt"
     assert e.view.ref() == "tttttt"

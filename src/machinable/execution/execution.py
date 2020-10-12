@@ -345,14 +345,11 @@ class Execution(Jsonable):
             with open_fs(self.storage.config["url"]) as filesystem:
                 experiment_id = filesystem.load_file("execution.json")["experiment_id"]
                 # register URL as parent storage and rewrite to experiments/ subdirectory
-                self.storage.config["ancestor"] = {
-                    "url": self.storage.config["url"],
-                    "experiment": experiment_id,
-                }
+                derived_from = self.storage.config["url"]
                 self.storage.config["url"] = os.path.join(
                     self.storage.config["url"], "experiments"
                 )
-                derived_from = self.storage.config["ancestor"]["url"]
+
         except (ValueError, KeyError, FileNotFoundError):
             pass
 
@@ -383,11 +380,7 @@ class Execution(Jsonable):
                 code_backup = True
 
             # collect and write execution data
-            url = os.path.join(
-                self.storage.config.get("url", "mem://"),
-                self.storage.config.get("directory", ""),
-                self.storage.config["experiment"],
-            )
+            url = self.storage.get_url()
             data = {
                 "code.json": {
                     "resolvers": {
