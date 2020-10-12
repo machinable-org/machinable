@@ -2,7 +2,7 @@
 
 <!-- Please add changes under the Unreleased section that reads 'No current changes' otherwise -->
 
-# 2.7.0
+# v2.7.0
 
 - Experimental schema_validation option
 - Support .json and .yaml files as version arguments
