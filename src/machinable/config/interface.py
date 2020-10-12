@@ -6,6 +6,7 @@ import yaml
 from flatten_dict import unflatten
 
 from ..config.mapping import config_map
+from ..core.settings import get_settings
 from ..experiment import ExperimentComponent
 from ..utils.dicts import update_dict
 from ..utils.importing import ModuleClass
@@ -39,6 +40,7 @@ class ConfigInterface:
             version = []
         self.version = version
         self.default_class = default_class
+        self.schema_validation = get_settings()["schema_validation"]
 
     def _get_version(self, name, config, current=None):
         # from yaml file
@@ -269,7 +271,9 @@ class ConfigInterface:
                 # merge with version
                 version = update_dict(version, k)
 
-        config["args"] = update_dict(config["args"], version, preserve_schema=True)
+        config["args"] = update_dict(
+            config["args"], version, preserve_schema=self.schema_validation
+        )
 
         # remove unused versions
         config["args"] = {

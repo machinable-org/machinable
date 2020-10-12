@@ -1,12 +1,14 @@
 import copy
+import datetime
 import json
 from collections import OrderedDict
+
 import jsonlines
 import pendulum
+
 from ..core.events import Events
-from ..utils.formatting import msg, prettydict
 from ..utils.dicts import serialize
-import datetime
+from ..utils.formatting import msg, prettydict
 
 
 def as_datetime(timestamp):

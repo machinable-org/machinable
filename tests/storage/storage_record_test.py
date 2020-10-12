@@ -1,4 +1,4 @@
-from machinable import execute, Experiment
+from machinable import Experiment, execute
 
 
 def test_records_timing():

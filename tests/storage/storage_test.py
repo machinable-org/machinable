@@ -1,6 +1,8 @@
 import os
-import pytest
+
 import numpy as np
+import pytest
+
 from machinable import Storage
 from machinable.storage import get_experiment
 

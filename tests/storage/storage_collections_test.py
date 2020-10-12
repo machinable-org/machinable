@@ -2,10 +2,11 @@
 # https://github.com/sdispater/backpack/blob/master/tests/collections/test_collection.py
 # The copyright and license agreement can be found in the ThirdPartyNotices.txt file at the root of this repository.
 
-import pytest
 from unittest import TestCase
 
-from machinable.storage import get_experiment, find_experiments
+import pytest
+
+from machinable.storage import find_experiments, get_experiment
 from machinable.storage.collections import (
     Collection,
     ComponentStorageCollection,
