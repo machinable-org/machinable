@@ -144,13 +144,13 @@ class Experiment(Jsonable):
             return resolved
 
         if isinstance(args, str):
-            return cls().components(args)
+            return cls().component(args)
 
         if isinstance(args, tuple):
-            return cls().components(*args)
+            return cls().component(*args)
 
         if isinstance(args, list):
-            return cls().component(*args)
+            return cls().components(*args)
 
         raise ValueError(f"Invalid arguments: {args}")
 
