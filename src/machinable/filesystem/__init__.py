@@ -31,3 +31,9 @@ def parse_storage_url(url):
         parsed["experiment_id"] = os.path.basename(os.path.dirname(resource))
     decode_experiment_id(parsed["experiment_id"], or_fail=True)
     return parsed
+
+
+def abspath(url):
+    if not url.startswith("osfs://"):
+        return url
+    return "osfs://" + os.path.abspath(url[7:])

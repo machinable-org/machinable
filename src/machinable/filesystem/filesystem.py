@@ -68,7 +68,7 @@ class FileSystem:
                 return default
             raise FileNotFoundError(str(ex))
 
-    def save_file(self, name, data, overwrite=False):
+    def save_file(self, name, data, overwrite=True):
         """Stores a data object
 
         # Arguments

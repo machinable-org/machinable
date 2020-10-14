@@ -6,7 +6,7 @@ import pendulum
 import sh
 
 from ..core.exceptions import ExecutionException
-from ..filesystem import open_fs
+from ..filesystem import open_fs, abspath
 from ..utils.formatting import exception_to_str
 from .engine import Engine
 
@@ -68,7 +68,7 @@ class SlurmEngine(Engine):
         )
 
         # script path
-        script_path = "_engine/slurm_" + pendulum.now().strftime("%d-%m-%Y_%H-%M-%S")
+        script_path = "engine/slurm_" + pendulum.now().strftime("%d-%m-%Y_%H-%M-%S")
         with open_fs(url) as filesystem:
             filesystem.makedirs(script_path, recreate=True)
         script_url = os.path.join(url, script_path)
@@ -77,7 +77,7 @@ class SlurmEngine(Engine):
         project = json.dumps(execution.project.options).replace('"', '\\"')
         code = f"""
         import machinable as ml
-        e = ml.Execution.from_storage('{url}')
+        e = ml.Execution.from_storage('{abspath(url)}')
         e.set_engine('native')
         e.set_storage({execution.storage.config})
         e.set_project(ml.Project.from_json('{project}'))
@@ -128,7 +128,7 @@ class SlurmEngine(Engine):
             )
 
             if target.find("://") != -1:
-                raise ValueError("Slurm engine only support local storages")
+                raise ValueError("Slurm engine only supports local storages")
 
             with open(target, "w") as f:
                 f.write(script)
@@ -137,14 +137,24 @@ class SlurmEngine(Engine):
 
             # submit to slurm
             try:
-                sbatch_arguments = [
-                    k + "=" + v if v is not None else k
-                    for k, v in self.canonicalize_resources(resources).items()
-                ]
+                sbatch_arguments = []
+                for k, v in self.canonicalize_resources(resources).items():
+                    sbatch_arguments.append(k)
+                    if v not in [None, True]:
+                        sbatch_arguments.append(v)
+                sbatch_arguments.append(target)
                 p = sh.sbatch(*sbatch_arguments)
                 output = p.stdout.decode("utf-8")
-                slurm_id = int(output.rsplit(" ", maxsplit=1)[-1])
-                execution.set_result({"slurm_id": slurm_id}, echo=False)
+                try:
+                    job_id = int(output.rsplit(" ", maxsplit=1)[-1])
+                except ValueError:
+                    job_id = False
+                info = self.serialize()
+                info.update(
+                    {"job_id": job_id, "cmd": "sbatch " + " ".join(sbatch_arguments),}
+                )
+                execution.set_result(info, echo=False)
+                execution.storage.save_file(f"{component_id}/engine/info.json", info)
             except Exception as ex:
                 if isinstance(ex, sh.ErrorReturnCode):
                     message = ex.stderr.decode("utf-8")
@@ -224,6 +234,8 @@ class SlurmEngine(Engine):
             if k.startswith("-"):
                 # -p => --partition
                 try:
+                    if len(k) != 2:
+                        raise KeyError("Invalid length")
                     canonicalized[prefix + "--" + shorthands[k[1]]] = v
                     continue
                 except KeyError:

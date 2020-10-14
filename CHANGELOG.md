@@ -2,6 +2,10 @@
 
 <!-- Please add changes under the Unreleased section that reads 'No current changes' otherwise -->
 
+# v2.7.1
+
+- Capture Slurm status information in engine/info.json
+
 # v2.7.0
 
 - Experimental schema_validation option

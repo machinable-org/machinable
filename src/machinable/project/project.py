@@ -16,7 +16,7 @@ from ..core.component import FunctionalComponent
 from ..core.settings import get_settings
 from ..registration import Registration
 from ..utils.dicts import update_dict
-from ..utils.formatting import msg
+from ..utils.formatting import msg, exception_to_str
 from ..utils.traits import Jsonable
 from ..utils.utils import is_valid_module_path, is_valid_variable_name
 from ..utils.vcs import get_commit, get_diff, get_root_commit
@@ -300,9 +300,16 @@ class Project(Jsonable):
                         zip_fs.makedirs(relpath_folder)
 
                     # Read file contents
-                    file_content = open(
-                        os.path.join(self.directory_prefix, relpath_file), "r"
-                    ).read()
+                    try:
+                        file_content = open(
+                            os.path.join(self.directory_prefix, relpath_file), "r"
+                        ).read()
+                    except UnicodeDecodeError as ex:
+                        msg(
+                            f"Code backup failed for file {relpath_file}. {exception_to_str(ex)}",
+                            color="fail",
+                        )
+                        continue
 
                     # Add file to zip
                     zip_fs.writetext(relpath_file, file_content)
