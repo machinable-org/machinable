@@ -292,7 +292,7 @@ class Component(Mixin):
     def __getattr__(self, name):
         # Mixins and dynamic attributes are set during construction; this helps suppressing IDE warnings
         raise AttributeError(
-            f"{self.__class__.__name__} component has not attribute {name}"
+            f"{self.__class__.__name__} component has no attribute {name}"
         )
 
     def dispatch(
@@ -492,6 +492,9 @@ class Component(Mixin):
     def refresh_status(self, log_errors=False):
         """Updates the status.json file with a heartbeat at the current time
         """
+        if not self.storage:
+            return False
+
         try:
             self.component_status["heartbeat_at"] = str(pendulum.now())
             self.storage.save_file("status.json", self.component_status)
