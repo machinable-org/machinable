@@ -154,9 +154,7 @@ class Record:
         now = pendulum.now()
 
         # statistics
-        data["_time"] = str(now)
-        iteration_time = self.timing("iteration", end=now, return_type="period")
-        data["_seconds_taken"] = iteration_time.in_seconds()
+        data["_timestamp"] = now.timestamp()
 
         with jsonlines.Writer(
             self.storage.get_stream(self.storage.get_path(self.filepath), mode="a"),
@@ -167,6 +165,8 @@ class Record:
             writer.write(data)
 
         # additional display information
+        iteration_time = self.timing("iteration", end=now, return_type="period")
+        data["_seconds_taken"] = iteration_time.in_seconds()
         data["_time_taken"] = iteration_time.in_words()
         total_time = self.timing("total", end=now, return_type="period")
         data["_total_seconds_taken"] = total_time.in_seconds()

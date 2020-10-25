@@ -2,6 +2,10 @@
 
 <!-- Please add changes under the Unreleased section that reads 'No current changes' otherwise -->
 
+# Unreleased
+
+- Use timestamp representation to decrease records file sizes
+
 # v2.7.1
 
 - Capture Slurm status information in engine/info.json

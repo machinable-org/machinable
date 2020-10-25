@@ -2,6 +2,7 @@ import os
 
 import numpy as np
 import pytest
+import math
 
 from machinable import Storage
 from machinable.storage import get_experiment
@@ -91,3 +92,18 @@ def test_storage_component():
 
     comp = get_experiment(get_path("subdirectory/TTTTTT"))
     assert comp.components.first().experiment.experiment_id == "TTTTTT"
+
+
+def test_storage_component_records():
+    records = get_experiment(get_path("tttttt")).components.first().records
+    record = records.first()
+
+    assert isinstance(record["_timestamp"], (float, int))
+    assert isinstance(record["number"], int)
+    assert record["constant"] == 42
+    assert isinstance(record["float"], float)
+    assert isinstance(record["string"], str)
+    assert record["none"] is None
+    assert math.isnan(record["nan"])
+    assert isinstance(record["custom"], dict)
+    assert isinstance(record["date"], str)
