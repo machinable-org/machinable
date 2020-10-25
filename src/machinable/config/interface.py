@@ -277,7 +277,7 @@ class ConfigInterface:
 
         # remove unused versions
         config["args"] = {
-            k: v
+            k: v if not k.startswith("~") else "_"
             for k, v in config["args"].items()
             if not k.startswith("~") or k in config["versions"]
         }

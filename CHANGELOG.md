@@ -2,8 +2,9 @@
 
 <!-- Please add changes under the Unreleased section that reads 'No current changes' otherwise -->
 
-# Unreleased
+# 2.7.2
 
+- Hide merged ~version configuration in summary
 - Use timestamp representation to decrease records file sizes
 
 # v2.7.1
