@@ -8,7 +8,7 @@ def set_process_title(title):
         import setproctitle
 
         setproctitle.setproctitle(title)
-    except (ImportError, ModuleNotFoundError):
+    except ImportError:
         pass
     # tmux
     if (

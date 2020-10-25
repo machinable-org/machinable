@@ -122,8 +122,23 @@ def test_project_code_backup(helpers):
     if os.path.isfile(target_file):
         os.remove(target_file)
     project = Project("./test_project")
-    project.backup_source_code(target_file)
+    assert project.backup_source_code(target_file) is True
     assert os.path.isfile(target_file)
+    # handling of symlinks
+    os.makedirs(os.path.join("./_test_data/code_backup/invalid/dir"), exist_ok=True)
+    os.symlink(
+        os.path.abspath("./_test_data/code_backup/invalid/dir"),
+        "./_test_data/code_backup/invalid/link",
+        target_is_directory=True,
+    )
+    with open("./_test_data/code_backup/invalid/test.txt", "w") as f:
+        f.write("test")
+    with open("./_test_data/code_backup/invalid/dir/dirtest.txt", "w") as f:
+        f.write("test")
+    with open("./_test_data/code_backup/invalid/.gitignore", "w") as f:
+        f.write("test")
+    invalid_project = Project("./_test_data/code_backup/invalid")
+    assert invalid_project.backup_source_code(target_file) is True
 
 
 def test_project_get_code_version():
