@@ -1,6 +1,7 @@
 import ast
 import inspect
 import os
+import copy
 from datetime import datetime as dt
 from typing import Any, Callable, Union
 
@@ -626,9 +627,19 @@ class Execution(Jsonable):
                     "MODULE",
                 }
             }
+            if filtered.get("OUTPUT_REDIRECTION", "SYS_AND_FILE") == "SYS_AND_FILE":
+                filtered.pop("OUTPUT_REDIRECTION", None)
             if len(filtered) == 0:
                 return ""
             return yaml.dump(filtered, default_flow_style=False)
+
+        def _args(config):
+            config = copy.deepcopy(config)
+            if config.get("_evaluate", True) is True:
+                config.pop("_evaluate", None)
+            if len(config) == {}:
+                return "-"
+            return yaml.dump(config, default_flow_style=False)
 
         for (
             index,
@@ -652,7 +663,7 @@ class Execution(Jsonable):
             if len(component["versions"]) > 0:
                 msg(f">> {', '.join(component['versions'])}", color="green")
             msg(_flags(component["flags"]))
-            msg(yaml.dump(component["args"], default_flow_style=False), color="blue")
+            msg(_args(component["args"]), color="blue")
 
             for c in components:
                 if c:
@@ -660,9 +671,7 @@ class Execution(Jsonable):
                     if len(c["versions"]) > 0:
                         msg(f"\t>> {', '.join(c['versions'])}", color="green")
                     msg(_flags(c["flags"]))
-                    msg(
-                        yaml.dump(c["args"], default_flow_style=False), color="blue",
-                    )
+                    msg(_args(c["args"]), color="blue")
 
         msg("------\n", color="header")
 
