@@ -141,7 +141,7 @@ class SlurmEngine(Engine):
                 for k, v in self.canonicalize_resources(resources).items():
                     sbatch_arguments.append(k)
                     if v not in [None, True]:
-                        sbatch_arguments.append(v)
+                        sbatch_arguments.append(str(v))
                 sbatch_arguments.append(target)
                 p = sh.sbatch(*sbatch_arguments)
                 output = p.stdout.decode("utf-8")
