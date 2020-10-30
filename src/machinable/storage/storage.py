@@ -136,12 +136,21 @@ class Storage:
         except ValueError:
             return None
 
-    def get_component(self) -> Optional[StorageComponent]:
-        """Returns the [StorageComponent](#)
+    def get_component(self, index=0) -> Optional[StorageComponent]:
+        """Returns the [StorageComponent](#) or None if component cannot be determined
+
+        # Arguments
+        index: Component to be returned if the storage contains multiple components.
+                Defaults to 0 (first in the collection); if False, no component
+                is automatically selected and None is returned instead.
         """
         try:
             return StorageComponent(self.get_url())
         except ValueError:
+            if index is not False:
+                experiment = self.get_experiment()
+                if experiment is not None:
+                    return experiment.components[index]
             return None
 
     def get_stream(self, path, mode="r", *args, **kwargs):

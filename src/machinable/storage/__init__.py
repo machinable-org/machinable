@@ -6,10 +6,15 @@ def get_experiment(url):
 
     # Arguments
     url: String, filesystem URL
+
+    Returns None if the experiment does not exist
     """
     from .experiment import StorageExperiment
 
-    return StorageExperiment(url)
+    try:
+        return StorageExperiment(url)
+    except ValueError:
+        return None
 
 
 def find_experiments(url):
@@ -21,3 +26,24 @@ def find_experiments(url):
     from ..index.native_index import NativeIndex
 
     return NativeIndex().add_from_storage(url).find_all()
+
+
+def get_component(url, index=0):
+    """Returns a [StorageComponent](#) for the given URL
+
+    # Arguments
+    url: String, filesystem URL
+    index: Component to be returned if the URL is an experiment containing multiple components.
+            Defaults to 0 (first in the collection); if False, no component is automatically
+            selected and None is returned instead.
+    """
+    from .component import StorageComponent
+
+    try:
+        return StorageComponent(url)
+    except ValueError:
+        if index is not False:
+            experiment = get_experiment(url)
+            if experiment is not None:
+                return experiment.components[index]
+        return None

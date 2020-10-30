@@ -6,6 +6,8 @@ Retrieve data that is being stored during execution.
 
 {% machinable.storage.find_experiments %}
 
+{% machinable.storage.get_component %}
+
 {% machinable.storage.experiment.StorageExperiment %}
 
 {% machinable.storage.component.StorageComponent %}

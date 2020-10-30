@@ -2,6 +2,10 @@
 
 <!-- Please add changes under the Unreleased section that reads 'No current changes' otherwise -->
 
+# Unreleased
+
+- Adds storage.get_component() to directly retrieve components
+
 # 2.7.2
 
 - Hide merged ~version configuration in summary

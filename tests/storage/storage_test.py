@@ -23,8 +23,8 @@ def test_storage_interface():
     assert storage.get_url() == "osfs://" + get_path("tttttt/")
     assert storage.get_local_directory() == get_path("tttttt/")
     assert storage.get_path() == "tttttt/"
-    assert storage.get_component() is None
-    c = storage.get_experiment().components.first()
+    assert storage.get_component(index=False) is None
+    c = storage.get_component()
     storage = Storage(
         url=STORAGE_DIRECTORY, experiment="tttttt", component=c.component_id
     )
