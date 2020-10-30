@@ -254,6 +254,8 @@ class ConfigInterface:
                 update = (update,)
 
             for k in update:
+                if k is None:
+                    continue
                 # load arguments from machinable.yaml
                 if isinstance(k, str):
                     config["versions"].append(k)

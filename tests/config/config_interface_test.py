@@ -101,6 +101,11 @@ def test_config_versioning():
     e, m = to_config(test_project, t)
     assert e["alpha"] == 10
 
+    # ingores None
+    t = Experiment().components(("thenode", (None, {"alpha": -1}, None)))
+    e, m = to_config(test_project, t)
+    assert e["alpha"] == -1
+
 
 def test_computed_versioning():
     test_project = Project("./test_project")
