@@ -10,11 +10,13 @@ mixins:
   - mixins.hidden:
       state: hidden
 components:experiments=experiment:
-  - experiments.base:
+  - experiments.grandfurther:
+  - experiments.base^grandfurther:
       elephant: at_home
       nested:
         elephants: outside
-  - experiments.start:
+  - experiments.start_parent:
+  - experiments.start^start_parent:
       test: 123
   - experiments.dependent^base:
       overwrite_me:

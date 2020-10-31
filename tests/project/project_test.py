@@ -115,6 +115,18 @@ def test_parse_config():
         v["class"].load(instantiate=False)
 
 
+def test_lineage_recording():
+    test_project = Project("./test_project")
+    config = test_project.parse_config()
+
+    def _linage(component):
+        return config["components"][component]["flags"]["LINEAGE"]
+
+    assert _linage("childexp") == ["thenode"]
+    assert _linage("inherit") == ["+.fooba.experiments.start", "start_parent"]
+    assert _linage("test_dependent") == ["base", "grandfurther"]
+
+
 def test_project_code_backup(helpers):
     # create symlinks
     p = "./test_project/code_backup"

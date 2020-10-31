@@ -138,7 +138,7 @@ class ConfigInterface:
         config = copy.deepcopy(self.data["components"][name])
 
         # flags
-        config["flags"] = flags if flags is not None else {}
+        config["flags"] = update_dict(config["flags"], flags)
 
         # name
         config["name"] = name

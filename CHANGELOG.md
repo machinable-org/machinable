@@ -4,6 +4,7 @@
 
 # Unreleased
 
+- Record component inheritance lineage in flags.LINEAGE
 - Support symlinks and recursive .gitignore files in code backup
 - Adds storage.get_component() to directly retrieve components
 

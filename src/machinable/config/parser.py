@@ -182,6 +182,8 @@ def parse_module_list(
 
     for module, args in collection.items():
 
+        flags = {"LINEAGE": []}
+
         if isinstance(args, dict) and args.get("_unflatten", True):
             args = unflatten(args, splitter="dot")
 
@@ -198,7 +200,6 @@ def parse_module_list(
             alias = None
 
         # parse parent
-        parent = None
         if module.find("^") != -1:
             module, parent = module.split("^")
 
@@ -228,7 +229,7 @@ def parse_module_list(
                     raise KeyError(
                         f"Parent module '^{parent}' of {module} does not exist."
                     )
-
+            flags["LINEAGE"] += [parent] + inherited["flags"]["LINEAGE"]
             # inherit the parent's config
             args = update_dict(inherited["args"], args, copy=True)
             # if no module name specified, use same as parent
@@ -248,6 +249,7 @@ def parse_module_list(
                 module.replace("+.", ""),
                 error="Dependency '+.{}' not found. Did you register it under '+'?",
             )
+            flags["LINEAGE"] += import_config["flags"]["LINEAGE"]
 
             d = import_config["args"].copy()
             if import_config["args"].get("_mixins_"):
@@ -276,7 +278,12 @@ def parse_module_list(
         else:
             cls = ModuleClass(module_import, baseclass=baseclass)
 
-        modules[module] = {"module": module_import, "class": cls, "args": args}
+        modules[module] = {
+            "module": module_import,
+            "class": cls,
+            "args": args,
+            "flags": flags,
+        }
 
         # add alias lookup identity
         modules["@"][module] = module
