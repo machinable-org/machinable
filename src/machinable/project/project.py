@@ -1,11 +1,11 @@
 import copy
-from glob import glob
 import inspect
 import mimetypes
 import os
-import time
 import pickle
 import sys
+import time
+from glob import glob
 
 import pendulum
 
@@ -19,7 +19,7 @@ from ..core.component import FunctionalComponent
 from ..core.settings import get_settings
 from ..registration import Registration
 from ..utils.dicts import update_dict
-from ..utils.formatting import msg, exception_to_str
+from ..utils.formatting import exception_to_str, msg
 from ..utils.traits import Jsonable
 from ..utils.utils import is_valid_module_path, is_valid_variable_name
 from ..utils.vcs import get_commit, get_diff, get_root_commit

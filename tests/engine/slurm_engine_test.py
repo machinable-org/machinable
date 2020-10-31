@@ -1,6 +1,7 @@
+import sh
+
 from machinable import Execution
 from machinable.engine import Slurm
-import sh
 
 
 def test_slurm_engine():

@@ -1,7 +1,7 @@
 import ast
+import copy
 import inspect
 import os
-import copy
 from datetime import datetime as dt
 from typing import Any, Callable, Union
 
@@ -27,11 +27,8 @@ from ..storage.experiment import StorageExperiment
 from ..utils.dicts import merge_dict, update_dict
 from ..utils.formatting import exception_to_str, msg
 from ..utils.host import get_host_info
-from ..utils.identifiers import (
-    decode_experiment_id,
-    encode_experiment_id,
-    generate_experiment_id,
-)
+from ..utils.identifiers import (decode_experiment_id, encode_experiment_id,
+                                 generate_experiment_id)
 from ..utils.importing import resolve_instance
 from ..utils.traits import Jsonable
 

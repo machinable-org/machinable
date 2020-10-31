@@ -1,11 +1,9 @@
 import pytest
 
-from machinable.utils.identifiers import (
-    decode_experiment_id,
-    encode_experiment_id,
-    generate_component_id,
-    generate_experiment_id,
-)
+from machinable.utils.identifiers import (decode_experiment_id,
+                                          encode_experiment_id,
+                                          generate_component_id,
+                                          generate_experiment_id)
 
 
 def test_experiment_id_encoding():

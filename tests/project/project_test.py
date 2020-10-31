@@ -1,8 +1,8 @@
 import os
 import shutil
 
-from machinable.project import Project
 from machinable import execute
+from machinable.project import Project
 
 
 def test_project_config():

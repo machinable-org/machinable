@@ -1,8 +1,8 @@
+import math
 import os
 
 import numpy as np
 import pytest
-import math
 
 from machinable import Storage
 from machinable.storage import get_experiment

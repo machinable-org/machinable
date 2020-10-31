@@ -7,12 +7,10 @@ from unittest import TestCase
 import pytest
 
 from machinable.storage import find_experiments, get_experiment
-from machinable.storage.collections import (
-    Collection,
-    ComponentStorageCollection,
-    ExperimentStorageCollection,
-    collect,
-)
+from machinable.storage.collections import (Collection,
+                                            ComponentStorageCollection,
+                                            ExperimentStorageCollection,
+                                            collect)
 
 
 def test_collect():

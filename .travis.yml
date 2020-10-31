@@ -36,6 +36,7 @@
         - pip install -U pip
         - pip install -r test-requirements.txt
         - pip install -U pytest
+        - pip install -U attrs
         - pip install -e .
       before_script: cd tests
       script:
