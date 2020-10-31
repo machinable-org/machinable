@@ -1,9 +1,8 @@
 import os
 import shutil
 
-import pytest
-
 from machinable.project import Project
+from machinable import execute
 
 
 def test_project_config():
@@ -117,28 +116,38 @@ def test_parse_config():
 
 
 def test_project_code_backup(helpers):
+    # create symlinks
+    p = "./test_project/code_backup"
+    try:
+        os.symlink(
+            os.path.abspath(p + "/project/catch_me"),
+            p + "/project/link",
+            target_is_directory=True,
+        )
+    except FileExistsError:
+        pass
+    try:
+        os.symlink(
+            os.path.abspath(p + "/extern"),
+            p + "/project/external_link/",
+            target_is_directory=True,
+        )
+    except FileExistsError:
+        pass
+
+    # test backup
     helpers.tmp_directory("code_backup")
     target_file = "./_test_data/code_backup/code.zip"
     if os.path.isfile(target_file):
         os.remove(target_file)
-    project = Project("./test_project")
+    project = Project(p + "/project")
+    # manual
     assert project.backup_source_code(target_file) is True
     assert os.path.isfile(target_file)
-    # handling of symlinks
-    os.makedirs(os.path.join("./_test_data/code_backup/invalid/dir"), exist_ok=True)
-    os.symlink(
-        os.path.abspath("./_test_data/code_backup/invalid/dir"),
-        "./_test_data/code_backup/invalid/link",
-        target_is_directory=True,
-    )
-    with open("./_test_data/code_backup/invalid/test.txt", "w") as f:
-        f.write("test")
-    with open("./_test_data/code_backup/invalid/dir/dirtest.txt", "w") as f:
-        f.write("test")
-    with open("./_test_data/code_backup/invalid/.gitignore", "w") as f:
-        f.write("test")
-    invalid_project = Project("./_test_data/code_backup/invalid")
-    assert invalid_project.backup_source_code(target_file) is True
+    os.remove(target_file)
+    # during execution
+    e = execute("dummy", storage="./_test_data/code_backup/symlinks", project=project)
+    assert os.path.isfile(e.storage.get_local_directory("code.zip"))
 
 
 def test_project_get_code_version():

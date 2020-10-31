@@ -1,5 +1,5 @@
 import copy
-import importlib
+from glob import glob
 import inspect
 import mimetypes
 import os
@@ -246,7 +246,7 @@ class Project(Jsonable):
         # Returns
         True on completion
         """
-        import gitignore_parser
+        import igittigitt
         from fs.zipfs import WriteZipFS
 
         if opener is None:
@@ -255,24 +255,33 @@ class Project(Jsonable):
         # Get stream in the PyFS to create zip file with
         zip_stream = opener(filepath, "wb")
 
-        # Get object to test whether files are in .gitignore
-        try:
-            gitignore = gitignore_parser.parse_gitignore(
-                os.path.join(self.directory_prefix, ".gitignore")
-            )
-        except FileNotFoundError:
+        # Parse .gitignore
+        class GitIgnoreParser(igittigitt.IgnoreParser):
+            def parse_rule_files(self, base_dir) -> None:
+                rule_files = sorted(
+                    list(
+                        glob(
+                            f"{os.path.abspath(base_dir)}/**/.gitignore", recursive=True
+                        )
+                    )
+                )
+                for rule_file in rule_files:
+                    if not self.match(rule_file):
+                        self._parse_rule_file(rule_file)
 
-            def gitignore(*args, **kwargs):
-                return False
+        gitignore = GitIgnoreParser()
+        gitignore.parse_rule_files(self.directory_prefix)
 
         with WriteZipFS(file=zip_stream) as zip_fs:
-            for folder, subfolders, filenames in os.walk(self.directory_path):
+            for folder, subfolders, filenames in os.walk(
+                self.directory_path, followlinks=True
+            ):
 
                 # Remove subfolders that are listed in .gitignore, so they won't be explored later
                 subfolders[:] = [
                     sub
                     for sub in subfolders
-                    if sub != ".git" and not gitignore(os.path.join(folder, sub))
+                    if sub != ".git" and not gitignore.match(os.path.join(folder, sub))
                 ]
 
                 for file_name in filenames:
@@ -286,7 +295,7 @@ class Project(Jsonable):
                     ) and not file_name.endswith(".yaml"):
                         continue
 
-                    if gitignore(abspath_file):
+                    if gitignore.match(abspath_file):
                         # Skip file if it is listed in .gitignore
                         continue
 

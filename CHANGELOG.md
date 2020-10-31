@@ -4,6 +4,7 @@
 
 # Unreleased
 
+- Support symlinks and recursive .gitignore files in code backup
 - Adds storage.get_component() to directly retrieve components
 
 # 2.7.2

@@ -6,7 +6,7 @@ fs.sshfs
 python-baseconv
 regex
 observable
-gitignore_parser
+igittigitt
 click
 pendulum>=2.1.0
 setproctitle
