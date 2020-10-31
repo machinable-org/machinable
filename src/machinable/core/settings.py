@@ -30,6 +30,7 @@ def get_settings(reload=False, file="~/.machinable/settings.yaml"):
                     "default_storage": {"url": "mem://"},
                     "default_engine": None,
                     "default_index": None,
+                    "default_code_backup": None,
                 },
                 _settings,
             )

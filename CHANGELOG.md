@@ -2,13 +2,17 @@
 
 <!-- Please add changes under the Unreleased section that reads 'No current changes' otherwise -->
 
-# Unreleased
+# v2.8.1
+
+- Set `default_code_backup` options in settings.yaml and Registration
+
+# v2.8.0
 
 - Record component inheritance lineage in flags.LINEAGE
 - Support symlinks and recursive .gitignore files in code backup
 - Adds storage.get_component() to directly retrieve components
 
-# 2.7.2
+# v2.7.2
 
 - Hide merged ~version configuration in summary
 - Use timestamp representation to decrease records file sizes

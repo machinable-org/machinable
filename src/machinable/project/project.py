@@ -3,8 +3,11 @@ from glob import glob
 import inspect
 import mimetypes
 import os
+import time
 import pickle
 import sys
+
+import pendulum
 
 from ..config.loader import from_callable as load_config_from_callable
 from ..config.loader import from_file as load_config_file
@@ -236,15 +239,18 @@ class Project(Jsonable):
 
         return self.config
 
-    def backup_source_code(self, filepath="code.zip", opener=None) -> bool:
+    def backup_source_code(
+        self, filepath="code.zip", opener=None, exclude=None
+    ) -> bool:
         """Writes all files in project (excluding those in .gitignore) to zip file
 
         # Arguments
         filepath: String, target file
         opener: Optional file opener object. Defaults to built-in `open`
+        exclude: Optional list of gitignore-style rules to exclude files from the backup
 
         # Returns
-        True on completion
+        True if backup of all files was sucessful
         """
         import igittigitt
         from fs.zipfs import WriteZipFS
@@ -254,6 +260,10 @@ class Project(Jsonable):
 
         # Get stream in the PyFS to create zip file with
         zip_stream = opener(filepath, "wb")
+
+        status = True
+        counter = 0
+        t = time.time()
 
         # Parse .gitignore
         class GitIgnoreParser(igittigitt.IgnoreParser):
@@ -270,7 +280,11 @@ class Project(Jsonable):
                         self._parse_rule_file(rule_file)
 
         gitignore = GitIgnoreParser()
-        gitignore.parse_rule_files(self.directory_prefix)
+        gitignore.parse_rule_files(self.directory_path)
+
+        if exclude is not None:
+            for rule in exclude:
+                gitignore.add_rule(rule, self.directory_path)
 
         with WriteZipFS(file=zip_stream) as zip_fs:
             for folder, subfolders, filenames in os.walk(
@@ -318,15 +332,24 @@ class Project(Jsonable):
                             f"Code backup failed for file {relpath_file}. {exception_to_str(ex)}",
                             color="fail",
                         )
+                        status = False
                         continue
 
                     # Add file to zip
                     zip_fs.writetext(relpath_file, file_content)
 
+                    counter += 1
+
             # Add zip to PyFS
             zip_fs.write_zip()
 
-        return True
+        took = pendulum.duration(seconds=time.time() - t).in_words()
+        msg(
+            f"\n >>> Code backup of {counter} files completed in {took}\n",
+            color="green",
+        )
+
+        return status
 
     def get_code_version(self):
         return {
