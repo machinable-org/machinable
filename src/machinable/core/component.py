@@ -321,7 +321,7 @@ class Component(Mixin):
                 OutputRedirection.apply(
                     self.flags["OUTPUT_REDIRECTION"],
                     self.storage.get_stream,
-                    "output.log",
+                    self.storage.get_path("output.log"),
                 )
 
             if not self.storage.has_file("host.json"):

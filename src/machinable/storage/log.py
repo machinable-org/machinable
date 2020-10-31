@@ -38,7 +38,9 @@ class Log:
         )
         logger.addHandler(ch)
 
-        fileh = logging.StreamHandler(self.storage.get_stream("log.txt", "a"))
+        fileh = logging.StreamHandler(
+            self.storage.get_stream(self.storage.get_path("log.txt"), "a")
+        )
         fileh.setFormatter(
             logging.Formatter(
                 "%(asctime)s; %(levelname)s: %(message)s", datefmt="%Y-%m-%d %H:%M:%S"

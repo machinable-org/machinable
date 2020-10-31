@@ -89,6 +89,8 @@ def test_storage_component():
     custom = comp.get_records("validation")
     assert custom.sum("iteration") == 15
     assert records.as_dataframe().size > 0
+    assert len(comp.file("output.log")) > 0
+    assert len(comp.file("log.txt")) > 0
 
     comp = get_experiment(get_path("subdirectory/TTTTTT"))
     assert comp.components.first().experiment.experiment_id == "TTTTTT"
