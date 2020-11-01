@@ -266,6 +266,11 @@ class Execution(Jsonable):
 
         return self
 
+    def set_code_backup(self, enabled=None, exclude=None):
+        self.code_backup = {"enabled": enabled, "exclude": exclude}
+
+        return self
+
     def set_checkpoint(self, checkpoint):
         def transformation(i, component, element):
             element[1]["flags"]["CHECKPOINT"] = checkpoint
