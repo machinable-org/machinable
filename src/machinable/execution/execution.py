@@ -1,7 +1,7 @@
 import ast
+import copy
 import inspect
 import os
-import copy
 from datetime import datetime as dt
 from typing import Any, Callable, Union
 
@@ -40,6 +40,19 @@ def to_color(experiment_id):
     return "".join(
         [encode_experiment_id(decode_experiment_id(c) % 16) for c in experiment_id]
     )
+
+
+def _code_backup_settings(value):
+    enabled = None
+    exclude = None
+    if value in [True, False, None]:
+        enabled = value
+    if isinstance(value, dict):
+        enabled = value.get("enabled", None)
+        exclude = value.get("exclude", None)
+    if isinstance(exclude, tuple):
+        exclude = list(exclude)
+    return {"enabled": enabled, "exclude": exclude}
 
 
 _latest = [None]
@@ -253,6 +266,11 @@ class Execution(Jsonable):
 
         return self
 
+    def set_code_backup(self, enabled=None, exclude=None):
+        self.code_backup = {"enabled": enabled, "exclude": exclude}
+
+        return self
+
     def set_checkpoint(self, checkpoint):
         def transformation(i, component, element):
             element[1]["flags"]["CHECKPOINT"] = checkpoint
@@ -373,12 +391,33 @@ class Execution(Jsonable):
             self.engine.on_before_storage_creation(self)
             Registration.get().on_before_storage_creation(self)
 
+            # determine code backup settings
+            code_backup = _code_backup_settings(self.code_backup)
+
+            # use project settings by default
+            _project_settings = _code_backup_settings(
+                Registration.get().default_code_backup(execution=self)
+            )
+
+            if code_backup["enabled"] is None:
+                code_backup["enabled"] = _project_settings["enabled"]
+            if code_backup["exclude"] is None:
+                code_backup["exclude"] = _project_settings["exclude"]
+
+            # otherwise fall back on system-wide settings
+            _user_settings = _code_backup_settings(
+                get_settings()["default_code_backup"]
+            )
+            if code_backup["enabled"] is None:
+                _user_settings["enabled"] = _user_settings["enabled"]
+            if code_backup["exclude"] is None:
+                code_backup["exclude"] = _user_settings["exclude"]
+
             # do not backup on mem:// filesystem unless explicitly set to True
-            code_backup = self.code_backup
-            if code_backup is None and not self.storage.config["url"].startswith(
-                "mem://"
-            ):
-                code_backup = True
+            if code_backup["enabled"] is None and not self.storage.config[
+                "url"
+            ].startswith("mem://"):
+                code_backup["enabled"] = True
 
             # collect and write execution data
             url = self.storage.get_url()
@@ -403,8 +442,10 @@ class Execution(Jsonable):
             }
 
             with open_fs({"url": url, "create": True}) as filesystem:
-                if code_backup:
-                    self.project.backup_source_code(opener=filesystem.open)
+                if code_backup["enabled"]:
+                    self.project.backup_source_code(
+                        opener=filesystem.open, exclude=code_backup["exclude"]
+                    )
 
                 for k, v in data.items():
                     filesystem.save_file(name=k, data=v)

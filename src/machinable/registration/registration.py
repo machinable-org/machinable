@@ -92,3 +92,7 @@ class Registration:
     def default_resources(self, engine, component, components):
         """Allows to specify global default resources"""
         return None
+
+    def default_code_backup(self, execution):
+        """Allows to specify global default code backup settings"""
+        return None

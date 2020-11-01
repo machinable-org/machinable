@@ -6,7 +6,7 @@ import pendulum
 import sh
 
 from ..core.exceptions import ExecutionException
-from ..filesystem import open_fs, abspath
+from ..filesystem import abspath, open_fs
 from ..utils.formatting import exception_to_str
 from .engine import Engine
 
