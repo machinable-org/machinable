@@ -4,10 +4,11 @@ import json
 import pendulum
 
 from ..storage.experiment import StorageExperiment
-from ..storage.models import (StorageComponentModel, StorageExperimentModel,
-                              StorageModel)
-from ..storage.models.filesystem import (StorageComponentFileSystemModel,
-                                         StorageExperimentFileSystemModel)
+from ..storage.models import StorageComponentModel, StorageExperimentModel, StorageModel
+from ..storage.models.filesystem import (
+    StorageComponentFileSystemModel,
+    StorageExperimentFileSystemModel,
+)
 from .index import Index
 
 try:

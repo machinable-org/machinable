@@ -5,8 +5,7 @@ import pendulum
 
 from ..config.mapping import config_map
 from ..utils.utils import sentinel
-from .collections import (ComponentStorageCollection,
-                          ExperimentStorageCollection)
+from .collections import ComponentStorageCollection, ExperimentStorageCollection
 from .component import StorageComponent
 from .models import StorageExperimentModel
 from .views.views import get as get_view
