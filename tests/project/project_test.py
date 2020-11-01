@@ -141,7 +141,7 @@ def test_project_code_backup(helpers):
     try:
         os.symlink(
             os.path.abspath(p + "/extern"),
-            p + "/project/external_link/",
+            p + "/project/external_link",
             target_is_directory=True,
         )
     except FileExistsError:
