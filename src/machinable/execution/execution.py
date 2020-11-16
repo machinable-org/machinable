@@ -68,8 +68,6 @@ class Execution(Jsonable):
         project: Union[Project, Callable, str, dict] = None,
         seed: Union[int, None, str] = None,
     ):
-        Registration.get()
-
         self.function = None
 
         self.experiment = None
@@ -97,7 +95,12 @@ class Execution(Jsonable):
             self.function = experiment
             return
 
+        # this may extend the PYTHONPATH and must thus be called before any import-dependent methods below
         self.set_project(project)
+
+        # preload the registration that may be used to register engines etc.
+        Registration.get()
+
         self.set_storage(storage)
         self.set_experiment(experiment)
         self.set_engine(engine)

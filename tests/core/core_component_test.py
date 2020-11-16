@@ -4,7 +4,7 @@ import sys
 import pytest
 
 import machinable as ml
-from machinable import Component, Storage
+from machinable import Component
 from machinable.core.component import inject_components
 
 

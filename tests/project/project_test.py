@@ -1,6 +1,5 @@
 import os
 import shutil
-
 from zipfile import ZipFile
 
 from machinable import execute
@@ -132,6 +131,11 @@ def test_lineage_recording():
 def test_project_code_backup(helpers):
     # create symlinks
     p = "./test_project/code_backup"
+    os.makedirs(p + "/project/catch_me", exist_ok=True)
+    with open(p + "/project/catch_me/if-you-can.txt", "w") as f:
+        f.write("test")
+    with open(p + "/extern/ignore_me.txt", "w") as f:
+        f.write("please")
     try:
         os.symlink(
             os.path.abspath(p + "/project/catch_me"),
