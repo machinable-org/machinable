@@ -68,6 +68,8 @@ class Execution(Jsonable):
         project: Union[Project, Callable, str, dict] = None,
         seed: Union[int, None, str] = None,
     ):
+        Registration.get()
+
         self.function = None
 
         self.experiment = None
