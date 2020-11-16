@@ -240,7 +240,7 @@ class Project(Jsonable):
         return self.config
 
     def backup_source_code(
-        self, filepath="code.zip", opener=None, exclude=None
+        self, filepath="code.zip", opener=None, exclude=None, echo=None
     ) -> bool:
         """Writes all files in project (excluding those in .gitignore) to zip file
 
@@ -258,6 +258,10 @@ class Project(Jsonable):
         if opener is None:
             opener = open
 
+        msg(
+            f"\nCreating code backup ...\n", color="green",
+        )
+
         # Get stream in the PyFS to create zip file with
         zip_stream = opener(filepath, "wb")
 
@@ -267,17 +271,14 @@ class Project(Jsonable):
 
         # Parse .gitignore
         class GitIgnoreParser(igittigitt.IgnoreParser):
-            def parse_rule_files(self, base_dir) -> None:
-                rule_files = sorted(
-                    list(
-                        glob(
-                            f"{os.path.abspath(base_dir)}/**/.gitignore", recursive=True
-                        )
-                    )
-                )
-                for rule_file in rule_files:
-                    if not self.match(rule_file):
-                        self._parse_rule_file(rule_file)
+            def match(self, file_path) -> bool:
+                # overwrite parent to prevent premature symlink resolution
+                str_file_path = os.path.abspath(file_path)
+                is_file = os.path.isfile(str_file_path)
+                match = self._match_rules(str_file_path, is_file)
+                if match:
+                    match = self._match_negation_rules(str_file_path)
+                return match
 
         gitignore = GitIgnoreParser()
         gitignore.parse_rule_files(self.directory_path)
@@ -337,6 +338,9 @@ class Project(Jsonable):
 
                     # Add file to zip
                     zip_fs.writetext(relpath_file, file_content)
+
+                    if echo is True:
+                        msg(relpath_file, color="green")
 
                     counter += 1
 

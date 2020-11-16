@@ -1,6 +1,8 @@
 import os
 import shutil
 
+from zipfile import ZipFile
+
 from machinable import execute
 from machinable.project import Project
 
@@ -155,8 +157,17 @@ def test_project_code_backup(helpers):
     project = Project(p + "/project")
     # manual
     assert project.backup_source_code(target_file) is True
-    assert os.path.isfile(target_file)
-    os.remove(target_file)
+    archive = ZipFile(target_file)
+    assert set(map(lambda f: f.filename, archive.filelist)) == {
+        "machinable.yaml",
+        "main.py",
+        "dummy.py",
+        "link/",
+        "link/if-you-can.txt",
+        "external_link/",
+        "external_link/ignore_me.txt",
+        "external_link/come-find-me.txt",
+    }
     # during execution
     e = execute("dummy", storage="./_test_data/code_backup/symlinks", project=project)
     assert os.path.isfile(e.storage.get_local_directory("code.zip"))
