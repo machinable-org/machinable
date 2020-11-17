@@ -117,6 +117,9 @@ class Project(Jsonable):
     def directory_path(self):
         return os.path.abspath(self.options["directory"])
 
+    def path(self, *append):
+        return os.path.join(self.directory_path, *append)
+
     @property
     def directory_prefix(self):
         if self.options["directory"] == ".":

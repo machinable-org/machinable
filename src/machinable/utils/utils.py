@@ -2,6 +2,8 @@ import hashlib
 import os
 import random
 import string
+import inspect
+from collections import OrderedDict
 from keyword import iskeyword
 
 sentinel = object()
@@ -102,3 +104,25 @@ def random_str(length, random_state=None):
         )
         for _ in range(length)
     )
+
+
+def call_with_context(function, **injections):
+    signature = inspect.signature(function)
+    payload = OrderedDict()
+
+    for index, (key, parameter) in enumerate(signature.parameters.items()):
+        if parameter.kind is not parameter.POSITIONAL_OR_KEYWORD:
+            # disallow *args and **kwargs
+            raise TypeError(
+                f"{function.__name__} only allows simple positional or keyword arguments"
+            )
+
+        if key in injections:
+            payload[key] = injections[key]
+        else:
+            raise ValueError(
+                f"Unrecognized argument: '{key}'. "
+                f"{function.__name__} takes the following arguments: {str(tuple(injections.keys()))}"
+            )
+
+    return function(**payload)

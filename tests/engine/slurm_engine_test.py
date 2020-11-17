@@ -23,3 +23,16 @@ def test_slurm_engine():
         engine=Slurm(),
         project="./test_project",
     ).submit()
+
+
+def test_slurm_engine_script_modifier_methods():
+    class TestEngine(Slurm):
+        def before_script(self, execution, config):
+            return f"{execution.project.path()}; {config.a};"
+
+    Execution(
+        "thenode",
+        storage="./_test_data/storage/slurm",
+        engine=TestEngine(),
+        project="./test_project",
+    ).submit()

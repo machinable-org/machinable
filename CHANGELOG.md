@@ -2,6 +2,10 @@
 
 <!-- Please add changes under the Unreleased section that reads 'No current changes' otherwise -->
 
+# 2.8.2
+
+- New `before_script` and `after_script` modifier methods in Slurm engine
+
 # v2.8.1
 
 - Set `default_code_backup` options in settings.yaml and Registration

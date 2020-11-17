@@ -8,14 +8,24 @@ import sh
 from ..core.exceptions import ExecutionException
 from ..filesystem import abspath, open_fs
 from ..utils.formatting import exception_to_str
+from ..utils.utils import call_with_context
+from ..config.interface import mapped_config
 from .engine import Engine
 
 
+def _wrap(line):
+    if not line:
+        return ""
+    if not line.endswith("\n"):
+        line += "\n"
+    return line
+
+
 class SlurmEngine(Engine):
-    def __init__(self, commands=None, python="python", script="#!/usr/bin/env bash"):
+    def __init__(self, commands=None, python="python", shebang="#!/usr/bin/env bash"):
         self.commands = self._parse_commands(commands)
         self.python = python
-        self.script = script
+        self.shebang = shebang
         Engine.set_latest(self)
 
     def _parse_commands(self, commands):
@@ -29,7 +39,6 @@ class SlurmEngine(Engine):
 
         parsed = {}
         events = [
-            "setup",
             "before_script",
             "after_script",
         ]
@@ -57,7 +66,7 @@ class SlurmEngine(Engine):
             "type": "slurm",
             "commands": self.commands,
             "python": self.python,
-            "script": self.script,
+            "shebang": self.shebang,
         }
 
     def _submit(self, execution):
@@ -105,22 +114,45 @@ class SlurmEngine(Engine):
             component_id = component["flags"]["COMPONENT_ID"]
             component_path = os.path.join(url.replace("osfs://", ""), component_id)
             os.makedirs(component_path, exist_ok=True)
-            script = f"{self.script}\n"
+            script = f"{self.shebang}\n"
             script += f'#SBATCH --job-name="{execution.experiment_id}:{component_id}"\n'
             script += f"#SBATCH -o {os.path.join(component_path,  'output.log')}\n"
             script += "#SBATCH --open-mode=append\n"
-            script += f"export MACHINABLE_PROJECT={execution.project.directory_path}\n"
-            try:
-                script += self.commands["before_script"] + ";\n"
-            except KeyError:
-                pass
-
+            _c = mapped_config(component)
+            _cc = mapped_config(components)
+            script += _wrap(
+                call_with_context(
+                    self.before_script,
+                    execution=execution,
+                    index=index,
+                    execution_type=execution_type,
+                    component=_c,
+                    components=_cc,
+                    config=_c.config,
+                    flags=_c.flags,
+                    storage=storage,
+                    resources=resources,
+                    args=args,
+                    kwargs=kwargs,
+                )
+            )
             script += submission.replace("$COMPONENT_ID", component_id)
-
-            try:
-                script += self.commands["after_script"] + ";\n"
-            except KeyError:
-                pass
+            script += _wrap(
+                call_with_context(
+                    self.after_script,
+                    execution=execution,
+                    index=index,
+                    execution_type=execution_type,
+                    component=_c,
+                    components=_cc,
+                    config=_c.config,
+                    flags=_c.flags,
+                    storage=storage,
+                    resources=resources,
+                    args=args,
+                    kwargs=kwargs,
+                )
+            )
 
             # write script to disk
             target = os.path.join(
@@ -151,7 +183,11 @@ class SlurmEngine(Engine):
                     job_id = False
                 info = self.serialize()
                 info.update(
-                    {"job_id": job_id, "cmd": "sbatch " + " ".join(sbatch_arguments),}
+                    {
+                        "job_id": job_id,
+                        "cmd": "sbatch " + " ".join(sbatch_arguments),
+                        "script": target,
+                    }
                 )
                 execution.set_result(info, echo=False)
                 execution.storage.save_file(f"{component_id}/engine/info.json", info)
@@ -169,6 +205,16 @@ class SlurmEngine(Engine):
         self.log(f"Submitted {success}/{total} jobs successfully")
 
         return execution
+
+    def before_script(self) -> str:
+        if "before_script" not in self.commands:
+            return ""
+        return self.commands["before_script"] + ";"
+
+    def after_script(self) -> str:
+        if "after_script" not in self.commands:
+            return ""
+        return self.commands["after_script"] + ";"
 
     def on_before_storage_creation(self, execution):
         if execution.storage.config.get("url", "mem://").startswith("mem://"):
