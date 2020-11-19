@@ -63,7 +63,26 @@ def from_string(text, cwd="./"):
         .replace("~REFERENCE~", "$.")
         .replace("~SELFREF~", "$self.")
     )
-    return yaml.load(parsed, lambda stream: Loader(stream, cwd))
+    config = yaml.load(parsed, lambda stream: Loader(stream, cwd))
+
+    # process includes
+    for key, include in config.pop("includes", {}).items():
+        if not isinstance(include, dict):
+            raise ValueError(
+                f"Include '{key}' must be a mapping. {type(include)} given."
+            )
+
+        for k, v in include.items():
+            if k not in ["mixins", "components"] and not k.startswith("components:"):
+                continue
+
+            if k not in config:
+                config[k] = v
+                continue
+
+            config[k].extend(v)
+
+    return config
 
 
 def from_file(filename, default=sentinel):

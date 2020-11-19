@@ -113,6 +113,8 @@ def test_parse_config():
     for k, v in config["components"].items():
         if k.find("@") != -1:
             continue
+        if v["module"] in ["test_project.component", "test_project.scope.section"]:
+            continue
         v["class"].load(instantiate=False)
 
 

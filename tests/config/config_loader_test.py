@@ -19,6 +19,11 @@ def test_config_loader_from_file():
     # correct scientific notation parsing
     assert data["scientific"] == 5e-6
 
+    # includes
+    assert [list(m.keys())[0] for m in data["mixins"]][-1] == "mixin"
+    assert [list(m.keys())[0] for m in data["components:scope"]][-1] == "section"
+    assert [list(m.keys())[0] for m in data["components"]][-1] == "component"
+
 
 def test_config_loader_from_callable():
     def test_callable():

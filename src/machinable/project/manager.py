@@ -1,6 +1,8 @@
 import os
 
 from machinable.core.settings import get_settings
+from machinable.registration import Registration
+import git
 
 from ..utils.formatting import msg
 
@@ -21,9 +23,11 @@ def fetch_directory(source, target):
 
 
 def fetch_git(source, target):
-    raise FileNotFoundError(
-        f"Dependency missing. Please 'git clone {source}' into {target}"
-    )
+    try:
+        git.Repo.clone_from(source, target)
+        return True
+    except git.exc.GitError:
+        raise
 
 
 def fetch_import(source, target):
@@ -85,13 +89,17 @@ def fetch_imports(project, config=None):
             if os.path.islink(top_level) and not os.path.exists(top_level):
                 os.unlink(top_level)
 
-            # fetch import to the top-level if it does not exist
-            if not os.path.exists(top_level):
-                msg(f"Fetching '+.{name}' to {top_level}")
-                if not fetch_import(source, top_level):
-                    raise FileNotFoundError(
-                        f"Could not fetch '+.{name}'. Please place it into {top_level}"
-                    )
+            if (
+                Registration.get().on_resolve_vendor(name, source, top_level)
+                is not False
+            ):
+                # fetch import to the top-level if it does not exist
+                if not os.path.exists(top_level):
+                    msg(f"Fetching '+.{name}' to {top_level}")
+                    if not fetch_import(source, top_level):
+                        raise FileNotFoundError(
+                            f"Could not fetch '+.{name}'. Please place it into {top_level}"
+                        )
 
             # symlink from top-level to local target if not identical
             if top_level != target:

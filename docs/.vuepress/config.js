@@ -104,7 +104,8 @@ function getReferenceSidebar () {
         'experiment',
         'storage',
         'engine',
-        'indexes'
+        'indexes',
+        'registration',
       ]
     },
     {

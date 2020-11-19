@@ -104,4 +104,7 @@ random_key: 5e-6
 outsourcing: $/outsourced.yaml
 # Environment variables using the default bash syntax
 ${envvarkey:-default}: $envvarvalue
+# Includes to append to different sections
+includes:
+  name: $/path/to_file.yaml
 ```

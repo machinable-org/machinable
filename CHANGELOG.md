@@ -2,6 +2,12 @@
 
 <!-- Please add changes under the Unreleased section that reads 'No current changes' otherwise -->
 
+# 2.8.3
+
+- New `on_resolve_vendor` registration event
+- `includes` keyword in machinable.yaml
+- Clone git+ vendor imports automatically
+
 # 2.8.2
 
 - New `before_script` and `after_script` modifier methods in Slurm engine

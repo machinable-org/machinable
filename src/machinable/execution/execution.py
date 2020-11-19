@@ -24,6 +24,7 @@ from ..project.export import Export
 from ..registration import Registration
 from ..storage import Storage
 from ..storage.experiment import StorageExperiment
+from ..utils.utils import sentinel
 from ..utils.dicts import merge_dict, update_dict
 from ..utils.formatting import exception_to_str, msg
 from ..utils.host import get_host_info
@@ -61,12 +62,12 @@ _latest = [None]
 class Execution(Jsonable):
     def __init__(
         self,
-        experiment: Union[Experiment, Any],
-        storage: Union[dict, str] = None,
+        experiment: Union[Experiment, Callable, Any, None] = sentinel,
+        storage: Union[dict, str, None] = None,
         engine: Union[Engine, str, dict, None] = None,
         index: Union[Index, str, dict, None] = None,
-        project: Union[Project, Callable, str, dict] = None,
-        seed: Union[int, None, str] = None,
+        project: Union[Project, Callable, str, dict, None] = None,
+        seed: Union[int, str, None] = None,
     ):
         self.function = None
 
@@ -153,6 +154,10 @@ class Execution(Jsonable):
         raise ValueError(f"Invalid argument: {args}")
 
     def set_experiment(self, experiment):
+        if experiment is sentinel:
+            self.experiment = None
+            return self
+
         self.experiment = Experiment.create(experiment)
 
         return self

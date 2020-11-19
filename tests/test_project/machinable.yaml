@@ -164,3 +164,5 @@ components:workers:
   - inheritance_from_outer_section^nodes.observations:
 components:failure:
   - exceptions:
+includes:
+  test: $/include_me.yaml

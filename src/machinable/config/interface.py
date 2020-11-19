@@ -125,7 +125,11 @@ class ConfigInterface:
 
         if name not in self.data["components"]:
             raise ValueError(
-                f"Component '{name}' not found. Is it registered in the machinable.yaml?"
+                f"Component '{name}' not found. Is it registered in the machinable.yaml?\n"
+                "Registered components:\n\t- "
+                + "\n\t- ".join(
+                    filter(lambda x: x != "@", self.data["components"].keys())
+                )
             )
 
         if self.default_class is not None:
@@ -226,7 +230,11 @@ class ConfigInterface:
                         )
                     except KeyError:
                         raise KeyError(
-                            f"Mixin '{mixin['name']}' not found. Is it registered under 'mixins'?"
+                            f"Mixin '{mixin['name']}' not found. Is it registered in the machinable.yaml?\n"
+                            "Registered mixins:\n\t- "
+                            + "\n\t- ".join(
+                                filter(lambda x: x != "@", self.data["mixins"].keys())
+                            )
                         )
 
             # the mixin config can be overwritten by the local config so we update the mixin arg and write it back
