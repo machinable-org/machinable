@@ -2,13 +2,17 @@
 
 <!-- Please add changes under the Unreleased section that reads 'No current changes' otherwise -->
 
-# 2.8.3
+# v2.8.4
+
+- Fix uncaught exception in `get_commit` host information
+
+# v2.8.3
 
 - New `on_resolve_vendor` registration event
 - `includes` keyword in machinable.yaml
 - Clone git+ vendor imports automatically
 
-# 2.8.2
+# v2.8.2
 
 - New `before_script` and `after_script` modifier methods in Slurm engine
 

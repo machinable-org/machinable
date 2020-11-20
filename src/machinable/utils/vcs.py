@@ -9,11 +9,13 @@ import sh
 
 def get_commit(filename, search_parent_directories=True):
     try:
-        from git import InvalidGitRepositoryError, Repo
+        import git
 
         try:
             directory = os.path.dirname(filename)
-            repo = Repo(directory, search_parent_directories=search_parent_directories)
+            repo = git.Repo(
+                directory, search_parent_directories=search_parent_directories
+            )
             try:
                 branch = str(repo.active_branch)
             except TypeError:
@@ -31,7 +33,7 @@ def get_commit(filename, search_parent_directories=True):
                 "is_dirty": is_dirty,
                 "branch": branch,
             }
-        except (InvalidGitRepositoryError, ValueError):
+        except (git.exc.GitError, ValueError):
             pass
     except ImportError:
         pass
