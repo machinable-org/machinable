@@ -2,7 +2,7 @@
 
 <!-- Please add changes under the Unreleased section that reads 'No current changes' otherwise -->
 
-# Unreleased
+# v2.9.0
 
 - Resolve @-directives relative to `_machinable` module rather than top project level
 - Submission API replaces the StorageExperiment/StorageComponent interface
