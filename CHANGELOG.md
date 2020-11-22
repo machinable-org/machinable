@@ -4,6 +4,7 @@
 
 # Unreleased
 
+- Resolve @-directives relative to `_machinable` module rather than top project level
 - Submission API replaces the StorageExperiment/StorageComponent interface
 
 # v2.8.4

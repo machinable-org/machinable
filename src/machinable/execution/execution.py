@@ -141,7 +141,7 @@ class Execution(Jsonable):
         if args is None:
             return Execution()
 
-        resolved = resolve_instance(args, Execution, "executions")
+        resolved = resolve_instance(args, Execution, "_machinable.executions")
         if resolved is not None:
             return resolved
 

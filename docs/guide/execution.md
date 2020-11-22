@@ -117,17 +117,17 @@ If the module contains more than one instance, only the last one will be returne
 
 As a further simplification, using a simple `@` will instruct machinable to search in the following default modules.
 
-| Argument   | Module      |
-|------------|-------------|
-| experiment | experiments |
-| storage    | storages    |
-| engine     | engines     |
-| index      | indexes     |
+| Argument   | Module                  |
+|------------|-------------------------|
+| experiment | _machinable/experiments |
+| storage    | _machinable/storages    |
+| engine     | _machinable/engines     |
+| index      | _machinable/indexes     |
 
 ```python
 from machinable import execute
-# @baseline -> @/experiments/baseline
-# @remote -> @/engines/remote
+# @baseline -> @/_machinable/experiments/baseline
+# @remote -> @/_machinable/engines/remote
 execute("@baseline", engine="@remote")
 ```
 

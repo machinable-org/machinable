@@ -51,7 +51,7 @@ class Engine(Jsonable):
         if isinstance(args, Engine):
             return args
 
-        resolved = resolve_instance(args, Engine, "engines")
+        resolved = resolve_instance(args, Engine, "_machinable.engines")
         if resolved is not None:
             return resolved
 

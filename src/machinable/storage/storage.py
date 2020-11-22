@@ -71,7 +71,7 @@ class Storage:
         if isinstance(args, Storage):
             return args
 
-        resolved = resolve_instance(args, Storage, "storages")
+        resolved = resolve_instance(args, Storage, "_machinable.storages")
         if resolved is not None:
             return resolved
 

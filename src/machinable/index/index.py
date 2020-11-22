@@ -54,7 +54,7 @@ class Index(Jsonable):
         if isinstance(args, Index):
             return args
 
-        resolved = resolve_instance(args, Index, "index")
+        resolved = resolve_instance(args, Index, "_machinable.indexes")
         if resolved is not None:
             return resolved
 

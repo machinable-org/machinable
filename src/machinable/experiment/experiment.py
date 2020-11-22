@@ -139,7 +139,7 @@ class Experiment(Jsonable):
         if args is None:
             return cls()
 
-        resolved = resolve_instance(args, Experiment, "experiments")
+        resolved = resolve_instance(args, Experiment, "_machinable.experiments")
         if resolved is not None:
             return resolved
 
