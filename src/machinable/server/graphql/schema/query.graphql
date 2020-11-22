@@ -1,5 +1,5 @@
 type Query {
     server: String
-    storageExperiment(url: String!): StorageExperiment
-    storageComponent(url: String!): StorageComponent
+    submission(url: String!): Submission
+    submissionComponent(url: String!): SubmissionComponent
 }

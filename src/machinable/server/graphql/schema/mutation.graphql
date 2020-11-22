@@ -11,7 +11,7 @@ type Mutation {
 
 type Execution {
     unique_id: String
-    experiment_id: String
+    submission_id: String
     started_at: DateTime
     seed: Float
     timestamp: Float

@@ -723,7 +723,7 @@ class Component(Mixin):
             return "Sub" + repr(self.node)
 
         flags = getattr(self, "flags", {})
-        r = f"Component <{flags.get('EXPERIMENT_ID', '-')}:{flags.get('UID', '-')}>"
+        r = f"Component <{flags.get('SUBMISSION_ID', '-')}:{flags.get('UID', '-')}>"
         if self.storage is not None:
             r += f" ({self.storage.get_url()})"
         return r

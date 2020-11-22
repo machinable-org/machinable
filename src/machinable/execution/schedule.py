@@ -2,7 +2,7 @@ import copy
 import random
 
 from ..core.component import Component as BaseComponent
-from ..utils.identifiers import encode_experiment_id, generate_component_id
+from ..utils.identifiers import encode_submission_id, generate_component_id
 from ..utils.importing import ModuleClass
 from ..utils.traits import Jsonable
 from ..utils.utils import generate_seed
@@ -48,13 +48,13 @@ class Schedule(Jsonable):
         if seed == self._seed:
             return self
 
-        experiment_id = encode_experiment_id(seed, or_fail=False)
+        submission_id = encode_submission_id(seed, or_fail=False)
         seed_random_state = random.Random(seed)
 
         for i in range(len(self._elements)):
             flags = self._elements[i][1]["flags"]
             flags["GLOBAL_SEED"] = seed
-            flags["EXPERIMENT_ID"] = experiment_id
+            flags["SUBMISSION_ID"] = submission_id
             flags["SEED"] = generate_seed(random_state=seed_random_state)
             flags["COMPONENT_ID"] = generate_component_id()[0]
 

@@ -5,11 +5,11 @@ import stat
 import pendulum
 import sh
 
+from ..config.interface import mapped_config
 from ..core.exceptions import ExecutionException
 from ..filesystem import abspath, open_fs
 from ..utils.formatting import exception_to_str
 from ..utils.utils import call_with_context
-from ..config.interface import mapped_config
 from .engine import Engine
 
 
@@ -73,7 +73,7 @@ class SlurmEngine(Engine):
         url = os.path.join(
             execution.storage.config["url"],
             execution.storage.config["directory"] or "",
-            execution.experiment_id,
+            execution.submission_id,
         )
 
         # script path
@@ -115,7 +115,7 @@ class SlurmEngine(Engine):
             component_path = os.path.join(url.replace("osfs://", ""), component_id)
             os.makedirs(component_path, exist_ok=True)
             script = f"{self.shebang}\n"
-            script += f'#SBATCH --job-name="{execution.experiment_id}:{component_id}"\n'
+            script += f'#SBATCH --job-name="{execution.submission_id}:{component_id}"\n'
             script += f"#SBATCH -o {os.path.join(component_path,  'output.log')}\n"
             script += "#SBATCH --open-mode=append\n"
             _c = mapped_config(component)

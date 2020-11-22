@@ -17,12 +17,12 @@ class DetachedEngine(Engine):
         Engine.set_latest(self)
 
     def _submit(self, execution):
-        name = "machinable-experiment-" + execution.experiment_id
+        name = "machinable-submission-" + execution.submission_id
 
         url = os.path.join(
             execution.storage.get("url", "mem://"),
             execution.storage.get("directory", ""),
-            execution.experiment_id,
+            execution.submission_id,
         )
         engine = self.engine.to_json().replace('"', '\\"')
         project = execution.project.to_json().replace('"', '\\"')

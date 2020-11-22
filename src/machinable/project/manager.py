@@ -1,8 +1,9 @@
 import os
 
+import git
+
 from machinable.core.settings import get_settings
 from machinable.registration import Registration
-import git
 
 from ..utils.formatting import msg
 

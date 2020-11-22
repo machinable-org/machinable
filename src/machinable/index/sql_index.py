@@ -3,12 +3,13 @@ import json
 
 import pendulum
 
-from ..storage.experiment import StorageExperiment
-from ..storage.models import StorageComponentModel, StorageExperimentModel, StorageModel
-from ..storage.models.filesystem import (
-    StorageComponentFileSystemModel,
-    StorageExperimentFileSystemModel,
+from ..filesystem import parse_storage_url
+from ..submission.models import BaseModel, SubmissionComponentModel, SubmissionModel
+from ..submission.models.filesystem import (
+    FileSystemSubmissionComponentModel,
+    FileSystemSubmissionModel,
 )
+from ..submission.submission import Submission
 from .index import Index
 
 try:
@@ -19,30 +20,41 @@ except ImportError:
     )
 
 
-class StorageSqlModel(StorageModel):
-    def __init__(self, url, database):
+class SqlBaseModel(BaseModel):
+    def __init__(self, url, database, filesystem_model=None):
         self._data = None
-        if isinstance(url, collections.Mapping):
-            self._data = url
-            url = url["url"]
-        super().__init__(url)
         if isinstance(database, str):
             database = dataset.connect(database)
         self._db = database
-        self._filesystem_model = None
+        self._filesystem_model = filesystem_model
+        if isinstance(url, Submission):
+            self.url = url.model.url
+            self.submission_id = url.model.submission_id
+            self.component_id = url.model.component_id
+            if self._filesystem_model is None:
+                self._filesystem_model = url.model
+        else:
+            if isinstance(url, collections.Mapping):
+                self._data = url
+                url = url["url"]
+            self.url = url
+            self.submission_id = self.filesystem_model.submission_id
+            self.component_id = self.filesystem_model.component_id
 
-    def experiment_model(self, url):
-        return StorageExperimentSqlModel(url, self._db)
+    def submission_model(self, url):
+        return SqlSubmissionModel(url, self._db)
 
-    def component_model(self, url):
-        return StorageComponentSqlModel(url, self._db)
+    def submission_component_model(self, url):
+        return SqlSubmissionComponentModel(
+            url, self._db, filesystem_model=SubmissionComponentModel.get()
+        )
 
 
-class StorageExperimentSqlModel(StorageSqlModel, StorageExperimentModel):
+class SqlSubmissionModel(SqlBaseModel, FileSystemSubmissionModel):
     def file(self, filepath):
         if self._data is None:
             # fetch from database
-            table = self._db["experiments"]
+            table = self._db["submissions"]
             self._data = table.find_one(url=self.url)
             if self._data is None:
                 self._data = self.insert()
@@ -55,7 +67,7 @@ class StorageExperimentSqlModel(StorageSqlModel, StorageExperimentModel):
     @property
     def filesystem_model(self):
         if self._filesystem_model is None:
-            self._filesystem_model = StorageExperimentFileSystemModel(self.url)
+            self._filesystem_model = SubmissionModel.create(self.url)
         return self._filesystem_model
 
     def insert(self, model=None):
@@ -69,25 +81,25 @@ class StorageExperimentSqlModel(StorageSqlModel, StorageExperimentModel):
 
         row = {
             "url": model.url,
-            "experiment_id": model.experiment_id,
+            "submission_id": model.submission_id,
             "execution_json": json.dumps(execution_json),
             "code_json": json.dumps(model.file("code.json")),
             "host_json": json.dumps(model.file("host.json")),
             "started_at": pendulum.parse(execution_json["started_at"]),
         }
-        table = self._db["experiments"]
+        table = self._db["submissions"]
         table.insert(row)
         return row
 
-    def as_experiment(self):
-        return StorageExperiment(self)
+    def as_submission(self):
+        return Submission(self)
 
 
-class StorageComponentSqlModel(StorageSqlModel, StorageComponentModel):
+class SqlSubmissionComponentModel(SqlBaseModel, FileSystemSubmissionModel):
     @property
     def filesystem_model(self):
         if self._filesystem_model is None:
-            self._filesystem_model = StorageComponentFileSystemModel(self.url)
+            self._filesystem_model = SubmissionComponentModel.create(self.url)
         return self._filesystem_model
 
     def file(self, filepath):
@@ -118,25 +130,25 @@ class SqlIndex(Index):
     def serialize(self):
         return {"type": "sql", "database": self.database}
 
-    def _add(self, experiment):
-        StorageExperimentSqlModel(experiment.url, database=self._db).insert(experiment)
+    def _add(self, submission):
+        SqlSubmissionModel(submission, database=self._db).insert(submission)
 
-    def _find(self, experiment_id: str):
-        table = self._table("experiments")
-        model = table.find_one(experiment_id=experiment_id)
+    def _find(self, submission_id: str):
+        table = self._table("submissions")
+        model = table.find_one(submission_id=submission_id)
         if model is None:
             return None
 
-        return StorageExperimentSqlModel(model, database=self._db).as_experiment()
+        return SqlSubmissionModel(model, database=self._db).as_submission()
 
     def _find_latest(self, limit=10, since=None):
-        table = self._table("experiments")
+        table = self._table("submissions")
         if since is None:
             condition = {"<=": pendulum.now()}
         else:
             condition = {">": since}
         return [
-            StorageExperimentSqlModel(model, database=self._db).as_experiment()
+            SqlSubmissionModel(model, database=self._db).as_submission()
             for model in table.find(
                 started_at=condition, _limit=limit, order_by="started_at"
             )
@@ -156,7 +168,7 @@ class SqlIndex(Index):
 
         table = self._db["experiments"]
         table.create_column("url", self._db.types.string)
-        table.create_column("experiment_id", self._db.types.string)
+        table.create_column("submission_id", self._db.types.string)
         table.create_column("started_at", self._db.types.datetime)
         table.create_column("finished_at", self._db.types.datetime)
         table.create_column("trashed_at", self._db.types.datetime)
@@ -168,7 +180,7 @@ class SqlIndex(Index):
 
         table = self._db["components"]
         table.create_column("url", self._db.types.string)
-        table.create_column("experiment_id", self._db.types.string)
+        table.create_column("submission_id", self._db.types.string)
         table.create_column("component_id", self._db.types.string)
         table.create_column("started_at", self._db.types.datetime)
         table.create_column("finished_at", self._db.types.datetime)

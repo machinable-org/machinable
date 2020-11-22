@@ -2,10 +2,9 @@ import os
 from typing import Optional, Union
 
 from ..filesystem import open_fs
+from ..submission.submission import Submission
 from ..utils.importing import resolve_instance
 from ..utils.utils import sentinel
-from .component import StorageComponent
-from .experiment import StorageExperiment
 from .log import Log
 from .record import Record
 
@@ -17,7 +16,7 @@ class Storage:
         self,
         url: Optional[str] = None,
         directory: Optional[str] = None,
-        experiment: Optional[str] = None,
+        submission: Optional[str] = None,
         component: Optional[str] = None,
     ):
         """
@@ -32,7 +31,7 @@ class Storage:
             - %x expressions will be replaced by strftime
           The variables are expanded following GNU bash's variable expansion rules, e.g.
           `&{EXPERIMENT:-default_value}` or `&{PROJECT:?}` can be used.
-        experiment: String, optional experiment selection
+        submission: String, optional submission selection
         component: String, optional component selection
         """
         if url is None:
@@ -50,7 +49,7 @@ class Storage:
         self.config = {
             "url": url,
             "directory": directory,
-            "experiment": experiment,
+            "submission": submission,
             "component": component,
         }
 
@@ -103,7 +102,7 @@ class Storage:
         return os.path.join(
             self.config["url"],
             self.config["directory"] or "",
-            self.config["experiment"] or "",
+            self.config["submission"] or "",
             self.config["component"] or "",
             append,
         )
@@ -117,7 +116,7 @@ class Storage:
         """
         path = os.path.join(
             self.config["directory"] or "",
-            self.config["experiment"] or "",
+            self.config["submission"] or "",
             self.config["component"] or "",
             append,
         )
@@ -128,30 +127,16 @@ class Storage:
 
         return path
 
-    def get_experiment(self) -> Optional[StorageExperiment]:
-        """Returns the [StorageExperiment](#)
-        """
-        try:
-            return StorageExperiment(self.get_url())
-        except ValueError:
-            return None
-
-    def get_component(self, index=0) -> Optional[StorageComponent]:
-        """Returns the [StorageComponent](#) or None if component cannot be determined
+    def get_submission(self, component=False, or_fail=False):
+        """Returns the [Submission](#)
 
         # Arguments
-        index: Component to be returned if the storage contains multiple components.
-                Defaults to 0 (first in the collection); if False, no component
-                is automatically selected and None is returned instead.
+        component: Component to be returned if the URL is a submission containing multiple components.
+                   For example, set to 0 or -1 to retrieve first or last in the collection respectively
+        or_fail: Boolean, by default None is returned if the submission does not exist.
+                 If True, an Exception will be raised instead
         """
-        try:
-            return StorageComponent(self.get_url())
-        except ValueError:
-            if index is not False:
-                experiment = self.get_experiment()
-                if experiment is not None:
-                    return experiment.components[index]
-            return None
+        return Submission.find(self.get_url(), component=component, or_fail=or_fail)
 
     def get_stream(self, path, mode="r", *args, **kwargs):
         """Returns a file stream on the storage

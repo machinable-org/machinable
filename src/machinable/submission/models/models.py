@@ -2,24 +2,12 @@ from ...filesystem import parse_storage_url
 from ...utils.importing import ModuleClass
 
 _register = {
-    "experiment": None,
+    "submission": None,
     "component": None,
 }
 
 
-class StorageModel:
-    def __init__(self, url: str):
-        if not isinstance(url, str):
-            raise ValueError(f"Invalid url: {url}")
-
-        if "://" not in url:
-            url = "osfs://" + url
-
-        self.url = url
-        parsed = parse_storage_url(url)
-        self.experiment_id = parsed["experiment_id"]
-        self.component_id = parsed["component_id"]
-
+class Models:
     @classmethod
     def clear(cls, types=None):
         if types is None:
@@ -30,16 +18,30 @@ class StorageModel:
             _register[k] = None
 
     @classmethod
-    def component(cls, model=None):
+    def submission(cls, model=None):
         if isinstance(model, str):
-            model = ModuleClass(model, baseclass=StorageComponentModel)
-        _register["component"] = model
+            model = ModuleClass(model, baseclass=SubmissionModel)
+        _register["submission"] = model
 
     @classmethod
-    def experiment(cls, model=None):
+    def component(cls, model=None):
         if isinstance(model, str):
-            model = ModuleClass(model, baseclass=StorageExperimentModel)
+            model = ModuleClass(model, baseclass=SubmissionComponentModel)
         _register["component"] = model
+
+
+class BaseModel:
+    def __init__(self, url: str):
+        if not isinstance(url, str):
+            raise ValueError(f"Invalid url: {url}")
+
+        if "://" not in url:
+            url = "osfs://" + url
+
+        self.url = url
+        parsed = parse_storage_url(url)
+        self.submission_id = parsed["submission_id"]
+        self.component_id = parsed["component_id"]
 
     def submit(self, key, value):
         pass
@@ -50,43 +52,47 @@ class StorageModel:
     def file(self, filepath):
         raise NotImplementedError
 
-    def experiment_model(self, url):
+    def submission_model(self, url):
         raise NotImplementedError
 
-    def component_model(self, url):
+    def submission_component_model(self, url):
         raise NotImplementedError
 
 
-class StorageExperimentModel(StorageModel):
-    def __init__(self, data):
-        super().__init__(data)
+class SubmissionModel(BaseModel):
+    def __init__(self, url):
+        super().__init__(url)
         if self.component_id is not None:
             self.component_id = None
 
     @classmethod
     def create(cls, args):
-        if isinstance(args, StorageExperimentModel):
+        if isinstance(args, SubmissionModel):
             return args
 
+        return SubmissionModel.get()(args)
+
+    @classmethod
+    def get(cls):
         # find registered default
-        if _register["experiment"] is not None:
-            return _register["experiment"](args)
+        if _register["submission"] is not None:
+            return _register["submission"]
 
         # use global default
-        from .filesystem import StorageExperimentFileSystemModel
+        from .filesystem import FileSystemSubmissionModel
 
-        return StorageExperimentFileSystemModel(args)
+        return FileSystemSubmissionModel
 
     def exists(self):
         try:
-            return self.file("execution.json")["experiment_id"] == self.experiment_id
+            return self.file("execution.json")["submission_id"] == self.submission_id
         except (KeyError, FileNotFoundError):
             return False
 
     def prefetch(self):
         return {
             "url": self.url,
-            "experiment_id": self.experiment_id,
+            "submission_id": self.submission_id,
             "code.json": self.file("code.json"),
             "execution.json": self.file("execution.json"),
             # not constant sized
@@ -95,29 +101,33 @@ class StorageExperimentModel(StorageModel):
             "code.diff": self.file("code.diff"),
         }
 
-    def experiments(self):
+    def submissions(self):
         raise NotImplementedError
 
 
-class StorageComponentModel(StorageModel):
-    def __init__(self, data):
-        super().__init__(data)
+class SubmissionComponentModel(BaseModel):
+    def __init__(self, url):
+        super().__init__(url)
         if self.component_id is None:
-            raise ValueError("The provided URL is not a valid component storage URL")
+            raise ValueError("The provided URL is not a valid submission component URL")
 
     @classmethod
     def create(cls, args):
-        if isinstance(args, StorageComponentModel):
+        if isinstance(args, SubmissionComponentModel):
             return args
 
+        return SubmissionComponentModel.get()(args)
+
+    @classmethod
+    def get(cls):
         # find registered default
         if _register["component"] is not None:
-            return _register["component"](args)
+            return _register["component"]
 
         # use global default
-        from .filesystem import StorageComponentFileSystemModel
+        from .filesystem import FileSystemSubmissionComponentModel
 
-        return StorageComponentFileSystemModel(args)
+        return FileSystemSubmissionComponentModel
 
     def exists(self):
         try:
@@ -128,7 +138,7 @@ class StorageComponentModel(StorageModel):
     def prefetch(self):
         return {
             "url": self.url,
-            "experiment_id": self.experiment_id,
+            "submission_id": self.submission_id,
             "component_id": self.component_id,
             "component.json": self.file("component.json"),
             "components.json": self.file("components.json"),

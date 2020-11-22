@@ -84,7 +84,7 @@ function getGuideSidebar () {
       title: 'Results & Analysis',
       collapsable: false,
       children: [
-        'storage',
+        'submission',
         'indexes',
       ]
     },
@@ -103,6 +103,7 @@ function getReferenceSidebar () {
         'execution',
         'experiment',
         'storage',
+        'submission',
         'engine',
         'indexes',
         'registration',

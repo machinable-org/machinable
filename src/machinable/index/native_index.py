@@ -11,11 +11,11 @@ class NativeIndex(Index):
         return {"type": "native"}
 
     def _add(self, experiment):
-        self._db[experiment.experiment_id] = experiment
+        self._db[experiment.submission_id] = experiment
 
-    def _find(self, experiment_id: str):
+    def _find(self, submission_id: str):
         try:
-            return self._db[experiment_id]
+            return self._db[submission_id]
         except KeyError:
             return None
 

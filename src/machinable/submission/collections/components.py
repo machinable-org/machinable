@@ -1,7 +1,7 @@
 from .base import Collection
 
 
-class ComponentStorageCollection(Collection):
+class SubmissionComponentCollection(Collection):
     def status(self, status="started"):
         """Filters the collection by a status attribute
 

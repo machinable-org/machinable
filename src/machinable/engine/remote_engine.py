@@ -66,7 +66,7 @@ class RemoteEngine(Engine):
         url = os.path.join(
             execution.storage["url"],
             execution.storage.get("directory", ""),
-            execution.experiment_id,
+            execution.submission_id,
         )
         engine = self.engine.to_json().replace('"', '\\"')
         remote_project = copy.deepcopy(execution.project.options)

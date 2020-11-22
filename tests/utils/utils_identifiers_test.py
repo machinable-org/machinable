@@ -1,23 +1,23 @@
 import pytest
 
 from machinable.utils.identifiers import (
-    decode_experiment_id,
-    encode_experiment_id,
+    decode_submission_id,
+    encode_submission_id,
     generate_component_id,
-    generate_experiment_id,
+    generate_submission_id,
 )
 
 
-def test_experiment_id_encoding():
-    assert encode_experiment_id(946416180) == "123456"
+def test_submission_id_encoding():
+    assert encode_submission_id(946416180) == "123456"
     with pytest.raises(ValueError):
-        encode_experiment_id(0)
-    assert decode_experiment_id("123456") == 946416180
+        encode_submission_id(0)
+    assert decode_submission_id("123456") == 946416180
     with pytest.raises(ValueError):
-        decode_experiment_id("invalid")
+        decode_submission_id("invalid")
     for _ in range(5):
-        t = generate_experiment_id(with_encoding=False)
-        assert decode_experiment_id(encode_experiment_id(t)) == t
+        t = generate_submission_id(with_encoding=False)
+        assert decode_submission_id(encode_submission_id(t)) == t
 
 
 def test_uid_generator():

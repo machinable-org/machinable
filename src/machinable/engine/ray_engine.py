@@ -165,12 +165,12 @@ class RayEngine(Engine):
                 "Storage has to be local; use sync options of Ray tune to copy to remote."
             )
 
-        kwargs["name"] = os.path.join(storage["experiment"], storage["component"])
+        kwargs["name"] = os.path.join(storage["submission"], storage["component"])
         kwargs["resources_per_trial"] = resources
         kwargs["local_dir"] = os.path.join(
             storage["url"].split("osfs://")[-1],
             storage["directory"] or "",
-            storage["experiment"] or "",
+            storage["submission"] or "",
             storage["component"] or "",
         )
 

@@ -5,13 +5,11 @@ import os
 from typing import Union
 
 from ..filesystem import open_fs
-from ..storage.collections import ExperimentStorageCollection
-from ..storage.experiment import StorageExperiment
-from ..storage.models import StorageExperimentModel
-from ..storage.models.filesystem import StorageExperimentFileSystemModel
+from ..submission.collections import SubmissionCollection
+from ..submission.submission import Submission
 from ..utils.dicts import update_dict
 from ..utils.formatting import exception_to_str
-from ..utils.identifiers import decode_experiment_id
+from ..utils.identifiers import decode_submission_id
 from ..utils.importing import resolve_instance
 from ..utils.traits import Jsonable
 
@@ -109,35 +107,35 @@ class Index(Jsonable):
     def unserialize(cls, serialized):
         return cls.get(serialized)
 
-    def add(self, experiment):
-        """Adds an experiment to the index
+    def add(self, submission):
+        """Adds a submission to the index
 
         # Arguments
-        model: String|StorageExperiment, filesystem URL or experiment
+        submission: String|Submission, filesystem URL or submission
         """
-        experiment = StorageExperiment.get(experiment)
+        submission = Submission.create(submission)
 
-        self._add(experiment)
+        self._add(submission)
 
         return self
 
-    def find(self, experiment_id: str):
+    def find(self, submission_id: str):
         """Finds an experiment
 
         # Arguments
-        experiment: String, experiment ID. If None, all available index will be returned.
+        submission_id: String, submission ID. If None, all available index will be returned.
 
         # Returns
-        Instance or collection of machinable.storage.StorageExperiment
+        Instance or collection of machinable.storage.Submission
         """
-        decode_experiment_id(experiment_id, or_fail=True)
-        return self._find(experiment_id)
+        decode_submission_id(submission_id, or_fail=True)
+        return self._find(submission_id)
 
     def find_all(self):
-        return ExperimentStorageCollection(self._find_all())
+        return SubmissionCollection(self._find_all())
 
     def find_latest(self, limit=10, since=None):
-        return ExperimentStorageCollection(self._find_latest(limit=limit, since=since))
+        return SubmissionCollection(self._find_latest(limit=limit, since=since))
 
     def add_from_storage(self, url):
         with open_fs(url) as filesystem:
@@ -145,7 +143,7 @@ class Index(Jsonable):
                 if not info.is_dir:
                     continue
                 directory, name = os.path.split(path)
-                if not decode_experiment_id(name, or_fail=False):
+                if not decode_submission_id(name, or_fail=False):
                     continue
                 self.add(filesystem.get_url(path))
 
@@ -163,13 +161,13 @@ class Index(Jsonable):
     def _add(self, experiment):
         raise NotImplementedError
 
-    def _find(self, experiment_id: str) -> Union[StorageExperiment, None]:
+    def _find(self, submission_id: str) -> Union[Submission, None]:
         raise NotImplementedError
 
-    def _find_all(self) -> ExperimentStorageCollection:
+    def _find_all(self) -> SubmissionCollection:
         raise NotImplementedError
 
-    def _find_latest(self, limit=10, since=None) -> ExperimentStorageCollection:
+    def _find_latest(self, limit=10, since=None) -> SubmissionCollection:
         raise NotImplementedError
 
     def __repr__(self):

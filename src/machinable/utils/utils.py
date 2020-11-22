@@ -1,8 +1,8 @@
 import hashlib
+import inspect
 import os
 import random
 import string
-import inspect
 from collections import OrderedDict
 from keyword import iskeyword
 

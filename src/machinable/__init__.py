@@ -8,6 +8,7 @@ from .experiment import ExperimentComponent as C
 from .index import Index
 from .project import Project
 from .storage import Storage
+from .submission import Submission
 
 
 def execute(
@@ -33,7 +34,7 @@ def execute(
     index: machinable.Index|Dict|String|None, index that tracks this execution
     project: Project|Dict|String|None, project used, defaults to current working directory
     seed: Integer|String|None, determines the global random seed. If None, a random seed will be generated.
-        To re-use the same random seed of a previous execution, you can pass in its [experiment ID](.)
+        To re-use the same random seed of a previous execution, you can pass in its [submission ID](.)
 
     # Example
     ```python

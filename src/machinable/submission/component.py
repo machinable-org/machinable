@@ -6,19 +6,32 @@ import pendulum
 
 from ..config.mapping import config_map
 from ..filesystem import open_fs, parse_storage_url
-from ..storage.models import StorageComponentModel
+from ..submission.models import SubmissionComponentModel
 from ..utils.utils import sentinel
 from .collections import RecordCollection
 from .views.views import get as get_view
 
 
-class StorageComponent:
+class SubmissionComponent:
     def __init__(
-        self, url: Union[str, dict, StorageComponentModel], experiment=None, cache=None
+        self,
+        url: Union[str, dict, SubmissionComponentModel],
+        submission=None,
+        cache=None,
     ):
-        self._model = StorageComponentModel.create(url)
+        self._model = SubmissionComponentModel.create(url)
         self._cache = cache or {}
-        self._cache["experiment"] = experiment
+        self._cache["submission"] = submission
+
+    @classmethod
+    def create(cls, args):
+        if isinstance(args, SubmissionComponent):
+            return args
+
+        if isinstance(args, tuple):
+            return cls(*args)
+
+        return cls(args)
 
     def file(self, filepath, default=sentinel, reload=None):
         """Returns the content of a file in the storage
@@ -64,37 +77,35 @@ class StorageComponent:
     def unique_id(self):
         if "unique_id" not in self._cache:
             self._cache["unique_id"] = (
-                self.experiment.experiment_id + "_" + self.component_id
+                self.submission.submission_id + "_" + self.component_id
             )
         return self._cache["unique_id"]
 
     @property
     def url(self):
-        """Returns the component storage URL"""
+        """Returns the submission component URL"""
         return self._model.url
 
     @property
     def component_id(self):
-        """Returns the component storage ID"""
+        """Returns the submission component ID"""
         return self._model.component_id
 
     @property
-    def experiment(self):
-        """The experiment of this component"""
-        if self._cache["experiment"] is None:
-            from .experiment import StorageExperiment
+    def submission(self):
+        """The submission of this submission component"""
+        if self._cache["submission"] is None:
+            from .submission import Submission
 
             parsed = parse_storage_url(self.url)
             url = self.url.replace("/" + parsed["component_id"], "")
 
-            self._cache["experiment"] = StorageExperiment(
-                self._model.experiment_model(url)
-            )
+            self._cache["submission"] = Submission(self._model.submission_model(url))
 
-        return self._cache["experiment"]
+        return self._cache["submission"]
 
     def data(self, name=None, default=sentinel):
-        """Retrieves a data object from the storage
+        """Retrieves a data object from the submission
 
         # Arguments
         name: Name of the data object. If None, a list of available objects is returned
@@ -286,10 +297,9 @@ class StorageComponent:
         return get_view("component", self)
 
     def __getattr__(self, item):
-        if item.startswith("_") and item.endswith("_"):
-            view = get_view("component", self, name=item)
-            if view is not None:
-                return view
+        view = get_view("component", self, name=item)
+        if view is not None:
+            return view
 
         raise AttributeError(
             f"{self.__class__.__name__} object has no attribute {item}"
@@ -297,9 +307,9 @@ class StorageComponent:
 
     def serialize(self):
         return {
-            "experiment_id": self.experiment.experiment_id,
-            "experiment_name": self.experiment.experiment_name,
-            "project_name": self.experiment.project_name,
+            "submission_id": self.submission.submission_id,
+            "experiment_name": self.submission.experiment_name,
+            "project_name": self.submission.project_name,
             "component_id": self.component_id,
             "component": self,
             "started_at": self.started_at,
@@ -311,4 +321,4 @@ class StorageComponent:
         return self.__repr__()
 
     def __repr__(self):
-        return f"StorageComponent <{self.component_id}>"
+        return f"SubmissionComponent <{self.component_id}>"

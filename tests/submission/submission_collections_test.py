@@ -6,11 +6,11 @@ from unittest import TestCase
 
 import pytest
 
-from machinable.storage import find_experiments, get_experiment
-from machinable.storage.collections import (
+from machinable import Submission
+from machinable.submission.collections import (
     Collection,
-    ComponentStorageCollection,
-    ExperimentStorageCollection,
+    SubmissionCollection,
+    SubmissionComponentCollection,
     collect,
 )
 
@@ -20,32 +20,32 @@ def test_collect():
 
 
 def test_experiment_collection():
-    c = ExperimentStorageCollection(
-        [get_experiment("./_test_data/storage/tttttt") for _ in range(3)]
+    c = SubmissionCollection(
+        [Submission.find("./_test_data/storage/tttttt") for _ in range(3)]
     )
     cc = c.components
-    assert isinstance(cc, ComponentStorageCollection)
+    assert isinstance(cc, SubmissionComponentCollection)
     assert len(cc) == 4
 
 
 def test_component_collection():
-    experiment = get_experiment("./_test_data/storage/tttttt")
+    submission = Submission.find("./_test_data/storage/tttttt")
     import numpy as np
 
     def o(x):
         return x.records.pluck("number")
 
-    assert max(experiment.components.section(o, reduce=np.var)) > 0
-    df = experiment.components.as_dataframe()
+    assert max(submission.components.section(o, reduce=np.var)) > 0
+    df = submission.components.as_dataframe()
     assert df.size == 4 * 8
-    r = experiment.components.first().records
+    r = submission.components.first().records
     num_elements = len(r.pluck("number"))
     with pytest.raises(KeyError):
         r.pluck("not_existing")
     nones = r.pluck_or_none("not_existing")
     assert all([e is None for e in nones])
 
-    experiments = find_experiments("./_test_data/storage/tttttt")
+    experiments = Submission.find_many("./_test_data/storage/tttttt")
     assert experiments.take(2).as_dataframe().size == 10
 
 

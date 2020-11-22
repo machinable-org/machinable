@@ -2,13 +2,13 @@ import copy
 import random
 
 from ..utils.dicts import update_dict
-from ..utils.identifiers import encode_experiment_id, generate_component_id
+from ..utils.identifiers import encode_submission_id, generate_component_id
 from ..utils.utils import generate_seed
 
 
 def parse_experiment(experiment, seed=None):
     seed_random_state = random.Random(seed)
-    experiment_id = encode_experiment_id(seed, or_fail=False)
+    submission_id = encode_submission_id(seed, or_fail=False)
 
     # repeat behaviour
     repeats = []
@@ -44,7 +44,7 @@ def parse_experiment(experiment, seed=None):
             node = node_arguments.pop("node")
 
             node.flags["GLOBAL_SEED"] = seed
-            node.flags["EXPERIMENT_ID"] = experiment_id
+            node.flags["SUBMISSION_ID"] = submission_id
             node.flags["SEED"] = generate_seed(random_state=seed_random_state)
             node.flags["COMPONENT_ID"] = generate_component_id()[0]
             node.flags.update(repeat)

@@ -1,7 +1,7 @@
-type StorageExperiment {
+type Submission {
     unique_id: String
     url: String
-    experiment_id: String
+    submission_id: String
     seed: Float
     timestamp: Float
     code_backup: Boolean
@@ -12,12 +12,12 @@ type StorageExperiment {
     finished_at: DateTime
     is_finished: Boolean @method
     is_started: Boolean @method
-    components: [StorageComponent]
-    experiments: [StorageExperiment]
-    ancestor: StorageExperiment
+    components: [SubmissionComponent]
+    submissions: [SubmissionComponent]
+    ancestor: Submission
 }
 
-type StorageComponent {
+type SubmissionComponent {
     unique_id: String
     url: String
     component_id: String
@@ -34,5 +34,5 @@ type StorageComponent {
     is_started: Boolean @method
     is_active: Boolean @method
     is_incomplete: Boolean @method
-    experiment: StorageExperiment
+    submission: Submission
 }

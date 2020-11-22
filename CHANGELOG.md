@@ -2,6 +2,10 @@
 
 <!-- Please add changes under the Unreleased section that reads 'No current changes' otherwise -->
 
+# Unreleased
+
+- Submission API replaces the StorageExperiment/StorageComponent interface
+
 # v2.8.4
 
 - Fix uncaught exception in `get_commit` host information

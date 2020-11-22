@@ -4,27 +4,73 @@ from typing import Optional, Union
 import pendulum
 
 from ..config.mapping import config_map
+from ..filesystem import parse_storage_url
 from ..utils.utils import sentinel
-from .collections import ComponentStorageCollection, ExperimentStorageCollection
-from .component import StorageComponent
-from .models import StorageExperimentModel
+from .collections import SubmissionCollection, SubmissionComponentCollection
+from .component import SubmissionComponent
+from .models import SubmissionModel
 from .views.views import get as get_view
 
 
-class StorageExperiment:
-    def __init__(self, url: Union[str, dict, StorageExperimentModel], cache=None):
-        self._model = StorageExperimentModel.create(url)
+class Submission:
+    def __init__(self, url: Union[str, dict, SubmissionModel], cache=None):
+        self._model = SubmissionModel.create(url)
         self._cache = cache or {}
 
     @classmethod
-    def get(cls, args):
-        if isinstance(args, StorageExperiment):
+    def create(cls, args) -> "Submission":
+        if isinstance(args, Submission):
             return args
 
-        if isinstance(args, (list, tuple)):
+        if isinstance(args, tuple):
             return cls(*args)
 
         return cls(args)
+
+    @classmethod
+    def find(
+        cls, url, component=False, or_fail=False
+    ) -> Union["Submission", SubmissionComponent, None]:
+        """Returns a [Submission](#) for the given URL
+
+        # Arguments
+        url: String, filesystem URL
+        component: Component to be returned if the URL is a submission containing multiple components.
+                   For example, set to 0 or -1 to retrieve first or last in the collection respectively
+        or_fail: Boolean, by default None is returned if the submission does not exist.
+                 If True, an Exception will be raised instead
+        """
+        _url = parse_storage_url(url if isinstance(url, str) else url.url)
+        if _url["component_id"] is None:
+            # submission
+            try:
+                submission = cls.create(url)
+                if component is not False:
+                    return submission.components[component]
+                return submission
+            except ValueError:
+                if or_fail:
+                    raise
+                return None
+        else:
+            # component
+            try:
+                return SubmissionComponent.create(url)
+            except ValueError:
+                if or_fail:
+                    raise
+                return None
+
+    @classmethod
+    def find_many(cls, url) -> SubmissionCollection:
+        """Searches given URL recursively to return a collection of its submissions
+
+        # Arguments
+        url: String, filesystem URL
+        """
+        from ..index.native_index import NativeIndex
+
+        return NativeIndex().add_from_storage(url).find_all()
 
     def file(self, filepath, default=sentinel, reload=False):
         """Returns the content of a file in the storage
@@ -50,17 +96,17 @@ class StorageExperiment:
         return self._model.url
 
     @property
-    def unique_id(self):
+    def unique_id(self) -> str:
         if "unique_id" not in self._cache:
             self._cache["unique_id"] = (
-                self.experiment_id + "_" + self.components[0].component_id
+                self.submission_id + "_" + self.components[0].component_id
             )
         return self._cache["unique_id"]
 
     @property
-    def experiment_id(self) -> str:
-        """6-digit experiment ID, e.g. F4K3r6"""
-        return self.file("execution.json")["experiment_id"]
+    def submission_id(self) -> str:
+        """6-digit submission ID, e.g. F4K3r6"""
+        return self.file("execution.json")["submission_id"]
 
     @property
     def experiment_name(self) -> Optional[str]:
@@ -149,15 +195,17 @@ class StorageExperiment:
         return self._cache["host"]
 
     @property
-    def components(self) -> ComponentStorageCollection:
+    def components(self) -> SubmissionComponentCollection:
         """List of components
         """
         if "components" not in self._cache:
-            self._cache["components"] = ComponentStorageCollection(
+            self._cache["components"] = SubmissionComponentCollection(
                 [
-                    StorageComponent(
-                        self._model.component_model(os.path.join(self.url, component)),
-                        experiment=self,
+                    SubmissionComponent(
+                        self._model.submission_component_model(
+                            os.path.join(self.url, component)
+                        ),
+                        submission=self,
                     )
                     for component in self.file("execution.json")["components"]
                 ]
@@ -166,42 +214,45 @@ class StorageExperiment:
         return self._cache["components"]
 
     @property
-    def experiments(self) -> ExperimentStorageCollection:
+    def submissions(self) -> SubmissionCollection:
         """Returns a collection of derived experiments
         """
-        return ExperimentStorageCollection(
+        return SubmissionCollection(
             [
-                StorageExperiment(self._model.experiment_model(url))
-                for url in self._model.experiments()
+                Submission(self._model.submission_model(url))
+                for url in self._model.submissions()
             ]
         )
 
     @property
-    def ancestor(self) -> Optional["StorageExperiment"]:
+    def ancestor(self) -> Optional["Submission"]:
         """Returns parent experiment or None if experiment is independent
         """
-        if self.url.find("/experiments/") == -1:
+        if self.url.find("/submissions/") == -1:
             return None
         try:
-            model = self._model.experiment_model(
-                self.url.rsplit("/experiments/", maxsplit=1)[0]
+            model = self._model.submission_model(
+                self.url.rsplit("/submissions/", maxsplit=1)[0]
             )
             if not model.exists():
                 return None
-            return StorageExperiment(model)
+            return Submission(model)
         except ValueError:
             return None
 
     @property
+    def model(self):
+        return self._model
+
+    @property
     def view(self):
         """Returns the registered view"""
-        return get_view("experiment", self)
+        return get_view("submission", self)
 
     def __getattr__(self, item):
-        if item.startswith("_") and item.endswith("_"):
-            view = get_view("experiment", self, name=item)
-            if view is not None:
-                return view
+        view = get_view("submission", self, name=item)
+        if view is not None:
+            return view
 
         raise AttributeError(
             f"{self.__class__.__name__} object has no attribute {item}"
@@ -209,7 +260,7 @@ class StorageExperiment:
 
     def serialize(self):
         return {
-            "experiment_id": self.experiment_id,
+            "submission_id": self.submission_id,
             "experiment_name": self.experiment_name,
             "project_name": self.project_name,
             "experiment": self,
@@ -227,4 +278,4 @@ class StorageExperiment:
         return self.__repr__()
 
     def __repr__(self):
-        return f"StorageExperiment <{self.experiment_id}>"
+        return f"Submission <{self.submission_id}>"

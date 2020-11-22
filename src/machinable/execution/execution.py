@@ -23,23 +23,23 @@ from ..project import Project
 from ..project.export import Export
 from ..registration import Registration
 from ..storage import Storage
-from ..storage.experiment import StorageExperiment
-from ..utils.utils import sentinel
+from ..submission.submission import Submission
 from ..utils.dicts import merge_dict, update_dict
 from ..utils.formatting import exception_to_str, msg
 from ..utils.host import get_host_info
 from ..utils.identifiers import (
-    decode_experiment_id,
-    encode_experiment_id,
-    generate_experiment_id,
+    decode_submission_id,
+    encode_submission_id,
+    generate_submission_id,
 )
 from ..utils.importing import resolve_instance
 from ..utils.traits import Jsonable
+from ..utils.utils import sentinel
 
 
-def to_color(experiment_id):
+def to_color(submission_id):
     return "".join(
-        [encode_experiment_id(decode_experiment_id(c) % 16) for c in experiment_id]
+        [encode_submission_id(decode_submission_id(c) % 16) for c in submission_id]
     )
 
 
@@ -193,11 +193,11 @@ class Execution(Jsonable):
 
     def set_seed(self, seed):
         if isinstance(seed, str):
-            seed = decode_experiment_id(seed, or_fail=True)
+            seed = decode_submission_id(seed, or_fail=True)
         elif isinstance(seed, int):
-            seed = generate_experiment_id(random_state=seed, with_encoding=False)
+            seed = generate_submission_id(random_state=seed, with_encoding=False)
         else:
-            seed = generate_experiment_id(with_encoding=False)
+            seed = generate_submission_id(with_encoding=False)
 
         self.seed = seed
 
@@ -319,7 +319,7 @@ class Execution(Jsonable):
         try:
             with open_fs(self.storage.config["url"]) as filesystem:
                 return filesystem.isdir(
-                    os.path.join(self.storage.config["directory"], self.experiment_id)
+                    os.path.join(self.storage.config["directory"], self.submission_id)
                 )
         except (FileNotFoundError, AttributeError, KeyError, TypeError, ValueError):
             pass
@@ -330,7 +330,7 @@ class Execution(Jsonable):
             return False
 
         self.failures = 0
-        self.storage.config["experiment"] = self.experiment_id
+        self.storage.config["submission"] = self.submission_id
 
         # auto-name experiment if imported via @ directive
         if self.experiment.specification["name"] is None:
@@ -372,11 +372,11 @@ class Execution(Jsonable):
         derived_from = None
         try:
             with open_fs(self.storage.config["url"]) as filesystem:
-                experiment_id = filesystem.load_file("execution.json")["experiment_id"]
-                # register URL as parent storage and rewrite to experiments/ subdirectory
+                submission_id = filesystem.load_file("execution.json")["submission_id"]
+                # register URL as parent storage and rewrite to submissions/ subdirectory
                 derived_from = self.storage.config["url"]
                 self.storage.config["url"] = os.path.join(
-                    self.storage.config["url"], "experiments"
+                    self.storage.config["url"], "submissions"
                 )
 
         except (ValueError, KeyError, FileNotFoundError):
@@ -388,7 +388,7 @@ class Execution(Jsonable):
                 self.set_schedule()
 
             def set_derived_from_flag(i, component, element):
-                element[1]["flags"]["DERIVED_FROM_STORAGE"] = derived_from
+                element[1]["flags"]["DERIVED_FROM_SUBMISSION"] = derived_from
                 return element
 
             self.schedule.transform(set_derived_from_flag)
@@ -460,10 +460,10 @@ class Execution(Jsonable):
                 for k, v in data.items():
                     filesystem.save_file(name=k, data=v)
 
-            self.index.add(StorageExperiment(url, data))
+            self.index.add(Submission(url, data))
 
             msg(
-                f"{self.experiment_id} <{url}> ({self.started_at})\n",
+                f"{self.submission_id} <{url}> ({self.started_at})\n",
                 level="info",
                 color="header",
             )
@@ -481,7 +481,7 @@ class Execution(Jsonable):
                 raise result
             if echo or echo == "success":
                 msg(
-                    f"\nComponent <{self.components[index]}> of experiment {self.experiment_id} failed "
+                    f"\nComponent <{self.components[index]}> of experiment {self.submission_id} failed "
                     f"({index + 1}/{len(self.schedule)})\n"
                     f"{exception_to_str(result)}",
                     level="error",
@@ -490,7 +490,7 @@ class Execution(Jsonable):
         else:
             if echo or echo == "failure":
                 msg(
-                    f"\nComponent <{self.components[index]}> of experiment {self.experiment_id} completed "
+                    f"\nComponent <{self.components[index]}> of experiment {self.submission_id} completed "
                     f"({index + 1}/{len(self.schedule)})\n",
                     level="info",
                     color="header",
@@ -614,7 +614,7 @@ class Execution(Jsonable):
 
     def serialize(self):
         return {
-            "experiment_id": self.experiment_id,
+            "submission_id": self.submission_id,
             "seed": self.seed,
             "timestamp": self.timestamp,
             "started_at": self.started_at,
@@ -637,18 +637,18 @@ class Execution(Jsonable):
 
     @property
     def unique_id(self):
-        return self.experiment_id + "_" + self.components[0]
+        return self.submission_id + "_" + self.components[0]
 
     @property
-    def experiment_id(self):
-        return encode_experiment_id(self.seed)
+    def submission_id(self):
+        return encode_submission_id(self.seed)
 
     def summary(self):
         if len(self.schedule) == 0:
             self.set_schedule()
 
         msg(
-            f"\n{self.experiment_id}\n------", color="header",
+            f"\n{self.submission_id}\n------", color="header",
         )
         msg(
             f"{repr(self.experiment)}", color="blue",
@@ -668,7 +668,7 @@ class Execution(Jsonable):
                 if k
                 not in {
                     "GLOBAL_SEED",
-                    "EXPERIMENT_ID",
+                    "SUBMISSION_ID",
                     "SEED",
                     "COMPONENT_ID",
                     "REPEAT_SEED",
@@ -736,8 +736,8 @@ class Execution(Jsonable):
         return self.schedule.components
 
     def __repr__(self):
-        experiment_id = self.experiment_id if isinstance(self.seed, int) else "None"
-        return f"Execution <{experiment_id}> ({self.storage})"
+        submission_id = self.submission_id if isinstance(self.seed, int) else "None"
+        return f"Execution <{submission_id}> ({self.storage})"
 
     def __str__(self):
         return self.__repr__()

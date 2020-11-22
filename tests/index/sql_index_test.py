@@ -10,7 +10,7 @@ def test_sql_index(helpers):
     index = SqlIndex(database)
     assert index.find("tttttt") is None
     index.add("./_test_data/storage/tttttt")
-    assert index.find("tttttt").experiment_id == "tttttt"
+    assert index.find("tttttt").submission_id == "tttttt"
     latest = index.find_latest()
     assert len(latest) > 0
     since = latest.first().started_at

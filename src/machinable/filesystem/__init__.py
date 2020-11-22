@@ -1,6 +1,6 @@
 import os
 
-from ..utils.identifiers import decode_experiment_id
+from ..utils.identifiers import decode_submission_id
 
 
 def open_fs(config):
@@ -21,15 +21,17 @@ def parse_filesystem_url(url):
 
 
 def parse_storage_url(url):
+    if "://" not in url:
+        url = "osfs://" + url
     parsed = parse_filesystem_url(url)
     resource = os.path.normpath(parsed["resource"])
-    parsed["experiment_id"] = os.path.basename(resource)
+    parsed["submission_id"] = os.path.basename(resource)
     parsed["component_id"] = None
-    if len(parsed["experiment_id"]) == 12:
+    if len(parsed["submission_id"]) == 12:
         # if component, switch to experiment
-        parsed["component_id"] = parsed["experiment_id"]
-        parsed["experiment_id"] = os.path.basename(os.path.dirname(resource))
-    decode_experiment_id(parsed["experiment_id"], or_fail=True)
+        parsed["component_id"] = parsed["submission_id"]
+        parsed["submission_id"] = os.path.basename(os.path.dirname(resource))
+    decode_submission_id(parsed["submission_id"], or_fail=True)
     return parsed
 
 

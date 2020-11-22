@@ -1,5 +1,6 @@
 import pytest
-from machinable.utils.utils import is_valid_module_path, call_with_context
+
+from machinable.utils.utils import call_with_context, is_valid_module_path
 
 
 def test_is_valid_module_path():

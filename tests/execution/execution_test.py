@@ -61,5 +61,5 @@ def test_execution_continuation():
     execution.submit()
     assert execution.schedule._result[0] is None  # no exception occurred
     assert os.path.isdir(
-        f"./_test_data/storage/tttttt/experiments/{execution.experiment_id}"
+        f"./_test_data/storage/tttttt/submissions/{execution.submission_id}"
     )

@@ -6,8 +6,8 @@ from baseconv import base62
 from .utils import random_str
 
 
-def encode_experiment_id(seed, or_fail=True) -> Optional[str]:
-    """Encodes a seed and returns the corresponding experiment ID
+def encode_submission_id(seed, or_fail=True) -> Optional[str]:
+    """Encodes a seed and returns the corresponding submission ID
 
     # Arguments
     seed: int in the range 62^5 <= seed <= 62^6-1
@@ -25,37 +25,37 @@ def encode_experiment_id(seed, or_fail=True) -> Optional[str]:
         return None
 
 
-def decode_experiment_id(experiment_id, or_fail=True) -> Optional[int]:
-    """Decodes a experiment ID into the corresponding seed
+def decode_submission_id(submission_id, or_fail=True) -> Optional[int]:
+    """Decodes a submission ID into the corresponding seed
 
     # Arguments
-    experiment_id: The base62 experiment ID
+    submission_id: The base62 submission ID
     or_fail: If True, raises a Value error instead of returning None
     """
     try:
-        if not isinstance(experiment_id, str):
+        if not isinstance(submission_id, str):
             raise ValueError()
-        value = int(base62.decode(experiment_id))
+        value = int(base62.decode(submission_id))
         if 62 ** 5 <= value <= 62 ** 6 - 1:
             return value
         raise ValueError()
     except (ValueError, TypeError):
         if or_fail:
-            raise ValueError(f"'{experiment_id}' is not a valid experiment ID")
+            raise ValueError(f"'{submission_id}' is not a valid submission ID")
         return None
 
 
-def generate_experiment_id(with_encoding=True, random_state=None):
+def generate_submission_id(with_encoding=True, random_state=None):
     if random_state is None or isinstance(random_state, int):
         random_state = random.Random(random_state)
 
-    # ~ 55x10^9 distinct experiment ids that if represented in base62 are len 6
-    experiment_id = random_state.randint(62 ** 5, 62 ** 6 - 1)
+    # ~ 55x10^9 distinct submission IDs that if represented in base62 are len 6
+    submission_id = random_state.randint(62 ** 5, 62 ** 6 - 1)
 
     if with_encoding:
-        return experiment_id, encode_experiment_id(experiment_id)
+        return submission_id, encode_submission_id(submission_id)
 
-    return experiment_id
+    return submission_id
 
 
 def generate_component_id(k=1, random_state=None):
