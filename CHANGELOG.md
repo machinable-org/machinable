@@ -2,6 +2,10 @@
 
 <!-- Please add changes under the Unreleased section that reads 'No current changes' otherwise -->
 
+# v2.9.2
+
+- Mixins can be specified, extended and overwritten via `Experiment().component(mixins=[])`
+
 # v2.9.1
 
 - New nested version syntax `~nested:version`

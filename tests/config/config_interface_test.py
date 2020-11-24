@@ -1,6 +1,6 @@
 import pytest
 
-from machinable import Experiment
+from machinable import Experiment, C
 from machinable.config.interface import ConfigInterface
 from machinable.experiment.parser import parse_experiment
 from machinable.project import Project
@@ -40,6 +40,42 @@ def to_config(project, schedule):
             return node_config["args"], None
 
         return node_config["args"], components_config["args"]
+
+
+def test_config_mixins():
+    test_project = Project("./test_project")
+
+    t = Experiment().component("mixexp", "~test", mixins=["version_mixin"])
+    e, m = to_config(test_project, t)
+    assert "elephant" not in e
+    assert e["mixed_in"] is True
+    assert e["foo"] == 1
+
+    t = Experiment().component("mixexp", "~test", mixins=["^", "version_mixin"])
+    e, m = to_config(test_project, t)
+    assert "elephant" in e
+    assert e["mixed_in"] is True
+    assert e["foo"] == 1
+
+    t = Experiment().component("thenode", "~test", mixins=["version_mixin"])
+    e, m = to_config(test_project, t)
+    assert e["mixed_in"] is True
+    assert e["foo"] == 1
+
+    t = Experiment().component("thenode", "~test:nest", mixins=["^", "version_mixin"])
+    e, m = to_config(test_project, t)
+    assert e["mixed_in"] is None
+    assert e["foo"] == 1
+    assert e["ba"] == 2
+
+    t = Experiment().component(
+        "thenode", "~three:nested", mixins=["version_mixin", "^"]
+    )
+    e, m = to_config(test_project, t)
+    assert e["alpha"] == 4
+    assert e["added"] == "blocker"
+    assert e["unaffected"] == "value"
+    assert e["beta"] == "override"
 
 
 def test_config_versioning():

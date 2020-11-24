@@ -21,9 +21,21 @@ def _collect_updates(version):
         if not isinstance(arguments, tuple):
             arguments = (arguments,)
 
-        collection.extend(arguments)
+        collection.extend([a["components"] for a in arguments if "components" in a])
 
     return collection
+
+
+def _mark_mixin_as_override(mixin):
+    if isinstance(mixin, str):
+        mixin = ("!" + mixin) if not mixin.startswith("!") else mixin
+    if isinstance(mixin, dict):
+        mixin["name"] = (
+            ("!" + mixin["name"])
+            if not mixin["name"].startswith("!")
+            else mixin["name"]
+        )
+    return mixin
 
 
 def mapped_config(config):
@@ -41,49 +53,6 @@ class ConfigInterface:
         self.version = version
         self.default_class = default_class
         self.schema_validation = get_settings()["schema_validation"]
-
-    def _get_version(self, name, config):
-        # from yaml file
-        if name.endswith(".yaml") or name.endswith(".json"):
-            with open(name) as f:
-                return yaml.load(f, Loader=yaml.FullLoader)
-
-        # from mixin
-        if name.startswith("_") and name.endswith("_"):
-            try:
-                return copy.deepcopy(self.data["mixins"][name[1:-1]]["args"])
-            except KeyError:
-                raise KeyError(
-                    f"Mixin '{name}' not available.\n"
-                    f"Did you register it under 'mixins'?\n"
-                )
-
-        # from yaml string
-        if not name.startswith("~"):
-            return yaml.load(name, Loader=yaml.FullLoader)
-
-        # from local version
-        version = {}
-        path = name[1:].split(":")
-        level = config
-        try:
-            for key in path:
-                level = level["~" + key]
-                # extract config on this level
-                u = {
-                    k: copy.deepcopy(v)
-                    for k, v in level.items()
-                    if not k.startswith("~")
-                }
-                version = update_dict(version, u)
-            return version
-        except KeyError:
-            pass
-
-        raise KeyError(
-            f"Version '{name}' could not be found.\n"
-            f"Available versions: {[f for f in config.keys() if f.startswith('~')]}\n"
-        )
 
     @staticmethod
     def call_with_context(function, component, components=None, resources=None):
@@ -117,7 +86,46 @@ class ConfigInterface:
 
         return function(**payload)
 
-    def get_component(self, name, version=None, flags=None):
+    def _get_version(self, name, config):
+        # from yaml file
+        if name.endswith(".yaml") or name.endswith(".json"):
+            with open(name) as f:
+                return yaml.load(f, Loader=yaml.FullLoader)
+
+        # from mixin
+        if name.startswith("_") and name.endswith("_"):
+            try:
+                return copy.deepcopy(self.data["mixins"][name[1:-1]]["args"])
+            except KeyError:
+                raise KeyError(
+                    f"Mixin '{name}' not available.\n"
+                    f"Did you register it under 'mixins'?\n"
+                )
+
+        # from local version
+        version = {}
+        path = name[1:].split(":")
+        level = config
+        try:
+            for key in path:
+                level = level["~" + key]
+                # extract config on this level
+                u = {
+                    k: copy.deepcopy(v)
+                    for k, v in level.items()
+                    if not k.startswith("~")
+                }
+                version = update_dict(version, u)
+            return version
+        except KeyError:
+            pass
+
+        raise KeyError(
+            f"Version '{name}' could not be found.\n"
+            f"Available versions: {[f for f in config.keys() if f.startswith('~')]}\n"
+        )
+
+    def get_component(self, name, version=None, mixins=None, flags=None):
         if name is None:
             return None
 
@@ -170,9 +178,26 @@ class ConfigInterface:
         # un-alias
         origin = self.data["components"]["@"][name]
 
-        # mixins
-        for i, mixin in enumerate(parse_mixins(config["args"].get("_mixins_"))):
-            mixin_info = {"name": mixin["name"]}
+        # parse mixins
+        default_mixins = config["args"].pop("_mixins_", None)
+        if mixins is None:
+            mixins = default_mixins
+        else:
+            if default_mixins is None:
+                default_mixins = []
+            if not isinstance(default_mixins, (list, tuple)):
+                default_mixins = [default_mixins]
+            merged = []
+            for m in mixins:
+                if m == "^":
+                    merged.extend(default_mixins)
+                else:
+                    merged.append(_mark_mixin_as_override(m))
+            mixins = merged
+
+        mixin_specs = []
+        for mixin in parse_mixins(mixins):
+            mixin_spec = {"name": mixin["name"]}
 
             if mixin["name"].startswith("+."):
                 raise AttributeError(
@@ -194,7 +219,7 @@ class ConfigInterface:
                     )
 
                 # un-alias
-                mixin_info["origin"] = (
+                mixin_spec["origin"] = (
                     "+."
                     + vendor
                     + "."
@@ -208,7 +233,7 @@ class ConfigInterface:
                                 mixin["vendor"] + "." + mixin["name"]
                             ]
                         )
-                        mixin_info["origin"] = (
+                        mixin_spec["origin"] = (
                             "+."
                             + mixin["vendor"]
                             + "."
@@ -223,7 +248,7 @@ class ConfigInterface:
                 else:
                     try:
                         mixin_args = copy.deepcopy(self.data["mixins"][mixin["name"]])
-                        mixin_info["origin"] = self.data["mixins"]["@"].get(
+                        mixin_spec["origin"] = self.data["mixins"]["@"].get(
                             mixin["name"]
                         )
                     except KeyError:
@@ -235,33 +260,32 @@ class ConfigInterface:
                             )
                         )
 
-            # the mixin config can be overwritten by the local config so we update the mixin arg and write it back
-            config["args"] = update_dict(mixin_args["args"], config["args"], copy=True)
+            if mixin["overrides"]:
+                # override config
+                config["args"] = update_dict(config["args"], mixin_args["args"])
+            else:
+                # config overrides mixin
+                config["args"] = update_dict(mixin_args["args"], config["args"])
 
-            # write information
-            config["args"]["_mixins_"][i] = mixin_info
+            mixin_specs.append(mixin_spec)
 
-        # parse updates
+        config["args"]["_mixins_"] = mixin_specs
 
-        # merge local update to global updates
+        # collect versions
         config["versions"] = []
         versions = copy.deepcopy(self.version)
         if version is not None:
+            # merge local update to global updates
             versions.append({"arguments": {"components": copy.deepcopy(version)}})
 
+        # parse updates
         version = {}
-        for updates in _collect_updates(versions):
-            update = updates.get("components", None)
-            if update is None:
-                continue
-
+        for update in _collect_updates(versions):
             if not isinstance(update, tuple):
                 update = (update,)
-
             for k in update:
                 if k is None:
                     continue
-                # load arguments from machinable.yaml
                 if isinstance(k, str):
                     config["versions"].append(k)
                     k = self._get_version(k, config["args"])
@@ -282,11 +306,9 @@ class ConfigInterface:
             config["args"], version, preserve_schema=self.schema_validation
         )
 
-        # remove unused versions
+        # remove versions
         config["args"] = {
-            k: v if not k.startswith("~") else ":"
-            for k, v in config["args"].items()
-            if not k.startswith("~") or k in config["versions"]
+            k: v for k, v in config["args"].items() if not k.startswith("~")
         }
 
         return config
@@ -294,7 +316,7 @@ class ConfigInterface:
     def get(self, component, components=None):
         component = ExperimentComponent.create(component)
         node_config = self.get_component(
-            component.name, component.version, component.flags
+            component.name, component.version, component.mixins, component.flags
         )
 
         if components is None:
@@ -304,7 +326,10 @@ class ConfigInterface:
         for c in components:
             subcomponent = ExperimentComponent.create(c)
             component_config = self.get_component(
-                subcomponent.name, subcomponent.version, subcomponent.flags
+                subcomponent.name,
+                subcomponent.version,
+                subcomponent.mixins,
+                subcomponent.flags,
             )
             if component_config is not None:
                 components_config.append(component_config)

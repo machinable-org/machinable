@@ -8,7 +8,7 @@ from ..utils.utils import is_valid_module_path
 
 
 class ExperimentComponent(Jsonable):
-    def __init__(self, name, version=None, checkpoint=None, flags=None):
+    def __init__(self, name, version=None, mixins=None, checkpoint=None, flags=None):
         """Experiment components
 
         # Arguments
@@ -25,6 +25,7 @@ class ExperimentComponent(Jsonable):
         """
         self.name = name
         self.version = version
+        self.mixins = mixins
         self.checkpoint = checkpoint
         if flags is None:
             flags = {}
@@ -57,7 +58,7 @@ class ExperimentComponent(Jsonable):
     def unpack(self):
         if isinstance(self.version, list):
             return [
-                __class__(self.name, v, self.checkpoint, self.flags)
+                __class__(self.name, v, self.mixins, self.checkpoint, self.flags)
                 for v in self.version
             ]
 
@@ -67,6 +68,7 @@ class ExperimentComponent(Jsonable):
         return (
             self.name,
             copy.deepcopy(self.version),
+            copy.deepcopy(self.mixins),
             self.checkpoint,
             copy.deepcopy(self.flags),
         )
@@ -84,7 +86,10 @@ class ExperimentComponent(Jsonable):
         if self.name is None:
             return "machinable.C(None)"
 
-        return f"machinable.C({self.name}, version={self.version}, checkpoint={self.checkpoint}, flags={self.flags})"
+        return (
+            f"machinable.C({self.name}, version={self.version}, mixins={self.mixins},"
+            f" checkpoint={self.checkpoint}, flags={self.flags})"
+        )
 
 
 _latest = [None]
@@ -249,13 +254,21 @@ class Experiment(Jsonable):
         return self
 
     def component(
-        self, name, version=None, checkpoint=None, flags=None, resources=None
+        self,
+        name,
+        version=None,
+        mixins=None,
+        checkpoint=None,
+        flags=None,
+        resources=None,
     ):
         """Adds a component to the experiment
 
         # Arguments
         name: String, the name of the components as defined in the machinable.yaml
         version: dict|String, a configuration update to override its default config
+        mixins: List[String], a list of mixins to use. This will override any default mixins
+                `"^"` will be expanded as the default mixins specified in the machinable.yaml.
         checkpoint: String, optional URL to a checkpoint file from which the components will be restored
         flags: dict, optional flags to be passed to the component
         resources: dict, specifies the resources that are available to the component.
@@ -279,7 +292,7 @@ class Experiment(Jsonable):
         components - List of sub-component specifications
         """
         return self.components(
-            node=ExperimentComponent(name, version, checkpoint, flags),
+            node=ExperimentComponent(name, version, mixins, checkpoint, flags),
             resources=resources,
         )
 

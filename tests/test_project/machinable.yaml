@@ -19,6 +19,19 @@ mixins:
   - +.fooba.test=test:
   - +.fooba.mixins.nested=nested:
   - +.fooba.experiments.base=experiment_mixin:
+  - version_mixin:
+      mixed_in: true
+      ba: 1
+      ~test:
+        foo: 1
+        ~nest:
+          mixed_in:
+          ba: 2
+      ~three:
+        alpha: 5
+        ~nested:
+          added: blocker
+          beta: override
 components:
   - thenode:
       timeout: 0
