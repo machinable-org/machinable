@@ -69,23 +69,24 @@ def test_config_versioning():
     assert e["beta"]["test"]
 
     # nested
-    t = Experiment().components(("thenode", ("~three", "~nested")))
+    t = Experiment().components(("thenode", "~three:nested"))
     e, m = to_config(test_project, t)
-    assert e["works"]
-    assert e["nested"]
+    assert e["unaffected"] == "value"
+    assert e["nested"] is None
     assert e["alpha"] == 4
     assert e["beta"] == "nested"
+    assert "should_not_be" not in e
 
     t = Experiment().components(("thenode", ("~two", "~nested")))
     e, m = to_config(test_project, t)
     assert e["alpha"] == 2
-    assert e["nested"]
+    assert e["nested"] is True
 
-    t = Experiment().components(("thenode", ("~three", "~nested", "~nestednested")))
+    t = Experiment().components(("thenode", ("~three:nested:nestednested")))
     e, m = to_config(test_project, t)
-    assert e["works"]
+    assert e["unaffected"] == "value"
+    assert e["works"] is False
     assert e["alpha"] == 5
-    assert e["q"] == -1
     assert e["beta"] == "overwritten"
     assert e["added"] == "value"
 

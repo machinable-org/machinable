@@ -13,7 +13,7 @@ from ..utils.importing import ModuleClass
 from .parser import parse_mixins
 
 
-def collect_updates(version):
+def _collect_updates(version):
     collection = []
     for update in version:
         arguments = update["arguments"]
@@ -42,7 +42,7 @@ class ConfigInterface:
         self.default_class = default_class
         self.schema_validation = get_settings()["schema_validation"]
 
-    def _get_version(self, name, config, current=None):
+    def _get_version(self, name, config):
         # from yaml file
         if name.endswith(".yaml") or name.endswith(".json"):
             with open(name) as f:
@@ -63,24 +63,22 @@ class ConfigInterface:
             return yaml.load(name, Loader=yaml.FullLoader)
 
         # from local version
-        if name in config:
-            version = copy.deepcopy(config[name])
-            if not current:
-                return version
-            else:
-                # nested lookup
-                try:
-                    return update_dict(copy.deepcopy(current[name]), version)
-                except KeyError:
-                    return version
-
-        if current:
-            # nested lookup
-            try:
-                return copy.deepcopy(current[name])
-            except KeyError:
-                # ignore non-existing nested lookups
-                return {}
+        version = {}
+        path = name[1:].split(":")
+        level = config
+        try:
+            for key in path:
+                level = level["~" + key]
+                # extract config on this level
+                u = {
+                    k: copy.deepcopy(v)
+                    for k, v in level.items()
+                    if not k.startswith("~")
+                }
+                version = update_dict(version, u)
+            return version
+        except KeyError:
+            pass
 
         raise KeyError(
             f"Version '{name}' could not be found.\n"
@@ -252,8 +250,7 @@ class ConfigInterface:
             versions.append({"arguments": {"components": copy.deepcopy(version)}})
 
         version = {}
-        for updates in collect_updates(versions):
-            # select components/node subsection
+        for updates in _collect_updates(versions):
             update = updates.get("components", None)
             if update is None:
                 continue
@@ -267,7 +264,7 @@ class ConfigInterface:
                 # load arguments from machinable.yaml
                 if isinstance(k, str):
                     config["versions"].append(k)
-                    k = self._get_version(k, config["args"], version)
+                    k = self._get_version(k, config["args"])
                 elif isinstance(k, dict):
                     # evaluate computed properties
                     for key in k.keys():
@@ -287,7 +284,7 @@ class ConfigInterface:
 
         # remove unused versions
         config["args"] = {
-            k: v if not k.startswith("~") else "_"
+            k: v if not k.startswith("~") else ":"
             for k, v in config["args"].items()
             if not k.startswith("~") or k in config["versions"]
         }

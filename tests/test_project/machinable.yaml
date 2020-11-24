@@ -28,6 +28,7 @@ components:
       works:
       nested:
       added:
+      unaffected: true
       q:
       key:
         mixing:
@@ -42,6 +43,7 @@ components:
         alpha: 2
       ~three:
         alpha: 3
+        unaffected: value
         ~nested:
           works: False
           alpha: 4
@@ -50,8 +52,8 @@ components:
             beta: overwritten
             alpha: 5
             added: value
-      ~nestednested:
-        q: -1
+        ~second_nested:
+          should_not_be: selected
       ~nested:
         nested: True
         works: True
