@@ -289,12 +289,6 @@ class Component(Mixin):
         """Event interface"""
         return self._events
 
-    def __getattr__(self, name):
-        # Mixins and dynamic attributes are set during construction; this helps suppressing IDE warnings
-        raise AttributeError(
-            f"{self.__class__.__name__} component has no attribute {name}"
-        )
-
     def dispatch(
         self,
         components_config: List[Dict],
