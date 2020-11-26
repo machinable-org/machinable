@@ -39,7 +39,10 @@ def update_dict(d, update=None, copy=False, preserve_schema=False):
                         f"Invalid key: `{preserve_schema}{'.' if preserve_schema else ''}{k}` cannot be updated."
                     )
         if not isinstance(d, Mapping):
-            raise ValueError("d must be a mapping")
+            raise ValueError(
+                f"{preserve_schema if isinstance(preserve_schema, str) else 'Error'}: "
+                f"Expected mapping but found {type(d)}"
+            )
         if isinstance(v, Mapping):
             # pass key path down to next level
             path = preserve_schema
