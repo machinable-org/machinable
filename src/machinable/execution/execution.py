@@ -187,6 +187,9 @@ class Execution(Jsonable):
         return self
 
     def set_project(self, project):
+        if project is None:
+            project = get_settings()["default_project"]
+
         self.project = Project.create(project)
 
         return self
@@ -671,6 +674,8 @@ class Execution(Jsonable):
                     "SUBMISSION_ID",
                     "SEED",
                     "COMPONENT_ID",
+                    "VERSIONING",
+                    "LINEAGE",
                     "REPEAT_SEED",
                     "REPEAT_TOTAL",
                     "REPEAT_NUMBER",

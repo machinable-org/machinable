@@ -26,11 +26,7 @@ def parse_mixins(config, valid_only=False):
         if "name" not in mixin:
             raise ValueError(f"Mixin definition '{mixin}' must specify a name")
 
-        if mixin["name"].startswith("!"):
-            mixin["overrides"] = True
-            mixin["name"] = mixin["name"][1:]
-        else:
-            mixin["overrides"] = False
+        mixin.setdefault("overrides", False)
 
         if "attribute" not in mixin:
             mixin["attribute"] = (

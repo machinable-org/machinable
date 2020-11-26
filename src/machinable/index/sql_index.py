@@ -155,7 +155,7 @@ class SqlIndex(Index):
         ]
 
     def _find_all(self):
-        table = self._table("experiments")
+        table = self._table("submissions")
         return table.all()
 
     def _table(self, name):
@@ -166,7 +166,7 @@ class SqlIndex(Index):
         if self._migrated is True:
             return
 
-        table = self._db["experiments"]
+        table = self._db["submissions"]
         table.create_column("url", self._db.types.string)
         table.create_column("submission_id", self._db.types.string)
         table.create_column("started_at", self._db.types.datetime)
@@ -177,6 +177,7 @@ class SqlIndex(Index):
         table.create_column("host_json", self._db.types.json)
         table.create_column("label", self._db.types.text)
         table.create_column("comments", self._db.types.text)
+        table.create_column("meta", self._db.types.json)
 
         table = self._db["components"]
         table.create_column("url", self._db.types.string)
@@ -188,6 +189,7 @@ class SqlIndex(Index):
         table.create_column("components_json", self._db.types.json)
         table.create_column("state_json", self._db.types.json)
         table.create_column("host_json", self._db.types.json)
+        table.create_column("meta", self._db.types.json)
 
         self._migrated = True
 

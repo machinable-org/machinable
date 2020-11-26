@@ -77,6 +77,35 @@ def test_config_mixins():
     assert e["unaffected"] == "value"
     assert e["beta"] == "override"
 
+    # override mixins in version
+    t = Experiment().component(
+        "thenode", ({"_mixins_": ["trait", "version_mixin"]}, "~three:nested")
+    )
+    e, m = to_config(test_project, t)
+    assert e["alpha"] == 4
+    assert e["added"] == "blocker"
+    assert e["unaffected"] == "value"
+    assert e["beta"] == "nested"
+
+    t = Experiment().component(
+        "thenode",
+        ({"_mixins_": [{"name": "version_mixin", "overrides": True}]}, "~three:nested"),
+    )
+    e, m = to_config(test_project, t)
+    assert e["alpha"] == 4
+    assert e["added"] == "blocker"
+    assert e["unaffected"] == "value"
+    assert e["beta"] == "override"
+
+    t = Experiment().component(
+        "thenode",
+        ({"_mixins_": ["trait", "mixin_module"]}, "~three:nested"),
+        mixins=["version_mixin", "^"],
+    )
+    e, m = to_config(test_project, t)
+    assert e["key"]["very"] is None
+    assert e["hello"] == "there"
+
 
 def test_config_versioning():
     test_project = Project("./test_project")

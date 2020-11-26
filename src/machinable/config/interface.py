@@ -21,20 +21,24 @@ def _collect_updates(version):
         if not isinstance(arguments, tuple):
             arguments = (arguments,)
 
-        collection.extend([a["components"] for a in arguments if "components" in a])
+        collection.extend(
+            [
+                a["components"]
+                if isinstance(a["components"], tuple)
+                else (a["components"],)
+                for a in arguments
+                if "components" in a
+            ]
+        )
 
     return collection
 
 
 def _mark_mixin_as_override(mixin):
     if isinstance(mixin, str):
-        mixin = ("!" + mixin) if not mixin.startswith("!") else mixin
+        mixin = dict(name=mixin, overrides=True)
     if isinstance(mixin, dict):
-        mixin["name"] = (
-            ("!" + mixin["name"])
-            if not mixin["name"].startswith("!")
-            else mixin["name"]
-        )
+        mixin["overrides"] = True
     return mixin
 
 
@@ -87,11 +91,6 @@ class ConfigInterface:
         return function(**payload)
 
     def _get_version(self, name, config):
-        # from yaml file
-        if name.endswith(".yaml") or name.endswith(".json"):
-            with open(name) as f:
-                return yaml.load(f, Loader=yaml.FullLoader)
-
         # from mixin
         if name.startswith("_") and name.endswith("_"):
             try:
@@ -156,6 +155,7 @@ class ConfigInterface:
         # introspection
         config["flags"]["NAME"] = name
         config["flags"]["MODULE"] = config["module"]
+        config["flags"]["VERSIONING"] = []
 
         # output redirection
         if "OUTPUT_REDIRECTION" not in config["flags"]:
@@ -178,8 +178,29 @@ class ConfigInterface:
         # un-alias
         origin = self.data["components"]["@"][name]
 
+        # collect versions
+        config["versions"] = []
+        versions = copy.deepcopy(self.version)
+        if version is not None:
+            # merge local update to global updates
+            versions.append({"arguments": {"components": copy.deepcopy(version)}})
+        version_updates = _collect_updates(versions)
+
         # parse mixins
         default_mixins = config["args"].pop("_mixins_", None)
+
+        # check for default mixins overrides in version
+        default_mixins_override = None
+        for update in version_updates:
+            for k in update:
+                if not isinstance(k, dict):
+                    continue
+                override = k.pop("_mixins_", None)
+                if override is not None:
+                    default_mixins_override = override
+        if default_mixins_override is not None:
+            default_mixins = default_mixins_override
+
         if mixins is None:
             mixins = default_mixins
         else:
@@ -261,7 +282,7 @@ class ConfigInterface:
                         )
 
             if mixin["overrides"]:
-                # override config
+                # mixin overrides config
                 config["args"] = update_dict(config["args"], mixin_args["args"])
             else:
                 # config overrides mixin
@@ -271,23 +292,16 @@ class ConfigInterface:
 
         config["args"]["_mixins_"] = mixin_specs
 
-        # collect versions
-        config["versions"] = []
-        versions = copy.deepcopy(self.version)
-        if version is not None:
-            # merge local update to global updates
-            versions.append({"arguments": {"components": copy.deepcopy(version)}})
-
         # parse updates
         version = {}
-        for update in _collect_updates(versions):
-            if not isinstance(update, tuple):
-                update = (update,)
+        for update in version_updates:
             for k in update:
                 if k is None:
                     continue
                 if isinstance(k, str):
                     config["versions"].append(k)
+                    if k.startswith("~"):
+                        config["flags"]["VERSIONING"].append(k[1:])
                     k = self._get_version(k, config["args"])
                 elif isinstance(k, dict):
                     # evaluate computed properties
