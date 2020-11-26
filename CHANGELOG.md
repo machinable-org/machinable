@@ -2,6 +2,11 @@
 
 <!-- Please add changes under the Unreleased section that reads 'No current changes' otherwise -->
 
+# v2.9.3
+
+- Adds default project option
+- Allow mixin overrides in version dict
+
 # v2.9.2
 
 - Mixins can be specified, extended and overwritten via `Experiment().component(mixins=[])`
