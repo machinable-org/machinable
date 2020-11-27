@@ -473,7 +473,7 @@ class Execution(Jsonable):
 
         Registration.get().on_submit(self, is_submitted)
 
-        return self.engine.submit(self)
+        return self.engine.dispatch(self)
 
     def set_result(self, result, index=None, echo=True):
         if index is None:

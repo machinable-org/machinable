@@ -45,31 +45,35 @@ def to_config(project, schedule):
 def test_config_mixins():
     test_project = Project("./test_project")
 
-    t = Experiment().component("mixexp", "~test", mixins=["version_mixin"])
+    t = Experiment().component("mixexp", ("~test", dict(_mixins_=["version_mixin"])))
     e, m = to_config(test_project, t)
     assert "elephant" not in e
     assert e["mixed_in"] is True
     assert e["foo"] == 1
 
-    t = Experiment().component("mixexp", "~test", mixins=["^", "version_mixin"])
+    t = Experiment().component(
+        "mixexp", ("~test", dict(_mixins_=["^", "version_mixin"]))
+    )
     e, m = to_config(test_project, t)
     assert "elephant" in e
     assert e["mixed_in"] is True
     assert e["foo"] == 1
 
-    t = Experiment().component("thenode", "~test", mixins=["version_mixin"])
+    t = Experiment().component("thenode", ("~test", dict(_mixins_=["version_mixin"])))
     e, m = to_config(test_project, t)
     assert e["mixed_in"] is True
     assert e["foo"] == 1
 
-    t = Experiment().component("thenode", "~test:nest", mixins=["^", "version_mixin"])
+    t = Experiment().component(
+        "thenode", ("~test:nest", dict(_mixins_=["^", "version_mixin"]))
+    )
     e, m = to_config(test_project, t)
     assert e["mixed_in"] is None
     assert e["foo"] == 1
     assert e["ba"] == 2
 
     t = Experiment().component(
-        "thenode", "~three:nested", mixins=["version_mixin", "^"]
+        "thenode", ("~three:nested", dict(_mixins_=["version_mixin", "^"]))
     )
     e, m = to_config(test_project, t)
     assert e["alpha"] == 4
@@ -85,7 +89,7 @@ def test_config_mixins():
     assert e["alpha"] == 4
     assert e["added"] == "blocker"
     assert e["unaffected"] == "value"
-    assert e["beta"] == "nested"
+    assert e["beta"] == "override"
 
     t = Experiment().component(
         "thenode",
@@ -99,8 +103,17 @@ def test_config_mixins():
 
     t = Experiment().component(
         "thenode",
-        ({"_mixins_": ["trait", "mixin_module"]}, "~three:nested"),
-        mixins=["version_mixin", "^"],
+        (
+            {
+                "_mixins_": [
+                    {"name": "trait", "overrides": False},
+                    {"name": "mixin_module", "overrides": False},
+                    "version_mixin",
+                    "^",
+                ]
+            },
+            "~three:nested",
+        ),
     )
     e, m = to_config(test_project, t)
     assert e["key"]["very"] is None
@@ -162,10 +175,6 @@ def test_config_versioning():
     assert e["key"]["very"] == "powerful"
     assert m["alpha"] == 0
     assert m["key"]["mixing"] == "is"
-
-    t = Experiment().components(("thenode", "./test_project/version_override.json"))
-    e, m = to_config(test_project, t)
-    assert e["alpha"] == 10
 
     # ingores None
     t = Experiment().components(("thenode", (None, {"alpha": -1}, None)))

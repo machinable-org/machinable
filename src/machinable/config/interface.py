@@ -38,7 +38,7 @@ def _mark_mixin_as_override(mixin):
     if isinstance(mixin, str):
         mixin = dict(name=mixin, overrides=True)
     if isinstance(mixin, dict):
-        mixin["overrides"] = True
+        mixin["overrides"] = mixin.get("overrides", True)
     return mixin
 
 
@@ -124,7 +124,7 @@ class ConfigInterface:
             f"Available versions: {[f for f in config.keys() if f.startswith('~')]}\n"
         )
 
-    def get_component(self, name, version=None, mixins=None, flags=None):
+    def get_component(self, name, version=None, flags=None):
         if name is None:
             return None
 
@@ -190,16 +190,14 @@ class ConfigInterface:
         default_mixins = config["args"].pop("_mixins_", None)
 
         # check for default mixins overrides in version
-        default_mixins_override = None
+        mixins = None
         for update in version_updates:
             for k in update:
                 if not isinstance(k, dict):
                     continue
                 override = k.pop("_mixins_", None)
                 if override is not None:
-                    default_mixins_override = override
-        if default_mixins_override is not None:
-            default_mixins = default_mixins_override
+                    mixins = override
 
         if mixins is None:
             mixins = default_mixins
@@ -330,7 +328,7 @@ class ConfigInterface:
     def get(self, component, components=None):
         component = ExperimentComponent.create(component)
         node_config = self.get_component(
-            component.name, component.version, component.mixins, component.flags
+            component.name, component.version, component.flags
         )
 
         if components is None:
@@ -340,10 +338,7 @@ class ConfigInterface:
         for c in components:
             subcomponent = ExperimentComponent.create(c)
             component_config = self.get_component(
-                subcomponent.name,
-                subcomponent.version,
-                subcomponent.mixins,
-                subcomponent.flags,
+                subcomponent.name, subcomponent.version, subcomponent.flags,
             )
             if component_config is not None:
                 components_config.append(component_config)
