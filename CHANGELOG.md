@@ -2,6 +2,11 @@
 
 <!-- Please add changes under the Unreleased section that reads 'No current changes' otherwise -->
 
+# v2.9.4
+
+- Introduce engine before and after dispatch events
+- Promote mixin overrides in version dict as default
+
 # v2.9.3
 
 - Adds default project option
