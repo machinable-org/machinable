@@ -69,7 +69,7 @@ class SlurmEngine(Engine):
             "shebang": self.shebang,
         }
 
-    def _submit(self, execution):
+    def _dispatch(self, execution):
         url = os.path.join(
             execution.storage.config["url"],
             execution.storage.config["directory"] or "",

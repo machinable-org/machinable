@@ -108,7 +108,34 @@ class Engine(Jsonable):
     def canonicalize_resources(self, resources):
         return resources
 
-    def submit(self, execution):
+    def dispatch(self, execution):
+        if self.on_before_dispatch(execution) is False:
+            return False
+
+        set_process_title(repr(execution))
+        execution = self._dispatch(execution)
+
+        self.on_after_dispatch(execution)
+
+        return execution
+
+    def on_before_dispatch(self, execution):
+        """Event triggered before engine dispatch of an execution
+
+        Return False to prevent the dispatch
+
+        # Arguments
+        execution: machinable.Execution object
+        """
+
+    def on_after_dispatch(self, execution):
+        """Event triggered after the dispatch of an execution
+
+        # Arguments
+        execution: machinable.Execution object
+        """
+
+    def _dispatch(self, execution):
         """Retrieves an execution instance for execution
 
         Must call execution.set_result() with result and
@@ -119,10 +146,6 @@ class Engine(Jsonable):
 
         machinable.Execution object
         """
-        set_process_title(repr(execution))
-        return self._submit(execution)
-
-    def _submit(self, execution):
         for (
             index,
             execution_type,

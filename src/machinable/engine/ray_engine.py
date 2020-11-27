@@ -19,7 +19,7 @@ class RayEngine(Engine):
     def serialize(self):
         return {"type": "ray"}
 
-    def _submit(self, execution):
+    def _dispatch(self, execution):
         if not ray.is_initialized():
             ray.init()
 

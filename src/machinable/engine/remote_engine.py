@@ -42,7 +42,7 @@ class RemoteEngine(Engine):
         serialized["engine"] = Engine.unserialize(serialized["engine"])
         return cls.create(serialized)
 
-    def _submit(self, execution):
+    def _dispatch(self, execution):
         self.log(
             f"Rsyncing project {execution.project.directory_path} -> {self.host}:{self.directory}"
         )

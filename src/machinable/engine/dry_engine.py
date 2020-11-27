@@ -15,5 +15,5 @@ class DryEngine(Engine):
     def on_before_storage_creation(self, execution):
         execution.storage.config["url"] = "mem://"
 
-    def _submit(self, execution):
+    def _dispatch(self, execution):
         return execution
