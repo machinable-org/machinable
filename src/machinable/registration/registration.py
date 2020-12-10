@@ -64,7 +64,8 @@ class Registration:
     def on_before_component_import(self, module, baseclass, default):
         """Event triggered before a component is imported from a module
 
-        You can prevent the import and return a component from this method to be used instead.
+        You can prevent the import and return a component or an alternative module import path
+        from this method to be used instead.
 
         # Arguments
         module: String, the module path that is about to be imported

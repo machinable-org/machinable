@@ -2,8 +2,8 @@ import importlib
 import inspect
 import os
 
-from machinable.registration import Registration
-from machinable.utils.formatting import exception_to_str
+from ..registration import Registration
+from .formatting import exception_to_str
 
 from ..utils.formatting import exception_to_str
 
@@ -76,7 +76,9 @@ class ModuleClass:
             on_before_component_import = registration.on_before_component_import(
                 module=self.module_name, baseclass=self.baseclass, default=default
             )
-            if on_before_component_import is not None:
+            if isinstance(on_before_component_import, str):
+                self.module_name = on_before_component_import
+            elif on_before_component_import is not None:
                 return on_before_component_import
 
         module_class = None
