@@ -26,6 +26,8 @@ class SqlBaseModel(BaseModel):
         if isinstance(database, str):
             database = dataset.connect(database)
         self._db = database
+        if filesystem_model is None:
+            filesystem_model = SubmissionComponentModel.get()
         self._filesystem_model = filesystem_model
         if isinstance(url, Submission):
             self.url = url.model.url
@@ -38,16 +40,15 @@ class SqlBaseModel(BaseModel):
                 self._data = url
                 url = url["url"]
             self.url = url
-            self.submission_id = self.filesystem_model.submission_id
-            self.component_id = self.filesystem_model.component_id
+            parsed = parse_storage_url(self.url)
+            self.submission_id = parsed["submission_id"]
+            self.component_id = parsed["component_id"]
 
     def submission_model(self, url):
         return SqlSubmissionModel(url, self._db)
 
     def submission_component_model(self, url):
-        return SqlSubmissionComponentModel(
-            url, self._db, filesystem_model=SubmissionComponentModel.get()
-        )
+        return SqlSubmissionComponentModel(url, self._db)
 
 
 class SqlSubmissionModel(SqlBaseModel, FileSystemSubmissionModel):
@@ -95,7 +96,7 @@ class SqlSubmissionModel(SqlBaseModel, FileSystemSubmissionModel):
         return Submission(self)
 
 
-class SqlSubmissionComponentModel(SqlBaseModel, FileSystemSubmissionModel):
+class SqlSubmissionComponentModel(SqlBaseModel, FileSystemSubmissionComponentModel):
     @property
     def filesystem_model(self):
         if self._filesystem_model is None:
