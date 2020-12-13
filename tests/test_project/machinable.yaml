@@ -22,6 +22,7 @@ mixins:
   - version_mixin:
       mixed_in: true
       ba: 1
+      foo: False
       ~test:
         foo: 1
         ~nest:

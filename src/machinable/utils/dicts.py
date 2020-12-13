@@ -34,10 +34,9 @@ def update_dict(d, update=None, copy=False, preserve_schema=False):
         # if preserve_schema, check that key is present in update target
         if isinstance(preserve_schema, str):
             if not isinstance(d, Mapping) or k not in d:
-                if not preserve_schema.startswith("~"):
-                    raise KeyError(
-                        f"Invalid key: `{preserve_schema}{'.' if preserve_schema else ''}{k}` cannot be updated."
-                    )
+                raise KeyError(
+                    f"`{preserve_schema}{'.' if preserve_schema else ''}{k}` cannot be updated."
+                )
         if not isinstance(d, Mapping):
             raise ValueError(
                 f"{preserve_schema if isinstance(preserve_schema, str) else 'Error'}: "

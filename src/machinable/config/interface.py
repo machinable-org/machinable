@@ -314,9 +314,16 @@ class ConfigInterface:
                 # merge with version
                 version = update_dict(version, k)
 
-        config["args"] = update_dict(
-            config["args"], version, preserve_schema=self.schema_validation
-        )
+        try:
+            config["args"] = update_dict(
+                config["args"], version, preserve_schema=self.schema_validation
+            )
+        except KeyError as e:
+            raise KeyError(
+                "Trying to override a key that is not present in the machinable.yaml: "
+                f"{getattr(e, 'message', str(e))!s} "
+                "To ignore this error, disable the schema_validation setting."
+            ) from e
 
         # remove versions
         config["args"] = {

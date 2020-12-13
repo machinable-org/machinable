@@ -7,7 +7,7 @@ cache:
   imports: False
 imports: {}
 tmp_directory: userdata://machinable:machinable/tmp
-schema_validation: False
+schema_validation: True
 default_storage:
    url: mem://
 default_engine:
