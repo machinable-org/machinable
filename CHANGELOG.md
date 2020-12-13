@@ -2,6 +2,12 @@
 
 <!-- Please add changes under the Unreleased section that reads 'No current changes' otherwise -->
 
+# v2.10.0
+
+- Fix bug where SqlIndex models are not recognised correctly
+- Add create option to get_url and get_local_directory
+- Enable schema-validation by default
+
 # v2.9.4
 
 - Introduce engine before and after dispatch events
