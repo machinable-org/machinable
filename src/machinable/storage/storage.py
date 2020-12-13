@@ -98,14 +98,14 @@ class Storage:
 
         return self._log
 
-    def get_url(self, append="") -> str:
-        return os.path.join(
-            self.config["url"],
-            self.config["directory"] or "",
-            self.config["submission"] or "",
-            self.config["component"] or "",
-            append,
-        )
+    def get_url(self, append="", create=False) -> str:
+        """Returns the storage's url path
+
+        # Arguments
+        append: String, optional postfix that is appended to the URL
+        create: Boolean, if True path is being created if not existing
+        """
+        return os.path.join(self.config["url"], self.get_path(append, create=create))
 
     def get_path(self, append="", create=False) -> str:
         """Returns the storage's relative path
@@ -151,8 +151,11 @@ class Storage:
         filesystem.makedirs(os.path.dirname(path), recreate=True)
         return filesystem.open(path, mode, *args, **kwargs)
 
-    def get_local_directory(self, append=""):
+    def get_local_directory(self, append="", create=False):
         """Returns the local storage filesystem path, or False if non-local
+
+        # Arguments
+        create: Boolean, if True path is being created if not existing
 
         # Returns
         Local filesystem path, or False if non-local
@@ -160,7 +163,7 @@ class Storage:
         if not self.config["url"].startswith("osfs://"):
             return False
 
-        return self.get_url(append).split("osfs://")[-1]
+        return self.get_url(append, create=create).split("osfs://")[-1]
 
     def file(self, filepath, default=sentinel):
         """Returns the content of a file in the storage

@@ -21,6 +21,7 @@ def test_storage_interface():
         Storage(directory="/absolute path")
     assert storage.get_url() == "osfs://" + get_path("tttttt/")
     assert storage.get_local_directory() == get_path("tttttt/")
+    assert storage.get_local_directory(create=True) == get_path("tttttt/")
     assert storage.get_path() == "tttttt/"
     c = storage.get_submission(0)
     storage = Storage(
