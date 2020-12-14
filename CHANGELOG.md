@@ -2,6 +2,15 @@
 
 <!-- Please add changes under the Unreleased section that reads 'No current changes' otherwise -->
 
+# v2.11.0
+
+- Add `host_information` event for explicit registration of additional host info
+- Add Execution set_directory method
+- Use multiprocess execution by default
+- Add on_before_component_construction event
+- Allow to set environment variables via special ENVIRON flag
+- Allows config method invocation from within config methods
+
 # v2.10.0
 
 - Fix bug where SqlIndex models are not recognised correctly
