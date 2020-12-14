@@ -1,6 +1,7 @@
 import os
 
 from machinable import Component, Execution, Experiment, execute
+from machinable.core.settings import get_settings
 
 
 def test_execution_from_storage():
@@ -10,6 +11,10 @@ def test_execution_from_storage():
 
 
 def test_execution_decorators():
+    # disable multiprocessing
+    settings = get_settings()
+    settings["default_engine"] = {"type": "native", "processes": None}
+
     t = Experiment().components("thenode", "thechildren")
 
     @execute

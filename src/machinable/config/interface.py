@@ -345,7 +345,9 @@ class ConfigInterface:
         for c in components:
             subcomponent = ExperimentComponent.create(c)
             component_config = self.get_component(
-                subcomponent.name, subcomponent.version, subcomponent.flags,
+                subcomponent.name,
+                subcomponent.version,
+                subcomponent.flags,
             )
             if component_config is not None:
                 components_config.append(component_config)

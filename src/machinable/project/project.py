@@ -262,7 +262,8 @@ class Project(Jsonable):
             opener = open
 
         msg(
-            f"\nCreating code backup ...\n", color="green",
+            f"\nCreating code backup ...\n",
+            color="green",
         )
 
         # Get stream in the PyFS to create zip file with

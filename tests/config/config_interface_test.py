@@ -1,6 +1,6 @@
 import pytest
 
-from machinable import Experiment, C
+from machinable import C, Experiment
 from machinable.config.interface import ConfigInterface
 from machinable.experiment.parser import parse_experiment
 from machinable.project import Project

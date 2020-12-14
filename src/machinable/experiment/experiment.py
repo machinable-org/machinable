@@ -225,8 +225,7 @@ class Experiment(Jsonable):
     # fluent interface
 
     def copy(self):
-        """Returns a copy of the current experiment object
-        """
+        """Returns a copy of the current experiment object"""
         task = __class__()
         task.specification = self.specification.copy()
         return task
@@ -249,7 +248,12 @@ class Experiment(Jsonable):
         return self
 
     def component(
-        self, name, version=None, checkpoint=None, flags=None, resources=None,
+        self,
+        name,
+        version=None,
+        checkpoint=None,
+        flags=None,
+        resources=None,
     ):
         """Adds a component to the experiment
 

@@ -158,8 +158,7 @@ class Submission:
 
     @property
     def started_at(self):
-        """Start of execution
-        """
+        """Start of execution"""
         if "started_at" not in self._cache:
             self._cache["started_at"] = pendulum.parse(
                 self.file("execution.json")["started_at"]
@@ -196,8 +195,7 @@ class Submission:
 
     @property
     def components(self) -> SubmissionComponentCollection:
-        """List of components
-        """
+        """List of components"""
         if "components" not in self._cache:
             self._cache["components"] = SubmissionComponentCollection(
                 [
@@ -215,8 +213,7 @@ class Submission:
 
     @property
     def submissions(self) -> SubmissionCollection:
-        """Returns a collection of derived experiments
-        """
+        """Returns a collection of derived experiments"""
         return SubmissionCollection(
             [
                 Submission(self._model.submission_model(url))
@@ -226,8 +223,7 @@ class Submission:
 
     @property
     def ancestor(self) -> Optional["Submission"]:
-        """Returns parent experiment or None if experiment is independent
-        """
+        """Returns parent experiment or None if experiment is independent"""
         if self.url.find("/submissions/") == -1:
             return None
         try:

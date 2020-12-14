@@ -651,13 +651,16 @@ class Execution(Jsonable):
             self.set_schedule()
 
         msg(
-            f"\n{self.submission_id}\n------", color="header",
+            f"\n{self.submission_id}\n------",
+            color="header",
         )
         msg(
-            f"{repr(self.experiment)}", color="blue",
+            f"{repr(self.experiment)}",
+            color="blue",
         )
         msg(
-            f"{repr(self.storage)}", color="blue",
+            f"{repr(self.storage)}",
+            color="blue",
         )
         msg(f"{repr(self.engine)}", color="blue")
         msg(f"{repr(self.index)}", color="blue")

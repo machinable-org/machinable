@@ -56,7 +56,9 @@ class RayEngine(Engine):
     ):
         if isinstance(component["class"], FunctionalComponent):
             nd = ray.remote(resources=resources)(FunctionalComponent).remote(
-                component["class"].function, component["args"], component["flags"],
+                component["class"].function,
+                component["args"],
+                component["flags"],
             )
         else:
             # load lazy module

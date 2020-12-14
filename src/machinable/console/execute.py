@@ -14,10 +14,14 @@ from ..utils.importing import resolve_instance_from_code
 @click.option("--storage", default=None, help="Storage for this execution.")
 @click.option("--engine", default=None, help="Engine used during execution")
 @click.option(
-    "--project", default=None, help="Project directory",
+    "--project",
+    default=None,
+    help="Project directory",
 )
 @click.option(
-    "--seed", default=None, help="Seed used in this execution",
+    "--seed",
+    default=None,
+    help="Seed used in this execution",
 )
 def execute(experiment, storage, engine, project, seed):
     """
@@ -55,7 +59,9 @@ def execute(experiment, storage, engine, project, seed):
 @click.option("--storage", default=None, help="Storage for this execution.")
 @click.option("--engine", default=None, help="Engine used during execution")
 @click.option(
-    "--project", default=None, help="Project directory.",
+    "--project",
+    default=None,
+    help="Project directory.",
 )
 @click.option("--checkpoint", default=None, help="Optional checkpoint specification")
 @click.option("--version", default=None, help="Optional configuration override")

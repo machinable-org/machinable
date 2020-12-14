@@ -40,11 +40,18 @@ def test_config_mapping_versions():
 
 
 def test_config_mapping_diff():
-    m = ConfigMap({"test": 1, "~a": {"a": "1"},})
-    assert (
-        "root['test']"
-        in m.get_deep_diff({"test": 2, "~a": {"a": "1"},})["values_changed"]
+    m = ConfigMap(
+        {
+            "test": 1,
+            "~a": {"a": "1"},
+        }
     )
+    assert "root['test']" in m.get_deep_diff(
+        {
+            "test": 2,
+            "~a": {"a": "1"},
+        }
+    )["values_changed"]
 
 
 class TestReadme(unittest.TestCase):
@@ -160,7 +167,11 @@ class TestBasic(unittest.TestCase):
     def test_list_comprehension(self):
         parentDict = {
             "name": "Father1",
-            "offspring": [{"name": "Child1"}, {"name": "Child2"}, {"name": "Child3"},],
+            "offspring": [
+                {"name": "Child1"},
+                {"name": "Child2"},
+                {"name": "Child3"},
+            ],
         }
         parent = ConfigMap(parentDict)
         ordered_names = ["Child1", "Child2", "Child3"]

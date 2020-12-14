@@ -14,8 +14,7 @@ class SubmissionComponentCollection(Collection):
             raise ValueError(f"Invalid status field: {status}")
 
     def as_dataframe(self):
-        """Returns collection as Pandas dataframe
-        """
+        """Returns collection as Pandas dataframe"""
         data = {k: [] for k in self._items[0].serialize().keys()}
         for item in self._items:
             for k, v in item.serialize().items():

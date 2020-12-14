@@ -3,9 +3,8 @@ import inspect
 import os
 
 from ..registration import Registration
-from .formatting import exception_to_str
-
 from ..utils.formatting import exception_to_str
+from .formatting import exception_to_str
 
 
 def resolve_instance(arg, instance_type, default_path=""):

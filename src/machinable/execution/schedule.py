@@ -34,7 +34,13 @@ class Schedule(Jsonable):
         self._seed = seed
 
     def add(
-        self, execution_type, component, components, resources, args=None, kwargs=None,
+        self,
+        execution_type,
+        component,
+        components,
+        resources,
+        args=None,
+        kwargs=None,
     ):
         self._elements.append(
             [execution_type, component, components, resources, args, kwargs]

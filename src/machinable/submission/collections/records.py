@@ -3,8 +3,7 @@ from .base import Collection
 
 class RecordCollection(Collection):
     def as_dataframe(self):
-        """Returns collection as Pandas dataframe
-        """
+        """Returns collection as Pandas dataframe"""
         import pandas
 
         data = (
