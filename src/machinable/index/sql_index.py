@@ -4,11 +4,10 @@ import json
 import pendulum
 
 from ..filesystem import parse_storage_url
-from ..submission.models import BaseModel, SubmissionComponentModel, SubmissionModel
-from ..submission.models.filesystem import (
-    FileSystemSubmissionComponentModel,
-    FileSystemSubmissionModel,
-)
+from ..submission.models import (BaseModel, SubmissionComponentModel,
+                                 SubmissionModel)
+from ..submission.models.filesystem import (FileSystemSubmissionComponentModel,
+                                            FileSystemSubmissionModel)
 from ..submission.submission import Submission
 from .index import Index
 

@@ -1,12 +1,12 @@
 import os
 from multiprocessing import Pool
 
-from ..registration import Registration
+from ..config.interface import mapped_config
 from ..core.exceptions import ExecutionException
+from ..registration import Registration
 from ..utils.formatting import exception_to_str
 from ..utils.utils import call_with_context
 from .engine import Engine
-from ..config.interface import mapped_config
 
 
 class NativeEngine(Engine):

@@ -1,6 +1,6 @@
 import os
 
-from machinable import Execution, Component, Experiment
+from machinable import Component, Execution, Experiment
 from machinable.project import Project
 from machinable.registration import Registration
 
