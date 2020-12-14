@@ -27,8 +27,11 @@ from ..submission.submission import Submission
 from ..utils.dicts import merge_dict, update_dict
 from ..utils.formatting import exception_to_str, msg
 from ..utils.host import get_host_info
-from ..utils.identifiers import (decode_submission_id, encode_submission_id,
-                                 generate_submission_id)
+from ..utils.identifiers import (
+    decode_submission_id,
+    encode_submission_id,
+    generate_submission_id,
+)
 from ..utils.importing import resolve_instance
 from ..utils.traits import Jsonable
 from ..utils.utils import sentinel
@@ -164,6 +167,17 @@ class Execution(Jsonable):
             storage = get_settings()["default_storage"]
 
         self.storage = Storage.create(storage)
+
+        return self
+
+    def set_directory(self, directory):
+        if directory is not None:
+            if not isinstance(directory, str):
+                raise ValueError("Directory must be a string")
+            if directory[0] == "/":
+                raise ValueError("Directory must be relative")
+
+        self.storage.config["directory"] = directory
 
         return self
 
