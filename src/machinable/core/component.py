@@ -563,8 +563,8 @@ class Component(Mixin):
 
     def serialize(self):
         return {
-            "config": self.config.toDict(evaluate=True, with_hidden=False),
-            "flags": self.flags.toDict(evaluate=True),
+            "config": self.config.as_dict(evaluate=True, discard_hidden=True),
+            "flags": self.flags.as_dict(evaluate=True),
         }
 
     # life cycle

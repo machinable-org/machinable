@@ -30,7 +30,7 @@ class ConfigMap(dict):
                 value = ConfigMap(value)
             self[key] = value
 
-    def toDict(self, *args, **kwargs):
+    def as_dict(self, *args, **kwargs):
         return self
 
     __delattr__ = dict.__delitem__

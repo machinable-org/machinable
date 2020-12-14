@@ -15,7 +15,7 @@ def test_config_mapping_evaluate():
             "_mixin_": True,
             "~version": {"should be": "hidden"},
         }
-    ).toDict(with_hidden=False)
+    ).as_dict(discard_hidden=True)
 
     assert "_hidden" not in m
     assert m["_mixin_"]
@@ -76,7 +76,7 @@ class TestReadme(unittest.TestCase):
         m = ConfigMap(d)
         self.assertEqual(m.a, 1)
         self.assertEqual(m.b, 2)
-        d2 = m.toDict()
+        d2 = m.as_dict()
         self.assertIsInstance(d2, dict)
         self.assertNotIsInstance(d2, ConfigMap)
         self.assertEqual(len(d2), 3)
@@ -228,7 +228,7 @@ class TestRecursive(unittest.TestCase):
         outStr = str(m)
         self.assertIn("""a=5""", outStr)
         self.assertIn("""recursive=ConfigMap(...)""", outStr)
-        d = m.toDict()
+        d = m.as_dict()
         d_id = id(d)
         d["a"] = 5
         d["recursive"] = d
@@ -253,7 +253,7 @@ class Testkwarg(unittest.TestCase):
         def capture(**kwargs):
             return kwargs
 
-        self.assertEqual(a, capture(**b.toDict()))
+        self.assertEqual(a, capture(**b.as_dict()))
 
 
 class TestDeepCopy(unittest.TestCase):
@@ -292,7 +292,7 @@ class TestDeepCopy(unittest.TestCase):
 class TestConfigMapTupleToDict(unittest.TestCase):
     def test(self):
         m = ConfigMap({"a": 1, "b": (11, 22, ConfigMap({"c": 3}))})
-        d = m.toDict()
+        d = m.as_dict()
         self.assertEqual(d, {"a": 1, "b": (11, 22, {"c": 3})})
 
 
