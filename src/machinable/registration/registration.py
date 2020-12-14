@@ -115,6 +115,13 @@ class Registration:
         Return False to prevent the default automatic resolution
         """
 
+    def host_information(self) -> dict:
+        """Returned dictionary will be recorded as host information
+
+        Note that explicitly registered host methods take precedence over returned data
+        """
+        return {}
+
     def default_resources(self, engine, component, components):
         """Allows to specify global default resources"""
         return None

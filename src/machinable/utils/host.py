@@ -18,16 +18,22 @@ def register_host_info(function):
 
 
 def get_host_info(registration=True):
+    info = {}
     if registration:
         registration = Registration.get()
+
+        info = registration.host_information()
+
         for name, method in inspect.getmembers(
             registration,
             predicate=lambda x: inspect.isfunction(x) or inspect.ismethod(x),
         ):
-            if name.startswith("host_"):
+            if name.startswith("host_") and name != "host_information":
                 _getters[name[5:]] = method
 
-    return {name: getter() for name, getter in _getters.items()}
+    info.update({name: getter() for name, getter in _getters.items()})
+
+    return info
 
 
 @register_host_info

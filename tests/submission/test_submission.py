@@ -19,7 +19,9 @@ def test_submission():
     assert o.components.first().config.test
     assert o.host.test_info == "test_info"
     assert o.host.test_info_static == "static_test_info"
-    assert len(o.host) == 10
+    assert o.host.custom_info is True
+    assert o.host.host_info_return == "test"
+    assert len(o.host) == 12
     assert len(o.components) == 4
 
     submissions = o.submissions
@@ -37,7 +39,7 @@ def test_submission_component():
     assert comp.config.to_test == "observations"
     assert len(comp.components) == 0
     assert comp.data("data.json")["observation_id"] > 0
-    assert len(comp.host) == 10
+    assert len(comp.host) == 12
     assert len(comp.get_records()) == 2
     records = comp.records
     custom = comp.get_records("validation")
