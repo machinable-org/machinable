@@ -1071,8 +1071,7 @@ class Collection:
         return Collection(list(zip(self.items, *items)))
 
     def empty(self):
-        """Returns `True` if the collection is empty; otherwise, `False` is returned
-        """
+        """Returns `True` if the collection is empty; otherwise, `False` is returned"""
         return self.count() == 0
 
     def merge(self, items):
@@ -1178,15 +1177,13 @@ class Collection:
         return dumps(self.serialize(), **options)
 
     def as_numpy(self):
-        """Converts the collection into a numpy array
-        """
+        """Converts the collection into a numpy array"""
         import numpy as np
 
         return np.array(self.items)
 
     def as_dataframe(self):
-        """Returns collection as Pandas dataframe
-        """
+        """Returns collection as Pandas dataframe"""
         data = {k: [] for k in self._items[0].serialize().keys()}
         for item in self._items:
             for k, v in item.serialize().items():

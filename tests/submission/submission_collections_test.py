@@ -7,10 +7,12 @@ from unittest import TestCase
 import pytest
 
 from machinable import Submission
-from machinable.submission.collections import (Collection,
-                                               SubmissionCollection,
-                                               SubmissionComponentCollection,
-                                               collect)
+from machinable.submission.collections import (
+    Collection,
+    SubmissionCollection,
+    SubmissionComponentCollection,
+    collect,
+)
 
 
 def test_collect():

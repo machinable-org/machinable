@@ -484,8 +484,7 @@ class Component(Mixin):
         self.on_after_destroy()
 
     def refresh_status(self, log_errors=False):
-        """Updates the status.json file with a heartbeat at the current time
-        """
+        """Updates the status.json file with a heartbeat at the current time"""
         if not self.storage:
             return False
 
@@ -650,8 +649,7 @@ class Component(Mixin):
         pass
 
     def on_init_storage(self, storage_config: Dict):
-        """Lifecycle event triggered at write initialisation
-        """
+        """Lifecycle event triggered at write initialisation"""
         pass
 
     def on_after_create(self):
@@ -672,8 +670,7 @@ class Component(Mixin):
         pass
 
     def on_before_execute_iteration(self, iteration: int):
-        """Lifecycle event triggered before an execution iteration
-        """
+        """Lifecycle event triggered before an execution iteration"""
         pass
 
     def on_execute_iteration(self, iteration: int):
@@ -750,7 +747,10 @@ class FunctionalComponent:
         apply_seed(self.node["flags"].get("SEED"))
         self.node["flags"]["ACTOR"] = actor_config
         components = [
-            {"config": copy.deepcopy(c["args"]), "flags": copy.deepcopy(c["flags"]),}
+            {
+                "config": copy.deepcopy(c["args"]),
+                "flags": copy.deepcopy(c["flags"]),
+            }
             for c in components_config
         ]
 

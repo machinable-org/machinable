@@ -197,7 +197,8 @@ class SlurmEngine(Engine):
                 else:
                     message = exception_to_str(ex)
                 execution.set_result(
-                    ExecutionException(message, reason="engine_failure"), echo=True,
+                    ExecutionException(message, reason="engine_failure"),
+                    echo=True,
                 )
 
         total = len(execution.schedule._result)

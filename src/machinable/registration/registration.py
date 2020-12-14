@@ -61,6 +61,19 @@ class Registration:
         """
         pass
 
+    def on_before_component_construction(self):
+        """Event triggered before the component is constructed.
+
+        For example, if the component module requires environment variables etc. before initial construction,
+        this event can be used to set them.
+
+        # Arguments
+
+        """
+
+    # disable unless overridden
+    on_before_component_construction._deactivated = True
+
     def on_before_component_import(self, module, baseclass, default):
         """Event triggered before a component is imported from a module
 
@@ -72,7 +85,6 @@ class Registration:
         baseclass: The component baseclass (either Component or Mixin)
         default: Optional default component that will be used if import fails
         """
-        pass
 
     def on_component_import(self, component_candidate, module, baseclass, default):
         """Event triggered during component import from a module
@@ -88,7 +100,6 @@ class Registration:
         baseclass: The component baseclass (either Component or Mixin)
         default: Optional default component that will be used if import fails
         """
-        pass
 
     def on_resolve_vendor(self, name, config, target):
         """Event triggered when vendor is resolved
@@ -103,7 +114,6 @@ class Registration:
 
         Return False to prevent the default automatic resolution
         """
-        pass
 
     def default_resources(self, engine, component, components):
         """Allows to specify global default resources"""

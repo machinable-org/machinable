@@ -177,7 +177,21 @@ If the checkpoint option is specified, machinable will trigger the components's 
 
 #### Flags
 
-In addition to the default execution flags, you can use the flags parameter to extend the ``flags`` dictionary of the components.   
+In addition to the default execution flags, you can use the flags parameter to extend the ``flags`` dictionary of the components. 
+You can use the `ENVIRON` flag to set environment variables that are necessary for the execution. The variables will be set before the component is imported. Consider the following example:
+
+```python
+Experiment().component(
+    "flag_example",
+    flags=dict(
+        example="test",  # regular flag
+        ENVIRON={        # os.environ.update argument
+            "KEY": "VALUE", 
+            "EXAMPLE": "ENABLED"
+        },
+    ),
+)
+```
 
 ### Sub-components
 

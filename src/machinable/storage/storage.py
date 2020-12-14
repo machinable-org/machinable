@@ -85,14 +85,12 @@ class Storage:
 
     @property
     def record(self) -> Record:
-        """Record interface
-        """
+        """Record interface"""
         return self.get_records("default")
 
     @property
     def log(self) -> Log:
-        """Log interface
-        """
+        """Log interface"""
         if self._log is None:
             self._log = Log(storage=self)
 
@@ -256,8 +254,7 @@ class Storage:
         return self.has_file(f"records/{scope}.jsonl")
 
     def has_log(self) -> bool:
-        """Determines whether log has been written
-        """
+        """Determines whether log has been written"""
         return self.has_file(f"log.txt")
 
     def __str__(self):

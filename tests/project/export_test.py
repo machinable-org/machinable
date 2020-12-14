@@ -6,4 +6,6 @@ def test_project_export(helpers):
     ml.Execution(
         experiment=ml.Experiment().components("nodes.observations", "export_model"),
         project="./test_project",
-    ).export(path=path + "/test",)
+    ).export(
+        path=path + "/test",
+    )

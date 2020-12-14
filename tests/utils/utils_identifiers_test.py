@@ -1,9 +1,11 @@
 import pytest
 
-from machinable.utils.identifiers import (decode_submission_id,
-                                          encode_submission_id,
-                                          generate_component_id,
-                                          generate_submission_id)
+from machinable.utils.identifiers import (
+    decode_submission_id,
+    encode_submission_id,
+    generate_component_id,
+    generate_submission_id,
+)
 
 
 def test_submission_id_encoding():

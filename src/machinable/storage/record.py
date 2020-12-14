@@ -130,8 +130,7 @@ class Record:
         self._record.update(dict_like, **kwargs)
 
     def empty(self):
-        """Whether the record writer is empty (len(self.record) == 0)
-        """
+        """Whether the record writer is empty (len(self.record) == 0)"""
         return len(self._record) == 0
 
     def save(self, echo=False, force=False):

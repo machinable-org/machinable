@@ -20,11 +20,8 @@ def test_output_redirection(capsys, helpers):
             with open(os.path.join(storage, "output.log"), "r") as f:
                 assert f.read() == "captured\n"
 
-        assert (
-            capsys.readouterr().out
-            == {
-                "SYS_AND_FILE": "non-captured\ncaptured\nnon-captured-again\n",
-                "FILE_ONLY": "non-captured\nnon-captured-again\n",
-                "DISCARD": "non-captured\nnon-captured-again\n",
-            }[mode]
-        )
+        assert capsys.readouterr().out == {
+            "SYS_AND_FILE": "non-captured\ncaptured\nnon-captured-again\n",
+            "FILE_ONLY": "non-captured\nnon-captured-again\n",
+            "DISCARD": "non-captured\nnon-captured-again\n",
+        }[mode]
