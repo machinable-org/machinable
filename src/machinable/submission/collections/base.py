@@ -1148,8 +1148,8 @@ class Collection:
         def _serialize(value):
             if hasattr(value, "serialize"):
                 return value.serialize()
-            elif hasattr(value, "toDict"):
-                return value.toDict()
+            elif hasattr(value, "as_dict"):
+                return value.as_dict()
             else:
                 return value
 

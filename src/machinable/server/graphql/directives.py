@@ -9,7 +9,7 @@ from ...utils.dicts import serialize
 
 def to_json(obj):
     if isinstance(obj, ConfigMap):
-        obj = obj.toDict(evaluate=True)
+        obj = obj.as_dict(evaluate=True)
 
     return json.dumps(obj, default=serialize)
 

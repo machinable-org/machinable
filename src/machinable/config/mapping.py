@@ -21,14 +21,6 @@ class ConfigMethod(object):
         self._ = {"obj": obj, "method": method, "args": args, "definition": definition}
 
     def evaluate(self):
-        # disable config evaluation
-        try:
-            state = self._["obj"].config._evaluate
-            self._["obj"].config._evaluate = False
-            # todo: disable for sub-components
-        except AttributeError:
-            state = None
-
         if self._["args"] == "":
             value = getattr(self._["obj"], self._["method"])()
         else:
@@ -36,10 +28,6 @@ class ConfigMethod(object):
             # the implementation of a proper parser
             obj = self._["obj"]  # noqa: F841
             value = eval("obj." + self._["method"] + "(" + self._["args"] + ")")
-
-        # reset config evaluation
-        if state is not None:
-            self._["obj"].config._evaluate = state
 
         if isinstance(value, dict):
             return ConfigMap(value, _dynamic=False)
@@ -105,6 +93,9 @@ class ConfigMap(DotMap):
                 if k not in ("_dynamic", "_evaluate", "_evaluated"):
                     self._map[k] = v
 
+    def as_dict(self, evaluate=None, discard_hidden=False):
+        return self.toDict(evaluate=evaluate, with_hidden=not discard_hidden)
+
     def toDict(self, evaluate=None, with_hidden=True):
         if evaluate is None:
             evaluate = bool(self._evaluate)
@@ -140,9 +131,9 @@ class ConfigMap(DotMap):
 
     def pprint(self, pformat="json"):
         if pformat == "json":
-            print(dumps(self.toDict(), indent=4, sort_keys=True))
+            print(dumps(self.as_dict(), indent=4, sort_keys=True))
         else:
-            pprint(self.toDict())
+            pprint(self.as_dict())
 
     def __call_items(self, obj):
         if hasattr(obj, "iteritems") and ismethod(getattr(obj, "iteritems")):
@@ -164,7 +155,7 @@ class ConfigMap(DotMap):
     def get_deep_diff(self, obj, *args, **kwargs):
         from deepdiff import DeepDiff
 
-        return DeepDiff(self.toDict(), obj, *args, **kwargs)
+        return DeepDiff(self.as_dict(), obj, *args, **kwargs)
 
     def __getitem__(self, k, evaluate=None):
         if (

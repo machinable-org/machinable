@@ -134,6 +134,7 @@ components:
       nested:
         method: hello()
       global_method: global_conf(works=True)
+      resursive: recursive_call('test')
   - inherited_flatness:
       flat.can.be.useful: False
       inherited.flat: value

@@ -572,13 +572,13 @@ class Execution(Jsonable):
                 "config.json",
                 {
                     "component": {
-                        "args": nd.config.toDict(evaluate=True),
-                        "flags": nd.flags.toDict(evaluate=True),
+                        "args": nd.config.as_dict(evaluate=True),
+                        "flags": nd.flags.as_dict(evaluate=True),
                     },
                     "components": [
                         {
-                            "args": comps[i].config.toDict(evaluate=True),
-                            "flags": comps[i].flags.toDict(evaluate=True),
+                            "args": comps[i].config.as_dict(evaluate=True),
+                            "flags": comps[i].flags.as_dict(evaluate=True),
                             "class": get_class_name(components[i]["class"]),
                         }
                         for i in range(len(comps))
