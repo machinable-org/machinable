@@ -1,1 +1,2 @@
-from .models import BaseModel, Models, SubmissionComponentModel, SubmissionModel
+from .models import (BaseModel, Models, SubmissionComponentModel,
+                     SubmissionModel)

@@ -27,11 +27,8 @@ from ..submission.submission import Submission
 from ..utils.dicts import merge_dict, update_dict
 from ..utils.formatting import exception_to_str, msg
 from ..utils.host import get_host_info
-from ..utils.identifiers import (
-    decode_submission_id,
-    encode_submission_id,
-    generate_submission_id,
-)
+from ..utils.identifiers import (decode_submission_id, encode_submission_id,
+                                 generate_submission_id)
 from ..utils.importing import resolve_instance
 from ..utils.traits import Jsonable
 from ..utils.utils import sentinel
