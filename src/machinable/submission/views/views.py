@@ -38,6 +38,7 @@ _used_attributes = {
         "url",
         "find",
         "is_started",
+        "engine",
     },
     "component": {
         "config",
@@ -70,6 +71,7 @@ _used_attributes = {
         "is_active",
         "tuning",
         "host",
+        "engine",
     },
 }
 

@@ -187,6 +187,13 @@ class Submission:
         return bool(self.started_at)
 
     @property
+    def engine(self):
+        """Returns information on the engine"""
+        if "engine" not in self._cache:
+            self._cache["engine"] = config_map(self.file("engine.json"))
+        return self._cache["engine"]
+
+    @property
     def host(self):
         """Returns information on the experiment host"""
         if "host" not in self._cache:

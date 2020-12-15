@@ -23,6 +23,7 @@ def test_submission():
     assert o.host.host_info_return == "test"
     assert len(o.host) == 12
     assert len(o.components) == 4
+    assert o.engine.type == "native"
 
     submissions = o.submissions
     assert len(submissions) >= 2
@@ -47,6 +48,7 @@ def test_submission_component():
     assert records.as_dataframe().size > 0
     assert len(comp.file("output.log")) > 0
     assert len(comp.file("log.txt")) > 0
+    assert len(comp.engine) == 0
 
     comp = Submission.find(get_path("subdirectory/TTTTTT"))
     assert comp.components.first().submission.submission_id == "TTTTTT"

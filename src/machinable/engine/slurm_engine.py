@@ -181,14 +181,11 @@ class SlurmEngine(Engine):
                     job_id = int(output.rsplit(" ", maxsplit=1)[-1])
                 except ValueError:
                     job_id = False
-                info = self.serialize()
-                info.update(
-                    {
-                        "job_id": job_id,
-                        "cmd": "sbatch " + " ".join(sbatch_arguments),
-                        "script": target,
-                    }
-                )
+                info = {
+                    "job_id": job_id,
+                    "cmd": "sbatch " + " ".join(sbatch_arguments),
+                    "script": target,
+                }
                 execution.set_result(info, echo=False)
                 execution.storage.save_file(f"{component_id}/engine/info.json", info)
             except Exception as ex:

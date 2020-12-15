@@ -292,6 +292,15 @@ class SubmissionComponent:
         return self.is_started() and not (self.is_active() or self.is_finished())
 
     @property
+    def engine(self):
+        """Returns engine information specific to this component"""
+        if "engine" not in self._cache:
+            self._cache["engine"] = config_map(
+                self.file("engine/info.json", default={})
+            )
+        return self._cache["engine"]
+
+    @property
     def view(self):
         """Returns the registered view"""
         return get_view("component", self)
