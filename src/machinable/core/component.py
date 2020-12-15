@@ -298,6 +298,8 @@ class Component(Mixin):
     ):
         # Prepares and dispatches the components lifecycle and returns its result
         try:
+            self.on_start()
+
             self._actor_config = actor_config
 
             if self.node is None and self.on_seeding() is not False:
@@ -306,6 +308,8 @@ class Component(Mixin):
             self.on_init_storage(storage_config)
 
             self.storage = Storage.create(storage_config)
+
+            self.on_after_init_storage(storage_config)
 
             self.component_status["started_at"] = str(pendulum.now())
             self.component_status["finished_at"] = False
@@ -364,16 +368,25 @@ class Component(Mixin):
 
             status = self.execute()
             self.destroy()
+
+            self.on_success(status)
+            self.on_finish(status, success=True)
         except (KeyboardInterrupt, SystemExit):
             status = ExecutionException(
                 reason="user_interrupt",
                 message="The components execution has been interrupted by the user or system.",
             )
+            self.on_failure(status)
+            self.on_finish(status, success=False)
         except BaseException as ex:
             status = ExecutionException(
                 reason="exception",
                 message=f"The following exception occurred: {ex}\n{exception_to_str(ex)}",
             )
+            self.on_failure(status)
+            self.on_finish(status, success=False)
+        finally:
+            OutputRedirection.revert()
 
         return status
 
@@ -479,8 +492,6 @@ class Component(Mixin):
         self.component_status["finished_at"] = str(pendulum.now())
         self.refresh_status(log_errors=True)
 
-        OutputRedirection.revert()
-
         self.on_after_destroy()
 
     def refresh_status(self, log_errors=False):
@@ -568,6 +579,9 @@ class Component(Mixin):
 
     # life cycle
 
+    def on_start(self):
+        """Lifecycle event triggered at the very beginning of the component dispatch"""
+
     def on_seeding(self):
         """Lifecycle event to implement custom seeding
 
@@ -652,6 +666,9 @@ class Component(Mixin):
         """Lifecycle event triggered at write initialisation"""
         pass
 
+    def on_after_init_storage(self, storage_config: Dict):
+        """Lifecycle event triggered when storage is available"""
+
     def on_after_create(self):
         """Lifecycle event triggered after components creation"""
         pass
@@ -708,6 +725,27 @@ class Component(Mixin):
     def on_after_destroy(self):
         """Lifecycle event triggered after components destruction"""
         pass
+
+    def on_finish(self, result, success):
+        """Lifecycle event triggered right before the end of the component execution
+
+        # Arguments
+        success: Whether the execution finished sucessfully
+        """
+
+    def on_success(self, result):
+        """Lifecycle event triggered iff execution finishes successfully
+
+        # Arguments
+        result: Return value of on_execute event
+        """
+
+    def on_failure(self, result):
+        """Lifecycle event triggered iff execution finished with an exception
+
+        # Arguments
+        result: Execution exception
+        """
 
     def __repr__(self):
         if isinstance(self.node, Component):
