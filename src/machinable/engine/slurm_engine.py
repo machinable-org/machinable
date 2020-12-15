@@ -170,7 +170,8 @@ class SlurmEngine(Engine):
             # submit to slurm
             try:
                 sbatch_arguments = []
-                for k, v in self.canonicalize_resources(resources).items():
+                canonical_resources = self.canonicalize_resources(resources)
+                for k, v in canonical_resources.items():
                     sbatch_arguments.append(k)
                     if v not in [None, True]:
                         sbatch_arguments.append(str(v))
@@ -185,6 +186,7 @@ class SlurmEngine(Engine):
                     "job_id": job_id,
                     "cmd": "sbatch " + " ".join(sbatch_arguments),
                     "script": target,
+                    "resources": canonical_resources,
                 }
                 execution.set_result(info, echo=False)
                 execution.storage.save_file(f"{component_id}/engine/info.json", info)
