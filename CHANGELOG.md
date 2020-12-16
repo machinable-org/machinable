@@ -2,6 +2,11 @@
 
 <!-- Please add changes under the Unreleased section that reads 'No current changes' otherwise -->
 
+# v2.12.1
+
+- Ensure that each Execution object has its own Registration
+- Allow View creation from URL
+
 # v2.12.0
 
 - Allow simpler standard Python class usage of views
