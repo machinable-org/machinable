@@ -188,3 +188,24 @@ def test_hidden_mixins():
         ).failures
         == 0
     )
+
+
+def test_core_component_submission():
+    @ml.Execution
+    class TestComponent(Component):
+        def on_init_storage(self, storage_config):
+            assert self.submission is None
+
+        def on_create(self):
+            assert self.submission.component_id == self.flags.COMPONENT_ID
+
+    assert (
+        TestComponent(
+            ml.Experiment().component("dryrun"),
+            engine="native:None",
+            project="./test_project",
+        )
+        .submit()
+        .failures
+        == 0
+    )

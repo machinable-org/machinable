@@ -12,6 +12,7 @@ from ..config.parser import parse_mixins
 from ..registration import Registration
 from ..storage import Storage
 from ..storage.log import Log
+from ..submission.component import SubmissionComponent
 from ..storage.record import Record
 from ..utils.dicts import update_dict
 from ..utils.formatting import exception_to_str
@@ -185,6 +186,7 @@ class Component(Mixin):
         self._node: Optional[Component] = node
         self._components: Optional[List[Component]] = None
         self._storage: Optional[Storage] = None
+        self._submission: Optional[SubmissionComponent] = None
         self._events: Events = Events()
         self._actor_config = None
         self.__mixin__ = None
@@ -283,6 +285,15 @@ class Component(Mixin):
     def log(self) -> Log:
         """Log writer instance"""
         return self.storage.log
+
+    @property
+    def submission(self) -> Optional[SubmissionComponent]:
+        """Submission of this component"""
+        if self._storage is None:
+            return None
+        if self._submission is None:
+            self._submission = SubmissionComponent(self.storage.get_url())
+        return self._submission
 
     @property
     def events(self) -> Events:
