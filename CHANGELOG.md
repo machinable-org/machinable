@@ -2,6 +2,14 @@
 
 <!-- Please add changes under the Unreleased section that reads 'No current changes' otherwise -->
 
+# v2.12.0
+
+- Allow simpler standard Python class usage of views
+- New Component.submission alias for easier introspection
+- Capture Slurm engine resource arguments
+- New start, finish and success dependent component life cycle events
+- Simplify access to engine information
+
 # v2.11.0
 
 - Add `host_information` event for explicit registration of additional host info
