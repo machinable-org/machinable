@@ -5,7 +5,6 @@ import os
 import pickle
 import sys
 import time
-from glob import glob
 
 import pendulum
 
@@ -17,9 +16,9 @@ from ..core import Component as BaseComponent
 from ..core import Mixin as BaseMixin
 from ..core.component import FunctionalComponent
 from ..core.settings import get_settings
-from ..registration import Registration
 from ..utils.dicts import update_dict
 from ..utils.formatting import exception_to_str, msg
+from ..utils.importing import import_module_from_directory
 from ..utils.traits import Jsonable
 from ..utils.utils import is_valid_module_path, is_valid_variable_name
 from ..utils.vcs import get_commit, get_diff, get_root_commit
@@ -50,7 +49,6 @@ class Project(Jsonable):
 
         self.config = None
         self.parsed_config = None
-        self._registration = None
         self._name_exception = None
 
         if os.path.exists(self.directory_path) and self.directory_path not in sys.path:
@@ -143,7 +141,9 @@ class Project(Jsonable):
         if prefix == ".":
             return None
 
-        # todo: support for relative directory that contain ../
+        if "../" in prefix:
+            # Attempted import beyond project top-level. Consider changing your current working directory.
+            return None
 
         return prefix.replace("/", ".")
 
@@ -195,10 +195,31 @@ class Project(Jsonable):
 
     @property
     def registration(self):
-        if self._registration is None:
-            self._registration = Registration.get()
+        registration = None
+        try:
+            registration_module = import_module_from_directory(
+                "_machinable", self.directory_path
+            )
+            registration_class = getattr(registration_module, "Project", False)
+            if registration_class:
+                registration = registration_class()
+                registration.project = self
+            else:
+                msg(
+                    f"Project registration module does not define a Project(Registration) object",
+                    level="warn",
+                    color="fail",
+                )
+        except ImportError as e:
+            if not (e.args and e.args[0] == "No module named '_machinable'"):
+                # emit warning that existing registration could not be imported
+                msg(
+                    f"Could not import project registration. {e}\n{exception_to_str(e)}",
+                    level="error",
+                    color="fail",
+                )
 
-        return self._registration
+        return registration
 
     def get_config(self, cached="auto"):
         if cached == "auto":
@@ -262,7 +283,7 @@ class Project(Jsonable):
             opener = open
 
         msg(
-            f"\nCreating code backup ...\n",
+            f"\nCreating code backup ...",
             color="green",
         )
 
@@ -353,7 +374,7 @@ class Project(Jsonable):
 
         took = pendulum.duration(seconds=time.time() - t).in_words()
         msg(
-            f"\n >>> Code backup of {counter} files completed in {took}\n",
+            f" >>> Code backup of {counter} files completed in {took}\n",
             color="green",
         )
 

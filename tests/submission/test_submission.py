@@ -48,7 +48,6 @@ def test_submission_component():
     assert records.as_dataframe().size > 0
     assert len(comp.file("output.log")) > 0
     assert len(comp.file("log.txt")) > 0
-    assert len(comp.engine) == 0
 
     comp = Submission.find(get_path("subdirectory/TTTTTT"))
     assert comp.components.first().submission.submission_id == "TTTTTT"

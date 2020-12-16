@@ -84,6 +84,10 @@ class Execution(Jsonable):
         self.code_version = None
         self.started_at = None
 
+        self.behavior = {"raise_exceptions": False}
+        self.failures = 0
+        self._registration = None
+
         if not isinstance(experiment, Experiment) and (
             inspect.isclass(experiment) or callable(experiment)
         ):
@@ -98,18 +102,11 @@ class Execution(Jsonable):
 
         # this may extend the PYTHONPATH and must thus be called before any import-dependent methods below
         self.set_project(project)
-
-        # preload the registration that may be used to register engines etc.
-        Registration.get()
-
         self.set_storage(storage)
         self.set_experiment(experiment)
         self.set_engine(engine)
         self.set_index(index)
         self.set_seed(seed)
-
-        self._behavior = {"raise_exceptions": False}
-        self.failures = 0
 
     def __call__(
         self, experiment, storage=None, engine=None, index=None, project=None, seed=None
@@ -203,6 +200,9 @@ class Execution(Jsonable):
 
         self.project = Project.create(project)
 
+        # assign project registration
+        self._registration = self.project.registration
+
         return self
 
     def set_seed(self, seed):
@@ -254,7 +254,7 @@ class Execution(Jsonable):
                         components=mapped_config(components_config),
                     )
 
-                default_resources = Registration.get().default_resources(
+                default_resources = self.registration.default_resources(
                     engine=self.engine,
                     component=mapped_config(component_config),
                     components=mapped_config(components_config),
@@ -326,7 +326,12 @@ class Execution(Jsonable):
         unknown_options = set(settings.keys()) - {"raise_exceptions"}
         if len(unknown_options) > 0:
             raise ValueError(f"Invalid options: {unknown_options}")
-        self._behavior.update(settings)
+        self.behavior.update(settings)
+        return self
+
+    def set_registration(self, registration):
+        self._registration = registration
+
         return self
 
     def is_submitted(self):
@@ -340,7 +345,10 @@ class Execution(Jsonable):
         return False
 
     def submit(self):
-        if Registration.get().on_before_submit(self) is False:
+        # publish project registration used during execution
+        Registration.reset(self.registration)
+
+        if self.registration.on_before_submit(self) is False:
             return False
 
         self.failures = 0
@@ -413,14 +421,14 @@ class Execution(Jsonable):
 
             # allow engine and registration to make changes before storage submission
             self.engine.on_before_storage_creation(self)
-            Registration.get().on_before_storage_creation(self)
+            self.registration.on_before_storage_creation(self)
 
             # determine code backup settings
             code_backup = _code_backup_settings(self.code_backup)
 
             # use project settings by default
             _project_settings = _code_backup_settings(
-                Registration.get().default_code_backup(execution=self)
+                self.registration.default_code_backup(execution=self)
             )
 
             if code_backup["enabled"] is None:
@@ -482,16 +490,21 @@ class Execution(Jsonable):
                 color="header",
             )
 
-        Registration.get().on_submit(self, is_submitted)
+        self.registration.on_submit(self, is_submitted)
 
-        return self.engine.dispatch(self)
+        execution = self.engine.dispatch(self)
+
+        # decommission project registration
+        Registration.reset()
+
+        return execution
 
     def set_result(self, result, index=None, echo=True):
         if index is None:
             index = len(self.schedule._result)
         if isinstance(result, ExecutionException):
             self.failures += 1
-            if self._behavior["raise_exceptions"]:
+            if self.behavior["raise_exceptions"]:
                 raise result
             if echo or echo == "success":
                 msg(
@@ -656,6 +669,13 @@ class Execution(Jsonable):
     @property
     def submission_id(self):
         return encode_submission_id(self.seed)
+
+    @property
+    def registration(self):
+        if self._registration is None:
+            self._registration = Registration()
+
+        return self._registration
 
     def summary(self):
         if len(self.schedule) == 0:

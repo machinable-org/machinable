@@ -112,7 +112,8 @@ class Engine(Jsonable):
         if self.on_before_dispatch(execution) is False:
             return False
 
-        execution.storage.save_file("engine.json", self.serialize())
+        if not execution.storage.has_file("engine.json"):
+            execution.storage.save_file("engine.json", self.serialize())
 
         set_process_title(repr(execution))
         execution = self._dispatch(execution)

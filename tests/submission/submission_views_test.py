@@ -1,7 +1,7 @@
 import pytest
 
 from machinable import Submission
-from machinable.submission import Views, SubmissionComponentView
+from machinable.submission import SubmissionComponentView, Views
 from machinable.submission.views.views import _used_attributes
 
 

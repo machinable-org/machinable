@@ -1,7 +1,10 @@
 import importlib
+import importlib.util
 import inspect
 import os
+import sys
 
+from ..core.settings import get_settings
 from ..registration import Registration
 from ..utils.formatting import exception_to_str
 from .formatting import exception_to_str
@@ -58,6 +61,28 @@ def resolve_instance_from_code(code, instance_type):
         )
 
 
+def import_module_from_directory(name: str, directory: str):
+    """Imports a module relative to a given absolute directory
+
+    See https://docs.python.org/3/library/importlib.html#importing-a-source-file-directly
+    """
+    # determine the target .py file path
+    file_path = os.path.join(directory, name.replace(".", "/"))
+    if os.path.isdir(file_path):
+        file_path = os.path.join(file_path, "__init__.py")
+    else:
+        file_path += ".py"
+
+    try:
+        spec = importlib.util.spec_from_file_location(name, file_path)
+        module = importlib.util.module_from_spec(spec)
+        sys.modules[name] = module
+        spec.loader.exec_module(module)
+        return module
+    except FileNotFoundError as e:
+        raise ModuleNotFoundError(f"No module named '{name}'") from e
+
+
 class ModuleClass:
     def __init__(self, module_name, args=None, baseclass=None, allow_overrides=True):
         self.module_name = module_name
@@ -70,8 +95,9 @@ class ModuleClass:
         if default is None:
             default = self.default_class
 
+        registration = Registration.get()
+
         if self.allow_overrides:
-            registration = Registration.get()
             on_before_component_import = registration.on_before_component_import(
                 module=self.module_name, baseclass=self.baseclass, default=default
             )
@@ -82,7 +108,17 @@ class ModuleClass:
 
         module_class = None
         try:
-            module = importlib.import_module(self.module_name)
+            project = getattr(registration, "project", None)
+            if project is not None and get_settings().get(
+                "_experimental_module_import"
+            ):
+                # import relative to project path
+                directory = project.path().rstrip(
+                    os.path.relpath(project.directory_path, os.getcwd())
+                )
+                module = import_module_from_directory(self.module_name, directory)
+            else:
+                module = importlib.import_module(self.module_name)
             try:
                 # reload if we are in interactive environments like jupyter
                 get_ipython().__class__.__name__

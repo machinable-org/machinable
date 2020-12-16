@@ -189,7 +189,7 @@ class SlurmEngine(Engine):
                     "resources": canonical_resources,
                 }
                 execution.set_result(info, echo=False)
-                execution.storage.save_file(f"{component_id}/engine/info.json", info)
+                execution.storage.save_file(f"{component_id}/engine/slurm.json", info)
             except Exception as ex:
                 if isinstance(ex, sh.ErrorReturnCode):
                     message = ex.stderr.decode("utf-8")
