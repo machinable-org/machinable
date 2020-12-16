@@ -18,8 +18,6 @@ def test_registration_on_before_component_construction():
             if component["name"] == "dryrun":
                 os.environ["TEST3"] = flags.get("test", False)
 
-    Registration.instance = TestRegistration()
-
     @Execution
     class TestComponent(Component):
         def on_create(self):
@@ -36,6 +34,7 @@ def test_registration_on_before_component_construction():
             engine="native:None",
             project="./test_project",
         )
+        .set_registration(TestRegistration())
         .submit()
         .failures
         == 0
