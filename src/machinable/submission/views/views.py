@@ -1,6 +1,5 @@
 import inspect
 
-from ...core.mixin import Mixin, MixinInstance
 from ...utils.importing import ModuleClass
 from ...utils.utils import is_valid_variable_name
 
@@ -77,11 +76,23 @@ _used_attributes = {
 
 
 def get(view_type, instance, name=None):
-    attribute = name if name is not None else "view"
     try:
-        return MixinInstance(instance, _register[view_type][name], attribute=attribute)
+        return _register[view_type][name](instance)
     except KeyError:
         return None
+
+
+class View:
+    def __init__(self, submission):
+        self.submission = submission
+
+
+class SubmissionView(View):
+    pass
+
+
+class SubmissionComponentView(View):
+    pass
 
 
 class Views:
@@ -113,6 +124,8 @@ class Views:
                     raise ValueError(f"View has to be a class")
             _register["component"][name] = f
 
+            return f
+
         if view:
             return _decorate(view)
 
@@ -138,15 +151,9 @@ class Views:
 
             _register["submission"][name] = f
 
+            return f
+
         if view:
             return _decorate(view)
 
         return _decorate
-
-
-class SubmissionView(Mixin):
-    pass
-
-
-class SubmissionComponentView(Mixin):
-    pass

@@ -22,23 +22,32 @@ def test_allowed_attribute_list():
 def test_submission_views():
     @Views.submission
     class SubmissionView:
+        def __init__(self, submission):
+            self.submission = submission
+
         def forward(self):
-            return self.submission_id
+            return self.submission.submission_id
 
         def ref(self):
-            return self.view.forward()
+            return self.forward()
 
     class ComponentView:
+        def __init__(self, submission):
+            self.submission = submission
+
         def forward(self):
-            return self.component_id
+            return self.submission.component_id
 
         def ref(self):
-            return self.view.forward()
+            return self.forward()
 
     Views.component(ComponentView)
 
     @Views.component(name="custom")
     class ComponentWithName:
+        def __init__(self, submission):
+            self.submission = submission
+
         @property
         def test(self):
             return "hello"
@@ -60,3 +69,5 @@ def test_submission_views():
 
     with pytest.raises(ValueError):
         Views.submission("invalid attribute", name="$name")
+
+    assert SubmissionView(e).forward() == e.submission_id

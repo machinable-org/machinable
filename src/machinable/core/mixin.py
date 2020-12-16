@@ -20,7 +20,7 @@ class MixinInstance:
 
         if attribute is None:
             raise AttributeError(
-                f"'{self._binding['class'].__name__}' has no method '{item}'"
+                f"'{self._binding['class'].__name__}' has no attribute '{item}'"
             )
 
         if isinstance(attribute, property):

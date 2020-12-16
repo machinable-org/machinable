@@ -12,8 +12,8 @@ from ..config.parser import parse_mixins
 from ..registration import Registration
 from ..storage import Storage
 from ..storage.log import Log
-from ..submission.component import SubmissionComponent
 from ..storage.record import Record
+from ..submission.component import SubmissionComponent
 from ..utils.dicts import update_dict
 from ..utils.formatting import exception_to_str
 from ..utils.host import get_host_info
