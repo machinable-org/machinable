@@ -1,7 +1,7 @@
 import pytest
 
 from machinable import Submission
-from machinable.submission import Views
+from machinable.submission import Views, SubmissionComponentView
 from machinable.submission.views.views import _used_attributes
 
 
@@ -41,7 +41,7 @@ def test_submission_views():
         def ref(self):
             return self.forward()
 
-    Views.component(ComponentView)
+    SubmissionComponentView.register(ComponentView)
 
     @Views.component(name="custom")
     class ComponentWithName:
