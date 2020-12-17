@@ -2,6 +2,10 @@
 
 <!-- Please add changes under the Unreleased section that reads 'No current changes' otherwise -->
 
+# v2.12.2
+
+- Allow registration overwrite in Execution.set_schedule
+
 # v2.12.1
 
 - Ensure that each Execution object has its own Registration
