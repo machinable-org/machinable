@@ -162,6 +162,9 @@ class SubmissionComponentView:
         from ..submission import Submission
         from ..component import SubmissionComponent
 
-        self.submission: SubmissionComponent = Submission.find(
-            submission, component=component, or_fail=True
-        )
+        if isinstance(submission, SubmissionComponent):
+            self.submission: SubmissionComponent = submission
+        else:
+            self.submission: SubmissionComponent = Submission.find(
+                submission, component=component, or_fail=True
+            )
