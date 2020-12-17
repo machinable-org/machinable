@@ -219,10 +219,14 @@ class Execution(Jsonable):
 
         return self
 
-    def set_schedule(self, schedule=None):
+    def set_schedule(self, schedule=None, registration=None):
         if schedule is not None:
             self.schedule = schedule
             return self
+
+        _set_registration = registration is not False
+        if _set_registration:
+            Registration.reset(registration or self.registration)
 
         self.schedule = Schedule(seed=self.seed)
 
@@ -287,6 +291,9 @@ class Execution(Jsonable):
                     components=components_config,
                     resources=resources,
                 )
+
+        if _set_registration:
+            Registration.reset()
 
         return self
 
@@ -407,7 +414,7 @@ class Execution(Jsonable):
         is_submitted = self.is_submitted()
         if not is_submitted:
             if len(self.schedule) == 0:
-                self.set_schedule()
+                self.set_schedule(registration=False)
 
             def set_derived_from_flag(i, component, element):
                 element[1]["flags"]["DERIVED_FROM_SUBMISSION"] = derived_from
