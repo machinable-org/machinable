@@ -147,17 +147,19 @@ class Views:
 
 
 class SubmissionView:
-    register = Views.submission
-
     def __init__(self, submission):
         from ..submission import Submission
 
         self.submission: Submission = Submission.create(submission)
 
+    @classmethod
+    def register(cls, view=None, *, name=None):
+        if view is None:
+            view = cls
+        return Views.submission(view, name=name)
+
 
 class SubmissionComponentView:
-    register = Views.component
-
     def __init__(self, submission, component: int = 0):
         from ..submission import Submission
         from ..component import SubmissionComponent
@@ -168,3 +170,9 @@ class SubmissionComponentView:
             self.submission: SubmissionComponent = Submission.find(
                 submission, component=component, or_fail=True
             )
+
+    @classmethod
+    def register(cls, view=None, *, name=None):
+        if view is None:
+            view = cls
+        return Views.component(view, name=name)
