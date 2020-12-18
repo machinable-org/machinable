@@ -315,6 +315,7 @@ class SubmissionComponent:
             "started_at": self.started_at,
             "heartbeat_at": self.heartbeat_at,
             "finished_at": self.finished_at,
+            "url": self.url,
         }
 
     def __str__(self):

@@ -37,7 +37,7 @@ def test_component_collection():
 
     assert max(submission.components.section(o, reduce=np.var)) > 0
     df = submission.components.as_dataframe()
-    assert df.size == 4 * 8
+    assert df.size == 4 * 9
     r = submission.components.first().records
     num_elements = len(r.pluck("number"))
     with pytest.raises(KeyError):
@@ -46,7 +46,7 @@ def test_component_collection():
     assert all([e is None for e in nones])
 
     experiments = Submission.find_many("./_test_data/storage/tttttt")
-    assert experiments.take(2).as_dataframe().size == 10
+    assert experiments.take(2).as_dataframe().size == 12
 
 
 class CollectionTestCase(TestCase):

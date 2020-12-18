@@ -266,8 +266,9 @@ class Submission:
             "submission_id": self.submission_id,
             "experiment_name": self.experiment_name,
             "project_name": self.project_name,
-            "experiment": self,
+            "submission": self,
             "started_at": self.started_at,
+            "url": self.url,
         }
 
     def __len__(self):
