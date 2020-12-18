@@ -26,8 +26,6 @@ class SqlBaseModel(BaseModel):
         if isinstance(database, str):
             database = dataset.connect(database)
         self._db = database
-        if filesystem_model is None:
-            filesystem_model = SubmissionComponentModel.get()
         self._filesystem_model = filesystem_model
         if isinstance(url, Submission):
             self.url = url.model.url
@@ -60,7 +58,7 @@ class SqlSubmissionModel(SqlBaseModel, FileSystemSubmissionModel):
             if self._data is None:
                 self._data = self.insert()
 
-        if filepath in ["execution.json", "code.json", "host.json"]:
+        if self._data and filepath in ["execution.json", "code.json", "host.json"]:
             return json.loads(self._data[filepath.replace(".", "_")])
 
         return self.filesystem_model.file(filepath)
@@ -83,10 +81,10 @@ class SqlSubmissionModel(SqlBaseModel, FileSystemSubmissionModel):
         row = {
             "url": model.url,
             "submission_id": model.submission_id,
+            "started_at": pendulum.parse(execution_json["started_at"]),
             "execution_json": json.dumps(execution_json),
             "code_json": json.dumps(model.file("code.json")),
             "host_json": json.dumps(model.file("host.json")),
-            "started_at": pendulum.parse(execution_json["started_at"]),
         }
         table = self._db["submissions"]
         table.insert(row)
@@ -103,16 +101,47 @@ class SqlSubmissionComponentModel(SqlBaseModel, FileSystemSubmissionComponentMod
             self._filesystem_model = SubmissionComponentModel.create(self.url)
         return self._filesystem_model
 
-    def file(self, filepath):
-        if self._data is None:
-            # fetch from database
-            table = self._db["components"]
-            self._data = table.find_one(url=self.url)
-            if self._data is None:
-                # todo: handle insert
-                self._data = {}
+    def upsert(self, model=None):
+        if model is None:
+            model = self.filesystem_model
 
-        if filepath in ["component.json", "components.json", "state.json", "host.json"]:
+        table = self._db["components"]
+        row = table.find_one(url=self.url)
+
+        try:
+            status_json = model.file("status.json")
+            component_json = model.file("component.json")
+            components_json = model.file("components.json")
+            host_json = model.file("host.json")
+        except FileNotFoundError:
+            return False
+
+        if row is None:
+            row = {
+                "url": model.url,
+                "submission_id": model.submission_id,
+                "component_id": model.submission_id,
+                "started_at": pendulum.parse(status_json["started_at"]),
+                "component_json": json.dumps(component_json),
+                "components_json": json.dumps(components_json),
+                "host_json": json.dumps(host_json),
+            }
+
+        # todo: check if finished, otherwise refresh
+        #    finished_at, heartbeat_at, state_json
+
+        table.insert(row)
+        return row
+
+    def file(self, filepath):
+        # todo: fetch from database
+
+        if self._data and filepath in [
+            "component.json",
+            "components.json",
+            "state.json",
+            "host.json",
+        ]:
             try:
                 return json.loads(self._data[filepath.replace(".", "_")])
             except KeyError:
@@ -185,6 +214,7 @@ class SqlIndex(Index):
         table.create_column("submission_id", self._db.types.string)
         table.create_column("component_id", self._db.types.string)
         table.create_column("started_at", self._db.types.datetime)
+        table.create_column("heartbeat_at", self._db.types.datetime)
         table.create_column("finished_at", self._db.types.datetime)
         table.create_column("component_json", self._db.types.json)
         table.create_column("components_json", self._db.types.json)
