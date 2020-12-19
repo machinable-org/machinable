@@ -2,6 +2,11 @@
 
 <!-- Please add changes under the Unreleased section that reads 'No current changes' otherwise -->
 
+# v2.13.0
+
+- Add URL to submission serialization
+- Simplify view registration methods
+
 # v2.12.2
 
 - Allow registration overwrite in Execution.set_schedule
