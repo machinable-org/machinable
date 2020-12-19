@@ -30,16 +30,12 @@ jobs:
           key: venv-${{ matrix.python-version }}-${{ hashFiles('pyproject.toml') }}-${{ hashFiles('poetry.lock') }}
       - name: Install dependencies
         run: |
-          source "$HOME/.poetry/env"
-          poetry config virtualenvs.in-project true
           poetry install
       - name: Style checks
         run: |
-          source "$HOME/.poetry/env"
           black --config pyproject.toml --check ./
           isort --settings-path pyproject.toml **/*.py
           pyupgrade --py36-plus **/*.py
       - name: Run tests
         run: |
-          source "$HOME/.poetry/env"
           pytest
