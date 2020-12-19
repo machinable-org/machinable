@@ -17,7 +17,9 @@ def test_ray_engine_tune():
     ml.execute(
         ml.Experiment()
         .components("tunemodel")
-        .tune(stop={"acc": 0.5}, config={"lr": tune.grid_search([0.001, 0.01])}),
+        .tune(
+            stop={"acc": 0.5}, config={"lr": tune.grid_search([0.001, 0.01])}
+        ),
         engine="ray",
         storage="./_test_data/tune",
         project="./test_project",

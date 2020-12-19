@@ -47,7 +47,9 @@ class Export:
         if filepath.endswith(".json"):
             with open(target, "w") as f:
                 f.write(
-                    json.dumps(data, indent=4, sort_keys=True, default=lambda x: str(x))
+                    json.dumps(
+                        data, indent=4, sort_keys=True, default=lambda x: str(x)
+                    )
                 )
             return True
 
@@ -130,7 +132,9 @@ class Export:
         # create __init__.py files
         dirs = destination.split("/")
         for i in range(len(dirs)):
-            init_py = os.path.join(self.export_path, "/".join(dirs[:i]), "__init__.py")
+            init_py = os.path.join(
+                self.export_path, "/".join(dirs[:i]), "__init__.py"
+            )
             if not os.path.isfile(init_py):
                 open(init_py, "w").close()
 
@@ -165,7 +169,9 @@ class Export:
             if os.path.isdir(os.path.join(self.project_path, source)):
                 pass
             elif os.path.isfile(
-                os.path.join(self.project_path, source.replace("/", ".") + ".py")
+                os.path.join(
+                    self.project_path, source.replace("/", ".") + ".py"
+                )
             ):
                 source = source + ".py"
             else:

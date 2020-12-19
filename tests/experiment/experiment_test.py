@@ -26,7 +26,8 @@ def test_experiment_config():
     config = test_project.parse_config()
 
     t = ml.Experiment().components(
-        ("nodes.observations", {"attr": "node"}), ("workers.interactive", {"id": 2})
+        ("nodes.observations", {"attr": "node"}),
+        ("workers.interactive", {"id": 2}),
     )
     node, components, resources = list(parse_experiment(t))[0]
     conf = ConfigInterface(config, t.specification["version"])
@@ -39,7 +40,8 @@ def test_experiment_config():
     t = (
         ml.Experiment()
         .components(
-            ("nodes.observations", {"attr": "node"}), ("workers.interactive", {"id": 2})
+            ("nodes.observations", {"attr": "node"}),
+            ("workers.interactive", {"id": 2}),
         )
         .version("~test")
     )

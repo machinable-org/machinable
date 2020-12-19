@@ -30,7 +30,9 @@ def test_config_mixin_handler():
 
 
 def to_config(project, schedule):
-    config = ConfigInterface(project.parse_config(), schedule.specification["version"])
+    config = ConfigInterface(
+        project.parse_config(), schedule.specification["version"]
+    )
     execution_plan = list(parse_experiment(schedule))
     for job_id, (node, components, resources) in enumerate(execution_plan):
         node_config = config.get(node)
@@ -45,7 +47,9 @@ def to_config(project, schedule):
 def test_config_mixins():
     test_project = Project("./test_project")
 
-    t = Experiment().component("mixexp", ("~test", dict(_mixins_=["version_mixin"])))
+    t = Experiment().component(
+        "mixexp", ("~test", dict(_mixins_=["version_mixin"]))
+    )
     e, m = to_config(test_project, t)
     assert "elephant" not in e
     assert e["mixed_in"] is True
@@ -59,7 +63,9 @@ def test_config_mixins():
     assert e["mixed_in"] is True
     assert e["foo"] == 1
 
-    t = Experiment().component("thenode", ("~test", dict(_mixins_=["version_mixin"])))
+    t = Experiment().component(
+        "thenode", ("~test", dict(_mixins_=["version_mixin"]))
+    )
     e, m = to_config(test_project, t)
     assert e["mixed_in"] is True
     assert e["foo"] == 1
@@ -93,7 +99,10 @@ def test_config_mixins():
 
     t = Experiment().component(
         "thenode",
-        ({"_mixins_": [{"name": "version_mixin", "overrides": True}]}, "~three:nested"),
+        (
+            {"_mixins_": [{"name": "version_mixin", "overrides": True}]},
+            "~three:nested",
+        ),
     )
     e, m = to_config(test_project, t)
     assert e["alpha"] == 4
@@ -169,7 +178,9 @@ def test_config_versioning():
     assert e["added"] == "value"
 
     # mixins
-    t = Experiment().components(("thenode", "_trait_"), ("thechildren", "_extended_"))
+    t = Experiment().components(
+        ("thenode", "_trait_"), ("thechildren", "_extended_")
+    )
     e, m = to_config(test_project, t)
     assert e["alpha"] == 0
     assert e["key"]["very"] == "powerful"

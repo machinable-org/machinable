@@ -63,7 +63,9 @@ def execute(experiment, storage, engine, project, seed):
     default=None,
     help="Project directory.",
 )
-@click.option("--checkpoint", default=None, help="Optional checkpoint specification")
+@click.option(
+    "--checkpoint", default=None, help="Optional checkpoint specification"
+)
 @click.option("--version", default=None, help="Optional configuration override")
 @click.option(
     "--seed",

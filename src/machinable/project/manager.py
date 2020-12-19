@@ -72,7 +72,9 @@ def fetch_imports(project, config=None):
                 source = os.path.expanduser(source)
 
             # local target folder
-            os.makedirs(os.path.join(project.directory_path, "vendor"), exist_ok=True)
+            os.makedirs(
+                os.path.join(project.directory_path, "vendor"), exist_ok=True
+            )
             target = os.path.join(project.directory_path, "vendor", name)
 
             # protect against invalid symlinks

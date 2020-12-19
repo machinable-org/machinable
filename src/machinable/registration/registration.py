@@ -68,7 +68,9 @@ class Registration:
         default: Optional default component that will be used if import fails
         """
 
-    def on_component_import(self, component_candidate, module, baseclass, default):
+    def on_component_import(
+        self, component_candidate, module, baseclass, default
+    ):
         """Event triggered during component import from a module
 
         You can override the component candidate by returning a component from this method.

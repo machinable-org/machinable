@@ -173,7 +173,9 @@ class Submission:
             if False in finished_at:
                 self._cache["finished_at"] = False
             else:
-                self._cache["finished_at"] = finished_at.sort(reverse=True).first()
+                self._cache["finished_at"] = finished_at.sort(
+                    reverse=True
+                ).first()
                 # notify model
                 self._model.submit("finished_at", self._cache["finished_at"])
         return self._cache["finished_at"]

@@ -96,7 +96,9 @@ class Views:
     def component(cls, view=None, *, name=None):
         if name is not None:
             if not is_valid_variable_name(name):
-                raise ValueError(f"'{name}' is not a valid Python attribute name")
+                raise ValueError(
+                    f"'{name}' is not a valid Python attribute name"
+                )
 
             if name in _used_attributes["component"]:
                 raise ValueError(
@@ -122,7 +124,9 @@ class Views:
     def submission(cls, view=None, *, name=None):
         if name is not None:
             if not is_valid_variable_name(name):
-                raise ValueError(f"'{name}' is not a valid Python attribute name")
+                raise ValueError(
+                    f"'{name}' is not a valid Python attribute name"
+                )
 
             if name in _used_attributes["submission"]:
                 raise ValueError(

@@ -14,7 +14,9 @@ class MixinInstance:
     def __getattr__(self, item):
         # lazy-load class
         if isinstance(self._binding["class"], ModuleClass):
-            self._binding["class"] = self._binding["class"].load(instantiate=False)
+            self._binding["class"] = self._binding["class"].load(
+                instantiate=False
+            )
 
         attribute = getattr(self._binding["class"], item, None)
 
@@ -29,7 +31,9 @@ class MixinInstance:
         if not callable(attribute):
             return attribute
 
-        if isinstance(getattr_static(self._binding["class"], item), staticmethod):
+        if isinstance(
+            getattr_static(self._binding["class"], item), staticmethod
+        ):
             return attribute
 
         # if attribute is non-static method we decorate it to pass in the controller

@@ -55,7 +55,9 @@ def test_submission_views():
     e = Submission.find("./_test_data/storage/tttttt")
     assert e.view.forward() == "tttttt"
     assert e.view.ref() == "tttttt"
-    assert e.components.first().view.forward() == e.components.first().view.ref()
+    assert (
+        e.components.first().view.forward() == e.components.first().view.ref()
+    )
     assert e.components.first().custom.test == "hello"
 
     Views.clear()

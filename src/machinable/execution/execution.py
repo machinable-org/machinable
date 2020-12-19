@@ -39,7 +39,10 @@ from ..utils.utils import sentinel
 
 def to_color(submission_id):
     return "".join(
-        [encode_submission_id(decode_submission_id(c) % 16) for c in submission_id]
+        [
+            encode_submission_id(decode_submission_id(c) % 16)
+            for c in submission_id
+        ]
     )
 
 
@@ -109,7 +112,13 @@ class Execution(Jsonable):
         self.set_seed(seed)
 
     def __call__(
-        self, experiment, storage=None, engine=None, index=None, project=None, seed=None
+        self,
+        experiment,
+        storage=None,
+        engine=None,
+        index=None,
+        project=None,
+        seed=None,
     ):
         self.set_project(project)
         self.set_storage(storage)
@@ -209,7 +218,9 @@ class Execution(Jsonable):
         if isinstance(seed, str):
             seed = decode_submission_id(seed, or_fail=True)
         elif isinstance(seed, int):
-            seed = generate_submission_id(random_state=seed, with_encoding=False)
+            seed = generate_submission_id(
+                random_state=seed, with_encoding=False
+            )
         else:
             seed = generate_submission_id(with_encoding=False)
 
@@ -242,7 +253,10 @@ class Execution(Jsonable):
             component_config, components_config = config.get(node, components)
 
             # compute resources
-            if isinstance(self.engine, Engine) and not self.engine.supports_resources():
+            if (
+                isinstance(self.engine, Engine)
+                and not self.engine.supports_resources()
+            ):
                 if resources is not None:
                     msg(
                         "Engine does not support resource specification. Skipping ...",
@@ -345,9 +359,17 @@ class Execution(Jsonable):
         try:
             with open_fs(self.storage.config["url"]) as filesystem:
                 return filesystem.isdir(
-                    os.path.join(self.storage.config["directory"], self.submission_id)
+                    os.path.join(
+                        self.storage.config["directory"], self.submission_id
+                    )
                 )
-        except (FileNotFoundError, AttributeError, KeyError, TypeError, ValueError):
+        except (
+            FileNotFoundError,
+            AttributeError,
+            KeyError,
+            TypeError,
+            ValueError,
+        ):
             pass
         return False
 
@@ -384,7 +406,9 @@ class Execution(Jsonable):
             )
 
             self.storage.config["directory"] = expand(
-                self.storage.config["directory"], environ=variables, var_symbol="&"
+                self.storage.config["directory"],
+                environ=variables,
+                var_symbol="&",
             )
             # strftime variables
             try:
@@ -393,15 +417,17 @@ class Execution(Jsonable):
                 )
             except ValueError:
                 pass
-            self.storage.config["directory"] = self.storage.config["directory"].strip(
-                "/"
-            )
+            self.storage.config["directory"] = self.storage.config[
+                "directory"
+            ].strip("/")
 
         # check if URL is an existing experiment
         derived_from = None
         try:
             with open_fs(self.storage.config["url"]) as filesystem:
-                submission_id = filesystem.load_file("execution.json")["submission_id"]
+                submission_id = filesystem.load_file("execution.json")[
+                    "submission_id"
+                ]
                 # register URL as parent storage and rewrite to submissions/ subdirectory
                 derived_from = self.storage.config["url"]
                 self.storage.config["url"] = os.path.join(
@@ -469,7 +495,9 @@ class Execution(Jsonable):
                         "storage": getattr(
                             self.storage, "_resolved_by_expression", None
                         ),
-                        "engine": getattr(self.engine, "_resolved_by_expression", None),
+                        "engine": getattr(
+                            self.engine, "_resolved_by_expression", None
+                        ),
                     },
                     "code_backup": code_backup,
                     "code_version": self.project.get_code_version(),
@@ -586,7 +614,9 @@ class Execution(Jsonable):
             export = Export(self.project.directory_path, export_path)
 
             # instantiate targets
-            nd = component["class"](config=component["args"], flags=component["flags"])
+            nd = component["class"](
+                config=component["args"], flags=component["flags"]
+            )
             comps = [
                 c["class"](config=c["args"], flags=c["flags"], node=nd)
                 for c in components
@@ -630,7 +660,8 @@ class Execution(Jsonable):
                 mixins.extend(c["args"].get("_mixins_", []))
             for mixin in mixins:
                 export.module(
-                    mixin["origin"].replace("+.", "vendor."), from_module_path=True
+                    mixin["origin"].replace("+.", "vendor."),
+                    from_module_path=True,
                 )
 
             export.write("__init__.py")
@@ -653,7 +684,9 @@ class Execution(Jsonable):
             "timestamp": self.timestamp,
             "started_at": self.started_at,
             "components": self.components,
-            "project_name": self.project.name if self.project is not None else None,
+            "project_name": self.project.name
+            if self.project is not None
+            else None,
             "experiment_name": self.experiment.specification["name"]
             if self.experiment is not None
             else None,
@@ -724,7 +757,10 @@ class Execution(Jsonable):
                     "MODULE",
                 }
             }
-            if filtered.get("OUTPUT_REDIRECTION", "SYS_AND_FILE") == "SYS_AND_FILE":
+            if (
+                filtered.get("OUTPUT_REDIRECTION", "SYS_AND_FILE")
+                == "SYS_AND_FILE"
+            ):
                 filtered.pop("OUTPUT_REDIRECTION", None)
             if len(filtered) == 0:
                 return ""
@@ -743,7 +779,9 @@ class Execution(Jsonable):
             (execution_type, component, components, resources, args, kwargs),
         ) in enumerate(self.schedule):
             # only print first and last one
-            shortened = len(self.schedule) > 3 and 0 < index < len(self.schedule) - 1
+            shortened = (
+                len(self.schedule) > 3 and 0 < index < len(self.schedule) - 1
+            )
             if shortened:
                 if index == 1:
                     msg(
@@ -782,7 +820,9 @@ class Execution(Jsonable):
         return self.schedule.components
 
     def __repr__(self):
-        submission_id = self.submission_id if isinstance(self.seed, int) else "None"
+        submission_id = (
+            self.submission_id if isinstance(self.seed, int) else "None"
+        )
         return f"Execution <{submission_id}> ({self.storage})"
 
     def __str__(self):

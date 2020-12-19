@@ -4,7 +4,11 @@ import json
 import pendulum
 
 from ..filesystem import parse_storage_url
-from ..submission.models import BaseModel, SubmissionComponentModel, SubmissionModel
+from ..submission.models import (
+    BaseModel,
+    SubmissionComponentModel,
+    SubmissionModel,
+)
 from ..submission.models.filesystem import (
     FileSystemSubmissionComponentModel,
     FileSystemSubmissionModel,
@@ -58,7 +62,11 @@ class SqlSubmissionModel(SqlBaseModel, FileSystemSubmissionModel):
             if self._data is None:
                 self._data = self.insert()
 
-        if self._data and filepath in ["execution.json", "code.json", "host.json"]:
+        if self._data and filepath in [
+            "execution.json",
+            "code.json",
+            "host.json",
+        ]:
             return json.loads(self._data[filepath.replace(".", "_")])
 
         return self.filesystem_model.file(filepath)
@@ -94,7 +102,9 @@ class SqlSubmissionModel(SqlBaseModel, FileSystemSubmissionModel):
         return Submission(self)
 
 
-class SqlSubmissionComponentModel(SqlBaseModel, FileSystemSubmissionComponentModel):
+class SqlSubmissionComponentModel(
+    SqlBaseModel, FileSystemSubmissionComponentModel
+):
     @property
     def filesystem_model(self):
         if self._filesystem_model is None:

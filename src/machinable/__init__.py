@@ -80,7 +80,12 @@ def execute(
         functional_component = experiment
 
         def wrapper(
-            experiment, storage=None, engine=None, index=None, project=None, seed=None
+            experiment,
+            storage=None,
+            engine=None,
+            index=None,
+            project=None,
+            seed=None,
         ):
             project = Project.create(project)
             project.default_component = functional_component

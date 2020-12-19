@@ -25,7 +25,9 @@ class RayEngine(Engine):
 
         results = [
             self.process(*arguments)
-            for arguments in execution.schedule.iterate(execution.storage.config)
+            for arguments in execution.schedule.iterate(
+                execution.storage.config
+            )
         ]
 
         for index, result in results:
@@ -130,7 +132,9 @@ class RayEngine(Engine):
 
                 self._node_execution_iterations += 1
                 self.node.flags.ITERATION = self._node_execution_iterations
-                self.node.on_before_execute_iteration(self._node_execution_iterations)
+                self.node.on_before_execute_iteration(
+                    self._node_execution_iterations
+                )
                 try:
                     callback = self.node.on_execute_iteration(
                         self._node_execution_iterations
@@ -167,7 +171,9 @@ class RayEngine(Engine):
                 "Storage has to be local; use sync options of Ray tune to copy to remote."
             )
 
-        kwargs["name"] = os.path.join(storage["submission"], storage["component"])
+        kwargs["name"] = os.path.join(
+            storage["submission"], storage["component"]
+        )
         kwargs["resources_per_trial"] = resources
         kwargs["local_dir"] = os.path.join(
             storage["url"].split("osfs://")[-1],

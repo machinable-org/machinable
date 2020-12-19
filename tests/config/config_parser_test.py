@@ -26,7 +26,9 @@ def test_parse_reference():
     assert parse_reference("$.list[$.me[$.key]]", root, this) == "beautiful"
 
     assert parse_reference("$self.deep[$.hello[world]][$.key]", root, this) == 4
-    assert parse_reference("$self.deep[$.hello[world]].to", root, this) == "check"
+    assert (
+        parse_reference("$self.deep[$.hello[world]].to", root, this) == "check"
+    )
 
 
 def test_parse_mixins():
@@ -39,6 +41,8 @@ def test_parse_mixins():
     assert parse_mixins("mixin")[0]["name"] == "mixin"
 
     # attributes
-    assert parse_mixins("+.import.project")[0]["attribute"] == "_import_project_"
+    assert (
+        parse_mixins("+.import.project")[0]["attribute"] == "_import_project_"
+    )
     assert parse_mixins("module.path")[0]["attribute"] == "_module_path_"
     assert parse_mixins("invalid$name")[0]["valid_attribute"] is False

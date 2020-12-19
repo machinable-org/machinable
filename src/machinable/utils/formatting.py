@@ -23,12 +23,16 @@ def msg(text, level="info", color=None):
 
 def prettydict(dict_like, sort_keys=False):
     try:
-        return json.dumps(dict_like, indent=4, default=serialize, sort_keys=sort_keys)
+        return json.dumps(
+            dict_like, indent=4, default=serialize, sort_keys=sort_keys
+        )
     except TypeError:
         return str(dict_like)
 
 
 def exception_to_str(ex):
     return "".join(
-        traceback.format_exception(etype=type(ex), value=ex, tb=ex.__traceback__)
+        traceback.format_exception(
+            etype=type(ex), value=ex, tb=ex.__traceback__
+        )
     )

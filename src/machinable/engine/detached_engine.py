@@ -46,14 +46,18 @@ class DetachedEngine(Engine):
             p = self.shell(command, name=name)
             execution.set_result(p)
         except BaseException as ex:
-            execution.set_result(ExecutionException(str(ex), reason="engine_failure"))
+            execution.set_result(
+                ExecutionException(str(ex), reason="engine_failure")
+            )
             self.log(f"Execution failed: {str(ex)}", level="error")
 
         return execution
 
     def on_before_storage_creation(self, execution):
         if execution.storage.config.get("url", "mem://").startswith("mem://"):
-            raise ValueError("Detached engine does not support temporary file systems")
+            raise ValueError(
+                "Detached engine does not support temporary file systems"
+            )
 
     def serialize(self):
         return {
@@ -78,5 +82,6 @@ class DetachedEngine(Engine):
 
     def tmux_shell(self, command, name):
         return call(
-            f"tmux new -d -s {name}; tmux send-keys `{command}` Enter", shell=True
+            f"tmux new -d -s {name}; tmux send-keys `{command}` Enter",
+            shell=True,
         )

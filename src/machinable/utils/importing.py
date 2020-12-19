@@ -84,7 +84,9 @@ def import_module_from_directory(name: str, directory: str):
 
 
 class ModuleClass:
-    def __init__(self, module_name, args=None, baseclass=None, allow_overrides=True):
+    def __init__(
+        self, module_name, args=None, baseclass=None, allow_overrides=True
+    ):
         self.module_name = module_name
         self.args = args
         self.baseclass = baseclass
@@ -98,8 +100,12 @@ class ModuleClass:
         registration = Registration.get()
 
         if self.allow_overrides:
-            on_before_component_import = registration.on_before_component_import(
-                module=self.module_name, baseclass=self.baseclass, default=default
+            on_before_component_import = (
+                registration.on_before_component_import(
+                    module=self.module_name,
+                    baseclass=self.baseclass,
+                    default=default,
+                )
             )
             if isinstance(on_before_component_import, str):
                 self.module_name = on_before_component_import
@@ -116,7 +122,9 @@ class ModuleClass:
                 directory = project.path().rstrip(
                     os.path.relpath(project.directory_path, os.getcwd())
                 )
-                module = import_module_from_directory(self.module_name, directory)
+                module = import_module_from_directory(
+                    self.module_name, directory
+                )
             else:
                 module = importlib.import_module(self.module_name)
             try:
@@ -126,7 +134,9 @@ class ModuleClass:
             except NameError:
                 pass
 
-            for candidate, class_ in inspect.getmembers(module, inspect.isclass):
+            for candidate, class_ in inspect.getmembers(
+                module, inspect.isclass
+            ):
                 if self.baseclass is not None and not issubclass(
                     class_, self.baseclass
                 ):

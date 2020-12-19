@@ -12,7 +12,9 @@ class Observations(Component):
         if iteration > 5:
             return StopIteration
 
-        self.log.info(f"Observation node {self.config.id}, iteration {iteration}")
+        self.log.info(
+            f"Observation node {self.config.id}, iteration {iteration}"
+        )
         self.record["number"] = random.randint(1, 100)
         self.record["constant"] = 42
         self.record["float"] = 13.1
@@ -37,6 +39,8 @@ class Observations(Component):
             self.storage.save_data(
                 "test.txt", f"hello from observation {self.config.id}"
             )
-            self.storage.save_data("data.json", {"observation_id": self.config.id})
+            self.storage.save_data(
+                "data.json", {"observation_id": self.config.id}
+            )
 
         self.record.save()

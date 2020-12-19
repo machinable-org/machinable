@@ -6,7 +6,9 @@ from machinable.utils.dicts import read_path_dict
 def test_read_path_dict():
     t = {
         "one": {"nasty": 1},
-        "nested": {"nested": {"nested": 2, "deep": [{"down": 5}, {"rabbit": 3}]}},
+        "nested": {
+            "nested": {"nested": 2, "deep": [{"down": 5}, {"rabbit": 3}]}
+        },
         "test": ["case"],
         "foo.bar": 6,
     }

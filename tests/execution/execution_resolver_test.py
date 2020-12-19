@@ -9,7 +9,9 @@ def test_execution_resolve():
     with pytest.raises(ValueError):
         resolve_instance("@", Engine, default_path="test_project")
     assert isinstance(
-        resolve_instance("@", Engine, default_path="test_project/_machinable/engines"),
+        resolve_instance(
+            "@", Engine, default_path="test_project/_machinable/engines"
+        ),
         Engine,
     )
     assert isinstance(

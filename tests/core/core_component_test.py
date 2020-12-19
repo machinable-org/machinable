@@ -92,7 +92,9 @@ def test_component_injection():
     # components are created based on signature
     t = TestInject(node=DummyChild(attribute="experiment"))
     assert inject_components(
-        t, [DummyChild(), DummyChild(False), DummyChild()], t.on_create_manual_with_node
+        t,
+        [DummyChild(), DummyChild(False), DummyChild()],
+        t.on_create_manual_with_node,
     )
 
 
@@ -105,7 +107,8 @@ def test_exception_handling():
     assert isinstance(status, ml.core.exceptions.ExecutionException)
 
     ml.execute(
-        ml.Experiment().components("failure.exceptions"), project="./test_project"
+        ml.Experiment().components("failure.exceptions"),
+        project="./test_project",
     )
 
     # a failure does not crash others
@@ -133,11 +136,13 @@ def test_mixins():
     # module mixins
 
     component = Component(
-        {"_mixins_": ["mixin_module", "+.fooba.mixins.nested"]}, {"BOUND": "component"}
+        {"_mixins_": ["mixin_module", "+.fooba.mixins.nested"]},
+        {"BOUND": "component"},
     )
     assert getattr(component, "_mixin_module_", None) is not None
     assert (
-        component._mixin_module_.is_bound("correctly") == "bound_to_component_correctly"
+        component._mixin_module_.is_bound("correctly")
+        == "bound_to_component_correctly"
     )
     with pytest.raises(AttributeError):
         component._mixin_module_.non_existent("call")
@@ -159,7 +164,8 @@ def test_mixins():
     }
     component = Component(config, {"BOUND": "component"})
     assert (
-        component._mixin_module_.is_bound("correctly") == "bound_to_component_correctly"
+        component._mixin_module_.is_bound("correctly")
+        == "bound_to_component_correctly"
     )
 
     # this-referencing
@@ -177,7 +183,8 @@ def test_hidden_mixins():
     # hidden mixins that are only part of the imported project but not referenced in the project that imports them
     assert (
         ml.execute(
-            ml.Experiment().components("inherited_mixin"), project="./test_project"
+            ml.Experiment().components("inherited_mixin"),
+            project="./test_project",
         ).failures
         == 0
     )

@@ -181,7 +181,8 @@ class CollectionTestCase(TestCase):
     def test_filter(self):
         c = Collection([{"id": 1, "name": "hello"}, {"id": 2, "name": "world"}])
         self.assertEqual(
-            [{"id": 2, "name": "world"}], c.filter(lambda item: item["id"] == 2).all()
+            [{"id": 2, "name": "world"}],
+            c.filter(lambda item: item["id"] == 2).all(),
         )
 
         c = Collection(["", "hello", "", "world"])
