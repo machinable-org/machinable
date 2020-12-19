@@ -1,5 +1,3 @@
-import pytest
-
 import machinable as ml
 
 
@@ -8,7 +6,6 @@ def test_ray_engine():
     ml.execute(t, engine="ray", project="./test_project")
 
 
-@pytest.mark.last
 def test_ray_engine_tune():
     import ray
     from ray import tune

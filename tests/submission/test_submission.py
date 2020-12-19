@@ -37,7 +37,7 @@ def test_submission():
 def test_submission_component():
     comp = Submission.find(get_path("tttttt"), 0)
     assert comp.submission.submission_id == "tttttt"
-    assert comp.submission.code_version.project.path.endswith("machinable.git")
+    assert isinstance(comp.submission.code_version.project.path, str)
     assert comp.flags.NAME == "nodes.observations"
     assert comp.config.to_test == "observations"
     assert len(comp.components) == 0
