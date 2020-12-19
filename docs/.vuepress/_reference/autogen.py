@@ -8,7 +8,9 @@ import types
 
 import click
 
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(os.path.dirname(__file__))))
+ROOT = os.path.dirname(
+    os.path.dirname(os.path.abspath(os.path.dirname(__file__)))
+)
 
 
 def get_file_list():
@@ -50,7 +52,9 @@ def parse_docstr(docstr, level="###", intent=4):
     docstr = docstr.replace("\n" + (" " * intent), "\n")
     # parse Arguments block
     regex = level + r" Arguments((?:(?:\n|\r\n?).+)+)"
-    docstr = re.sub(regex, lambda m: parse_argumentblock(m.group(1), level), docstr)
+    docstr = re.sub(
+        regex, lambda m: parse_argumentblock(m.group(1), level), docstr
+    )
     return docstr
 
 
@@ -185,7 +189,9 @@ def generate_cli():
             result += get_help(sub_command, ctx) + "\n\n"
         return result
 
-    output = "\n\n## --help\n\nUse the `--help` option to inspect options\n\n```\n"
+    output = (
+        "\n\n## --help\n\nUse the `--help` option to inspect options\n\n```\n"
+    )
     output += get_help(cli) + "\n```\n"
     with open(
         os.path.join(ROOT, "reference", "cli.md"),

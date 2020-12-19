@@ -1,9 +1,8 @@
 import os
 import shutil
 
-import pytest
-
 import machinable as ml
+import pytest
 
 
 class Helpers:
@@ -29,7 +28,9 @@ def pytest_sessionstart(session):
 
     assert (
         ml.execute(
-            ml.Experiment().components(("nodes.observations", {"id": 1})).repeat(3),
+            ml.Experiment()
+            .components(("nodes.observations", {"id": 1}))
+            .repeat(3),
             path,
             project="./test_project",
         ).failures

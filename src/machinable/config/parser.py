@@ -268,7 +268,9 @@ def parse_module_list(
 
         # parse references
         if reference is not None:
-            args = parse_references(args, root=reference, this=args, validate=True)
+            args = parse_references(
+                args, root=reference, this=args, validate=True
+            )
 
         # get actual module import path location
         module_import = module.replace("+.", "vendor.")
@@ -314,7 +316,9 @@ def parse_module_list(
 
         # make sure mixin have valid attribute name if not aliased
         if baseclass.__name__ == "Mixin" and not is_valid_variable_name(module):
-            if not (is_valid_variable_name(alias) or is_valid_variable_name(aliased)):
+            if not (
+                is_valid_variable_name(alias) or is_valid_variable_name(aliased)
+            ):
                 raise ValueError(
                     f"Mixin '{module}' has to be a valid Python variable name, please provide an alias"
                     f" e.g. '{module}=my_alias'"

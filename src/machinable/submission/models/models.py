@@ -85,7 +85,10 @@ class SubmissionModel(BaseModel):
 
     def exists(self):
         try:
-            return self.file("execution.json")["submission_id"] == self.submission_id
+            return (
+                self.file("execution.json")["submission_id"]
+                == self.submission_id
+            )
         except (KeyError, FileNotFoundError):
             return False
 
@@ -109,7 +112,9 @@ class SubmissionComponentModel(BaseModel):
     def __init__(self, url):
         super().__init__(url)
         if self.component_id is None:
-            raise ValueError("The provided URL is not a valid submission component URL")
+            raise ValueError(
+                "The provided URL is not a valid submission component URL"
+            )
 
     @classmethod
     def create(cls, args):

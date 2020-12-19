@@ -648,7 +648,9 @@ class Collection:
 
         if key:
             return dict(
-                map(lambda x: (data_get(x, key), data_get(x, value)), self.items)
+                map(
+                    lambda x: (data_get(x, key), data_get(x, value)), self.items
+                )
             )
         else:
             results = list(map(lambda x: data_get(x, value), self.items))
@@ -1040,7 +1042,9 @@ class Collection:
             seen = set()
             seen_add = seen.add
 
-            return Collection([x for x in self.items if not (x in seen or seen_add(x))])
+            return Collection(
+                [x for x in self.items if not (x in seen or seen_add(x))]
+            )
 
         key = self._value_retriever(key)
 
@@ -1206,12 +1210,16 @@ class Collection:
         try:
             iter(self.first())
         except TypeError:
-            raise ValueError("Collection items are not iterable to form columns")
+            raise ValueError(
+                "Collection items are not iterable to form columns"
+            )
 
         try:
             from tabulate import tabulate
 
-            return tabulate(self.items, headers=headers, tablefmt=mode, **kwargs)
+            return tabulate(
+                self.items, headers=headers, tablefmt=mode, **kwargs
+            )
         except ImportError:
             if mode != "html":
                 raise ValueError(
@@ -1276,7 +1284,8 @@ class Collection:
             return selection
 
         section = [
-            reduce([element[row] for element in selection]) for row in range(rows)
+            reduce([element[row] for element in selection])
+            for row in range(rows)
         ]
 
         return Collection(section)

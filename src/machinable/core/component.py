@@ -208,7 +208,9 @@ class Component(Mixin):
         # resolve config methods
         self._config: ConfigMap = bind_config_methods(self, config)
         self._config: ConfigMap = ConfigMap(
-            self.config, _dynamic=False, _evaluate=self.config.get("_evaluate", True)
+            self.config,
+            _dynamic=False,
+            _evaluate=self.config.get("_evaluate", True),
         )
 
         self._flags: ConfigMap = config_map(
@@ -354,7 +356,10 @@ class Component(Mixin):
                 components = []
                 index = 0
                 for component_config in components_config:
-                    if self.on_init_components(component_config, index) is not False:
+                    if (
+                        self.on_init_components(component_config, index)
+                        is not False
+                    ):
                         components.append(
                             component_config["class"](
                                 config=copy.deepcopy(component_config["args"]),
@@ -537,7 +542,9 @@ class Component(Mixin):
 
         return apply_seed(seed)
 
-    def save_checkpoint(self, path: str = None, timestep=None) -> Union[bool, str]:
+    def save_checkpoint(
+        self, path: str = None, timestep=None
+    ) -> Union[bool, str]:
         """Saves components to a checkpoint
 
         # Arguments
@@ -663,7 +670,9 @@ class Component(Mixin):
         """
         pass
 
-    def on_init_components(self, components_config, index: Optional[int] = None):
+    def on_init_components(
+        self, components_config, index: Optional[int] = None
+    ):
         """Lifecycle event triggered during components initialisation
 
         Return False to prevent the components instantiation"""
@@ -829,7 +838,10 @@ class FunctionalComponent:
                     storage.save_file("host.json", get_host_info())
                     storage.save_file(
                         "component.json",
-                        {"config": self.node["config"], "flags": self.node["flags"]},
+                        {
+                            "config": self.node["config"],
+                            "flags": self.node["flags"],
+                        },
                     )
                     storage.save_file(
                         "components.json",

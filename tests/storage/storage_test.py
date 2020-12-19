@@ -36,7 +36,10 @@ def test_storage_interface():
 
     storage.save_data("test.txt", "test me")
     f = os.path.join(
-        storage.config["submission"], storage.config["component"], "data", "test.txt"
+        storage.config["submission"],
+        storage.config["component"],
+        "data",
+        "test.txt",
     )
     assert storage.get_stream(f).readline() == "test me"
     storage.save_data("test.npy", np.ones([5]))

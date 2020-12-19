@@ -21,7 +21,10 @@ def test_project_config():
     import_project = Project("test_project/vendor/fooba")
     assert import_project.import_prefix == "test_project.vendor.fooba"
     import_project = Project("test_project/vendor/fooba/vendor/bedrock")
-    assert import_project.import_prefix == "test_project.vendor.fooba.vendor.bedrock"
+    assert (
+        import_project.import_prefix
+        == "test_project.vendor.fooba.vendor.bedrock"
+    )
 
 
 def test_project_name():
@@ -46,9 +49,12 @@ def test_project_parse_imports():
 
     # args loaded?
     assert (
-        imports["components"]["fooba.models.baseline"]["args"]["overwrite"] == "orginal"
+        imports["components"]["fooba.models.baseline"]["args"]["overwrite"]
+        == "orginal"
     )
-    assert imports["components"]["fooba.experiments.start"]["args"]["test"] == 123
+    assert (
+        imports["components"]["fooba.experiments.start"]["args"]["test"] == 123
+    )
 
     # args loaded with config inheritance?
     t = imports["components"]["fooba.models.config_inheritance"]["args"]
@@ -57,7 +63,9 @@ def test_project_parse_imports():
     assert t["referenced"] == "extended"
 
     # args loaded with config dependency inheritance?
-    t = imports["components"]["fooba.models.config_dependency_inheritance"]["args"]
+    t = imports["components"]["fooba.models.config_dependency_inheritance"][
+        "args"
+    ]
     assert t["here"] == "we_go"
     assert t["from_deep_down"] == "huzzah"
     assert t["deep_overwrite"] == "successful"
@@ -106,8 +114,14 @@ def test_parse_config():
     assert config["components"]["+.fooba.models.baseline"]["args"]["overwrite"]
 
     # check scoped inheritance
-    assert config["components"]["inheritance_from_other_section"]["args"]["alpha"] == 0
-    assert config["components"]["inheritance_from_outer_section"]["args"]["id"] == -1
+    assert (
+        config["components"]["inheritance_from_other_section"]["args"]["alpha"]
+        == 0
+    )
+    assert (
+        config["components"]["inheritance_from_outer_section"]["args"]["id"]
+        == -1
+    )
 
     # is importable?
     for k, v in config["components"].items():
@@ -179,7 +193,9 @@ def test_project_code_backup(helpers):
         "external_link/come-find-me.txt",
     }
     # during execution
-    e = execute("dummy", storage="./_test_data/code_backup/symlinks", project=project)
+    e = execute(
+        "dummy", storage="./_test_data/code_backup/symlinks", project=project
+    )
     assert os.path.isfile(e.storage.get_local_directory("code.zip"))
 
 

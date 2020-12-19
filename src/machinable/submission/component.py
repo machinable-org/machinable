@@ -100,7 +100,9 @@ class SubmissionComponent:
             parsed = parse_storage_url(self.url)
             url = self.url.replace("/" + parsed["component_id"], "")
 
-            self._cache["submission"] = Submission(self._model.submission_model(url))
+            self._cache["submission"] = Submission(
+                self._model.submission_model(url)
+            )
 
         return self._cache["submission"]
 
@@ -120,14 +122,18 @@ class SubmissionComponent:
     def config(self):
         """Returns the component config"""
         if "config" not in self._cache:
-            self._cache["config"] = config_map(self.file("component.json")["config"])
+            self._cache["config"] = config_map(
+                self.file("component.json")["config"]
+            )
         return self._cache["config"]
 
     @property
     def flags(self):
         """Returns the component flags"""
         if "flags" not in self._cache:
-            self._cache["flags"] = config_map(self.file("component.json")["flags"])
+            self._cache["flags"] = config_map(
+                self.file("component.json")["flags"]
+            )
         return self._cache["flags"]
 
     @property
@@ -139,7 +145,8 @@ class SubmissionComponent:
     def components(self):
         if "components" not in self._cache:
             self._cache["components"] = [
-                config_map(component) for component in self.file("components.json")
+                config_map(component)
+                for component in self.file("components.json")
             ]
 
         return self._cache["components"]
@@ -248,7 +255,11 @@ class SubmissionComponent:
                 }
             )
         except FileNotFoundError:
-            status = {"started_at": False, "finished_at": False, "heartbeat_at": False}
+            status = {
+                "started_at": False,
+                "finished_at": False,
+                "heartbeat_at": False,
+            }
 
         if status["finished_at"] is not False:
             self._cache["status"] = status
@@ -289,7 +300,9 @@ class SubmissionComponent:
 
     def is_incomplete(self):
         """Shorthand for is_started() and not (is_active() or is_finished())"""
-        return self.is_started() and not (self.is_active() or self.is_finished())
+        return self.is_started() and not (
+            self.is_active() or self.is_finished()
+        )
 
     @property
     def view(self):

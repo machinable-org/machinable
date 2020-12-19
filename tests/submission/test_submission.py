@@ -28,7 +28,9 @@ def test_submission():
     submissions = o.submissions
     assert len(submissions) >= 2
     assert len(submissions.filter(lambda x: x.submission_id == "SUBEXP")) == 1
-    assert all(submissions.transform(lambda x: x.ancestor.submission_id == "tttttt"))
+    assert all(
+        submissions.transform(lambda x: x.ancestor.submission_id == "tttttt")
+    )
     assert o.ancestor is None
 
 

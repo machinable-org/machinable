@@ -31,7 +31,9 @@ class Loader(yaml.SafeLoader):
 
 # Support $/ notation for includes
 Loader.add_constructor("!include", Loader.include)
-Loader.add_implicit_resolver("!include", re.compile(r"\$\/([^#^ ]*)"), first=None)
+Loader.add_implicit_resolver(
+    "!include", re.compile(r"\$\/([^#^ ]*)"), first=None
+)
 
 # Support scientific number formats
 Loader.add_implicit_resolver(
@@ -73,7 +75,9 @@ def from_string(text, cwd="./"):
             )
 
         for k, v in include.items():
-            if k not in ["mixins", "components"] and not k.startswith("components:"):
+            if k not in ["mixins", "components"] and not k.startswith(
+                "components:"
+            ):
                 continue
 
             if k not in config:

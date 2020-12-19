@@ -51,7 +51,10 @@ class Project(Jsonable):
         self.parsed_config = None
         self._name_exception = None
 
-        if os.path.exists(self.directory_path) and self.directory_path not in sys.path:
+        if (
+            os.path.exists(self.directory_path)
+            and self.directory_path not in sys.path
+        ):
             if self.is_root():
                 sys.path.insert(0, self.directory_path)
             else:
@@ -109,7 +112,9 @@ class Project(Jsonable):
 
     @property
     def config_filepath(self):
-        return os.path.join(self.options["directory"], self.options["config_file"])
+        return os.path.join(
+            self.options["directory"], self.options["config_file"]
+        )
 
     @property
     def directory_path(self):
@@ -321,7 +326,8 @@ class Project(Jsonable):
                 subfolders[:] = [
                     sub
                     for sub in subfolders
-                    if sub != ".git" and not gitignore.match(os.path.join(folder, sub))
+                    if sub != ".git"
+                    and not gitignore.match(os.path.join(folder, sub))
                 ]
 
                 for file_name in filenames:
@@ -340,7 +346,9 @@ class Project(Jsonable):
                         continue
 
                     # Get relative paths (which will be replicated in zip)
-                    relpath_folder = os.path.relpath(folder, self.directory_path)
+                    relpath_folder = os.path.relpath(
+                        folder, self.directory_path
+                    )
                     relpath_file = os.path.join(relpath_folder, file_name)
 
                     # Make directories in zip if necessary
@@ -351,7 +359,8 @@ class Project(Jsonable):
                     # Read file contents
                     try:
                         file_content = open(
-                            os.path.join(self.directory_prefix, relpath_file), "r"
+                            os.path.join(self.directory_prefix, relpath_file),
+                            "r",
                         ).read()
                     except UnicodeDecodeError as ex:
                         msg(
@@ -427,7 +436,9 @@ class Project(Jsonable):
             else:
                 # use project abstraction to resolve imports
                 import_project = Project(
-                    os.path.join(self.options["directory"], "vendor", import_name),
+                    os.path.join(
+                        self.options["directory"], "vendor", import_name
+                    ),
                     parent=self,
                 )
 
@@ -481,7 +492,9 @@ class Project(Jsonable):
             else:
                 alias = scope
                 if alias in top_level_alias:
-                    raise ValueError(f"'components:{collection}' already exists")
+                    raise ValueError(
+                        f"'components:{collection}' already exists"
+                    )
 
             if not is_valid_variable_name(alias):
                 raise ValueError(

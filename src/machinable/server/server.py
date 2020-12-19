@@ -20,7 +20,11 @@ schema = make_executable_schema(
 
 graphql = GraphQL(schema, keepalive=True)
 
-routes = [Route("/filesystem/{url:path}/{filename:path}", endpoint=filesystem_resolver)]
+routes = [
+    Route(
+        "/filesystem/{url:path}/{filename:path}", endpoint=filesystem_resolver
+    )
+]
 
 middleware = [
     Middleware(

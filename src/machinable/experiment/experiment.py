@@ -160,7 +160,8 @@ class Experiment(Jsonable):
         if "self" in arguments:
             del arguments["self"]
         value = dict(
-            {"field": field, "arguments": arguments, "multiple": multiple}, **kwargs
+            {"field": field, "arguments": arguments, "multiple": multiple},
+            **kwargs,
         )
         if multiple:
             if field not in self._specs:
@@ -324,14 +325,21 @@ class Experiment(Jsonable):
                     reduced = (
                         [components[before] for before in range(i)]
                         + [unpacked_component]
-                        + [components[after] for after in range(i + 1, len(components))]
+                        + [
+                            components[after]
+                            for after in range(i + 1, len(components))
+                        ]
                     )
                     self.components(component, reduced, resources)
                 return self
 
         return self._spec(
             "components",
-            {"node": component, "components": components, "resources": resources},
+            {
+                "node": component,
+                "components": components,
+                "resources": resources,
+            },
             multiple=True,
         )
 

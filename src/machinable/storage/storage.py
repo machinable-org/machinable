@@ -103,7 +103,9 @@ class Storage:
         append: String, optional postfix that is appended to the URL
         create: Boolean, if True path is being created if not existing
         """
-        return os.path.join(self.config["url"], self.get_path(append, create=create))
+        return os.path.join(
+            self.config["url"], self.get_path(append, create=create)
+        )
 
     def get_path(self, append="", create=False) -> str:
         """Returns the storage's relative path
@@ -120,7 +122,9 @@ class Storage:
         )
 
         if create:
-            with open_fs({"url": self.config["url"], "create": True}) as filesystem:
+            with open_fs(
+                {"url": self.config["url"], "create": True}
+            ) as filesystem:
                 filesystem.makedirs(os.path.dirname(path), recreate=True)
 
         return path
@@ -134,7 +138,9 @@ class Storage:
         or_fail: Boolean, by default None is returned if the submission does not exist.
                  If True, an Exception will be raised instead
         """
-        return Submission.find(self.get_url(), component=component, or_fail=or_fail)
+        return Submission.find(
+            self.get_url(), component=component, or_fail=or_fail
+        )
 
     def get_stream(self, path, mode="r", *args, **kwargs):
         """Returns a file stream on the storage

@@ -141,7 +141,9 @@ class ConfigInterface:
             self.data["components"][name]["class"] = self.default_class
 
         if isinstance(self.data["components"][name]["class"], ModuleClass):
-            self.data["components"][name]["class"].default_class = self.default_class
+            self.data["components"][name][
+                "class"
+            ].default_class = self.default_class
 
         # de-reference
         config = copy.deepcopy(self.data["components"][name])
@@ -183,7 +185,9 @@ class ConfigInterface:
         versions = copy.deepcopy(self.version)
         if version is not None:
             # merge local update to global updates
-            versions.append({"arguments": {"components": copy.deepcopy(version)}})
+            versions.append(
+                {"arguments": {"components": copy.deepcopy(version)}}
+            )
         version_updates = _collect_updates(versions)
 
         # parse mixins
@@ -230,7 +234,9 @@ class ConfigInterface:
                 # consider import mixins
                 try:
                     mixin_args = copy.deepcopy(
-                        self.data["imports"]["mixins"][vendor + "." + mixin["name"]]
+                        self.data["imports"]["mixins"][
+                            vendor + "." + mixin["name"]
+                        ]
                     )
                 except KeyError:
                     raise KeyError(
@@ -242,7 +248,9 @@ class ConfigInterface:
                     "+."
                     + vendor
                     + "."
-                    + self.data["imports"]["mixins"][vendor + ".@"].get(mixin["name"])
+                    + self.data["imports"]["mixins"][vendor + ".@"].get(
+                        mixin["name"]
+                    )
                 )
             else:
                 if "vendor" in mixin:
@@ -256,9 +264,9 @@ class ConfigInterface:
                             "+."
                             + mixin["vendor"]
                             + "."
-                            + self.data["imports"]["mixins"][mixin["vendor"] + ".@"][
-                                mixin["name"]
-                            ]
+                            + self.data["imports"]["mixins"][
+                                mixin["vendor"] + ".@"
+                            ][mixin["name"]]
                         )
                     except KeyError:
                         raise KeyError(
@@ -266,7 +274,9 @@ class ConfigInterface:
                         )
                 else:
                     try:
-                        mixin_args = copy.deepcopy(self.data["mixins"][mixin["name"]])
+                        mixin_args = copy.deepcopy(
+                            self.data["mixins"][mixin["name"]]
+                        )
                         mixin_spec["origin"] = self.data["mixins"]["@"].get(
                             mixin["name"]
                         )
@@ -275,7 +285,10 @@ class ConfigInterface:
                             f"Mixin '{mixin['name']}' not found. Is it registered in the machinable.yaml?\n"
                             "Registered mixins:\n\t- "
                             + "\n\t- ".join(
-                                filter(lambda x: x != "@", self.data["mixins"].keys())
+                                filter(
+                                    lambda x: x != "@",
+                                    self.data["mixins"].keys(),
+                                )
                             )
                         )
 

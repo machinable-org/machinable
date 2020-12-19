@@ -18,7 +18,12 @@ def config_map(d=None):
 
 class ConfigMethod(object):
     def __init__(self, obj, method, args, definition):
-        self._ = {"obj": obj, "method": method, "args": args, "definition": definition}
+        self._ = {
+            "obj": obj,
+            "method": method,
+            "args": args,
+            "definition": definition,
+        }
 
     def evaluate(self):
         if self._["args"] == "":

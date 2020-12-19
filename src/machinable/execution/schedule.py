@@ -73,7 +73,8 @@ class Schedule(Jsonable):
     @property
     def components(self):
         return [
-            component["flags"]["COMPONENT_ID"] for _, component, *__ in self._elements
+            component["flags"]["COMPONENT_ID"]
+            for _, component, *__ in self._elements
         ]
 
     def filter(self, callback=None):
@@ -105,10 +106,16 @@ class Schedule(Jsonable):
 
         return self
 
-    def add_execute(self, component, components, resources, args=None, kwargs=None):
-        return self.add("execute", component, components, resources, args, kwargs)
+    def add_execute(
+        self, component, components, resources, args=None, kwargs=None
+    ):
+        return self.add(
+            "execute", component, components, resources, args, kwargs
+        )
 
-    def add_tune(self, component, components, resources, args=None, kwargs=None):
+    def add_tune(
+        self, component, components, resources, args=None, kwargs=None
+    ):
         return self.add("tune", component, components, resources, args, kwargs)
 
     def set_result(self, result, index=None):

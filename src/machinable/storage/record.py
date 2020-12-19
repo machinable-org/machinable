@@ -51,9 +51,13 @@ class Record:
             f"records/{self.scope}_meta_data.json",
             default={"created_at": created_at, "length": 0, "updated_at": None},
         )
-        self._meta_data["created_at"] = as_datetime(self._meta_data["created_at"])
+        self._meta_data["created_at"] = as_datetime(
+            self._meta_data["created_at"]
+        )
         if self._meta_data["updated_at"] is not None:
-            self._meta_data["updated_at"] = as_datetime(self._meta_data["updated_at"])
+            self._meta_data["updated_at"] = as_datetime(
+                self._meta_data["updated_at"]
+            )
 
     @property
     def filepath(self):
@@ -156,7 +160,9 @@ class Record:
         data["_timestamp"] = now.timestamp()
 
         with jsonlines.Writer(
-            self.storage.get_stream(self.storage.get_path(self.filepath), mode="a"),
+            self.storage.get_stream(
+                self.storage.get_path(self.filepath), mode="a"
+            ),
             dumps=lambda *args, **kwargs: json.dumps(
                 *args, sort_keys=True, default=serialize, **kwargs
             ),
@@ -173,9 +179,13 @@ class Record:
 
         self._meta_data["updated_at"] = now
         self._meta_data["length"] += 1
-        self.storage.save_file(f"records/{self.scope}_meta_data.json", self._meta_data)
+        self.storage.save_file(
+            f"records/{self.scope}_meta_data.json", self._meta_data
+        )
 
-        self.events.trigger("records.on_save", self.scope, data, self._meta_data)
+        self.events.trigger(
+            "records.on_save", self.scope, data, self._meta_data
+        )
         self.latest = data
 
         if echo:

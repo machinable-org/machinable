@@ -22,7 +22,9 @@ def _wrap(line):
 
 
 class SlurmEngine(Engine):
-    def __init__(self, commands=None, python="python", shebang="#!/usr/bin/env bash"):
+    def __init__(
+        self, commands=None, python="python", shebang="#!/usr/bin/env bash"
+    ):
         self.commands = self._parse_commands(commands)
         self.python = python
         self.shebang = shebang
@@ -77,7 +79,9 @@ class SlurmEngine(Engine):
         )
 
         # script path
-        script_path = "engine/slurm_" + pendulum.now().strftime("%d-%m-%Y_%H-%M-%S")
+        script_path = "engine/slurm_" + pendulum.now().strftime(
+            "%d-%m-%Y_%H-%M-%S"
+        )
         with open_fs(url) as filesystem:
             filesystem.makedirs(script_path, recreate=True)
         script_url = os.path.join(url, script_path)
@@ -97,9 +101,7 @@ class SlurmEngine(Engine):
         )[
             1:-1
         ]
-        submission = (
-            f'cd {execution.project.directory_path};\n{self.python} -c "{code};"\n'
-        )
+        submission = f'cd {execution.project.directory_path};\n{self.python} -c "{code};"\n'
 
         for (
             index,
@@ -112,11 +114,15 @@ class SlurmEngine(Engine):
             kwargs,
         ) in execution.schedule.iterate(execution.storage.config):
             component_id = component["flags"]["COMPONENT_ID"]
-            component_path = os.path.join(url.replace("osfs://", ""), component_id)
+            component_path = os.path.join(
+                url.replace("osfs://", ""), component_id
+            )
             os.makedirs(component_path, exist_ok=True)
             script = f"{self.shebang}\n"
             script += f'#SBATCH --job-name="{execution.submission_id}:{component_id}"\n'
-            script += f"#SBATCH -o {os.path.join(component_path,  'output.log')}\n"
+            script += (
+                f"#SBATCH -o {os.path.join(component_path,  'output.log')}\n"
+            )
             script += "#SBATCH --open-mode=append\n"
             _c = mapped_config(component)
             _cc = mapped_config(components)
@@ -189,7 +195,9 @@ class SlurmEngine(Engine):
                     "resources": canonical_resources,
                 }
                 execution.set_result(info, echo=False)
-                execution.storage.save_file(f"{component_id}/engine/slurm.json", info)
+                execution.storage.save_file(
+                    f"{component_id}/engine/slurm.json", info
+                )
             except Exception as ex:
                 if isinstance(ex, sh.ErrorReturnCode):
                     message = ex.stderr.decode("utf-8")
@@ -218,7 +226,9 @@ class SlurmEngine(Engine):
 
     def on_before_storage_creation(self, execution):
         if execution.storage.config.get("url", "mem://").startswith("mem://"):
-            raise ValueError("Remote engine does not support temporary file systems")
+            raise ValueError(
+                "Remote engine does not support temporary file systems"
+            )
 
         # disable output redirection and rely on Slurm output log instead
         def disable_output_redirection(i, component, element):

@@ -90,7 +90,9 @@ class RemoteEngine(Engine):
             execution.set_result(p)
         except sh.ErrorReturnCode as ex:
             execution.set_result(
-                ExecutionException(ex.stderr.decode("utf-8"), reason="engine_failure")
+                ExecutionException(
+                    ex.stderr.decode("utf-8"), reason="engine_failure"
+                )
             )
             self.log(f"Execution failed: {str(ex)}", level="error")
 
@@ -98,7 +100,9 @@ class RemoteEngine(Engine):
 
     def on_before_storage_creation(self, execution):
         if execution.storage.config.get("url", "mem://").startswith("mem://"):
-            raise ValueError("Remote engine does not support temporary file systems")
+            raise ValueError(
+                "Remote engine does not support temporary file systems"
+            )
 
     def __repr__(self):
         return f"Engine <remote({repr(self.engine)})>"

@@ -16,7 +16,14 @@ def parse_filesystem_url(url):
 
     return {
         k: getattr(parsed, k)
-        for k in ["protocol", "username", "password", "resource", "params", "path"]
+        for k in [
+            "protocol",
+            "username",
+            "password",
+            "resource",
+            "params",
+            "path",
+        ]
     }
 
 

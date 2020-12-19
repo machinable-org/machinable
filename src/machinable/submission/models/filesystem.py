@@ -22,7 +22,9 @@ class FileSystemSubmissionModel(FileSystemBaseModel, SubmissionModel):
         experiments = []
         try:
             with open_fs(os.path.join(self.url, "submissions")) as filesystem:
-                for path, info in filesystem.walk.info(exclude_dirs=["submissions"]):
+                for path, info in filesystem.walk.info(
+                    exclude_dirs=["submissions"]
+                ):
                     if not info.is_dir:
                         continue
                     directory, name = os.path.split(path)
@@ -35,5 +37,7 @@ class FileSystemSubmissionModel(FileSystemBaseModel, SubmissionModel):
             return experiments
 
 
-class FileSystemSubmissionComponentModel(FileSystemBaseModel, SubmissionComponentModel):
+class FileSystemSubmissionComponentModel(
+    FileSystemBaseModel, SubmissionComponentModel
+):
     pass

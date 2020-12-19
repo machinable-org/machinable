@@ -33,7 +33,9 @@ class FileSystem:
                 self.config["url"], create=self.config.get("create", False)
             )
         except (errors.ResourceNotFound, errors.CreateFailed):
-            raise FileNotFoundError(f"Directory {self.config['url']} does not exist")
+            raise FileNotFoundError(
+                f"Directory {self.config['url']} does not exist"
+            )
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
@@ -92,7 +94,11 @@ class FileSystem:
                 if ext == ".json":
                     # json
                     with filesystem.open(filepath, mode) as f:
-                        f.write(json.dumps(data, ensure_ascii=False, default=serialize))
+                        f.write(
+                            json.dumps(
+                                data, ensure_ascii=False, default=serialize
+                            )
+                        )
                 elif ext == ".npy":
                     import numpy as np
 

@@ -56,9 +56,9 @@ def get_root_commit(filename):
         pass
 
     try:
-        return sh.tail(sh.git("rev-list", "--parents", "HEAD", _cwd=wd), "-1").replace(
-            "\n", ""
-        )
+        return sh.tail(
+            sh.git("rev-list", "--parents", "HEAD", _cwd=wd), "-1"
+        ).replace("\n", "")
     except:
         return None
 
