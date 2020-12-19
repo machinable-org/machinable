@@ -70,8 +70,8 @@ integrations = [
   "tabulate"
 ]
 server = [
-    "ariadne",
-    "uvicorn"
+  "ariadne",
+  "uvicorn"
 ]
 
 [build-system]
