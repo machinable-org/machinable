@@ -22,10 +22,10 @@ module.exports = [
           //   text: "Best practices",
           //   link: "/miscellaneous/best-practice.html"
           // },
-          {
-            text: "FAQ",
-            link: "/faq/"
-          },
+          // {
+          //   text: "FAQ",
+          //   link: "/faq/"
+          // },
           // {
           //   text: "App",
           //   link: "/miscellaneous/app.html"

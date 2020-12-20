@@ -38,4 +38,4 @@ jobs:
         env:
           ACCESS_TOKEN: ${{ secrets.ACCESS_TOKEN }}
           BUILD_DIR: docs/.vuepress/dist
-          BUILD_SCRIPT: vuepress build docs
+          BUILD_SCRIPT: /home/runner/work/machinable/machinable/node_modules/vuepress/cli.js build docs
