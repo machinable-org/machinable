@@ -28,9 +28,9 @@ jobs:
         run: |
           source .venv/bin/activate
           python docs/.vuepress/_reference/autogen.py
-      - name: vuepress-deploy
-        uses: jenkey2011/vuepress-deploy@master
+      - name: Build and Deploy
+        uses: testthedocs/github-pages-deploy-action@master
         env:
           ACCESS_TOKEN: ${{ secrets.ACCESS_TOKEN }}
-          BUILD_SCRIPT: vuepress build docs
           BUILD_DIR: docs/.vuepress/dist
+          BUILD_SCRIPT: npm install vuepress && vuepress build docs
