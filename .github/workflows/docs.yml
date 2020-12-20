@@ -1,24 +1,15 @@
-name: Check build 🐍
-
-on:
-  push:
-    branches: [main]
-  pull_request:
-    branches: [main]
-
+name: Documentation build and publish 📝
+on: [push]
 jobs:
-  build:
+  build-and-deploy:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        python-version: ["3.6", "3.7", "3.8"]
-
     steps:
-      - uses: actions/checkout@v2
-      - name: Set up Python ${{ matrix.python-version }}
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Set up Python
         uses: actions/setup-python@v2
         with:
-          python-version: ${{ matrix.python-version }}
+          python-version: "3.x"
       - name: Install Poetry
         uses: snok/install-poetry@v1.1.1
         with:
@@ -33,14 +24,13 @@ jobs:
       - name: Install dependencies
         run: poetry install --extras "integrations server"
         if: steps.cached-poetry-dependencies.outputs.cache-hit != 'true'
-      - name: Style checks
+      - name: Autogenerate reference documentation
         run: |
           source .venv/bin/activate
-          black --config pyproject.toml --check ./
-          isort --settings-path pyproject.toml **/*.py
-          pyupgrade --py36-plus **/*.py
-      - name: Run tests
-        run: |
-          source .venv/bin/activate
-          cd tests
-          pytest
+          docs/.vuepress/_reference/autogen.py
+      - name: vuepress-deploy
+        uses: jenkey2011/vuepress-deploy@master
+        env:
+          ACCESS_TOKEN: ${{ secrets.ACCESS_TOKEN }}
+          BUILD_SCRIPT: yarn && yarn build
+          BUILD_DIR: docs/.vuepress/dist
