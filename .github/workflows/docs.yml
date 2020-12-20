@@ -1,8 +1,7 @@
-name: Documentation build and publish 📝
-on: [push]
-# on:
-#   push:
-#     branches: [main]
+name: Build and publish docs 📝
+on:
+  push:
+    branches: [main]
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
