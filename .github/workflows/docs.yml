@@ -1,24 +1,17 @@
-name: Check build 🐍
-
+name: Build and publish docs 📝
 on:
   push:
     branches: [main]
-  pull_request:
-    branches: [main]
-
 jobs:
-  build:
+  build-and-deploy:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        python-version: ["3.6", "3.7", "3.8"]
-
     steps:
-      - uses: actions/checkout@v2
-      - name: Set up Python ${{ matrix.python-version }}
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Set up Python
         uses: actions/setup-python@v2
         with:
-          python-version: ${{ matrix.python-version }}
+          python-version: "3.x"
       - name: Install Poetry
         uses: snok/install-poetry@v1.1.1
         with:
@@ -33,14 +26,15 @@ jobs:
       - name: Install dependencies
         run: poetry install --extras "integrations server"
         if: steps.cached-poetry-dependencies.outputs.cache-hit != 'true'
-      - name: Style checks
+      - name: Autogenerate reference documentation
         run: |
           source .venv/bin/activate
-          black --config pyproject.toml --check ./
-          isort --settings-path pyproject.toml **/*.py
-          pyupgrade --py36-plus **/*.py
-      - name: Run tests
-        run: |
-          source .venv/bin/activate
-          cd tests
-          pytest
+          python docs/.vuepress/_reference/autogen.py
+      - name: Install vuepress
+        uses: bahmutov/npm-install@v1.4.5
+      - name: Build and Deploy
+        uses: testthedocs/github-pages-deploy-action@master
+        env:
+          ACCESS_TOKEN: ${{ secrets.ACCESS_TOKEN }}
+          BUILD_DIR: docs/.vuepress/dist
+          BUILD_SCRIPT: /home/runner/work/machinable/machinable/node_modules/vuepress/cli.js build docs
