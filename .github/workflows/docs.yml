@@ -33,7 +33,6 @@ jobs:
           python docs/.vuepress/_reference/autogen.py
       - name: Install vuepress
         uses: bahmutov/npm-install@v1.4.5
-        run: npm install vuepress
       - name: Build and Deploy
         uses: testthedocs/github-pages-deploy-action@master
         env:
