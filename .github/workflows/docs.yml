@@ -32,5 +32,5 @@ jobs:
         uses: jenkey2011/vuepress-deploy@master
         env:
           ACCESS_TOKEN: ${{ secrets.ACCESS_TOKEN }}
-          BUILD_SCRIPT: yarn && yarn build
+          BUILD_SCRIPT: vuepress build docs
           BUILD_DIR: docs/.vuepress/dist
