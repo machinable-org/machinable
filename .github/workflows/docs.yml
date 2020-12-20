@@ -1,5 +1,8 @@
 name: Documentation build and publish 📝
 on: [push]
+# on:
+#   push:
+#     branches: [main]
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
@@ -28,9 +31,12 @@ jobs:
         run: |
           source .venv/bin/activate
           python docs/.vuepress/_reference/autogen.py
+      - name: Install vuepress
+        uses: bahmutov/npm-install@v1.4.5
+        run: npm install vuepress
       - name: Build and Deploy
         uses: testthedocs/github-pages-deploy-action@master
         env:
           ACCESS_TOKEN: ${{ secrets.ACCESS_TOKEN }}
           BUILD_DIR: docs/.vuepress/dist
-          BUILD_SCRIPT: npm install vuepress && /github/workspace/node_modules/vuepress build docs
+          BUILD_SCRIPT: vuepress build docs
