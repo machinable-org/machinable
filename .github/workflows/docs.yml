@@ -27,7 +27,7 @@ jobs:
       - name: Autogenerate reference documentation
         run: |
           source .venv/bin/activate
-          docs/.vuepress/_reference/autogen.py
+          python docs/.vuepress/_reference/autogen.py
       - name: vuepress-deploy
         uses: jenkey2011/vuepress-deploy@master
         env:
