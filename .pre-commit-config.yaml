@@ -1,0 +1,31 @@
+default_stages: [commit, push]
+
+repos:
+  - repo: local
+    hooks:
+      - id: black
+        name: black
+        entry: black --config pyproject.toml
+        types: [python]
+        language: system
+  - repo: local
+    hooks:
+      - id: pyupgrade
+        name: pyupgrade
+        entry: pyupgrade --py36-plus
+        types: [python]
+        language: system
+  - repo: local
+    hooks:
+      - id: isort
+        name: isort
+        entry: isort --settings-path pyproject.toml
+        types: [python]
+        language: system
+  - repo: local
+    hooks:
+      - id: editorconfig
+        name: editorconfig
+        entry: editorconfig-checker
+        types: [python]
+        language: system

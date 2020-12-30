@@ -6,9 +6,7 @@ def seeding_test(spec):
     assert (
         len({e.flags["GLOBAL_SEED"] for e, _, _ in spec}) == 1
     )  # repeats share same GLOBAL_SEED
-    assert (
-        len({e.flags["SEED"] for e, _, _ in spec}) > 1
-    )  # has unique SEED
+    assert len({e.flags["SEED"] for e, _, _ in spec}) > 1  # has unique SEED
 
 
 def test_experiment_parser():
