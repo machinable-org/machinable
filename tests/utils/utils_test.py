@@ -1,5 +1,4 @@
 import pytest
-
 from machinable.utils.utils import call_with_context, is_valid_module_path
 
 

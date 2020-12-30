@@ -1,8 +1,9 @@
+from typing import Union
+
 import ast
 import copy
 import importlib
 import os
-from typing import Union
 
 from ..filesystem import open_fs
 from ..submission.collections import SubmissionCollection

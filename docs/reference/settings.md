@@ -9,11 +9,11 @@ imports: {}
 tmp_directory: userdata://machinable:machinable/tmp
 schema_validation: True
 default_storage:
-   url: mem://
+  url: mem://
 default_engine:
 default_index:
 default_project:
 default_code_backup:
-   enabled:
-   exclude:
+  enabled:
+  exclude:
 ```

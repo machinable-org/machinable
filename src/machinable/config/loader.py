@@ -1,6 +1,7 @@
+from typing import Callable
+
 import os
 import re
-from typing import Callable
 
 import yaml
 from expandvars import expandvars
@@ -40,12 +41,12 @@ Loader.add_implicit_resolver(
     "tag:yaml.org,2002:float",
     re.compile(
         """^(?:
-                             [-+]?(?:[0-9][0-9_]*)\\.[0-9_]*(?:[eE][-+]?[0-9]+)?
-                             |[-+]?(?:[0-9][0-9_]*)(?:[eE][-+]?[0-9]+)
-                             |\\.[0-9_]+(?:[eE][-+][0-9]+)?
-                             |[-+]?[0-9][0-9_]*(?::[0-5]?[0-9])+\\.[0-9_]*
-                             |[-+]?\\.(?:inf|Inf|INF)
-                             |\\.(?:nan|NaN|NAN))$""",
+        [-+]?(?:[0-9][0-9_]*)\\.[0-9_]*(?:[eE][-+]?[0-9]+)?
+        |[-+]?(?:[0-9][0-9_]*)(?:[eE][-+]?[0-9]+)
+        |\\.[0-9_]+(?:[eE][-+][0-9]+)?
+        |[-+]?[0-9][0-9_]*(?::[0-5]?[0-9])+\\.[0-9_]*
+        |[-+]?\\.(?:inf|Inf|INF)
+        |\\.(?:nan|NaN|NAN))$""",
         re.X,
     ),
     list("-+0123456789."),

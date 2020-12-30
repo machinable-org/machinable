@@ -39,6 +39,7 @@ jobs:
           black --config pyproject.toml --check ./
           isort --settings-path pyproject.toml **/*.py
           pyupgrade --py36-plus **/*.py
+          editorconfig-checker
       - name: Run tests
         run: |
           source .venv/bin/activate

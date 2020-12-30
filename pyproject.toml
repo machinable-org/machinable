@@ -59,6 +59,7 @@ black = "^20.8b1"
 pytest = "^6.2"
 pylint = "^2.5"
 pre-commit = "^2.9"
+editorconfig-checker = "^2.1.0"
 
 [tool.poetry.extras]
 integrations = [

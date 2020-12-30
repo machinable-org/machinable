@@ -49,8 +49,8 @@ Note that it does not matter how you name the class as long as the class inherit
 <Annotated name="optimization" :debug="false">
 ```yaml
 components:
- - optimization: 
-     learning_rate: 0.1
+  - optimization: 
+    learning_rate: 0.1
 ```
 </Annotated>
 

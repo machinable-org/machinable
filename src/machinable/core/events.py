@@ -1,5 +1,6 @@
-import threading
 import typing as T
+
+import threading
 
 from observable import Observable
 

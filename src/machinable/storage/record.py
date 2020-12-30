@@ -84,7 +84,7 @@ class Record:
 
         # Arguments
         mode: String, 'iteration', 'avg' or 'total' that determines whether the last iteration, the average iteration
-              or the total time is collected
+            or the total time is collected
         end: Mixed, end of the timespan; if None, datetime.now() is used
         return_type: String, specifying the return format 'seconds', 'words', or 'period' (pendulum.Period object)
 

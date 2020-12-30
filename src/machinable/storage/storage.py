@@ -1,5 +1,6 @@
-import os
 from typing import Optional, Union
+
+import os
 
 from ..filesystem import open_fs
 from ..submission.submission import Submission
@@ -25,12 +26,12 @@ class Storage:
         # Arguments
         url: String, optional storage URL, defaults to `mem://`
         directory: String, defines the relative path in the storage.
-           May contain the following variables:
+            May contain the following variables:
             - &EXPERIMENT will be replaced by the experiment name
             - &PROJECT will be replaced by project name
             - %x expressions will be replaced by strftime
-          The variables are expanded following GNU bash's variable expansion rules, e.g.
-          `&{EXPERIMENT:-default_value}` or `&{PROJECT:?}` can be used.
+            The variables are expanded following GNU bash's variable expansion rules, e.g.
+            `&{EXPERIMENT:-default_value}` or `&{PROJECT:?}` can be used.
         submission: String, optional submission selection
         component: String, optional component selection
         """
@@ -134,9 +135,9 @@ class Storage:
 
         # Arguments
         component: Component to be returned if the URL is a submission containing multiple components.
-                   For example, set to 0 or -1 to retrieve first or last in the collection respectively
+            For example, set to 0 or -1 to retrieve first or last in the collection respectively
         or_fail: Boolean, by default None is returned if the submission does not exist.
-                 If True, an Exception will be raised instead
+            If True, an Exception will be raised instead
         """
         return Submission.find(
             self.get_url(), component=component, or_fail=or_fail

@@ -1,5 +1,6 @@
-import copy
 from typing import Mapping
+
+import copy
 
 import pendulum
 from dotmap import DotMap

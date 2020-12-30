@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
 
+import types
+
 import ast
 import glob
 import importlib
 import inspect
 import os
 import re
-import types
 
 import click
 

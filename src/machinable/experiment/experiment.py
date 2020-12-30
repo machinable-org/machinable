@@ -1,6 +1,7 @@
+from typing import Tuple, Type, Union
+
 import copy
 from collections import OrderedDict
-from typing import Tuple, Type, Union
 
 from ..utils.importing import resolve_instance
 from ..utils.traits import Jsonable
@@ -236,7 +237,7 @@ class Experiment(Jsonable):
 
         # Arguments
         name: String, experiment name.
-          Must be a valid Python variable name or path e.g. `my_name` or `example.name` etc.
+            Must be a valid Python variable name or path e.g. `my_name` or `example.name` etc.
         """
         if not is_valid_module_path(name):
             raise ValueError(
@@ -261,11 +262,11 @@ class Experiment(Jsonable):
         # Arguments
         name: String, the name of the components as defined in the machinable.yaml
         version: dict|String, a configuration update to override its default config
-                 Use '_mixins_' key to override default mixins where `"^"` will be expanded as the default mixin config.
+            Use '_mixins_' key to override default mixins where `"^"` will be expanded as the default mixin config.
         checkpoint: String, optional URL to a checkpoint file from which the components will be restored
         flags: dict, optional flags to be passed to the component
         resources: dict, specifies the resources that are available to the component.
-                   This can be computed by passing in a callable (see below)
+            This can be computed by passing in a callable (see below)
 
         # Examples
         ```python
@@ -427,6 +428,6 @@ class Experiment(Jsonable):
         The arguments differ based on the used engine.
 
         - Ray engine: Uses [Ray tune](https://ray.readthedocs.io/en/latest/tune.html)
-          ([Argument reference](https://ray.readthedocs.io/en/latest/tune/api_docs/execution.html#tune-run))
+        ([Argument reference](https://ray.readthedocs.io/en/latest/tune/api_docs/execution.html#tune-run))
         """
         return self._spec("tune", locals())

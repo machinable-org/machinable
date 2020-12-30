@@ -1,8 +1,8 @@
 type IndexSubscriptionDelta {
-    experiments: [StorageExperiment]
-    updates: [StorageExperiment]
+  experiments: [StorageExperiment]
+  updates: [StorageExperiment]
 }
 
 type Subscription {
-    index(index: JSON!, limit: Int): IndexSubscriptionDelta
+  index(index: JSON!, limit: Int): IndexSubscriptionDelta
 }

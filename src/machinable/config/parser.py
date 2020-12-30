@@ -46,16 +46,16 @@ def parse_mixins(config, valid_only=False):
 def parse_reference(reference, root, this, wrapped=False):
     result = regex.sub(
         r"""
-    (?<rec> #capturing group rec
-     \[ #open parenthesis
-     (?: #non-capturing group
-      [^\[\]]++ #anyting but parenthesis one or more times without backtracking
-      | #or
-       (?&rec) #recursive substitute of group rec
-     )*
-     \] #close parenthesis
-    )
-    """,
+        (?<rec> #capturing group rec
+        \[ #open parenthesis
+        (?: #non-capturing group
+        [^\[\]]++ #anyting but parenthesis one or more times without backtracking
+        | #or
+        (?&rec) #recursive substitute of group rec
+        )*
+        \] #close parenthesis
+        )
+        """,
         lambda m: parse_reference(m.group()[1:-1], root, this, wrapped=True),
         reference,
         flags=regex.VERBOSE,

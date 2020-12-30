@@ -126,7 +126,7 @@ Here, the extended components 'inherits' the ``base_component``'s configuration 
 ```yaml
 config_value: 1             # inherited
 nested:
-   value: overwritten       # inherited but overwritten
+  value: overwritten       # inherited but overwritten
 new_value: 3                # new value
 ```
 

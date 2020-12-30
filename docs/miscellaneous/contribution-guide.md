@@ -29,7 +29,7 @@
 That's great, documentation improvements are always welcome! 
 
 * Please send PR that propose changes to the docs directory
- 
+
 machinable is a team effort. We encourage you to pitch in and join us!
 
 Thanks!

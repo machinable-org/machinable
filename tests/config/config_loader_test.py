@@ -37,7 +37,7 @@ def test_config_loader_from_callable():
         # machinable.yaml
         a: 1
         nested:
-          level: 2
+            level: 2
         """
         pass
 

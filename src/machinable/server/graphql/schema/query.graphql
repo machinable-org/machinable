@@ -1,5 +1,5 @@
 type Query {
-    server: String
-    submission(url: String!): Submission
-    submissionComponent(url: String!): SubmissionComponent
+  server: String
+  submission(url: String!): Submission
+  submissionComponent(url: String!): SubmissionComponent
 }

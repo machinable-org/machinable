@@ -9,9 +9,9 @@ To share a machinable project, it's enough share the project's source code repos
 ## Importing a project
 
 ::: tip
- Direct importing is one of the most powerful features of the machinable system. You can cherry-pick components of existing projects or start maintaining your own shared libraries. If you are familiar with package managers like ``npm`` or ``composer``, you can think of machinable projects as dependency packages that are ready for use without any special glue code.
+Direct importing is one of the most powerful features of the machinable system. You can cherry-pick components of existing projects or start maintaining your own shared libraries. If you are familiar with package managers like ``npm`` or ``composer``, you can think of machinable projects as dependency packages that are ready for use without any special glue code.
 :::
- 
+
 To import an existing machinable project, copy or clone it into the `vendor` directory in your project:
 
     my-machinable-project
@@ -25,9 +25,9 @@ Then register its name in your `machinable.yaml` under the `+` key:
 
 ```yaml
 +:
- - imported_project: 
+  - imported_project: 
 components:
- - ...
+  - ...
 ```
 
 That's it. You can now use and extend the imported components as if they were part of your project:
