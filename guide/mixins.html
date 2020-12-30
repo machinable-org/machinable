@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en-UK">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>Mixins | machinable</title>
+    <meta name="generator" content="VuePress 1.7.1">
+    <link rel="icon" href="/logo.png">
+    <link rel="manifest" href="/manifest.json">
+    <link rel="apple-touch-icon" href="/icons/apple-touch-icon-152x152.png">
+    <link rel="mask-icon" href="/icons/safari-pinned-tab.svg" color="#3eaf7c">
+    <meta name="description" content="A modular configuration system for machine learning research">
+    <meta name="theme-color" content="#3eaf7c">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black">
+    <meta name="msapplication-TileImage" content="/icons/msapplication-icon-144x144.png">
+    <meta name="msapplication-TileColor" content="#000000">
+    
+    <link rel="preload" href="/assets/css/0.styles.91c4c62a.css" as="style"><link rel="preload" href="/assets/js/app.6ba8ca5d.js" as="script"><link rel="preload" href="/assets/js/2.4a0d70b7.js" as="script"><link rel="preload" href="/assets/js/21.4649f72f.js" as="script"><link rel="prefetch" href="/assets/js/10.ee7fd35b.js"><link rel="prefetch" href="/assets/js/11.0ab97a65.js"><link rel="prefetch" href="/assets/js/12.a49e8a2c.js"><link rel="prefetch" href="/assets/js/13.59b8c90d.js"><link rel="prefetch" href="/assets/js/14.c9314005.js"><link rel="prefetch" href="/assets/js/15.51cbd027.js"><link rel="prefetch" href="/assets/js/16.21a07bbd.js"><link rel="prefetch" href="/assets/js/17.be543a97.js"><link rel="prefetch" href="/assets/js/18.0e39331b.js"><link rel="prefetch" href="/assets/js/19.7d1d58a1.js"><link rel="prefetch" href="/assets/js/20.b1330cf9.js"><link rel="prefetch" href="/assets/js/22.d12ef861.js"><link rel="prefetch" href="/assets/js/23.6c44098c.js"><link rel="prefetch" href="/assets/js/24.3cb49fe5.js"><link rel="prefetch" href="/assets/js/25.74366bf3.js"><link rel="prefetch" href="/assets/js/26.b6c28424.js"><link rel="prefetch" href="/assets/js/27.3a733010.js"><link rel="prefetch" href="/assets/js/28.bbc5ce0c.js"><link rel="prefetch" href="/assets/js/29.aad89a20.js"><link rel="prefetch" href="/assets/js/3.014482c3.js"><link rel="prefetch" href="/assets/js/30.c09da2ba.js"><link rel="prefetch" href="/assets/js/31.9eb9f9b6.js"><link rel="prefetch" href="/assets/js/32.10639d1e.js"><link rel="prefetch" href="/assets/js/33.18c68fbb.js"><link rel="prefetch" href="/assets/js/34.351c3556.js"><link rel="prefetch" href="/assets/js/35.150e0bdc.js"><link rel="prefetch" href="/assets/js/36.a9e39a68.js"><link rel="prefetch" href="/assets/js/37.6155e06a.js"><link rel="prefetch" href="/assets/js/38.9b430043.js"><link rel="prefetch" href="/assets/js/39.4b38288c.js"><link rel="prefetch" href="/assets/js/4.2444cf73.js"><link rel="prefetch" href="/assets/js/40.990f3415.js"><link rel="prefetch" href="/assets/js/41.1daf347d.js"><link rel="prefetch" href="/assets/js/42.ceabc7d4.js"><link rel="prefetch" href="/assets/js/5.7253180e.js"><link rel="prefetch" href="/assets/js/6.d8e51322.js"><link rel="prefetch" href="/assets/js/7.2cf0207d.js"><link rel="prefetch" href="/assets/js/8.e0616c20.js"><link rel="prefetch" href="/assets/js/9.0256d5da.js">
+    <link rel="stylesheet" href="/assets/css/0.styles.91c4c62a.css">
+  </head>
+  <body>
+    <div id="app" data-server-rendered="true"><div class="theme-container"><header class="navbar"><div class="sidebar-button"><svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" role="img" viewBox="0 0 448 512" class="icon"><path fill="currentColor" d="M436 124H12c-6.627 0-12-5.373-12-12V80c0-6.627 5.373-12 12-12h424c6.627 0 12 5.373 12 12v32c0 6.627-5.373 12-12 12zm0 160H12c-6.627 0-12-5.373-12-12v-32c0-6.627 5.373-12 12-12h424c6.627 0 12 5.373 12 12v32c0 6.627-5.373 12-12 12zm0 160H12c-6.627 0-12-5.373-12-12v-32c0-6.627 5.373-12 12-12h424c6.627 0 12 5.373 12 12v32c0 6.627-5.373 12-12 12z"></path></svg></div> <a href="/" class="home-link router-link-active"><!----> <span class="site-name">machinable</span></a> <div class="links"><div class="search-box"><input aria-label="Search" autocomplete="off" spellcheck="false" value=""> <!----></div> <nav class="nav-links can-hide"><div class="nav-item"><a href="/guide/" class="nav-link router-link-active">
+  Guide
+</a></div><div class="nav-item"><a href="/reference/" class="nav-link">
+  Reference
+</a></div><div class="nav-item"><div class="dropdown-wrapper"><button type="button" aria-label="Learn More" class="dropdown-title"><span class="title">Learn More</span> <span class="arrow down"></span></button> <button type="button" aria-label="Learn More" class="mobile-dropdown-title"><span class="title">Learn More</span> <span class="arrow right"></span></button> <ul class="nav-dropdown" style="display:none;"><li class="dropdown-item"><h4>
+          Adoption
+        </h4> <ul class="dropdown-subitem-wrapper"><li class="dropdown-subitem"><a href="/miscellaneous/migration-guide.html" class="nav-link">
+  Migrating to machinable
+</a></li><li class="dropdown-subitem"><a href="https://github.com/machinable-org/machinable/blob/master/CHANGELOG.md" target="_blank" rel="noopener noreferrer" class="nav-link external">
+  Changelog
+  <span><svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false" x="0px" y="0px" viewBox="0 0 100 100" width="15" height="15" class="icon outbound"><path fill="currentColor" d="M18.8,85.1h56l0,0c2.2,0,4-1.8,4-4v-32h-8v28h-48v-48h28v-8h-32l0,0c-2.2,0-4,1.8-4,4v56C14.8,83.3,16.6,85.1,18.8,85.1z"></path> <polygon fill="currentColor" points="45.7,48.7 51.3,54.3 77.2,28.5 77.2,37.2 85.2,37.2 85.2,14.9 62.8,14.9 62.8,22.9 71.5,22.9"></polygon></svg> <span class="sr-only">(opens new window)</span></span></a></li></ul></li><li class="dropdown-item"><h4>
+          Meta
+        </h4> <ul class="dropdown-subitem-wrapper"><li class="dropdown-subitem"><a href="/miscellaneous/contribution-guide.html" class="nav-link">
+  Contribution guide
+</a></li></ul></li></ul></div></div> <a href="https://github.com/machinable-org/machinable" target="_blank" rel="noopener noreferrer" class="repo-link">
+    GitHub
+    <span><svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false" x="0px" y="0px" viewBox="0 0 100 100" width="15" height="15" class="icon outbound"><path fill="currentColor" d="M18.8,85.1h56l0,0c2.2,0,4-1.8,4-4v-32h-8v28h-48v-48h28v-8h-32l0,0c-2.2,0-4,1.8-4,4v56C14.8,83.3,16.6,85.1,18.8,85.1z"></path> <polygon fill="currentColor" points="45.7,48.7 51.3,54.3 77.2,28.5 77.2,37.2 85.2,37.2 85.2,14.9 62.8,14.9 62.8,22.9 71.5,22.9"></polygon></svg> <span class="sr-only">(opens new window)</span></span></a></nav></div></header> <div class="sidebar-mask"></div> <aside class="sidebar"><nav class="nav-links"><div class="nav-item"><a href="/guide/" class="nav-link router-link-active">
+  Guide
+</a></div><div class="nav-item"><a href="/reference/" class="nav-link">
+  Reference
+</a></div><div class="nav-item"><div class="dropdown-wrapper"><button type="button" aria-label="Learn More" class="dropdown-title"><span class="title">Learn More</span> <span class="arrow down"></span></button> <button type="button" aria-label="Learn More" class="mobile-dropdown-title"><span class="title">Learn More</span> <span class="arrow right"></span></button> <ul class="nav-dropdown" style="display:none;"><li class="dropdown-item"><h4>
+          Adoption
+        </h4> <ul class="dropdown-subitem-wrapper"><li class="dropdown-subitem"><a href="/miscellaneous/migration-guide.html" class="nav-link">
+  Migrating to machinable
+</a></li><li class="dropdown-subitem"><a href="https://github.com/machinable-org/machinable/blob/master/CHANGELOG.md" target="_blank" rel="noopener noreferrer" class="nav-link external">
+  Changelog
+  <span><svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false" x="0px" y="0px" viewBox="0 0 100 100" width="15" height="15" class="icon outbound"><path fill="currentColor" d="M18.8,85.1h56l0,0c2.2,0,4-1.8,4-4v-32h-8v28h-48v-48h28v-8h-32l0,0c-2.2,0-4,1.8-4,4v56C14.8,83.3,16.6,85.1,18.8,85.1z"></path> <polygon fill="currentColor" points="45.7,48.7 51.3,54.3 77.2,28.5 77.2,37.2 85.2,37.2 85.2,14.9 62.8,14.9 62.8,22.9 71.5,22.9"></polygon></svg> <span class="sr-only">(opens new window)</span></span></a></li></ul></li><li class="dropdown-item"><h4>
+          Meta
+        </h4> <ul class="dropdown-subitem-wrapper"><li class="dropdown-subitem"><a href="/miscellaneous/contribution-guide.html" class="nav-link">
+  Contribution guide
+</a></li></ul></li></ul></div></div> <a href="https://github.com/machinable-org/machinable" target="_blank" rel="noopener noreferrer" class="repo-link">
+    GitHub
+    <span><svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false" x="0px" y="0px" viewBox="0 0 100 100" width="15" height="15" class="icon outbound"><path fill="currentColor" d="M18.8,85.1h56l0,0c2.2,0,4-1.8,4-4v-32h-8v28h-48v-48h28v-8h-32l0,0c-2.2,0-4,1.8-4,4v56C14.8,83.3,16.6,85.1,18.8,85.1z"></path> <polygon fill="currentColor" points="45.7,48.7 51.3,54.3 77.2,28.5 77.2,37.2 85.2,37.2 85.2,14.9 62.8,14.9 62.8,22.9 71.5,22.9"></polygon></svg> <span class="sr-only">(opens new window)</span></span></a></nav>  <ul class="sidebar-links"><li><section class="sidebar-group depth-0"><p class="sidebar-heading"><span>Essentials</span> <!----></p> <ul class="sidebar-links sidebar-group-items"><li><a href="/guide/installation.html" class="sidebar-link">Installation</a></li><li><a href="/guide/" aria-current="page" class="sidebar-link">Introduction</a></li><li><a href="/guide/projects.html" class="sidebar-link">Project structure</a></li><li><a href="/guide/machinable-yaml.html" class="sidebar-link">machinable.yaml</a></li><li><a href="/guide/components.html" class="sidebar-link">Components</a></li></ul></section></li><li><section class="sidebar-group depth-0"><p class="sidebar-heading"><span>Execution In-depth</span> <!----></p> <ul class="sidebar-links sidebar-group-items"><li><a href="/guide/execution.html" class="sidebar-link">Overview</a></li><li><a href="/guide/experiments.html" class="sidebar-link">Experiments</a></li><li><a href="/guide/engines.html" class="sidebar-link">Engines</a></li></ul></section></li><li><section class="sidebar-group depth-0"><p class="sidebar-heading open"><span>Reusability &amp; Composition</span> <!----></p> <ul class="sidebar-links sidebar-group-items"><li><a href="/guide/composition.html" class="sidebar-link">Component composition</a></li><li><a href="/guide/imports.html" class="sidebar-link">Sharing and importing projects</a></li><li><a href="/guide/mixins.html" aria-current="page" class="active sidebar-link">Mixins</a><ul class="sidebar-sub-headers"><li class="sidebar-sub-header"><a href="/guide/mixins.html#mixin-example-data-pipeline" class="sidebar-link">Mixin example: data pipeline</a></li><li class="sidebar-sub-header"><a href="/guide/mixins.html#mix-in-components" class="sidebar-link">Mix-in components</a></li></ul></li><li><a href="/guide/exporting.html" class="sidebar-link">Exporting executions</a></li></ul></section></li><li><section class="sidebar-group depth-0"><p class="sidebar-heading"><span>Results &amp; Analysis</span> <!----></p> <ul class="sidebar-links sidebar-group-items"><li><a href="/guide/submission.html" class="sidebar-link">Submissions</a></li><li><a href="/guide/indexes.html" class="sidebar-link">Indexes</a></li></ul></section></li></ul> </aside> <main class="page"> <div class="theme-default-content content__default"><h1 id="mixins"><a href="#mixins" class="header-anchor">#</a> Mixins</h1> <p>You will often find that different projects share the same methods despite containing quite different components. For instance, a generative model and an image classifier might load the same MNIST dataset pipeline. Components might share code that allows them to be executed in a distributed way. Ideally, we'd like to develop and maintain such reusable building blocks, that are orthogonal to the details of the project that is using them. Mixins allow us to achieve exactly that.</p> <h2 id="mixin-example-data-pipeline"><a href="#mixin-example-data-pipeline" class="header-anchor">#</a> Mixin example: data pipeline</h2> <p>Suppose you've written an MNIST image classifier:</p> <div class="language-yaml extra-class"><pre class="language-yaml"><code><span class="token key atrule">components</span><span class="token punctuation">:</span>
+  <span class="token punctuation">-</span> <span class="token key atrule">classifier</span><span class="token punctuation">:</span>
+      <span class="token key atrule">dataset</span><span class="token punctuation">:</span>
+        <span class="token key atrule">name</span><span class="token punctuation">:</span> mnist
+        <span class="token key atrule">batch_size</span><span class="token punctuation">:</span> <span class="token number">8</span>
+</code></pre></div><div class="language-python extra-class"><pre class="language-python"><code><span class="token keyword">import</span> tensorflow_datasets <span class="token keyword">as</span> tfds
+<span class="token keyword">from</span> machinable <span class="token keyword">import</span> Component
+
+
+<span class="token keyword">class</span> <span class="token class-name">Classifier</span><span class="token punctuation">(</span>Component<span class="token punctuation">)</span><span class="token punctuation">:</span>
+    <span class="token keyword">def</span> <span class="token function">load_data</span><span class="token punctuation">(</span>self<span class="token punctuation">)</span><span class="token punctuation">:</span>
+        self<span class="token punctuation">.</span>data <span class="token operator">=</span> tfds<span class="token punctuation">.</span>load<span class="token punctuation">(</span>name<span class="token operator">=</span>self<span class="token punctuation">.</span>config<span class="token punctuation">.</span>dataset<span class="token punctuation">.</span>name<span class="token punctuation">)</span><span class="token punctuation">.</span>batch<span class="token punctuation">(</span>
+            self<span class="token punctuation">.</span>config<span class="token punctuation">.</span>dataset<span class="token punctuation">.</span>batch_size
+        <span class="token punctuation">)</span>
+
+    <span class="token keyword">def</span> <span class="token function">train</span><span class="token punctuation">(</span>self<span class="token punctuation">)</span><span class="token punctuation">:</span>
+        self<span class="token punctuation">.</span>load_data<span class="token punctuation">(</span><span class="token punctuation">)</span>
+        self<span class="token punctuation">.</span>network<span class="token punctuation">.</span>fit<span class="token punctuation">(</span>self<span class="token punctuation">.</span>data<span class="token punctuation">)</span>
+
+</code></pre></div><p>To make the data pipeline reusable, we can separate the <code>load_data</code> method into a mixin:</p> <div class="language-yaml extra-class"><pre class="language-yaml"><code><span class="token key atrule">mixins</span><span class="token punctuation">:</span>
+  <span class="token punctuation">-</span> <span class="token key atrule">data</span><span class="token punctuation">:</span>
+      <span class="token key atrule">dataset</span><span class="token punctuation">:</span>
+        <span class="token key atrule">name</span><span class="token punctuation">:</span> mnist
+        <span class="token key atrule">batch_size</span><span class="token punctuation">:</span> <span class="token number">8</span>
+<span class="token key atrule">components</span><span class="token punctuation">:</span>
+  <span class="token punctuation">-</span> <span class="token key atrule">classifier</span><span class="token punctuation">:</span>
+      <span class="token key atrule">_mixins_</span><span class="token punctuation">:</span>
+        <span class="token punctuation">-</span> data
+</code></pre></div><p>The mixin configuration is placed under the <code>mixins</code> section in the <code>machinable.yaml</code>. In this example, we register the mixin with the name <code>data</code> and move the configuration that belongs to the mixin out of the components. The components can use the mixin by registering its name under <code>_mixins_</code>.</p> <p>Similiarly, the data loading method is moved from the components into the corresponding <code>data.py</code> via cut-and-paste:</p> <div class="language-python extra-class"><pre class="language-python"><code><span class="token keyword">import</span> tensorflow_datasets <span class="token keyword">as</span> tfds
+<span class="token keyword">from</span> machinable <span class="token keyword">import</span> Mixin
+
+
+<span class="token keyword">class</span> <span class="token class-name">DataMixin</span><span class="token punctuation">(</span>Mixin<span class="token punctuation">)</span><span class="token punctuation">:</span>
+    <span class="token keyword">def</span> <span class="token function">load_data</span><span class="token punctuation">(</span>self<span class="token punctuation">)</span><span class="token punctuation">:</span>
+        self<span class="token punctuation">.</span>data <span class="token operator">=</span> tfds<span class="token punctuation">.</span>load<span class="token punctuation">(</span>name<span class="token operator">=</span>self<span class="token punctuation">.</span>config<span class="token punctuation">.</span>dataset<span class="token punctuation">.</span>name<span class="token punctuation">)</span><span class="token punctuation">.</span>batch<span class="token punctuation">(</span>
+            self<span class="token punctuation">.</span>config<span class="token punctuation">.</span>dataset<span class="token punctuation">.</span>batch_size
+        <span class="token punctuation">)</span>
+</code></pre></div><p>The data loader is now completely disentangled from the components and can be maintained independently. In fact, mixins support config inheritance, aliasing and importing just like other components. In the components, we can access the mixins functionality via the <code>_&lt;name&gt;_</code> attribute, e.g. <code>_data_</code>:</p> <div class="language-python extra-class"><pre class="language-python"><code><span class="token keyword">from</span> machinable <span class="token keyword">import</span> Component
+
+
+<span class="token keyword">class</span> <span class="token class-name">Classifier</span><span class="token punctuation">(</span>Component<span class="token punctuation">)</span><span class="token punctuation">:</span>
+    <span class="token keyword">def</span> <span class="token function">train</span><span class="token punctuation">(</span>self<span class="token punctuation">)</span><span class="token punctuation">:</span>
+        self<span class="token punctuation">.</span>_data_<span class="token punctuation">.</span>load_data<span class="token punctuation">(</span><span class="token punctuation">)</span>
+        self<span class="token punctuation">.</span>network<span class="token punctuation">.</span>fit<span class="token punctuation">(</span>self<span class="token punctuation">.</span>data<span class="token punctuation">)</span>
+</code></pre></div><p>Note that the mixin function acts on the object from which it is called. They are dynamically 'mixed-in' into the object as if they were a part of it. In the example, <code>load_data</code> assigns <code>self.data</code> used by <code>self.network.fit(self.data)</code>. Conversely, <code>self</code> in a mixin method refers to the object that uses it and not to the mixin itself. If you want to access the mixin itself you can use <code>self.__mixin__</code>. However, when you call <code>self.__mixin__.my_method()</code> the <code>self</code> in <code>my_method</code> will - again - refer to the object that binds it.</p> <h2 id="mix-in-components"><a href="#mix-in-components" class="header-anchor">#</a> Mix-in components</h2> <p>It is possible to use components directly as mixins:</p> <div class="language-yaml extra-class"><pre class="language-yaml"><code><span class="token key atrule">+</span><span class="token punctuation">:</span>
+  <span class="token punctuation">-</span> my_project
+<span class="token key atrule">mixins</span><span class="token punctuation">:</span>
+  <span class="token punctuation">-</span> <span class="token key atrule">+.my_project.components.classifier=classifier</span><span class="token punctuation">:</span>
+<span class="token key atrule">components</span><span class="token punctuation">:</span>
+  <span class="token punctuation">-</span> <span class="token key atrule">mix_components</span><span class="token punctuation">:</span>
+      <span class="token key atrule">_mixins_</span><span class="token punctuation">:</span>
+        <span class="token punctuation">-</span> classifier
+</code></pre></div><p>You can then cherry-pick the methods you need without inheriting the full functionality, for instance the components' training method
+<code>self._classifier_.train()</code>.</p></div> <footer class="page-edit"><div class="edit-link"><a href="https://github.com/machinable-org/machinable/edit/master/docs/guide/mixins.md" target="_blank" rel="noopener noreferrer">Edit this page on GitHub</a> <span><svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false" x="0px" y="0px" viewBox="0 0 100 100" width="15" height="15" class="icon outbound"><path fill="currentColor" d="M18.8,85.1h56l0,0c2.2,0,4-1.8,4-4v-32h-8v28h-48v-48h28v-8h-32l0,0c-2.2,0-4,1.8-4,4v56C14.8,83.3,16.6,85.1,18.8,85.1z"></path> <polygon fill="currentColor" points="45.7,48.7 51.3,54.3 77.2,28.5 77.2,37.2 85.2,37.2 85.2,14.9 62.8,14.9 62.8,22.9 71.5,22.9"></polygon></svg> <span class="sr-only">(opens new window)</span></span></div> <div class="last-updated"><span class="prefix">Last Updated:</span> <span class="time">12/30/2020, 9:34:55 PM</span></div></footer> <div class="page-nav"><p class="inner"><span class="prev">
+      ←
+      <a href="/guide/imports.html" class="prev">
+        Sharing and importing projects
+      </a></span> <span class="next"><a href="/guide/exporting.html">
+        Exporting executions
+      </a>
+      →
+    </span></p></div> </main></div><div class="global-ui"></div></div>
+    <script src="/assets/js/app.6ba8ca5d.js" defer></script><script src="/assets/js/2.4a0d70b7.js" defer></script><script src="/assets/js/21.4649f72f.js" defer></script>
+  </body>
+</html>
