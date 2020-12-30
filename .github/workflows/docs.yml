@@ -31,7 +31,7 @@ jobs:
           source .venv/bin/activate
           python docs/.vuepress/_reference/autogen.py
       - name: Install vuepress
-        uses: bahmutov/npm-install@v1.4.5
+        uses: bahmutov/npm-install@v1.6.2
       - name: Build and Deploy
         uses: testthedocs/github-pages-deploy-action@master
         env:
