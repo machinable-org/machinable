@@ -63,13 +63,15 @@ def get_root_commit(filename):
         return None
 
 
-def get_diff(filename):
+def get_diff(filename, search_parent_directories=True):
     try:
         from git import InvalidGitRepositoryError, Repo
 
         try:
             directory = os.path.dirname(filename)
-            repo = Repo(directory, search_parent_directories=True)
+            repo = Repo(
+                directory, search_parent_directories=search_parent_directories
+            )
         except (InvalidGitRepositoryError, ValueError):
             return None
 
