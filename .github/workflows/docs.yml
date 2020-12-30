@@ -1,4 +1,4 @@
-name: Build and publish docs 📝
+name: docs
 on:
   push:
     branches: [main]
