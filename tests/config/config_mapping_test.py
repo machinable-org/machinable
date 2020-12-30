@@ -395,7 +395,7 @@ class TestEmptyAdd(unittest.TestCase):
 # class that overrides __getitem__
 class MyConfigMap(ConfigMap):
     def __getitem__(self, k):
-        return super(MyConfigMap, self).__getitem__(k)
+        return super().__getitem__(k)
 
 
 # subclass with existing property

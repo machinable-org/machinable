@@ -34,7 +34,7 @@ class NativeEngine(Engine):
     def _dispatch(self, execution):
         if self.processes is None:
             # standard execution
-            return super(NativeEngine, self)._dispatch(execution)
+            return super()._dispatch(execution)
 
         pool = Pool(processes=self.processes, maxtasksperchild=1)
         try:

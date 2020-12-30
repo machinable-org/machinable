@@ -121,7 +121,7 @@ class FileSystem:
                         f"Supported formats are .json (JSON), .npy (numpy), .p (pickle), .txt (txt)"
                     )
         except errors.FSError as ex:
-            raise IOError(str(ex))
+            raise OSError(str(ex))
 
     # forward function calls to underlying fs
 

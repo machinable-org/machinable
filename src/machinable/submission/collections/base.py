@@ -474,12 +474,10 @@ class Collection:
         def _flatten(d):
             if isinstance(d, dict):
                 for v in d.values():
-                    for nested_v in _flatten(v):
-                        yield nested_v
+                    yield from _flatten(v)
             elif isinstance(d, list):
                 for list_v in d:
-                    for nested_v in _flatten(list_v):
-                        yield nested_v
+                    yield from _flatten(list_v)
             else:
                 yield d
 
@@ -1322,8 +1320,7 @@ class Collection:
         return len(self.items)
 
     def __iter__(self):
-        for item in self.items:
-            yield item
+        yield from self.items
 
     def __getitem__(self, item):
         if isinstance(item, slice):

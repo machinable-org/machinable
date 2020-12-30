@@ -360,7 +360,6 @@ class Project(Jsonable):
                     try:
                         file_content = open(
                             os.path.join(self.directory_prefix, relpath_file),
-                            "r",
                         ).read()
                     except UnicodeDecodeError as ex:
                         msg(

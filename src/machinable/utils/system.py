@@ -35,7 +35,7 @@ class OutputRedirection:
             try:
                 output_file_descriptor = os.dup(self.sys_stream.fileno())
                 os.dup2(self.file_stream.fileno(), output_file_descriptor)
-            except (AttributeError, IOError, io.UnsupportedOperation):
+            except (AttributeError, OSError, io.UnsupportedOperation):
                 pass
 
     @property
@@ -59,7 +59,7 @@ class OutputRedirection:
         for i, stream in enumerate(self.streams):
             try:
                 stream.write(message)
-            except (IOError, AttributeError):
+            except (OSError, AttributeError):
                 if i == 0:
                     # close corrupt file stream
                     self.close_file_stream()
@@ -67,7 +67,7 @@ class OutputRedirection:
     def close_file_stream(self):
         try:
             self._file_stream.exit_on_completion()
-        except (IOError, AttributeError):
+        except (OSError, AttributeError):
             pass
         finally:
             self._file_stream = None

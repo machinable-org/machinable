@@ -63,7 +63,7 @@ def parse_docstr(docstr, level="###", intent=4):
 
 def parse_method(obj, path, options, level="##"):
     method = getattr(obj, path)
-    name = method.__name__.replace("_", "\_")
+    name = method.__name__.replace("_", r"\_")
     signature = inspect.signature(method)
     md = level + " " + str(name) + "\n``" + path + str(signature) + "``\n\n"
     md += parse_docstr(method.__doc__, level=level + "#", intent=8)

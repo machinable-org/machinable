@@ -30,7 +30,7 @@ def execute(experiment, storage, engine, project, seed):
     if experiment.startswith(":"):
         code = "from machinable import Experiment\n\nExperiment()"
         if os.path.isfile(experiment[1:]):
-            with open(experiment[1:], "r") as f:
+            with open(experiment[1:]) as f:
                 code = f.read()
         code = "# save empty to abort\n\n" + code
 

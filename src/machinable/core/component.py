@@ -519,7 +519,7 @@ class Component(Mixin):
         try:
             self.component_status["heartbeat_at"] = str(pendulum.now())
             self.storage.save_file("status.json", self.component_status)
-        except (IOError, Exception) as ex:
+        except (OSError, Exception) as ex:
             if log_errors:
                 self.log.error(
                     f"Could not write status information. {exception_to_str(ex)}"

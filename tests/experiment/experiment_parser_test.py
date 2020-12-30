@@ -4,10 +4,10 @@ from machinable.experiment.parser import parse_experiment
 
 def seeding_test(spec):
     assert (
-        len(set([e.flags["GLOBAL_SEED"] for e, _, _ in spec])) == 1
+        len({e.flags["GLOBAL_SEED"] for e, _, _ in spec}) == 1
     )  # repeats share same GLOBAL_SEED
     assert (
-        len(set([e.flags["SEED"] for e, _, _ in spec])) > 1
+        len({e.flags["SEED"] for e, _, _ in spec}) > 1
     )  # has unique SEED
 
 

@@ -16,7 +16,7 @@ def config_map(d=None):
     return ConfigMap(d, _dynamic=False, _evaluate=False, _evaluated=True)
 
 
-class ConfigMethod(object):
+class ConfigMethod:
     def __init__(self, obj, method, args, definition):
         self._ = {
             "obj": obj,

@@ -17,7 +17,7 @@ def test_output_redirection(capsys, helpers):
         if mode == "DISCARD":
             assert not os.path.isfile(os.path.join(storage, "output.log"))
         else:
-            with open(os.path.join(storage, "output.log"), "r") as f:
+            with open(os.path.join(storage, "output.log")) as f:
                 assert f.read() == "captured\n"
 
         assert capsys.readouterr().out == {

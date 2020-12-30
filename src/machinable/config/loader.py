@@ -17,7 +17,7 @@ class Loader(yaml.SafeLoader):
             # from filestream
             self._root = os.path.split(stream.name)[0]
 
-        super(Loader, self).__init__(stream)
+        super().__init__(stream)
 
     def include(self, node):
         target = self.construct_scalar(node)
@@ -96,7 +96,7 @@ def from_file(filename, default=sentinel):
             return default
         return None
 
-    with open(filename, "r") as f:
+    with open(filename) as f:
         text = f.read()
 
     return from_string(text, os.path.abspath(os.path.dirname(filename)))
