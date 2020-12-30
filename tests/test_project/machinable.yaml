@@ -143,7 +143,7 @@ components:
         nested: True
         merge:
       flat.can.be.useful: True
-      flat.can_also_save_space: ' '
+      flat.can_also_save_space: " "
       flat.version: 1
       more.nested.values: False
       ~flat_version:
@@ -160,7 +160,7 @@ components:nodes:
           - 1
           - 2
           - 3
-      to_test: 'observations'
+      to_test: "observations"
       test: False
       corrupt: False
       attr:

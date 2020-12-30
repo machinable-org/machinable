@@ -80,8 +80,8 @@ The component can now be registered in the project-wide configuration file `mach
 
 ```yaml
 components:
- - ridge_regression:
-     alpha: 0.6
+  - ridge_regression:
+    alpha: 0.6
 ```
 After registration, the component is ready to be executed using the `execute` method.
 ```python

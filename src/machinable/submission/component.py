@@ -208,8 +208,7 @@ class SubmissionComponent:
         """Returns a record collection
 
         # Arguments
-        scope: The name of the record scope.
-          If None, list of all available scopes will be returned
+        scope: The name of the record scope. If None, list of all available scopes will be returned
         """
         if scope is None:
             # return list of available scopes

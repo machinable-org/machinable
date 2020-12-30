@@ -1110,7 +1110,7 @@ class Collection:
         """Transform each item in the collection using a callback.
 
         Iterates over the collection and calls the given callback with each item in the collection.
-         The items in the collection will be replaced by the values returned by the callback.
+        The items in the collection will be replaced by the values returned by the callback.
 
         # Arguments
         callback: The callback

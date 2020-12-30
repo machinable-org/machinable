@@ -82,8 +82,8 @@ class Schedule(Jsonable):
 
         # Arguments
         callback: Callable that represents filter condition (returns True for values to keep)
-           It must accept 3 arguments, the index of the element in the schedule, the component
-           identifier and the schedule element
+            It must accept 3 arguments, the index of the element in the schedule, the component
+            identifier and the schedule element
 
         # Examples
         ```python

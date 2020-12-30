@@ -36,9 +36,9 @@ class Submission:
         # Arguments
         url: String, filesystem URL
         component: Component to be returned if the URL is a submission containing multiple components.
-                   For example, set to 0 or -1 to retrieve first or last in the collection respectively
+            For example, set to 0 or -1 to retrieve first or last in the collection respectively
         or_fail: Boolean, by default None is returned if the submission does not exist.
-                 If True, an Exception will be raised instead
+            If True, an Exception will be raised instead
         """
         _url = parse_storage_url(url if isinstance(url, str) else url.url)
         if _url["component_id"] is None:
@@ -144,9 +144,9 @@ class Submission:
 
         ```
         project:
-          path: VCS url
-          commit: Commit hash or None
-          is_dirty: Whether everything has been commited to VCS
+            path: VCS url
+            commit: Commit hash or None
+            is_dirty: Whether everything has been commited to VCS
         vendor: Dict of vendor project information with the same structure as above
         ```
         """

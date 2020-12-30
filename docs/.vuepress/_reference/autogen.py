@@ -195,10 +195,7 @@ def generate_cli():
         "\n\n## --help\n\nUse the `--help` option to inspect options\n\n```\n"
     )
     output += get_help(cli) + "\n```\n"
-    with open(
-        os.path.join(ROOT, "reference", "cli.md"),
-        "a",
-    ) as f:
+    with open(os.path.join(ROOT, "reference", "cli.md"), "a",) as f:
         f.write(output)
 
 

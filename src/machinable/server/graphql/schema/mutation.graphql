@@ -1,19 +1,19 @@
 type Mutation {
-    execute(
-        experiment: String!,
-        storage: String
-        engine: String
-        index: String
-        project: String
-        seed: String
-    ): Execution
+  execute(
+    experiment: String!
+    storage: String
+    engine: String
+    index: String
+    project: String
+    seed: String
+  ): Execution
 }
 
 type Execution {
-    unique_id: String
-    submission_id: String
-    started_at: DateTime
-    seed: Float
-    timestamp: Float
-    components: [String]
+  unique_id: String
+  submission_id: String
+  started_at: DateTime
+  seed: Float
+  timestamp: Float
+  components: [String]
 }

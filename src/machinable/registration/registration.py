@@ -77,9 +77,9 @@ class Registration:
 
         # Arguments
         component_candidate: Imported component candidate.
-          Can also be instance of ImportError if the import failed or AttributeError if
-          the imported module did not contain a component which allows you to implement
-          a custom exception behaviour.
+            Can also be instance of ImportError if the import failed or AttributeError if
+            the imported module did not contain a component which allows you to implement
+            a custom exception behaviour.
         module: String, the module path that is about to be imported
         baseclass: The component baseclass (either Component or Mixin)
         default: Optional default component that will be used if import fails

@@ -151,11 +151,11 @@ Can you work out what the following experiment entails?
 
 ```python
 Experiment().component('optimization', [
-   (
+  (
     '~mnist', 
     {'network': 'resnet', 'learning_rate': lr * 0.01 + 0.1}
-   ) 
-   for lr in range(10)
+  ) 
+  for lr in range(10)
 ]).repeat(2)
 ```
 
@@ -164,10 +164,10 @@ Experiment().component('optimization', [
 In summary, the `Experiment.component()` method has the following signature:
 ```python
 (
- name,       # components name, see above
- version,    # configuration adjustment, see above
- checkpoint, # see below
- flags       # see below
+  name,       # components name, see above
+  version,    # configuration adjustment, see above
+  checkpoint, # see below
+  flags       # see below
 )
 ``` 
 
