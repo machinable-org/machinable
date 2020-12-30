@@ -1,5 +1,4 @@
 from click.testing import CliRunner
-
 from machinable.console.execute import execution
 
 

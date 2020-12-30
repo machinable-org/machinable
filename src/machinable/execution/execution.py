@@ -1,9 +1,10 @@
+from typing import Any, Callable, Union
+
 import ast
 import copy
 import inspect
 import os
 from datetime import datetime as dt
-from typing import Any, Callable, Union
 
 import pendulum
 import yaml

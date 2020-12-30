@@ -1,5 +1,6 @@
-import random
 from typing import Optional
+
+import random
 
 from baseconv import base62
 

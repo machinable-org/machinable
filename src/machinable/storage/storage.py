@@ -1,5 +1,6 @@
-import os
 from typing import Optional, Union
+
+import os
 
 from ..filesystem import open_fs
 from ..submission.submission import Submission

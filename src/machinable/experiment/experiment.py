@@ -1,6 +1,7 @@
+from typing import Tuple, Type, Union
+
 import copy
 from collections import OrderedDict
-from typing import Tuple, Type, Union
 
 from ..utils.importing import resolve_instance
 from ..utils.traits import Jsonable
@@ -249,7 +250,12 @@ class Experiment(Jsonable):
         return self
 
     def component(
-        self, name, version=None, checkpoint=None, flags=None, resources=None,
+        self,
+        name,
+        version=None,
+        checkpoint=None,
+        flags=None,
+        resources=None,
     ):
         """Adds a component to the experiment
 

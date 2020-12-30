@@ -165,8 +165,8 @@ class SubmissionView:
 
 class SubmissionComponentView:
     def __init__(self, submission, component: int = 0):
-        from ..submission import Submission
         from ..component import SubmissionComponent
+        from ..submission import Submission
 
         if isinstance(submission, SubmissionComponent):
             self.submission: SubmissionComponent = submission

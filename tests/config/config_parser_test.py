@@ -1,5 +1,4 @@
 import pytest
-
 from machinable.config.parser import parse_mixins, parse_reference
 
 

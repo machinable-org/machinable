@@ -1,3 +1,5 @@
+from typing import Dict, List, Mapping, Optional, Type, Union
+
 import copy
 import csv
 import datetime
@@ -13,7 +15,6 @@ from collections import OrderedDict
 from importlib import reload
 from inspect import getattr_static
 from keyword import iskeyword
-from typing import Dict, List, Mapping, Optional, Type, Union
 
 try:
     import cPickle as pickle

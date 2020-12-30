@@ -1,5 +1,6 @@
-import os
 from typing import Union
+
+import os
 
 import jsonlines
 import pendulum

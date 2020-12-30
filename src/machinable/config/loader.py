@@ -1,6 +1,7 @@
+from typing import Callable
+
 import os
 import re
-from typing import Callable
 
 import yaml
 from expandvars import expandvars

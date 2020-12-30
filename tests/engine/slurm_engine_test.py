@@ -1,5 +1,4 @@
 import sh
-
 from machinable import Execution
 from machinable.engine import Slurm
 
