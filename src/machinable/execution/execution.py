@@ -19,7 +19,6 @@ from machinable.experiment.parser import parse_experiment
 from machinable.filesystem import open_fs
 from machinable.index import Index
 from machinable.project import Project
-from machinable.project.export import Export
 from machinable.registration import Registration
 from machinable.settings import get_settings
 from machinable.storage import Storage

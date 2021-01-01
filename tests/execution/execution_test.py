@@ -1,6 +1,6 @@
 import os
 
-from machinable import Component, Execution, Experiment, execute
+from machinable import Component, Execution, Experiment
 from machinable.settings import get_settings
 
 

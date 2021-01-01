@@ -4,10 +4,6 @@ import os
 from machinable import Submission
 
 
-def get_path(path=""):
-    return os.path.join(STORAGE_DIRECTORY, path)
-
-
 def test_submission():
     o = Submission.find(get_path("tttttt/"))
     assert o.submission_id == "tttttt"

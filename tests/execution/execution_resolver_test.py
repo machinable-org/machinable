@@ -1,5 +1,5 @@
 import pytest
-from machinable import Engine, execute
+from machinable import Engine, Execution
 from machinable.engine.detached_engine import DetachedEngine as Detached
 from machinable.utils.importing import resolve_instance
 
@@ -22,7 +22,7 @@ def test_execution_resolve():
 
 
 def test_execution_resolvers():
-    execution = execute(
+    execution = Execution(
         "@/test_project/_machinable/experiments",
         engine="@/test_project/_machinable/engines",
         project="./test_project",

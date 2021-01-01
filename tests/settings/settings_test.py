@@ -3,8 +3,8 @@ import os
 from machinable.settings import get_settings
 
 
-def test_settings(helpers):
-    path = helpers.tmp_directory("settings")
+def test_settings(tmp_path):
+    path = tmp_path / "settings"
 
     q = get_settings(file=os.path.join(path, "not-existing"))
     assert not q["cache"]["imports"]

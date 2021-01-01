@@ -8,7 +8,12 @@ from machinable.component.component import inject_components
 
 
 def test_core_config_method():
-    assert ml.execute("configmethods", project="./test_project").failures == 0
+    assert (
+        ml.Execution("configmethods", project="./test_project")
+        .submit()
+        .failures
+        == 0
+    )
 
 
 def test_on_iterate():

@@ -3,9 +3,9 @@ import os
 from machinable.utils.system import OutputRedirection
 
 
-def test_output_redirection(capsys, helpers):
+def test_output_redirection(capsys, tmp_path):
     for mode in ["SYS_AND_FILE", "FILE_ONLY", "DISCARD"]:
-        storage = helpers.tmp_directory("output_redirection")
+        storage = tmp_path / "output_redirection"
 
         print("non-captured")
         OutputRedirection.apply(

@@ -6,11 +6,9 @@ import pytest
 from machinable import Storage
 
 
-def get_path(path=""):
-    return os.path.join(STORAGE_DIRECTORY, path)
+def test_storage_interface(tmp_path):
+    STORAGE_DIRECTORY = str(tmp_path)
 
-
-def test_storage_interface():
     storage = Storage(url=STORAGE_DIRECTORY, submission="tttttt")
     assert isinstance(storage.config, dict)
     assert storage.config["url"] == "osfs://" + STORAGE_DIRECTORY
