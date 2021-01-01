@@ -1,7 +1,7 @@
 import inspect
 
-from ...utils.importing import ModuleClass
-from ...utils.utils import is_valid_variable_name
+from machinable.utils.importing import ModuleClass
+from machinable.utils.utils import is_valid_variable_name
 
 _register = {
     "submission": {},
@@ -152,7 +152,7 @@ class Views:
 
 class SubmissionView:
     def __init__(self, submission):
-        from ..submission import Submission
+        from machinable.submission import Submission
 
         self.submission: Submission = Submission.create(submission)
 
@@ -165,8 +165,9 @@ class SubmissionView:
 
 class SubmissionComponentView:
     def __init__(self, submission, component: int = 0):
+        from machinable.submission import Submission
+
         from ..component import SubmissionComponent
-        from ..submission import Submission
 
         if isinstance(submission, SubmissionComponent):
             self.submission: SubmissionComponent = submission

@@ -49,15 +49,16 @@ def test_project_parse_imports():
 
     # args loaded?
     assert (
-        imports["components"]["fooba.models.baseline"]["args"]["overwrite"]
+        imports["components"]["fooba.models.baseline"]["config"]["overwrite"]
         == "orginal"
     )
     assert (
-        imports["components"]["fooba.experiments.start"]["args"]["test"] == 123
+        imports["components"]["fooba.experiments.start"]["config"]["test"]
+        == 123
     )
 
     # args loaded with config inheritance?
-    t = imports["components"]["fooba.models.config_inheritance"]["args"]
+    t = imports["components"]["fooba.models.config_inheritance"]["config"]
     assert t["hello"] == "inheritance"
     assert t["overwrite"] == "extended"
     assert t["referenced"] == "extended"
@@ -71,22 +72,22 @@ def test_project_parse_imports():
     assert t["deep_overwrite"] == "successful"
 
     # args loaded with chained dependency inheritance?
-    t = imports["components"]["fooba.models.chained_inheritance"]["args"]
+    t = imports["components"]["fooba.models.chained_inheritance"]["config"]
     assert t["here"] == "we_go"
     assert t["from_deep_down"] == "huzzah"
     assert t["deep_overwrite"] == "early"
 
     # for experiments:
-    t = imports["components"]["fooba.experiments.dependent"]["args"]
+    t = imports["components"]["fooba.experiments.dependent"]["config"]
     assert t["elephant"] == "at_home"
     assert t["nested"]["elephants"] == "outside"
     assert t["overwrite_me"]["keep"] == "me"
     assert t["overwrite_me"]["nested"] == "level"
 
     # for mixins
-    t = imports["mixins"]["fooba.test"]["args"]
+    t = imports["mixins"]["fooba.test"]["config"]
     assert t["imported"] == "hello"
-    t = imports["mixins"]["fooba.mixins.nested"]["args"]
+    t = imports["mixins"]["fooba.mixins.nested"]["config"]
     assert t["level"] == -1
 
     # is importable?
@@ -102,24 +103,30 @@ def test_parse_config():
     config = test_project.parse_config()
 
     # args loaded?
-    assert config["components"]["childexp"]["args"]["a"] == 2
-    assert config["components"]["inherit"]["args"]["blub"] == "bla"
+    assert config["components"]["childexp"]["config"]["a"] == 2
+    assert config["components"]["inherit"]["config"]["blub"] == "bla"
     assert (
-        config["components"]["test_dependent"]["args"]["overwrite_me"]["nested"]
+        config["components"]["test_dependent"]["config"]["overwrite_me"][
+            "nested"
+        ]
         == "here"
     )
-    assert config["components"]["cool"]["args"]["bla"] == "blub"
+    assert config["components"]["cool"]["config"]["bla"] == "blub"
 
     # args from imports correct?
-    assert config["components"]["+.fooba.models.baseline"]["args"]["overwrite"]
+    assert config["components"]["+.fooba.models.baseline"]["config"][
+        "overwrite"
+    ]
 
     # check scoped inheritance
     assert (
-        config["components"]["inheritance_from_other_section"]["args"]["alpha"]
+        config["components"]["inheritance_from_other_section"]["config"][
+            "alpha"
+        ]
         == 0
     )
     assert (
-        config["components"]["inheritance_from_outer_section"]["args"]["id"]
+        config["components"]["inheritance_from_outer_section"]["config"]["id"]
         == -1
     )
 
@@ -148,7 +155,8 @@ def test_lineage_recording():
     assert _linage("test_dependent") == ["base", "grandfurther"]
 
 
-def test_project_code_backup(helpers):
+def test_project_code_backup(tmp_path):
+    assert False
     # create symlinks
     p = "./test_project/code_backup"
     os.makedirs(p + "/project/catch_me", exist_ok=True)

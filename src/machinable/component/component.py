@@ -6,25 +6,24 @@ import os
 import re
 from collections import OrderedDict
 
+import machinable.errors
 import pendulum
-
-from ..config.mapping import ConfigMap, ConfigMethod, config_map
-from ..config.parser import parse_mixins
-from ..registration import Registration
-from ..storage import Storage
-from ..storage.log import Log
-from ..storage.record import Record
-from ..submission.component import SubmissionComponent
-from ..utils.dicts import update_dict
-from ..utils.formatting import exception_to_str
-from ..utils.host import get_host_info
-from ..utils.importing import ModuleClass
-from ..utils.system import OutputRedirection, set_process_title
-from ..utils.traits import Jsonable
-from ..utils.utils import apply_seed
-from .events import Events
-from .exceptions import ExecutionException
-from .mixin import Mixin, MixinInstance
+from machinable.component.events import Events
+from machinable.component.mixin import Mixin, MixinInstance
+from machinable.config.mapping import ConfigMap, ConfigMethod, config_map
+from machinable.config.parser import parse_mixins
+from machinable.registration import Registration
+from machinable.storage import Storage
+from machinable.storage.log import Log
+from machinable.storage.record import Record
+from machinable.submission.component import SubmissionComponent
+from machinable.utils.dicts import update_dict
+from machinable.utils.formatting import exception_to_str
+from machinable.utils.host import get_host_info
+from machinable.utils.importing import ModuleClass
+from machinable.utils.system import OutputRedirection, set_process_title
+from machinable.utils.traits import Jsonable
+from machinable.utils.utils import apply_seed
 
 
 def set_alias(obj, alias, value):
@@ -363,7 +362,9 @@ class Component(Mixin):
                     ):
                         components.append(
                             component_config["class"](
-                                config=copy.deepcopy(component_config["args"]),
+                                config=copy.deepcopy(
+                                    component_config["config"]
+                                ),
                                 flags=copy.deepcopy(component_config["flags"]),
                                 node=self,
                             )
@@ -389,14 +390,14 @@ class Component(Mixin):
             self.on_success(status)
             self.on_finish(status, success=True)
         except (KeyboardInterrupt, SystemExit):
-            status = ExecutionException(
+            status = machinable.errors.ExecutionInterrupt(
                 reason="user_interrupt",
                 message="The components execution has been interrupted by the user or system.",
             )
             self.on_failure(status)
             self.on_finish(status, success=False)
         except BaseException as ex:
-            status = ExecutionException(
+            status = machinable.errors.ExecutionFailed(
                 reason="exception",
                 message=f"The following exception occurred: {ex}\n{exception_to_str(ex)}",
             )
@@ -780,96 +781,3 @@ class Component(Mixin):
 
     def __str__(self):
         return self.__repr__()
-
-
-class FunctionalComponent:
-    def __init__(self, function, node_config=None, node_flags=None):
-        self.function = function
-        self.node = {"config": None, "flags": None}
-        self.set_config(node_config, node_flags)
-        self._argument_structure = OrderedDict()
-
-    def __call__(self, config=None, flags=None):
-        # virtual constructor
-        self.set_config(config, flags)
-        return self
-
-    def set_config(self, config, flags):
-        if config is None:
-            config = {}
-        if flags is None:
-            flags = {}
-        self.node["config"] = copy.deepcopy(config)
-        self.node["flags"] = copy.deepcopy(flags)
-
-    def dispatch(self, components_config, storage_config, actor_config=None):
-        apply_seed(self.node["flags"].get("SEED"))
-        self.node["flags"]["ACTOR"] = actor_config
-        components = [
-            {
-                "config": copy.deepcopy(c["args"]),
-                "flags": copy.deepcopy(c["flags"]),
-            }
-            for c in components_config
-        ]
-
-        # analyse argument structure
-        signature = inspect.signature(self.function)
-        payload = OrderedDict()
-
-        for index, (key, parameter) in enumerate(signature.parameters.items()):
-            if parameter.kind is not parameter.POSITIONAL_OR_KEYWORD:
-                # disallow *args and **kwargs
-                raise TypeError(
-                    f"Component only allows simple positional or keyword arguments,"
-                    f"for example my_component(component, components, store)"
-                )
-
-            if key == "component":
-                payload["component"] = config_map(self.node)
-            elif key == "components":
-                payload["components"] = [
-                    config_map(component) for component in components
-                ]
-            elif key == "storage" or key == "_storage":
-                if key == "_storage":
-                    payload["storage"] = storage_config
-                else:
-                    storage = Storage.create(storage_config)
-                    storage.save_file("host.json", get_host_info())
-                    storage.save_file(
-                        "component.json",
-                        {
-                            "config": self.node["config"],
-                            "flags": self.node["flags"],
-                        },
-                    )
-                    storage.save_file(
-                        "components.json",
-                        [
-                            {"config": c["config"], "flags": c["flags"]}
-                            for c in components
-                        ],
-                    )
-                    payload["storage"] = storage
-            else:
-                raise ValueError(
-                    f"Unrecognized argument: '{key}'. "
-                    f"Components take the following arguments: "
-                    f"'component', 'components' and 'store'"
-                )
-
-        try:
-            return self.function(**payload)
-        except (KeyboardInterrupt, SystemExit):
-            status = ExecutionException(
-                reason="user_interrupt",
-                message="The components execution has been interrupted by the user or system.",
-            )
-        except BaseException as ex:
-            status = ExecutionException(
-                reason="exception",
-                message=f"The following exception occurred: {ex}\n{exception_to_str(ex)}",
-            )
-
-        return status

@@ -2,12 +2,12 @@ from typing import Optional, Union
 
 import os
 
-from ..filesystem import open_fs
-from ..submission.submission import Submission
-from ..utils.importing import resolve_instance
-from ..utils.utils import sentinel
-from .log import Log
-from .record import Record
+from machinable.filesystem import open_fs
+from machinable.storage.log import Log
+from machinable.storage.record import Record
+from machinable.submission.submission import Submission
+from machinable.utils.importing import resolve_instance
+from machinable.utils.utils import sentinel
 
 _latest = [None]
 

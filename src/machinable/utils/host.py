@@ -5,7 +5,7 @@ import platform
 import socket
 import sys
 
-from ..registration import Registration
+from machinable.registration import Registration
 
 _getters = {}
 

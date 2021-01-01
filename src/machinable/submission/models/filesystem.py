@@ -1,8 +1,11 @@
 import os
 
-from ...filesystem import open_fs
-from ...utils.identifiers import decode_submission_id
-from .models import SubmissionComponentModel, SubmissionModel
+from machinable.filesystem import open_fs
+from machinable.submission.models import (
+    SubmissionComponentModel,
+    SubmissionModel,
+)
+from machinable.utils.identifiers import decode_submission_id
 
 
 class FileSystemBaseModel:

@@ -1,11 +1,14 @@
 import copy
 import random
 
-from ..core.component import Component as BaseComponent
-from ..utils.identifiers import encode_submission_id, generate_component_id
-from ..utils.importing import ModuleClass
-from ..utils.traits import Jsonable
-from ..utils.utils import generate_seed
+from machinable.component import Component as BaseComponent
+from machinable.utils.identifiers import (
+    encode_submission_id,
+    generate_component_id,
+)
+from machinable.utils.importing import ModuleClass
+from machinable.utils.traits import Jsonable
+from machinable.utils.utils import generate_seed
 
 
 def recover_class(element):

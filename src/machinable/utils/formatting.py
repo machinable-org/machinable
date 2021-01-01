@@ -2,7 +2,7 @@ import datetime
 import json
 import traceback
 
-from ..utils.dicts import serialize
+from machinable.utils.dicts import serialize
 
 
 def msg(text, level="info", color=None):

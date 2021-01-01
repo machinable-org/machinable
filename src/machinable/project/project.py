@@ -7,30 +7,24 @@ import sys
 import time
 
 import pendulum
-
-from ..config.loader import from_callable as load_config_from_callable
-from ..config.loader import from_file as load_config_file
-from ..config.loader import from_string as load_config_from_string
-from ..config.parser import parse_module_list
-from ..core import Component as BaseComponent
-from ..core import Mixin as BaseMixin
-from ..core.component import FunctionalComponent
-from ..core.settings import get_settings
-from ..utils.dicts import update_dict
-from ..utils.formatting import exception_to_str, msg
-from ..utils.importing import import_module_from_directory
-from ..utils.traits import Jsonable
-from ..utils.utils import is_valid_module_path, is_valid_variable_name
-from ..utils.vcs import get_commit, get_diff, get_root_commit
-from .manager import fetch_imports
+from machinable.component.component import Component as BaseComponent
+from machinable.component.mixin import Mixin as BaseMixin
+from machinable.config.loader import from_callable as load_config_from_callable
+from machinable.config.loader import from_file as load_config_file
+from machinable.config.loader import from_string as load_config_from_string
+from machinable.config.parser import parse_module_list
+from machinable.project.manager import fetch_imports
+from machinable.settings import get_settings
+from machinable.utils.dicts import update_dict
+from machinable.utils.formatting import exception_to_str, msg
+from machinable.utils.importing import import_module_from_directory
+from machinable.utils.traits import Jsonable
+from machinable.utils.utils import is_valid_module_path, is_valid_variable_name
+from machinable.utils.vcs import get_commit, get_diff, get_root_commit
 
 
 class Project(Jsonable):
     def __init__(self, options=None, parent=None):
-        if callable(options):
-            if not inspect.isclass(options):
-                options = FunctionalComponent(options)
-            options = {"default_component": options}
         if isinstance(options, str):
             options = {"directory": options}
 
@@ -40,7 +34,6 @@ class Project(Jsonable):
                 "config_file": "machinable.yaml",
                 "config": None,
                 "vendor_caching": get_settings()["cache"].get("imports", False),
-                "default_component": None,
                 "name": None,
             },
             options,
@@ -78,9 +71,6 @@ class Project(Jsonable):
 
         if args is None:
             return cls()
-
-        if callable(args):
-            return cls({"default_component": args})
 
         if isinstance(args, str):
             return cls({"directory": args})
@@ -151,17 +141,6 @@ class Project(Jsonable):
             return None
 
         return prefix.replace("/", ".")
-
-    @property
-    def default_component(self):
-        return self.options["default_component"]
-
-    @default_component.setter
-    def default_component(self, value):
-        if callable(value) and not inspect.isclass(value):
-            value = FunctionalComponent(value)
-
-        self.options["default_component"] = value
 
     def serialize(self):
         return copy.deepcopy(self.options)
@@ -246,11 +225,6 @@ class Project(Jsonable):
                 raise ValueError(
                     f"Invalid project configuration: '{self.options['options']}'"
                 )
-        # elif isinstance(self.default_component, FunctionalComponent):
-        #     config = load_config_from_callable(self.default_component.function)
-        #     if config is None:
-        #         config = load_config_file(self.config_filepath, default={})
-        #     self.config = config
         elif self.has_config_file():
             self.config = load_config_file(self.config_filepath, default={})
         else:

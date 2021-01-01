@@ -6,36 +6,35 @@ import inspect
 import os
 from datetime import datetime as dt
 
+import machinable.errors
 import pendulum
 import yaml
 from expandvars import expand
-
-from ..config.interface import ConfigInterface, mapped_config
-from ..config.mapping import config_map
-from ..core.exceptions import ExecutionException
-from ..core.settings import get_settings
-from ..engine import Engine
-from ..execution.schedule import Schedule
-from ..experiment.experiment import Experiment
-from ..experiment.parser import parse_experiment
-from ..filesystem import open_fs
-from ..index import Index
-from ..project import Project
-from ..project.export import Export
-from ..registration import Registration
-from ..storage import Storage
-from ..submission.submission import Submission
-from ..utils.dicts import merge_dict, update_dict
-from ..utils.formatting import exception_to_str, msg
-from ..utils.host import get_host_info
-from ..utils.identifiers import (
+from machinable.config.interface import ConfigInterface
+from machinable.config.mapping import config_map
+from machinable.engine import Engine
+from machinable.execution.schedule import Schedule
+from machinable.experiment.experiment import Experiment
+from machinable.experiment.parser import parse_experiment
+from machinable.filesystem import open_fs
+from machinable.index import Index
+from machinable.project import Project
+from machinable.project.export import Export
+from machinable.registration import Registration
+from machinable.settings import get_settings
+from machinable.storage import Storage
+from machinable.submission.submission import Submission
+from machinable.utils.dicts import merge_dict, update_dict
+from machinable.utils.formatting import exception_to_str, msg
+from machinable.utils.host import get_host_info
+from machinable.utils.identifiers import (
     decode_submission_id,
     encode_submission_id,
     generate_submission_id,
 )
-from ..utils.importing import resolve_instance
-from ..utils.traits import Jsonable
-from ..utils.utils import sentinel
+from machinable.utils.importing import resolve_instance
+from machinable.utils.traits import Jsonable
+from machinable.utils.utils import sentinel
 
 
 def to_color(submission_id):
@@ -73,6 +72,7 @@ class Execution(Jsonable):
         project: Union[Project, Callable, str, dict, None] = None,
         seed: Union[int, str, None] = None,
     ):
+
         self.function = None
 
         self.experiment = None
@@ -269,14 +269,14 @@ class Execution(Jsonable):
                 if callable(resources):
                     resources = resources(
                         engine=self.engine,
-                        component=mapped_config(component_config),
-                        components=mapped_config(components_config),
+                        component=component_config,
+                        components=components_config,
                     )
 
                 default_resources = self.registration.default_resources(
                     engine=self.engine,
-                    component=mapped_config(component_config),
-                    components=mapped_config(components_config),
+                    component=component_config,
+                    components=components_config,
                 )
 
                 if resources is None and default_resources is not None:
@@ -337,7 +337,7 @@ class Execution(Jsonable):
             raise ValueError("Version must be a dictionary or callable")
 
         def transformation(i, component, element):
-            element[1]["args"] = update_dict(element[1]["args"], config)
+            element[1]["config"] = update_dict(element[1]["config"], config)
             return element
 
         self.schedule.transform(transformation)
@@ -538,7 +538,7 @@ class Execution(Jsonable):
     def set_result(self, result, index=None, echo=True):
         if index is None:
             index = len(self.schedule._result)
-        if isinstance(result, ExecutionException):
+        if isinstance(result, machinable.errors.ExecutionFailed):
             self.failures += 1
             if self.behavior["raise_exceptions"]:
                 raise result
@@ -616,10 +616,10 @@ class Execution(Jsonable):
 
             # instantiate targets
             nd = component["class"](
-                config=component["args"], flags=component["flags"]
+                config=component["config"], flags=component["flags"]
             )
             comps = [
-                c["class"](config=c["args"], flags=c["flags"], node=nd)
+                c["class"](config=c["config"], flags=c["flags"], node=nd)
                 for c in components
             ]
 
@@ -656,9 +656,9 @@ class Execution(Jsonable):
                 export.module(c["class"])
 
             # export mixins
-            mixins = component["args"].get("_mixins_", [])
+            mixins = component["config"].get("_mixins_", [])
             for c in components:
-                mixins.extend(c["args"].get("_mixins_", []))
+                mixins.extend(c["config"].get("_mixins_", []))
             for mixin in mixins:
                 export.module(
                     mixin["origin"].replace("+.", "vendor."),
@@ -799,7 +799,7 @@ class Execution(Jsonable):
             if len(component["versions"]) > 0:
                 msg(f">> {', '.join(component['versions'])}", color="green")
             msg(_flags(component["flags"]))
-            msg(_args(component["args"]), color="blue")
+            msg(_args(component["config"]), color="blue")
 
             for c in components:
                 if c:
@@ -807,7 +807,7 @@ class Execution(Jsonable):
                     if len(c["versions"]) > 0:
                         msg(f"\t>> {', '.join(c['versions'])}", color="green")
                     msg(_flags(c["flags"]))
-                    msg(_args(c["args"]), color="blue")
+                    msg(_args(c["config"]), color="blue")
 
         msg("------\n", color="header")
 

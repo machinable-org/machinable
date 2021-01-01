@@ -1,11 +1,10 @@
 import regex
 from flatten_dict import unflatten
-
-from ..utils.dicts import get_or_fail, read_path_dict, update_dict
-from ..utils.formatting import msg
-from ..utils.importing import ModuleClass
-from ..utils.utils import is_valid_variable_name
-from .mapping import _reserved_keys, _used_keys
+from machinable.config.mapping import _reserved_keys, _used_keys
+from machinable.utils.dicts import get_or_fail, read_path_dict, update_dict
+from machinable.utils.formatting import msg
+from machinable.utils.importing import ModuleClass
+from machinable.utils.utils import is_valid_variable_name
 
 
 def parse_mixins(config, valid_only=False):
@@ -212,13 +211,13 @@ def parse_module_list(
                     error="Dependency '^+.{}'  not found. Did you register it under '+'?",
                 )
 
-                if "_mixins_" in inherited["args"]:
-                    inherited["args"]["_mixins_"] = [
+                if "_mixins_" in inherited["config"]:
+                    inherited["config"]["_mixins_"] = [
                         {
                             "name": m["name"],
                             "vendor": parent.replace("+.", "").split(".")[0],
                         }
-                        for m in parse_mixins(inherited["args"]["_mixins_"])
+                        for m in parse_mixins(inherited["config"]["_mixins_"])
                     ]
             else:
                 if auto_scope(parent, scope) in modules:
@@ -233,7 +232,7 @@ def parse_module_list(
                     )
             flags["LINEAGE"] += [parent] + inherited["flags"]["LINEAGE"]
             # inherit the parent's config
-            args = update_dict(inherited["args"], args, copy=True)
+            args = update_dict(inherited["config"], args, copy=True)
             # if no module name specified, use same as parent
             if module == "":
                 module = inherited["module"]
@@ -253,8 +252,8 @@ def parse_module_list(
             )
             flags["LINEAGE"] += import_config["flags"]["LINEAGE"]
 
-            d = import_config["args"].copy()
-            if import_config["args"].get("_mixins_"):
+            d = import_config["config"].copy()
+            if import_config["config"].get("_mixins_"):
                 d["_mixins_"] = [
                     {
                         "name": m["name"],

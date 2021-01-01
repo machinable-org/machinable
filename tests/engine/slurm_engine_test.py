@@ -1,12 +1,12 @@
 import sh
 from machinable import Execution
-from machinable.engine import Slurm
+from machinable.engine.slurm_engine import SlurmEngine
 
 
-def test_slurm_engine():
+def test_slurm_engine(tmp_path):
     execution = Execution(
         "thenode",
-        storage="./_test_data/storage/slurm",
+        storage=tmp_path / "storage/slurm",
         engine=Slurm(),
         project="./test_project",
     ).submit()
@@ -21,20 +21,20 @@ def test_slurm_engine():
     sh.sbatch = sbatch
     Execution(
         "thenode",
-        storage="./_test_data/storage/slurm",
+        storage=tmp_path / "storage/slurm",
         engine=Slurm(),
         project="./test_project",
     ).submit()
 
 
-def test_slurm_engine_script_modifier_methods():
+def test_slurm_engine_script_modifier_methods(tmp_path):
     class TestEngine(Slurm):
         def before_script(self, execution, config):
             return f"{execution.project.path()}; {config.a};"
 
     Execution(
         "thenode",
-        storage="./_test_data/storage/slurm",
+        storage=tmp_path / "storage/slurm",
         engine=TestEngine(),
         project="./test_project",
     ).submit()

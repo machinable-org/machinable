@@ -1,9 +1,8 @@
 import os
 
 import yaml
-
-from ..config.mapping import config_map
-from ..utils.dicts import update_dict
+from machinable.config.mapping import config_map
+from machinable.utils.dicts import update_dict
 
 _settings = None
 

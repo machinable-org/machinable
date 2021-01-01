@@ -1,6 +1,6 @@
 from inspect import getattr_static
 
-from ..utils.importing import ModuleClass
+from machinable.utils.importing import ModuleClass
 
 
 class MixinInstance:

@@ -4,13 +4,12 @@ from collections import OrderedDict
 
 import yaml
 from flatten_dict import unflatten
-
-from ..config.mapping import config_map
-from ..core.settings import get_settings
-from ..experiment import ExperimentComponent
-from ..utils.dicts import update_dict
-from ..utils.importing import ModuleClass
-from .parser import parse_mixins
+from machinable.config.mapping import config_map
+from machinable.config.parser import parse_mixins
+from machinable.experiment.experiment import ExperimentComponent
+from machinable.settings import get_settings
+from machinable.utils.dicts import update_dict
+from machinable.utils.importing import ModuleClass
 
 
 def _collect_updates(version):
@@ -42,13 +41,6 @@ def _mark_mixin_as_override(mixin):
     return mixin
 
 
-def mapped_config(config):
-    if isinstance(config, list):
-        return [mapped_config(c) for c in config]
-    config["config"] = config["args"]
-    return config_map(config)
-
-
 class ConfigInterface:
     def __init__(self, parsed_config, version=None, default_class=None):
         self.data = parsed_config
@@ -72,13 +64,13 @@ class ConfigInterface:
                 )
 
             if key == "component":
-                payload["component"] = mapped_config(component)
+                payload["component"] = component
             elif key == "config":
-                payload["config"] = config_map(component["args"])
+                payload["config"] = config_map(component["config"])
             elif key == "flags":
                 payload["flags"] = config_map(component["flags"])
             elif components is not None and key == "components":
-                payload["components"] = mapped_config(components)
+                payload["components"] = components
             elif resources is not None and key == "resources":
                 payload["resources"] = resources
             else:
@@ -94,7 +86,7 @@ class ConfigInterface:
         # from mixin
         if name.startswith("_") and name.endswith("_"):
             try:
-                return copy.deepcopy(self.data["mixins"][name[1:-1]]["args"])
+                return copy.deepcopy(self.data["mixins"][name[1:-1]]["config"])
             except KeyError:
                 raise KeyError(
                     f"Mixin '{name}' not available.\n"
@@ -174,8 +166,8 @@ class ConfigInterface:
             )
 
         # carry over global evaluation config
-        if "_evaluate" not in config["args"]:
-            config["args"]["_evaluate"] = self.data["_evaluate"]
+        if "_evaluate" not in config["config"]:
+            config["config"]["_evaluate"] = self.data["_evaluate"]
 
         # un-alias
         origin = self.data["components"]["@"][name]
@@ -191,7 +183,7 @@ class ConfigInterface:
         version_updates = _collect_updates(versions)
 
         # parse mixins
-        default_mixins = config["args"].pop("_mixins_", None)
+        default_mixins = config["config"].pop("_mixins_", None)
 
         # check for default mixins overrides in version
         mixins = None
@@ -294,14 +286,18 @@ class ConfigInterface:
 
             if mixin["overrides"]:
                 # mixin overrides config
-                config["args"] = update_dict(config["args"], mixin_args["args"])
+                config["config"] = update_dict(
+                    config["config"], mixin_args["config"]
+                )
             else:
                 # config overrides mixin
-                config["args"] = update_dict(mixin_args["args"], config["args"])
+                config["config"] = update_dict(
+                    mixin_args["config"], config["config"]
+                )
 
             mixin_specs.append(mixin_spec)
 
-        config["args"]["_mixins_"] = mixin_specs
+        config["config"]["_mixins_"] = mixin_specs
 
         # parse updates
         version = {}
@@ -313,7 +309,7 @@ class ConfigInterface:
                     config["versions"].append(k)
                     if k.startswith("~"):
                         config["flags"]["VERSIONING"].append(k[1:])
-                    k = self._get_version(k, config["args"])
+                    k = self._get_version(k, config["config"])
                 elif isinstance(k, dict):
                     # evaluate computed properties
                     for key in k.keys():
@@ -328,8 +324,10 @@ class ConfigInterface:
                 version = update_dict(version, k)
 
         try:
-            config["args"] = update_dict(
-                config["args"], version, preserve_schema=self.schema_validation
+            config["config"] = update_dict(
+                config["config"],
+                version,
+                preserve_schema=self.schema_validation,
             )
         except KeyError as e:
             raise KeyError(
@@ -339,8 +337,8 @@ class ConfigInterface:
             ) from e
 
         # remove versions
-        config["args"] = {
-            k: v for k, v in config["args"].items() if not k.startswith("~")
+        config["config"] = {
+            k: v for k, v in config["config"].items() if not k.startswith("~")
         }
 
         return config

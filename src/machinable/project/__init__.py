@@ -1,1 +1,1 @@
-from .project import Project
+from machinable.project.project import Project

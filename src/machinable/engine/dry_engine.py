@@ -1,4 +1,4 @@
-from .engine import Engine
+from machinable.engine.engine import Engine
 
 
 class DryEngine(Engine):

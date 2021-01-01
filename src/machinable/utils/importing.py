@@ -4,10 +4,9 @@ import inspect
 import os
 import sys
 
-from ..core.settings import get_settings
-from ..registration import Registration
-from ..utils.formatting import exception_to_str
-from .formatting import exception_to_str
+from machinable.registration import Registration
+from machinable.settings import get_settings
+from machinable.utils.formatting import exception_to_str
 
 
 def resolve_instance(arg, instance_type, default_path=""):

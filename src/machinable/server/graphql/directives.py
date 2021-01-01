@@ -2,9 +2,8 @@ import json
 
 from ariadne import SchemaDirectiveVisitor
 from graphql import default_field_resolver
-
-from ...config.mapping import ConfigMap
-from ...utils.dicts import serialize
+from machinable.config.mapping import ConfigMap
+from machinable.utils.dicts import serialize
 
 
 def to_json(obj):

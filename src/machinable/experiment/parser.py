@@ -1,9 +1,12 @@
 import copy
 import random
 
-from ..utils.dicts import update_dict
-from ..utils.identifiers import encode_submission_id, generate_component_id
-from ..utils.utils import generate_seed
+from machinable.utils.dicts import update_dict
+from machinable.utils.identifiers import (
+    encode_submission_id,
+    generate_component_id,
+)
+from machinable.utils.utils import generate_seed
 
 
 def parse_experiment(experiment, seed=None):

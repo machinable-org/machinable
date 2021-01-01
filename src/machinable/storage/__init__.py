@@ -1,1 +1,1 @@
-from .storage import Storage
+from machinable.storage.storage import Storage

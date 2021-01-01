@@ -19,6 +19,7 @@ def test_collect():
 
 
 def test_experiment_collection():
+    assert False
     c = SubmissionCollection(
         [Submission.find("./_test_data/storage/tttttt") for _ in range(3)]
     )
@@ -28,6 +29,7 @@ def test_experiment_collection():
 
 
 def test_component_collection():
+    assert False
     submission = Submission.find("./_test_data/storage/tttttt")
     import numpy as np
 

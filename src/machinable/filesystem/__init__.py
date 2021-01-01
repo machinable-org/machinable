@@ -1,6 +1,6 @@
 import os
 
-from ..utils.identifiers import decode_submission_id
+from machinable.utils.identifiers import decode_submission_id
 
 
 def open_fs(config):

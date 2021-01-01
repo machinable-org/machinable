@@ -1,5 +1,7 @@
-from .base import Collection
-from .components import SubmissionComponentCollection
+from machinable.submission.collections.base import Collection
+from machinable.submission.collections.components import (
+    SubmissionComponentCollection,
+)
 
 
 class SubmissionCollection(Collection):

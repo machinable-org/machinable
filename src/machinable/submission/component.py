@@ -4,13 +4,12 @@ import os
 
 import jsonlines
 import pendulum
-
-from ..config.mapping import config_map
-from ..filesystem import open_fs, parse_storage_url
-from ..submission.models import SubmissionComponentModel
-from ..utils.utils import sentinel
-from .collections import RecordCollection
-from .views.views import get as get_view
+from machinable.config.mapping import config_map
+from machinable.filesystem import open_fs, parse_storage_url
+from machinable.submission.collections import RecordCollection
+from machinable.submission.models import SubmissionComponentModel
+from machinable.submission.views.views import get as get_view
+from machinable.utils.utils import sentinel
 
 
 class SubmissionComponent:

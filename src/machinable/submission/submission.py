@@ -3,14 +3,16 @@ from typing import Optional, Union
 import os
 
 import pendulum
-
-from ..config.mapping import config_map
-from ..filesystem import parse_storage_url
-from ..utils.utils import sentinel
-from .collections import SubmissionCollection, SubmissionComponentCollection
-from .component import SubmissionComponent
-from .models import SubmissionModel
-from .views.views import get as get_view
+from machinable.config.mapping import config_map
+from machinable.filesystem import parse_storage_url
+from machinable.submission.collections import (
+    SubmissionCollection,
+    SubmissionComponentCollection,
+)
+from machinable.submission.component import SubmissionComponent
+from machinable.submission.models import SubmissionModel
+from machinable.submission.views.views import get as get_view
+from machinable.utils.utils import sentinel
 
 
 class Submission:

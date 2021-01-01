@@ -2,11 +2,10 @@ import copy
 import json
 import os
 
+import machinable.errors
 import sh
-
-from ..core.exceptions import ExecutionException
-from ..utils.dicts import update_dict
-from .engine import Engine
+from machinable.engine import Engine
+from machinable.utils.dicts import update_dict
 
 
 class RemoteEngine(Engine):
@@ -90,7 +89,7 @@ class RemoteEngine(Engine):
             execution.set_result(p)
         except sh.ErrorReturnCode as ex:
             execution.set_result(
-                ExecutionException(
+                machinable.errors.ExecutionFailed(
                     ex.stderr.decode("utf-8"), reason="engine_failure"
                 )
             )

@@ -3,8 +3,7 @@ from typing import Optional
 import random
 
 from baseconv import base62
-
-from .utils import random_str
+from machinable.utils.utils import random_str
 
 
 def encode_submission_id(seed, or_fail=True) -> Optional[str]:

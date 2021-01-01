@@ -4,7 +4,7 @@ import sys
 import machinable as ml
 import pytest
 from machinable import Component
-from machinable.core.component import inject_components
+from machinable.component.component import inject_components
 
 
 def test_core_config_method():
@@ -98,6 +98,7 @@ def test_component_injection():
 
 
 def test_exception_handling():
+    assert False
     sys.path.insert(0, os.path.join(os.getcwd(), "test_project"))
     from test_project.failure.exceptions import ExceptionsComponent
 

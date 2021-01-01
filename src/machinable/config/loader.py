@@ -5,8 +5,7 @@ import re
 
 import yaml
 from expandvars import expandvars
-
-from ..utils.utils import sentinel
+from machinable.utils.utils import sentinel
 
 
 class Loader(yaml.SafeLoader):

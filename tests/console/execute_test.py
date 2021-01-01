@@ -2,13 +2,7 @@ from click.testing import CliRunner
 from machinable.console.execute import execution
 
 
-def test_console_execution():
+def test_console_execution(tmp_path):
     runner = CliRunner()
-    result = runner.invoke(execution, ["./_test_data/storage/tttttt"])
+    result = runner.invoke(execution, [str(tmp_path)])
     assert result.exit_code == 0
-    result = runner.invoke(
-        execution, ["./_test_data/storage/tttttt/tQtsVCNijRLR"]
-    )
-    assert result.exit_code == 0
-    result = runner.invoke(execution, ["@test"])
-    assert str(result.exception).find("ModuleNotFoundError") != -1

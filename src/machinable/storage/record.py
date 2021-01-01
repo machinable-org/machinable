@@ -5,10 +5,9 @@ from collections import OrderedDict
 
 import jsonlines
 import pendulum
-
-from ..core.events import Events
-from ..utils.dicts import serialize
-from ..utils.formatting import msg, prettydict
+from machinable.component.events import Events
+from machinable.utils.dicts import serialize
+from machinable.utils.formatting import msg, prettydict
 
 
 def as_datetime(timestamp):

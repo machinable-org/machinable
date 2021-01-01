@@ -1,8 +1,10 @@
 import asyncio
 
-from .....index import Index
-from .....submission.collections import SubmissionCollection
-from .subscription_type import subscription
+from machinable.index import Index
+from machinable.server.graphql.subscription.subscription_type import (
+    subscription,
+)
+from machinable.submission.collections import SubmissionCollection
 
 
 @subscription.source("index")

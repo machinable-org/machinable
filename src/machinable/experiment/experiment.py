@@ -3,9 +3,9 @@ from typing import Tuple, Type, Union
 import copy
 from collections import OrderedDict
 
-from ..utils.importing import resolve_instance
-from ..utils.traits import Jsonable
-from ..utils.utils import is_valid_module_path
+from machinable.utils.importing import resolve_instance
+from machinable.utils.traits import Jsonable
+from machinable.utils.utils import is_valid_module_path
 
 
 class ExperimentComponent(Jsonable):

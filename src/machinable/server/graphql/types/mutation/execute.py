@@ -1,7 +1,7 @@
 import json
 
-from .....execution import Execution
-from .mutation_type import mutation
+from machinable.execution import Execution
+from machinable.server.types.mutatation.mutation_type import mutation
 
 
 def from_string(value):

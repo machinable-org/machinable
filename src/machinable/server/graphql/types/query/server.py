@@ -1,6 +1,5 @@
 import pkg_resources
-
-from .query_type import query
+from machinable.server.graphql.query.query_type import query
 
 
 @query.field("server")

@@ -2,8 +2,8 @@ import os
 import sys
 from subprocess import call
 
-from ..core.exceptions import ExecutionException
-from .engine import Engine
+import machinable.errors
+from machinable.engine.engine import Engine
 
 
 class DetachedEngine(Engine):
@@ -47,7 +47,9 @@ class DetachedEngine(Engine):
             execution.set_result(p)
         except BaseException as ex:
             execution.set_result(
-                ExecutionException(str(ex), reason="engine_failure")
+                machinable.errors.ExecutionException(
+                    str(ex), reason="engine_failure"
+                )
             )
             self.log(f"Execution failed: {str(ex)}", level="error")
 

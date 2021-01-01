@@ -2,12 +2,12 @@ import ast
 import copy
 import importlib
 
-from ..core.exceptions import ExecutionException
-from ..utils.dicts import update_dict
-from ..utils.formatting import exception_to_str, msg
-from ..utils.importing import resolve_instance
-from ..utils.system import set_process_title
-from ..utils.traits import Jsonable
+import machinable.errors
+from machinable.utils.dicts import update_dict
+from machinable.utils.formatting import exception_to_str, msg
+from machinable.utils.importing import resolve_instance
+from machinable.utils.system import set_process_title
+from machinable.utils.traits import Jsonable
 
 _register = {
     "native": "machinable.engine.native_engine",
@@ -197,7 +197,7 @@ class Engine(Jsonable):
         args=None,
         kwargs=None,
     ):
-        return ExecutionException(
+        return machinable.errors.ExecutionFailed(
             reason="unsupported",
             message="The engine does not support execution operations",
         )
@@ -211,7 +211,7 @@ class Engine(Jsonable):
         args=None,
         kwargs=None,
     ):
-        return ExecutionException(
+        return machinable.errors.ExecutionFailed(
             reason="unsupported",
             message="The engine does not support tuning operations",
         )

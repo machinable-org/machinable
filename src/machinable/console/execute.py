@@ -1,12 +1,11 @@
 import os
 
 import click
-
-from ..execution.execution import Execution
-from ..experiment import Experiment
-from ..filesystem import parse_storage_url
-from ..utils.formatting import exception_to_str, msg
-from ..utils.importing import resolve_instance_from_code
+from machinable.execution.execution import Execution
+from machinable.experiment import Experiment
+from machinable.filesystem import parse_storage_url
+from machinable.utils.formatting import exception_to_str, msg
+from machinable.utils.importing import resolve_instance_from_code
 
 
 @click.command()

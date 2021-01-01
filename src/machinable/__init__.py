@@ -1,14 +1,13 @@
 from typing import Any, Callable, Union
 
-from .core import Component, Mixin
-from .engine import Engine
-from .execution import Execution
-from .experiment import Experiment
-from .experiment import ExperimentComponent as C
-from .index import Index
-from .project import Project
-from .storage import Storage
-from .submission import Submission
+from machinable.component import Component, Mixin
+from machinable.engine import Engine
+from machinable.execution import Execution
+from machinable.experiment import Experiment
+from machinable.index import Index
+from machinable.project import Project
+from machinable.storage import Storage
+from machinable.submission import Submission
 
 
 def execute(

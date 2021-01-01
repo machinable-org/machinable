@@ -5,6 +5,7 @@ from machinable.submission.views.views import _used_attributes
 
 
 def test_allowed_attribute_list():
+    assert False
     e = Submission.find("./_test_data/storage/tttttt")
     a = (
         set(filter(lambda x: not x.startswith("__"), dir(e)))
@@ -19,6 +20,8 @@ def test_allowed_attribute_list():
 
 
 def test_submission_views():
+    assert False
+
     @Views.submission
     class SubmissionView:
         def __init__(self, submission):

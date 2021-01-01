@@ -1,12 +1,11 @@
 import os
 from multiprocessing import Pool
 
-from ..config.interface import mapped_config
-from ..core.exceptions import ExecutionException
-from ..registration import Registration
-from ..utils.formatting import exception_to_str
-from ..utils.utils import call_with_context
-from .engine import Engine
+import machinable.errors
+from machinable.engine import Engine
+from machinable.registration import Registration
+from machinable.utils.formatting import exception_to_str
+from machinable.utils.utils import call_with_context
 
 
 class NativeEngine(Engine):
@@ -84,13 +83,12 @@ class NativeEngine(Engine):
             Registration.get().on_before_component_construction
         )
         if not hasattr(on_before_component_construction, "_deactivated"):
-            _c = mapped_config(component)
             call_with_context(
                 on_before_component_construction,
                 component=component,
-                components=mapped_config(components),
-                config=_c.config,
-                flags=_c.flags,
+                components=components,
+                config=component.config,
+                flags=component.flags,
                 storage=storage,
                 resources=resources,
                 args=args,
@@ -102,10 +100,10 @@ class NativeEngine(Engine):
             try:
                 os.environ.update(component["flags"]["ENVIRON"])
             except TypeError as e:
-                return ExecutionException(
+                return machinabe.errors.ExecutionFailed(
                     reason="exception",
                     message=f"Could not apply environment variables: {e}\n{exception_to_str(e)}",
                 )
 
-        nd = component["class"](component["args"], component["flags"])
+        nd = component["class"](component["config"], component["flags"])
         return nd.dispatch(components, storage)

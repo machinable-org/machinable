@@ -2,15 +2,13 @@ import json
 import os
 import stat
 
+import machinable.errors
 import pendulum
 import sh
-
-from ..config.interface import mapped_config
-from ..core.exceptions import ExecutionException
-from ..filesystem import abspath, open_fs
-from ..utils.formatting import exception_to_str
-from ..utils.utils import call_with_context
-from .engine import Engine
+from machinable.engine.engine import Engine
+from machinable.filesystem import abspath, open_fs
+from machinable.utils.formatting import exception_to_str
+from machinable.utils.utils import call_with_context
 
 
 def _wrap(line):
@@ -124,18 +122,16 @@ class SlurmEngine(Engine):
                 f"#SBATCH -o {os.path.join(component_path,  'output.log')}\n"
             )
             script += "#SBATCH --open-mode=append\n"
-            _c = mapped_config(component)
-            _cc = mapped_config(components)
             script += _wrap(
                 call_with_context(
                     self.before_script,
                     execution=execution,
                     index=index,
                     execution_type=execution_type,
-                    component=_c,
-                    components=_cc,
-                    config=_c.config,
-                    flags=_c.flags,
+                    component=component,
+                    components=components,
+                    config=component.config,
+                    flags=component.flags,
                     storage=storage,
                     resources=resources,
                     args=args,
@@ -204,7 +200,9 @@ class SlurmEngine(Engine):
                 else:
                     message = exception_to_str(ex)
                 execution.set_result(
-                    ExecutionException(message, reason="engine_failure"),
+                    machinable.errors.ExecutionFailed(
+                        message, reason="engine_failure"
+                    ),
                     echo=True,
                 )
 

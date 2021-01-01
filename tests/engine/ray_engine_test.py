@@ -6,7 +6,7 @@ def test_ray_engine():
     ml.execute(t, engine="ray", project="./test_project")
 
 
-def test_ray_engine_tune():
+def test_ray_engine_tune(tmp_path):
     import ray
     from ray import tune
 
@@ -18,6 +18,6 @@ def test_ray_engine_tune():
             stop={"acc": 0.5}, config={"lr": tune.grid_search([0.001, 0.01])}
         ),
         engine="ray",
-        storage="./_test_data/tune",
+        storage=tmp_path / "tune",
         project="./test_project",
     )

@@ -1,8 +1,7 @@
 import base64
 
+from machinable.filesystem import open_fs
 from starlette.responses import PlainTextResponse
-
-from ..filesystem import open_fs
 
 
 async def filesystem_resolver(request):

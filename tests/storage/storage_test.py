@@ -5,8 +5,6 @@ import numpy as np
 import pytest
 from machinable import Storage
 
-STORAGE_DIRECTORY = "./_test_data/storage"
-
 
 def get_path(path=""):
     return os.path.join(STORAGE_DIRECTORY, path)

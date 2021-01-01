@@ -1,5 +1,5 @@
-from ...filesystem import parse_storage_url
-from ...utils.importing import ModuleClass
+from machinable.filesystem import parse_storage_url
+from machinable.utils.importing import ModuleClass
 
 _register = {
     "submission": None,

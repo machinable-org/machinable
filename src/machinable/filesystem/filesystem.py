@@ -4,9 +4,8 @@ import os
 import pickle
 
 from fs import errors, open_fs
-
-from ..utils.dicts import serialize
-from ..utils.utils import sentinel
+from machinable.utils.dicts import serialize
+from machinable.utils.utils import sentinel
 
 
 class FileSystem:

@@ -1,1 +1,1 @@
-from .experiment import Experiment, ExperimentComponent
+from machinable.experiment.experiment import Experiment

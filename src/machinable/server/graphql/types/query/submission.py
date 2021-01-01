@@ -1,5 +1,5 @@
-from .....submission.submission import Submission
-from .query_type import query
+from machinable.server.graphql.types.query.query_type import query
+from machinable.submission import Submission
 
 
 @query.field("submission")

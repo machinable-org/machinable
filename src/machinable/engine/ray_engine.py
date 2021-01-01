@@ -1,15 +1,13 @@
 import copy
 import os
 
+import machinable.errors
 import ray
+from machinable.engine import Engine
+from machinable.utils.dicts import update_dict
+from machinable.utils.formatting import exception_to_str
+from machinable.utils.importing import ModuleClass
 from ray.exceptions import RayActorError
-
-from ..core.component import FunctionalComponent
-from ..core.exceptions import ExecutionException
-from ..utils.dicts import update_dict
-from ..utils.formatting import exception_to_str
-from ..utils.importing import ModuleClass
-from .engine import Engine
 
 
 class RayEngine(Engine):
@@ -36,7 +34,7 @@ class RayEngine(Engine):
                     result = ray.get(result)
                 execution.set_result(result, index)
             except RayActorError as ex:
-                result = ExecutionException(
+                result = machinable.errors.ExecutionFailed(
                     reason="exception",
                     message=f"The following exception occurred: {ex}\n{exception_to_str(ex)}",
                 )
@@ -56,19 +54,12 @@ class RayEngine(Engine):
         args=None,
         kwargs=None,
     ):
-        if isinstance(component["class"], FunctionalComponent):
-            nd = ray.remote(resources=resources)(FunctionalComponent).remote(
-                component["class"].function,
-                component["args"],
-                component["flags"],
-            )
-        else:
-            # load lazy module
-            if isinstance(component["class"], ModuleClass):
-                component["class"] = component["class"].load(instantiate=False)
-            nd = ray.remote(resources=resources)(component["class"]).remote(
-                component["args"], component["flags"]
-            )
+        # load lazy module
+        if isinstance(component["class"], ModuleClass):
+            component["class"] = component["class"].load(instantiate=False)
+        nd = ray.remote(resources=resources)(component["class"]).remote(
+            component["config"], component["flags"]
+        )
 
         return nd.dispatch.remote(components, storage, nd)
 
@@ -102,15 +93,15 @@ class RayEngine(Engine):
                 else:
                     node_update = config
 
-                node_args = copy.deepcopy(component["args"])
+                node_args = copy.deepcopy(component["config"])
                 node_args = update_dict(node_args, node_update)
                 node_flags = copy.deepcopy(component["flags"])
                 node_flags["TUNING"] = True
 
                 components_config = copy.deepcopy(components)
                 for i in range(len(components)):
-                    components_config[i]["args"] = update_dict(
-                        components[i]["args"], components_update[i]
+                    components_config[i]["config"] = update_dict(
+                        components[i]["config"], components_update[i]
                     )
 
                 storage_config = copy.deepcopy(storage)

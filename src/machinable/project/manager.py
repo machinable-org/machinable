@@ -1,10 +1,9 @@
 import os
 
 import git
-from machinable.core.settings import get_settings
-from machinable.registration import Registration
-
-from ..utils.formatting import msg
+from machinable.registration.registration import Registration
+from machinable.settings import get_settings
+from machinable.utils.formatting import msg
 
 
 def fetch_link(source, target):

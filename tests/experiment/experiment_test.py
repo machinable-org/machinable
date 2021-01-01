@@ -31,8 +31,8 @@ def test_experiment_config():
     )
     node, components, resources = list(parse_experiment(t))[0]
     conf = ConfigInterface(config, t.specification["version"])
-    node_config = conf.get(node)["args"]
-    worker_component_config = conf.get(components[0])["args"]
+    node_config = conf.get(node)["config"]
+    worker_component_config = conf.get(components[0])["config"]
 
     assert node_config["attr"] == "node"
     assert worker_component_config["attr"] == "worker"
@@ -47,9 +47,9 @@ def test_experiment_config():
     )
     node, components, resources = list(parse_experiment(t))[0]
     conf = ConfigInterface(config, t.specification["version"])
-    node_config = conf.get(node)["args"]
+    node_config = conf.get(node)["config"]
     assert node_config["version"] == 0
-    worker_component_config = conf.get(components[0])["args"]
+    worker_component_config = conf.get(components[0])["config"]
     assert worker_component_config["version"] == 1
 
 

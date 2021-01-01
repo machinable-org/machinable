@@ -1,1 +1,1 @@
-from .index import Index
+from machinable.index.index import Index

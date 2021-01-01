@@ -2,8 +2,7 @@ import webbrowser
 
 import click
 import uvicorn
-
-from ..server.server import server as machinable_server
+from machinable.server.server import server as machinable_server
 
 
 @click.command()

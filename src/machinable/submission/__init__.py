@@ -1,2 +1,6 @@
-from .submission import Submission
-from .views import SubmissionComponentView, SubmissionView, Views
+from machinable.submission.submission import Submission
+from machinable.submission.views import (
+    SubmissionComponentView,
+    SubmissionView,
+    Views,
+)

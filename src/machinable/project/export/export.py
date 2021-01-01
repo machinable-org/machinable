@@ -7,8 +7,8 @@ import re
 import shutil
 from collections import namedtuple
 
-from ...utils.importing import ModuleClass
-from . import standalone
+from machinable.project.export import standalone
+from machinable.utils.importing import ModuleClass
 
 
 def copy_and_overwrite(from_path, to_path):

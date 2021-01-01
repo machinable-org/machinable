@@ -16,7 +16,7 @@ class Log:
     """
 
     def __init__(self, storage):
-        from .storage import Storage
+        from machinable.storage import Storage
 
         self.storage = Storage.create(storage)
         self._logger = self._get_logger()

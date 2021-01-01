@@ -3,8 +3,6 @@ import os
 
 from machinable import Submission
 
-STORAGE_DIRECTORY = "./_test_data/storage"
-
 
 def get_path(path=""):
     return os.path.join(STORAGE_DIRECTORY, path)

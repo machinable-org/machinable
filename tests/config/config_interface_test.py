@@ -1,5 +1,5 @@
 import pytest
-from machinable import C, Experiment
+from machinable import Experiment
 from machinable.config.interface import ConfigInterface
 from machinable.experiment.parser import parse_experiment
 from machinable.project import Project
@@ -10,7 +10,7 @@ def test_config_mixin_handler():
 
     config = ConfigInterface(test_project.parse_config())
 
-    t = config.get_component("mixexp", version=None, flags=None)["args"]
+    t = config.get_component("mixexp", version=None, flags=None)["config"]
 
     # preserved the config
     assert t["hello"] == "there"
@@ -38,9 +38,9 @@ def to_config(project, schedule):
         components_config = config.get(components[0])
 
         if components_config is None:
-            return node_config["args"], None
+            return node_config["config"], None
 
-        return node_config["args"], components_config["args"]
+        return node_config["config"], components_config["config"]
 
 
 def test_config_mixins():

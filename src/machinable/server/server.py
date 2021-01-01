@@ -2,13 +2,18 @@ import os
 
 from ariadne import load_schema_from_path, make_executable_schema
 from ariadne.asgi import GraphQL
+from machinable.server.filesystem import filesystem_resolver
+from machinable.server.graphql import (
+    directives,
+    mutation,
+    query,
+    scalar_types,
+    subscription,
+)
 from starlette.applications import Starlette
 from starlette.middleware import Middleware
 from starlette.middleware.cors import CORSMiddleware
 from starlette.routing import Route
-
-from .filesystem import filesystem_resolver
-from .graphql import directives, mutation, query, scalar_types, subscription
 
 dir_path = os.path.dirname(os.path.realpath(__file__))
 schema = make_executable_schema(

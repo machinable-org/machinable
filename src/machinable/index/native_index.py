@@ -1,4 +1,4 @@
-from .index import Index
+from machinable.index import Index
 
 
 class NativeIndex(Index):

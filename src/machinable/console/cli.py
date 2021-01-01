@@ -1,8 +1,7 @@
 import click
 import pkg_resources
-
-from .execute import execute, execution
-from .vendor.commands import vendor
+from machinable.console.execute import execute, execution
+from machinable.console.vendor.commands import vendor
 
 
 @click.group(invoke_without_command=True)
@@ -23,7 +22,7 @@ cli.add_command(vendor)
 cli.add_command(execute)
 cli.add_command(execution)
 try:
-    from .server import app, server
+    from machinable.component.server import app, server
 
     cli.add_command(server)
     cli.add_command(app)

@@ -3,13 +3,13 @@ import os
 from machinable.index.sql_index import SqlIndex
 
 
-def test_sql_index(helpers):
+def test_sql_index(tmp_path):
     database = "sqlite:///" + os.path.join(
-        helpers.tmp_directory("sql_index"), "test.sqlite"
+        tmp_path / "sql_index", "test.sqlite"
     )
     index = SqlIndex(database)
     assert index.find("tttttt") is None
-    index.add("./_test_data/storage/tttttt")
+    index.add(tmp_path / "storage/tttttt")
     assert index.find("tttttt").submission_id == "tttttt"
     latest = index.find_latest()
     assert len(latest) > 0

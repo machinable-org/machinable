@@ -5,14 +5,14 @@ import copy
 import importlib
 import os
 
-from ..filesystem import open_fs
-from ..submission.collections import SubmissionCollection
-from ..submission.submission import Submission
-from ..utils.dicts import update_dict
-from ..utils.formatting import exception_to_str
-from ..utils.identifiers import decode_submission_id
-from ..utils.importing import resolve_instance
-from ..utils.traits import Jsonable
+from machinable.filesystem.filesystem import open_fs
+from machinable.submission.collections import SubmissionCollection
+from machinable.submission.submission import Submission
+from machinable.utils.dicts import update_dict
+from machinable.utils.formatting import exception_to_str
+from machinable.utils.identifiers import decode_submission_id
+from machinable.utils.importing import resolve_instance
+from machinable.utils.traits import Jsonable
 
 _register = {
     "native": "machinable.index.native_index",

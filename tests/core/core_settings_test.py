@@ -1,6 +1,6 @@
 import os
 
-from machinable.core.settings import get_settings
+from machinable.settings import get_settings
 
 
 def test_settings(helpers):
