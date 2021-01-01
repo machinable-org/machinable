@@ -10,46 +10,6 @@ def test_execution_from_storage(tmp_path):
     e.submit()
 
 
-def test_execution_decorators():
-    # disable multiprocessing
-    settings = get_settings()
-    settings["default_engine"] = {"type": "native", "processes": None}
-
-    t = Experiment().components("thenode", "thechildren")
-
-    @execute
-    def run(component, components, storage):
-        assert component.config.alpha == 0
-        storage.log.info(
-            "Custom training with learning_rate=" + str(component.config.a)
-        )
-        assert components[0].config.alpha == 0
-
-    assert run(t, seed=1, project="./test_project").failures == 0
-
-    @Execution
-    def run_2(component, components, storage):
-        assert component.config.alpha == 0
-        storage.log.info("Execution decorator")
-        assert components[0].config.alpha == 0
-
-    assert run_2(t, seed=1, project="./test_project").submit().failures == 0
-
-    @execute
-    class Test(Component):
-        def config_through_config_method(self, arg):
-            return arg
-
-    assert Test(t, seed=1, project="./test_project").failures == 0
-
-    @Execution
-    class Test_2(Component):
-        def config_through_config_method(self, arg):
-            return arg
-
-    assert Test_2(t, seed=1, project="./test_project").submit().failures == 0
-
-
 def test_execution_setters(tmp_path):
     e = Execution.from_storage(tmp_path / "storage/tttttt")
     e.set_version("{ 'a': 1 }")

@@ -40,7 +40,7 @@ jobs:
       - name: pyuprade check
         run: |
           source .venv/bin/activate
-          pyupgrade --py36-plus **/*.py
+          pyupgrade --py36-plus `find . -name "*.py"`
       - name: isort check
         run: |
           source .venv/bin/activate

@@ -72,9 +72,6 @@ class Execution(Jsonable):
         project: Union[Project, Callable, str, dict, None] = None,
         seed: Union[int, str, None] = None,
     ):
-
-        self.function = None
-
         self.experiment = None
         self.storage = Storage()
         self.engine = None
@@ -92,18 +89,6 @@ class Execution(Jsonable):
         self.failures = 0
         self._registration = None
 
-        if not isinstance(experiment, Experiment) and (
-            inspect.isclass(experiment) or callable(experiment)
-        ):
-            # decorator use
-            if None not in (storage, engine, index, project, seed):
-                raise ValueError(
-                    "Execution decorator takes no arguments; "
-                    "call the decorated object with arguments instead."
-                )
-            self.function = experiment
-            return
-
         # this may extend the PYTHONPATH and must thus be called before any import-dependent methods below
         self.set_project(project)
         self.set_storage(storage)
@@ -111,26 +96,6 @@ class Execution(Jsonable):
         self.set_engine(engine)
         self.set_index(index)
         self.set_seed(seed)
-
-    def __call__(
-        self,
-        experiment,
-        storage=None,
-        engine=None,
-        index=None,
-        project=None,
-        seed=None,
-    ):
-        self.set_project(project)
-        self.set_storage(storage)
-        self.set_experiment(experiment)
-        self.set_engine(engine)
-        self.set_index(index)
-        self.set_seed(seed)
-        if self.function is not None:
-            # decorator invocation
-            self.project.default_component = self.function
-            return self
 
     @classmethod
     def latest(cls):
@@ -245,7 +210,6 @@ class Execution(Jsonable):
         config = ConfigInterface(
             self.project.parse_config(),
             self.experiment.specification["version"],
-            default_class=self.project.default_component,
         )
 
         for index, (node, components, resources) in enumerate(

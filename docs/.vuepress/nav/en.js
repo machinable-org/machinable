@@ -14,10 +14,6 @@ module.exports = [
       {
         text: "Adoption",
         items: [
-          {
-            text: "Migrating to machinable",
-            link: "/miscellaneous/migration-guide.html"
-          },
           // {
           //   text: "Best practices",
           //   link: "/miscellaneous/best-practice.html"

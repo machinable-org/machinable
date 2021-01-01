@@ -70,9 +70,3 @@ def test_computable_resources():
     t = ml.Experiment().component("nodes.observations")
     e = ml.Execution(t, project=test_project, engine="slurm").set_schedule()
     assert e.schedule._elements[0][3]["used_engine"] == "Slurm"
-
-
-def test_default_component():
-    test_project = Project("./test_project")
-    t = ml.Experiment().component("uses_default_module")
-    ml.execute(t, project=test_project)

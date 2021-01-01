@@ -2,7 +2,7 @@ import os
 import shutil
 from zipfile import ZipFile
 
-from machinable import execute
+from machinable import Execution
 from machinable.project import Project
 
 

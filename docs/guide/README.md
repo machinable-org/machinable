@@ -83,10 +83,10 @@ components:
   - ridge_regression:
     alpha: 0.6
 ```
-After registration, the component is ready to be executed using the `execute` method.
+After registration, the component is ready to be executed using the `Execution` object.
 ```python
-from machinable import execute
-execute("ridge_regression")
+from machinable import Execution
+Execution("ridge_regression").submit()
 ```
 Or, using the command line:
 ```bash
