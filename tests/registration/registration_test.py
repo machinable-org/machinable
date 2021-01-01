@@ -13,12 +13,13 @@ def test_project_registration():
 
 
 def test_registration_on_before_component_construction():
+    assert False
+
     class TestRegistration(Registration):
         def on_before_component_construction(self, component, flags):
             if component["name"] == "dryrun":
                 os.environ["TEST3"] = flags.get("test", False)
 
-    @Execution
     class TestComponent(Component):
         def on_create(self):
             assert os.environ["TEST1"] == "1"

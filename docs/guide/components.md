@@ -59,8 +59,8 @@ components:
 The key idea of a component is to encapsulate an executable unit of your code. It is useful to think of them as 'functions' that you can call with different configuration arguments. In fact, executing a component is not very different from a standard function call:
 
 ```python
-from machinable import execute
-execute("optimization")
+from machinable import Execution
+Execution("optimization").submit()
 ```
 
 Component [execution](execution.md) will be covered in greater detail later, but at this point, it is useful to think of it as a function call that provides arguments (i.e. the configuration, a random seed, a directory to store results etc.) and that triggers the component code. 

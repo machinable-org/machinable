@@ -7,9 +7,9 @@ machinable provides different execution engines that enable seamless parallel an
 By default, the native engine is used. The engine supports parallel execution using Python's multiprocessing.
 
 ``` python
-execute(Experiment().component('demo'), engine='native')
+Execution(Experiment().component('demo'), engine='native')
 # use a maximum of 10 processes in parallel
-execute(Experiment().component('demo'), engine='native:10')
+Execution(Experiment().component('demo'), engine='native:10')
 ```
 
 ## Ray
@@ -19,7 +19,7 @@ execute(Experiment().component('demo'), engine='native:10')
 To execute using the connected Ray backend use the Ray driver:
 
 ``` python
-execute(Experiment().component('demo'), engine='ray')
+Execution(Experiment().component('demo'), engine='ray')
 ```
 
 ## Slurm
@@ -27,7 +27,7 @@ execute(Experiment().component('demo'), engine='ray')
 The Slurm Workload Manager is a free and open-source job scheduler, used by many computing clusters. To execute schedule jobs on a Slurm cluster, specify the resources in the component argument.
 
 ```python
-execute(
+Execution(
     Experiment().component(
         'demo',
         resources=[
@@ -61,5 +61,5 @@ class CustomEngine(Engine):
 
     # implement abstract methods
 
-execute(Experiment().component('demo'), engine=CustomEngine())
+Execution(Experiment().component('demo'), engine=CustomEngine())
 ```
