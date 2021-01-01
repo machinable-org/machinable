@@ -77,7 +77,6 @@ function getGuideSidebar () {
         'composition',
         'imports',
         'mixins',
-        'exporting'
       ]
     },
     {
