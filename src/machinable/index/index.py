@@ -5,8 +5,8 @@ import copy
 import importlib
 import os
 
+from machinable.collection.submission import SubmissionCollection
 from machinable.filesystem.filesystem import open_fs
-from machinable.submission.collections import SubmissionCollection
 from machinable.submission.submission import Submission
 from machinable.utils.dicts import update_dict
 from machinable.utils.formatting import exception_to_str

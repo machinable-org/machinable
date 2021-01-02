@@ -16,7 +16,7 @@ from machinable.registration import Registration
 from machinable.storage import Storage
 from machinable.storage.log import Log
 from machinable.storage.record import Record
-from machinable.submission.component import SubmissionComponent
+from machinable.submission.submission import Submission
 from machinable.utils.dicts import update_dict
 from machinable.utils.formatting import exception_to_str
 from machinable.utils.host import get_host_info
@@ -289,12 +289,12 @@ class Component(Mixin):
         return self.storage.log
 
     @property
-    def submission(self) -> Optional[SubmissionComponent]:
+    def submission(self) -> Optional[Submission]:
         """Submission of this component"""
         if self._storage is None:
             return None
         if self._submission is None:
-            self._submission = SubmissionComponent(self.storage.get_url())
+            self._submission = Submission(self.storage.get_url())
         return self._submission
 
     @property

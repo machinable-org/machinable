@@ -1,7 +1,20 @@
-from machinable.submission.collections.base import Collection
+from machinable.collection.collection import Collection
 
 
-class SubmissionComponentCollection(Collection):
+class SubmissionCollection(Collection):
+    @property
+    def components(self):
+        if len(self._items) == 0:
+            return SubmissionComponentCollection()
+        components = self._items[0].components
+        if len(self._items) == 1:
+            return components
+        for experiment in self._items[1:]:
+            components.merge(experiment.components)
+        return SubmissionComponentCollection(
+            components.unique(lambda x: x.component_id)
+        )
+
     def status(self, status="started"):
         """Filters the collection by a status attribute
 

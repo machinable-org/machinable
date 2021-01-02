@@ -1,4 +1,4 @@
-from machinable.submission.collections.base import Collection
+from machinable.collection.collection import Collection
 
 
 class RecordCollection(Collection):
