@@ -1,7 +1,7 @@
 import json
 
 from machinable.execution import Execution
-from machinable.server.types.mutatation.mutation_type import mutation
+from machinable.graphql.mutation.mutation_type import mutation
 
 
 def from_string(value):

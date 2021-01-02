@@ -1,2 +1,0 @@
-directive @json on FIELD_DEFINITION
-directive @method on FIELD_DEFINITION

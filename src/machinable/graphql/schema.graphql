@@ -1,0 +1,76 @@
+directive @json on FIELD_DEFINITION
+directive @method on FIELD_DEFINITION
+
+scalar JSON
+scalar DateTime
+
+type Repository {
+  url: String!
+  executions: [Execution]
+  experiments: [Experiment]
+  related: [Repository]
+  ancestor: Repository
+}
+
+type Execution {
+  url: String!
+  code_diff: String
+  code_backup: JSON @json
+  code_version: JSON @json
+  host: JSON @json
+  submitted_at: DateTime
+  timestamp: Float
+  project: JSON @json
+  engine: JSON @json
+  experiments: [Experiment]
+}
+
+type ExperimentInput {
+  test: Int
+}
+
+type Experiment {
+  url: String!
+  experiment_id: String!
+  seed: Int
+  config: JSON @json
+  flags: JSON @json
+  tuning: Boolean
+  host: JSON @json
+  state: JSON @json
+  started_at: DateTime
+  heartbeat_at: DateTime
+  finished_at: DateTime
+  is_finished: Boolean @method
+  is_started: Boolean @method
+  is_active: Boolean @method
+  is_incomplete: Boolean @method
+  execution: Execution!
+  related: [Repository] # /related
+  ancestor: Experiment
+}
+
+type IndexSubscriptionDelta {
+  experiments: [Experiment]
+  updates: [Experiment]
+}
+
+type Query {
+  repository: Repository
+  server: String
+  submission(url: String!): Experiment
+}
+
+type Mutation {
+  execute(
+    experiment: String!
+    storage: String
+    engine: String
+    project: String
+    seed: String
+  ): Execution
+}
+
+type Subscription {
+  index(index: JSON!, limit: Int): IndexSubscriptionDelta
+}

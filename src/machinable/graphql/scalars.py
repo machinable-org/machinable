@@ -26,4 +26,4 @@ def parse_json(value):
     return json.loads(value)
 
 
-scalar_types = [datetime_scalar, json_scalar]
+scalars = [datetime_scalar, json_scalar]

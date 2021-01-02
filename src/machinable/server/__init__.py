@@ -1,1 +1,1 @@
-from .server import server
+from machinable.server.server import server
