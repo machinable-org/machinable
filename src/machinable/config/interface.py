@@ -6,7 +6,7 @@ import yaml
 from flatten_dict import unflatten
 from machinable.config.mapping import config_map
 from machinable.config.parser import parse_mixins
-from machinable.experiment.experiment import ExperimentComponent
+from machinable.experiment.experiment import Experiment
 from machinable.settings import get_settings
 from machinable.utils.dicts import update_dict
 from machinable.utils.importing import ModuleClass

@@ -25,3 +25,15 @@ class Jsonable:
     @classmethod
     def unserialize(cls, serialized):
         raise NotImplementedError
+
+
+class Discoverable(type):
+    def __init_subclass__(cls, **kwargs):
+        super().__init_subclass__(**kwargs)
+        # register(cls) todo
+
+    @classmethod
+    def discover(cls):
+        resolved = resolve_instance(args, Experiment, "_machinable.experiments")
+        if resolved is not None:
+            return resolved

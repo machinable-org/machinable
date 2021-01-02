@@ -32,7 +32,7 @@ from machinable.utils.identifiers import (
     generate_submission_id,
 )
 from machinable.utils.importing import resolve_instance
-from machinable.utils.traits import Jsonable
+from machinable.utils.traits import Discoverable, Jsonable
 from machinable.utils.utils import sentinel
 
 
@@ -61,26 +61,30 @@ def _code_backup_settings(value):
 _latest = [None]
 
 
-class Execution(Jsonable):
+class Execution(Jsonable, Discoverable):
     def __init__(
         self,
         experiment: Union[Experiment, Callable, Any, None] = sentinel,
         storage: Union[dict, str, None] = None,
         engine: Union[Engine, str, dict, None] = None,
-        index: Union[Index, str, dict, None] = None,
         project: Union[Project, Callable, str, dict, None] = None,
-        seed: Union[int, str, None] = None,
+        code_backup: Union[bool, None] = None,
     ):
         self.experiment = None
-        self.storage = Storage()
+        self.storage = None
         self.engine = None
-        self.index = None
-        self.project = None
-        self.seed = None
+
+        if project is None:
+            project = get_settings()["default_project"]
+
+        self.project = Project.create(project)
+
+        # assign project registration
+        self._registration = self.project.registration
 
         self.timestamp = None
         self.schedule = Schedule()
-        self.code_backup = None
+        self.code_backup = code_backup
         self.code_version = None
         self.started_at = None
 
@@ -88,21 +92,9 @@ class Execution(Jsonable):
         self.failures = 0
         self._registration = None
 
-        # this may extend the PYTHONPATH and must thus be called before any import-dependent methods below
-        self.set_project(project)
         self.set_storage(storage)
         self.set_experiment(experiment)
         self.set_engine(engine)
-        self.set_index(index)
-        self.set_seed(seed)
-
-    @classmethod
-    def latest(cls):
-        return _latest[0]
-
-    @classmethod
-    def set_latest(cls, latest):
-        _latest[0] = latest
 
     @classmethod
     def create(self, args):
@@ -112,9 +104,9 @@ class Execution(Jsonable):
         if args is None:
             return Execution()
 
-        resolved = resolve_instance(args, Execution, "_machinable.executions")
-        if resolved is not None:
-            return resolved
+        discovered = cls.discover()
+        if discovered is not None:
+            return discovered
 
         if isinstance(args, dict):
             return Execution(**args)
@@ -165,17 +157,6 @@ class Execution(Jsonable):
             index = get_settings()["default_index"]
 
         self.index = Index.get(index)
-
-        return self
-
-    def set_project(self, project):
-        if project is None:
-            project = get_settings()["default_project"]
-
-        self.project = Project.create(project)
-
-        # assign project registration
-        self._registration = self.project.registration
 
         return self
 
@@ -336,6 +317,34 @@ class Execution(Jsonable):
         ):
             pass
         return False
+
+    def set_experiment(self, experiment, resources=None):
+        """
+        experiment: Can be a list
+        resources: dict, specifies the resources that are available to the component.
+            This can be computed by passing in a callable (see below)
+
+        # Dynamic resource computation
+
+        You can condition the resource specification on the configuration, for example:
+        ```python
+        resources = lambda(engine, component, components): {'gpu': component.config.num_gpus }
+        ```
+        The arguments of the callable are:
+        engine - The engine instance
+        component - The full component specification (config, flags, module)
+        components - List of sub-component specifications
+
+        """
+        pass
+
+    def name(self, name: str):
+        """Sets an experiment name
+
+        # Arguments
+        name: String, experiment name.
+            Must be a valid Python variable name or path e.g. `my_name` or `example.name` etc.
+        """
 
     def submit(self):
         # publish project registration used during execution
