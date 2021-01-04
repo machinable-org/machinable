@@ -291,17 +291,17 @@ dev = ["pip", "nose", "wheel", "flake8", "coverage", "psycopg2-binary", "pymysql
 
 [[package]]
 name = "deepdiff"
-version = "5.0.2"
+version = "5.2.1"
 description = "Deep Difference and Search of any Python object/data."
 category = "main"
 optional = true
-python-versions = ">=3.5"
+python-versions = ">=3.6"
 
 [package.dependencies]
-ordered-set = ">=4.0.1"
+ordered-set = "4.0.2"
 
 [package.extras]
-murmur = ["mmh3"]
+cli = ["click (==7.1.2)", "pyyaml (==5.3.1)", "toml (==0.10.2)", "clevercsv (==0.6.6)"]
 
 [[package]]
 name = "distlib"
@@ -1349,7 +1349,7 @@ server = ["ariadne", "uvicorn"]
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.6.1"
-content-hash = "75fe26b63b155020de2790ed28b517fcd0883b6a6ce6d88b8c21b9e91783a135"
+content-hash = "e1effa5cb6e468fab53aaddf2ec35d49e01c390884b7170c264677967b1efc82"
 
 [metadata.files]
 aiohttp = [
@@ -1494,8 +1494,8 @@ dataset = [
     {file = "dataset-1.4.2.tar.gz", hash = "sha256:4dc990c398f5acb534919a771da775ec879b37e682ba5dad72df7a4f1a717327"},
 ]
 deepdiff = [
-    {file = "deepdiff-5.0.2-py3-none-any.whl", hash = "sha256:273b18d32bb9b956548290b2e3ddf79c515def2dd5738965f4348ae813e710c5"},
-    {file = "deepdiff-5.0.2.tar.gz", hash = "sha256:e2b74af4da0ef9cd338bb6e8c97242c1ec9d81fcb28298d7bb24acdc19ea79d7"},
+    {file = "deepdiff-5.2.1-py3-none-any.whl", hash = "sha256:5e2b90ebe9d371af493a893306546f69dc117e7a36596b97f8fe56869dd0c35d"},
+    {file = "deepdiff-5.2.1.tar.gz", hash = "sha256:2e368943dc257f6fa93d9ce4537dbcd4fea65098208a0f49f675cf40132c1a89"},
 ]
 distlib = [
     {file = "distlib-0.3.1-py2.py3-none-any.whl", hash = "sha256:8c09de2c67b3e7deef7184574fc060ab8a793e7adbb183d942c389c8b13c52fb"},
