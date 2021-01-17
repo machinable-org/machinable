@@ -6,22 +6,6 @@ import pendulum
 from dotmap import DotMap
 
 
-def get_or_fail(dict_likes, key, error="'{}' not found", options=None):
-    if not isinstance(dict_likes, (list, tuple)):
-        dict_likes = [dict_likes]
-
-    for i, dict_like in enumerate(dict_likes):
-        if key in dict_like:
-            return dict_like[key]
-
-    if isinstance(options, (list, tuple)):
-        options = "\n Available: " + ", ".join(options)
-    else:
-        options = ""
-
-    raise KeyError(error.format(key) + options)
-
-
 def update_dict(d, update=None, copy=False, preserve_schema=False):
     if preserve_schema is True:
         preserve_schema = ""
