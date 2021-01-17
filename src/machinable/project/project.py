@@ -27,11 +27,17 @@ from machinable.utils.vcs import get_commit, get_diff, get_root_commit
 
 
 class Project(Jsonable, Discoverable):
-    def __init__(self, directory: Optional[str] = None, parent=None):
+    def __init__(
+        self,
+        directory: Optional[str] = None,
+        name: Optional[str] = None,
+        parent=None,
+    ):
         if directory is None:
             directory = os.getcwd()
         self.directory: str = directory
-        self.parent = parent
+        self._name: Optional[str] = name
+        self.parent: Optional[Project] = parent
 
         self.config_file: str = "machinable.yaml"
         self.vendor_caching = get_settings()["cache"].get("imports", False)
@@ -63,15 +69,22 @@ class Project(Jsonable, Discoverable):
         return self.__repr__()
 
     @property
-    def config_filepath(self):
+    def config_filepath(self) -> str:
         return os.path.join(self.directory, self.config_file)
 
     @property
-    def directory_path(self):
+    def directory_path(self) -> str:
         return os.path.abspath(self.directory)
 
-    def path(self, *append):
+    def path(self, *append) -> str:
         return os.path.join(self.directory_path, *append)
+
+    @property
+    def name(self) -> Optional[str]:
+        if self._name is None:
+            self._name = self.get_config().get("name", None)
+
+        return self._name
 
     @property
     def directory_prefix(self):
@@ -356,7 +369,7 @@ class Project(Jsonable, Discoverable):
 
     def parse_imports(self, cached=None):
         if cached is None:
-            cached = self.get_root().options["vendor_caching"]
+            cached = self.get_root().vendor_caching
 
         config = self.get_config()["+"]
 

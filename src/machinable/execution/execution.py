@@ -14,7 +14,6 @@ from machinable.collection.experiment import ExperimentCollection
 from machinable.config.interface import ConfigInterface
 from machinable.config.mapping import config_map
 from machinable.engine import Engine
-from machinable.execution.schedule import Schedule
 from machinable.experiment.experiment import Experiment
 from machinable.experiment.parser import parse_experiment
 from machinable.filesystem import open_fs

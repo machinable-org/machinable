@@ -1,6 +1,6 @@
 import os
 
-from machinable.utils.identifiers import decode_submission_id
+from machinable.utils.utils import decode_experiment_id
 
 
 def open_fs(config):
@@ -38,7 +38,7 @@ def parse_storage_url(url):
         # if component, switch to experiment
         parsed["component_id"] = parsed["submission_id"]
         parsed["submission_id"] = os.path.basename(os.path.dirname(resource))
-    decode_submission_id(parsed["submission_id"], or_fail=True)
+    decode_experiment_id(parsed["submission_id"], or_fail=True)
     return parsed
 
 
