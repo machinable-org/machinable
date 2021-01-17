@@ -11,7 +11,7 @@ schema_validation: True
 default_storage:
   url: mem://
 default_engine:
-default_index:
+default_name:
 default_project:
 default_code_backup:
   enabled:
