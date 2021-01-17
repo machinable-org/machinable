@@ -1,7 +1,7 @@
 import regex
 from flatten_dict import unflatten
 from machinable.config.mapping import _reserved_keys, _used_keys
-from machinable.utils.dicts import get_or_fail, read_path_dict, update_dict
+from machinable.utils.dicts import read_path_dict, update_dict
 from machinable.utils.formatting import msg
 from machinable.utils.importing import ModuleClass
 from machinable.utils.utils import is_valid_variable_name
@@ -181,6 +181,9 @@ def parse_module_list(
 
         return modules
 
+    if isinstance(collection, str):
+        collection = {collection: {}}
+
     for module, args in collection.items():
 
         flags = {"LINEAGE": []}
@@ -205,11 +208,12 @@ def parse_module_list(
             module, parent = module.split("^")
 
             if parent.startswith("+."):
-                inherited = get_or_fail(
-                    imports,
-                    parent.replace("+.", ""),
-                    error="Dependency '^+.{}'  not found. Did you register it under '+'?",
-                )
+                try:
+                    inherited = imports[parent.replace("+.", "")]
+                except KeyError as e:
+                    raise KeyError(
+                        f"Dependency '^{parent}' not found. Did you register it under '+'?"
+                    ) from e
 
                 if "_mixins_" in inherited["config"]:
                     inherited["config"]["_mixins_"] = [
@@ -245,11 +249,12 @@ def parse_module_list(
 
         # if import module, check if existing
         if module.startswith("+."):
-            import_config = get_or_fail(
-                imports,
-                module.replace("+.", ""),
-                error="Dependency '+.{}' not found. Did you register it under '+'?",
-            )
+            try:
+                import_config = imports[module.replace("+.", "")]
+            except KeyError as e:
+                raise KeyError(
+                    f"Dependency '{module}' not found. Did you register it under '+'?",
+                ) from e
             flags["LINEAGE"] += import_config["flags"]["LINEAGE"]
 
             d = import_config["config"].copy()
@@ -284,7 +289,7 @@ def parse_module_list(
         modules[module] = {
             "module": module_import,
             "class": cls,
-            "args": args,
+            "config": args,
             "flags": flags,
         }
 

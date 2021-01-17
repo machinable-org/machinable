@@ -1,3 +1,5 @@
+from typing import List, Tuple, Union
+
 import copy
 import inspect
 from collections import OrderedDict
@@ -10,6 +12,7 @@ from machinable.experiment.experiment import Experiment
 from machinable.settings import get_settings
 from machinable.utils.dicts import update_dict
 from machinable.utils.importing import ModuleClass
+from machinable.utils.utils import call_with_context
 
 
 def _collect_updates(version):
@@ -42,45 +45,10 @@ def _mark_mixin_as_override(mixin):
 
 
 class ConfigInterface:
-    def __init__(self, parsed_config, version=None, default_class=None):
+    def __init__(self, parsed_config, version=None):
         self.data = parsed_config
-        if version is None:
-            version = []
-        self.version = version
-        self.default_class = default_class
+        self.version = version or []
         self.schema_validation = get_settings()["schema_validation"]
-
-    @staticmethod
-    def call_with_context(function, component, components=None, resources=None):
-        signature = inspect.signature(function)
-        payload = OrderedDict()
-
-        for index, (key, parameter) in enumerate(signature.parameters.items()):
-            if parameter.kind is not parameter.POSITIONAL_OR_KEYWORD:
-                # disallow *args and **kwargs
-                raise TypeError(
-                    f"Method only allows simple positional or keyword arguments,"
-                    f"for example lambda(node, components, resources)"
-                )
-
-            if key == "component":
-                payload["component"] = component
-            elif key == "config":
-                payload["config"] = config_map(component["config"])
-            elif key == "flags":
-                payload["flags"] = config_map(component["flags"])
-            elif components is not None and key == "components":
-                payload["components"] = components
-            elif resources is not None and key == "resources":
-                payload["resources"] = resources
-            else:
-                raise ValueError(
-                    f"Unrecognized argument: '{key}'. "
-                    f"Experiment directory takes the following arguments: "
-                    f"'node', 'components' and 'resources'"
-                )
-
-        return function(**payload)
 
     def _get_version(self, name, config):
         # from mixin
@@ -116,7 +84,7 @@ class ConfigInterface:
             f"Available versions: {[f for f in config.keys() if f.startswith('~')]}\n"
         )
 
-    def get_component(self, name, version=None, flags=None):
+    def component(self, name: str, version=None, flags=None) -> dict:
         if name is None:
             return None
 
@@ -128,14 +96,6 @@ class ConfigInterface:
                     filter(lambda x: x != "@", self.data["components"].keys())
                 )
             )
-
-        if self.default_class is not None:
-            self.data["components"][name]["class"] = self.default_class
-
-        if isinstance(self.data["components"][name]["class"], ModuleClass):
-            self.data["components"][name][
-                "class"
-            ].default_class = self.default_class
 
         # de-reference
         config = copy.deepcopy(self.data["components"][name])
@@ -314,8 +274,12 @@ class ConfigInterface:
                     # evaluate computed properties
                     for key in k.keys():
                         if callable(k[key]):
-                            k[key] = self.call_with_context(k[key], config)
-
+                            k[key] = call_with_context(
+                                k[key],
+                                component=config,
+                                config=config_map(config["config"]),
+                                flags=config_map(config["flags"]),
+                            )
                 # unflatten
                 if k.get("_unflatten", True):
                     k = unflatten(k, splitter="dot")
@@ -343,24 +307,12 @@ class ConfigInterface:
 
         return config
 
-    def get(self, component, components=None):
-        component = ExperimentComponent.create(component)
-        node_config = self.get_component(
-            component.name, component.version, component.flags
+    def experiment(
+        self, experiment: Union[Experiment, str]
+    ) -> Tuple[dict, List[dict]]:
+        experiment = Experiment.make(experiment)
+        component = self.component(
+            experiment.component, experiment.version, experiment.flags
         )
-
-        if components is None:
-            return node_config
-
-        components_config = []
-        for c in components:
-            subcomponent = ExperimentComponent.create(c)
-            component_config = self.get_component(
-                subcomponent.name,
-                subcomponent.version,
-                subcomponent.flags,
-            )
-            if component_config is not None:
-                components_config.append(component_config)
-
-        return node_config, components_config
+        components = [self.component(*c) for c in experiment.components]
+        return component, components
