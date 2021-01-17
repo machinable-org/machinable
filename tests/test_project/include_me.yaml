@@ -1,6 +1,0 @@
-mixins:
-  - mixin: included
-components:scope:
-  - section: included
-components:
-  - component: included

@@ -5,44 +5,12 @@
 from unittest import TestCase
 
 import pytest
-from machinable import Submission
-from machinable.collection import Collection, SubmissionCollection, collect
+from machinable.collection import Collection, collect
+from machinable.collection.experiment import ExperimentCollection
 
 
 def test_collect():
     assert isinstance(collect([1, 2]), Collection)
-
-
-def test_experiment_collection():
-    assert False
-    c = SubmissionCollection(
-        [Submission.find("./_test_data/storage/tttttt") for _ in range(3)]
-    )
-    cc = c.components
-    assert isinstance(cc, SubmissionComponentCollection)
-    assert len(cc) == 4
-
-
-def test_component_collection():
-    assert False
-    submission = Submission.find("./_test_data/storage/tttttt")
-    import numpy as np
-
-    def o(x):
-        return x.records.pluck("number")
-
-    assert max(submission.components.section(o, reduce=np.var)) > 0
-    df = submission.components.as_dataframe()
-    assert df.size == 4 * 9
-    r = submission.components.first().records
-    num_elements = len(r.pluck("number"))
-    with pytest.raises(KeyError):
-        r.pluck("not_existing")
-    nones = r.pluck_or_none("not_existing")
-    assert all([e is None for e in nones])
-
-    experiments = Submission.find_many("./_test_data/storage/tttttt")
-    assert experiments.take(2).as_dataframe().size == 12
 
 
 class CollectionTestCase(TestCase):
