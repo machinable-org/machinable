@@ -1,7 +1,7 @@
 import os
 
 from ariadne.asgi import GraphQL
-from machinable.graphql import schema
+from machinable.graphql.schema import schema
 from machinable.server.filesystem import filesystem_resolver
 from starlette.applications import Starlette
 from starlette.middleware import Middleware

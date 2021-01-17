@@ -6,7 +6,7 @@ from machinable.config.mapping import ConfigMap
 from machinable.utils.dicts import serialize
 
 
-def to_json(obj):
+def as_json(obj):
     if isinstance(obj, ConfigMap):
         obj = obj.as_dict(evaluate=True)
 
@@ -23,9 +23,9 @@ class JsonDirective(SchemaDirectiveVisitor):
                 return None
 
             if isinstance(result, list):
-                return [to_json(o) for o in result]
+                return [as_json(o) for o in result]
 
-            return to_json(result)
+            return as_json(result)
 
         field.resolve = resolve_jsonable
         return field

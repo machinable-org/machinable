@@ -4,32 +4,130 @@ directive @method on FIELD_DEFINITION
 scalar JSON
 scalar DateTime
 
+type Query {
+  repository(url: String): Repository
+  server: String
+}
+
+type Mutation {
+  createRepository(url: String): Repository
+}
+
+type Subscription {
+  index(index: JSON!, limit: Int): IndexSubscriptionDelta
+}
+
 type Repository {
   url: String!
   executions: [Execution]
   experiments: [Experiment]
+  experiment(experiment_id: String!): Experiment
   related: [Repository]
   ancestor: Repository
 }
 
-type Execution {
-  url: String!
-  code_diff: String
-  code_backup: JSON @json
-  code_version: JSON @json
-  host: JSON @json
-  submitted_at: DateTime
-  timestamp: Float
-  project: JSON @json
-  engine: JSON @json
-  experiments: [Experiment]
-}
+# type Execution {
+#   url: String!
+#   code_diff: String
+#   code_backup: JSON @json
+#   code_version: JSON @json
+#   host: JSON @json
+#   submitted_at: DateTime
+#   timestamp: Float
+#   project: JSON @json
+#   engine: JSON @json
+#   experiments: [Experiment]
+# }
 
 type ExperimentInput {
   test: Int
 }
 
+type Component {
+  name: String
+  config: JSON @json
+  flags: JSON @json
+}
+
+type Record {
+  scope: String
+  created_at: DateTime
+  updated_at: DateTime
+  count: Int
+  rows: [JSON]
+}
+
+type Host {
+  network_name: String
+  hostname: String
+  machine: String
+  python_version: String
+  user: String
+  environ: JSON @json
+  argv: [String]
+  machinable_version: String
+}
+
 type Experiment {
+  experiment_id: String!
+  component: Component!
+  components: [Component]!
+  host: Host
+  log: String
+  output: String
+  started_at: DateTime
+  heartbeat_at: DateTime
+  finished_at: DateTime
+  data: [String] # todo
+  records: [Record]
+}
+
+type BackupConfiguration {
+  enabled: Boolean
+  exclude: [String]
+}
+
+type GitInfo {
+  path: String
+  commit: String
+  is_dirty: Boolean
+  branch: String
+}
+
+type GitInfoMap {
+  key: String
+  value: GitInfo
+}
+
+type CodeVersion {
+  id: String
+  project: GitInfo
+  vendor: [GitInfoMap]
+}
+
+type Project {
+  directory: String
+  config_file: String
+  name: String
+}
+
+type Engine {
+  type: String
+  config: JSON
+}
+
+type Execution {
+  code_diff: String
+  code_backup: BackupConfiguration
+  code_version: CodeVersion
+  code: String # url
+  engine: Engine
+  project: Project
+  host: Host
+  experiments: [Component]
+}
+
+type Submission {
   url: String!
   experiment_id: String!
   seed: Int
@@ -53,24 +151,4 @@ type Experiment {
 type IndexSubscriptionDelta {
   experiments: [Experiment]
   updates: [Experiment]
-}
-
-type Query {
-  repository: Repository
-  server: String
-  submission(url: String!): Experiment
-}
-
-type Mutation {
-  execute(
-    experiment: String!
-    storage: String
-    engine: String
-    project: String
-    seed: String
-  ): Execution
-}
-
-type Subscription {
-  index(index: JSON!, limit: Int): IndexSubscriptionDelta
 }
