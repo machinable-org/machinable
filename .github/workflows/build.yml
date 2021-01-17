@@ -41,7 +41,7 @@ jobs:
         run: |
           source .venv/bin/activate
           pyupgrade --py36-plus
-      - name: isort --check .
+      - name: isort . --check
         run: |
           source .venv/bin/activate
           isort --settings-path pyproject.toml
