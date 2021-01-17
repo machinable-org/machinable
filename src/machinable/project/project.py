@@ -1,3 +1,5 @@
+from typing import Optional
+
 import copy
 import inspect
 import mimetypes
@@ -9,6 +11,7 @@ import time
 import pendulum
 from machinable.component.component import Component as BaseComponent
 from machinable.component.mixin import Mixin as BaseMixin
+from machinable.config.interface import ConfigInterface
 from machinable.config.loader import from_callable as load_config_from_callable
 from machinable.config.loader import from_file as load_config_file
 from machinable.config.loader import from_string as load_config_from_string
@@ -18,31 +21,23 @@ from machinable.settings import get_settings
 from machinable.utils.dicts import update_dict
 from machinable.utils.formatting import exception_to_str, msg
 from machinable.utils.importing import import_module_from_directory
-from machinable.utils.traits import Jsonable
+from machinable.utils.traits import Discoverable, Jsonable
 from machinable.utils.utils import is_valid_module_path, is_valid_variable_name
 from machinable.utils.vcs import get_commit, get_diff, get_root_commit
 
 
-class Project(Jsonable):
-    def __init__(self, options=None, parent=None):
-        if isinstance(options, str):
-            options = {"directory": options}
-
-        self.options = update_dict(
-            {
-                "directory": os.getcwd(),
-                "config_file": "machinable.yaml",
-                "config": None,
-                "vendor_caching": get_settings()["cache"].get("imports", False),
-                "name": None,
-            },
-            options,
-        )
+class Project(Jsonable, Discoverable):
+    def __init__(self, directory: Optional[str] = None, parent=None):
+        if directory is None:
+            directory = os.getcwd()
+        self.directory: str = directory
         self.parent = parent
 
-        self.config = None
-        self.parsed_config = None
-        self._name_exception = None
+        self.config_file: str = "machinable.yaml"
+        self.vendor_caching = get_settings()["cache"].get("imports", False)
+
+        self._config = None
+        self._parsed_config = None
 
         if (
             os.path.exists(self.directory_path)
@@ -53,76 +48,41 @@ class Project(Jsonable):
             else:
                 sys.path.append(self.directory_path)
 
+    def configuration(self) -> ConfigInterface:
+        return ConfigInterface(self.parse_config())
+
+    def parse_experiment(self, experiment):
+        return self.configuration().experiment(experiment)
+
     def __repr__(self):
         r = "Project"
         r += f" <{self.directory_path}>"
-        if self.name is not None:
-            r += f" ({self.name})"
         return r
 
     def __str__(self):
         return self.__repr__()
 
-    @classmethod
-    def create(cls, args=None):
-        """Creates a project instance"""
-        if isinstance(args, cls):
-            return args
-
-        if args is None:
-            return cls()
-
-        if isinstance(args, str):
-            return cls({"directory": args})
-
-        if isinstance(args, tuple):
-            return cls(*args)
-
-        raise ValueError(f"Invalid project: {args}")
-
-    @property
-    def name(self):
-        if self.options["name"] is None:
-            self.options["name"] = self.get_config().get("name", None)
-
-        if self.options["name"] is not None and not is_valid_module_path(
-            self.options["name"]
-        ):
-            if not self._name_exception:
-                msg(
-                    f"Invalid project name: '{self.options['name']}'.\n"
-                    f"Name must be a valid Python name or path, e.g. `valid_name.example`.",
-                    level="warning",
-                    color="fail",
-                )
-                self._name_exception = True
-            self.options["name"] = None
-
-        return self.options["name"]
-
     @property
     def config_filepath(self):
-        return os.path.join(
-            self.options["directory"], self.options["config_file"]
-        )
+        return os.path.join(self.directory, self.config_file)
 
     @property
     def directory_path(self):
-        return os.path.abspath(self.options["directory"])
+        return os.path.abspath(self.directory)
 
     def path(self, *append):
         return os.path.join(self.directory_path, *append)
 
     @property
     def directory_prefix(self):
-        if self.options["directory"] == ".":
+        if self.directory == ".":
             return ""
 
-        return self.options["directory"]
+        return self.directory
 
     @property
     def vendor_directory(self):
-        return os.path.join(self.options["directory"], "vendor")
+        return os.path.join(self.directory, "vendor")
 
     @property
     def vendor_path(self):
@@ -143,7 +103,9 @@ class Project(Jsonable):
         return prefix.replace("/", ".")
 
     def serialize(self):
-        return copy.deepcopy(self.options)
+        return {
+            "directory": self.directory,
+        }
 
     @classmethod
     def unserialize(cls, serialized):
@@ -164,7 +126,7 @@ class Project(Jsonable):
 
     def has_config_file(self):
         return os.path.isfile(
-            os.path.join(self.directory_path, self.options["config_file"])
+            os.path.join(self.directory_path, self.config_file)
         )
 
     def has_registration(self):
@@ -205,42 +167,46 @@ class Project(Jsonable):
 
         return registration
 
-    def get_config(self, cached="auto"):
-        if cached == "auto":
-            # todo: reliably compute hash including vendors to determine changes
-            cashed = False
+    def set_config(self, config=None) -> "Project":
+        """Set configuration for this project
 
-        if cached is not False and self.config is not None:
-            return self.config
+        This allows to manually override the file-based configuration
+        of this project"""
+        if isinstance(config, str):
+            self._config = load_config_from_string(config)
+        else:
+            self._config = config
+        if not isinstance(self._config, dict):
+            raise ValueError(f"Invalid project configuration: '{config}'")
+        return self
+
+    def get_config(self, cached=None):
+        if cached is None:
+            # in future, we could compute a hash that includes vendors to determine changes
+            #  and reload more efficiently
+            cached = False
+
+        if cached is not False and self._config is not None:
+            return self._config
 
         # load config
-        self.parsed_config = None
-        if self.options["config"] is not None:
-            # direct specification
-            if isinstance(self.options["config"], str):
-                self.config = load_config_from_string(self.options["config"])
-            else:
-                self.config = self.options["config"]
-            if not isinstance(self.config, dict):
-                raise ValueError(
-                    f"Invalid project configuration: '{self.options['options']}'"
-                )
-        elif self.has_config_file():
-            self.config = load_config_file(self.config_filepath, default={})
+        self._parsed_config = None
+        if self.has_config_file():
+            self._config = load_config_file(self.config_filepath, default={})
         else:
-            self.config = {}
+            self._config = {}
 
         # validate and set defaults
-        self.config.setdefault("_evaluate", True)
+        self._config.setdefault("_evaluate", True)
 
-        self.config.setdefault("+", [])
+        self._config.setdefault("+", [])
         assert isinstance(
-            self.config["+"], (tuple, list)
-        ), "Invalid import definition: " + str(self.config["+"])
+            self._config["+"], (tuple, list)
+        ), "Invalid import definition: " + str(self._config["+"])
 
-        self.config.setdefault("mixins", [])
+        self._config.setdefault("mixins", [])
 
-        return self.config
+        return self._config
 
     def backup_source_code(
         self, filepath="code.zip", opener=None, exclude=None, echo=None
@@ -383,10 +349,10 @@ class Project(Jsonable):
         )
 
     def reload_imports(self):
-        vendor_caching = self.options["vendor_caching"]
-        self.options["vendor_caching"] = False
+        vendor_caching = self.vendor_caching
+        self.vendor_caching = False
         self.parse_imports()
-        self.options["vendor_caching"] = vendor_caching
+        self.vendor_caching = vendor_caching
 
     def parse_imports(self, cached=None):
         if cached is None:
@@ -412,9 +378,7 @@ class Project(Jsonable):
             else:
                 # use project abstraction to resolve imports
                 import_project = Project(
-                    os.path.join(
-                        self.options["directory"], "vendor", import_name
-                    ),
+                    os.path.join(self.directory, "vendor", import_name),
                     parent=self,
                 )
 
@@ -435,13 +399,12 @@ class Project(Jsonable):
 
         return imports
 
-    def parse_config(self, reference=True, cached="auto"):
-        if cached == "auto":
-            # todo: detect from hash
+    def parse_config(self, reference=True, cached=None):
+        if cached is None:
             cached = False
 
-        if not cached and self.parsed_config is not None:
-            return self.parsed_config
+        if not cached and self._parsed_config is not None:
+            return self._parsed_config
 
         config = self.get_config(cached)
 
@@ -500,7 +463,7 @@ class Project(Jsonable):
             auto_alias="mixins",
         )
 
-        self.parsed_config = {
+        self._parsed_config = {
             "imports": imports,
             "mixins": mixins,
             "components": components,
@@ -508,4 +471,4 @@ class Project(Jsonable):
             "_evaluate": config["_evaluate"],
         }
 
-        return self.parsed_config
+        return self._parsed_config

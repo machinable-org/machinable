@@ -1,4 +1,4 @@
-from typing import Any, Callable, Union
+from typing import Any, Callable, List, Optional, Union
 
 import ast
 import copy
@@ -10,6 +10,7 @@ import machinable.errors
 import pendulum
 import yaml
 from expandvars import expand
+from machinable.collection.experiment import ExperimentCollection
 from machinable.config.interface import ConfigInterface
 from machinable.config.mapping import config_map
 from machinable.engine import Engine
@@ -26,23 +27,34 @@ from machinable.submission.submission import Submission
 from machinable.utils.dicts import merge_dict, update_dict
 from machinable.utils.formatting import exception_to_str, msg
 from machinable.utils.host import get_host_info
-from machinable.utils.identifiers import (
-    decode_submission_id,
-    encode_submission_id,
-    generate_submission_id,
-)
 from machinable.utils.importing import resolve_instance
 from machinable.utils.traits import Discoverable, Jsonable
-from machinable.utils.utils import sentinel
+from machinable.utils.utils import (
+    decode_experiment_id,
+    encode_experiment_id,
+    generate_experiment_id,
+    generate_nickname,
+    sentinel,
+)
 
 
-def to_color(submission_id):
-    return "".join(
-        [
-            encode_submission_id(decode_submission_id(c) % 16)
-            for c in submission_id
-        ]
-    )
+def _recover_class(element):
+    if "class" not in element:
+        try:
+            element["class"] = ModuleClass(
+                module_name=element["module"], baseclass=BaseComponent
+            ).load(instantiate=False)
+        except ImportError as _ex:
+            # we delay the exception, since a wrapped engine
+            #  might handle the import correctly later
+            class FailedRecovery:
+                def __init__(self, exception):
+                    self.exception = exception
+
+                def __call__(self, *args, **kwargs):
+                    raise self.exception
+
+            element["class"] = FailedRecovery(_ex)
 
 
 def _code_backup_settings(value):
@@ -58,70 +70,113 @@ def _code_backup_settings(value):
     return {"enabled": enabled, "exclude": exclude}
 
 
-_latest = [None]
-
-
 class Execution(Jsonable, Discoverable):
     def __init__(
         self,
-        experiment: Union[Experiment, Callable, Any, None] = sentinel,
+        experiment: Union[Experiment, List[Experiment], None] = None,
         storage: Union[dict, str, None] = None,
         engine: Union[Engine, str, dict, None] = None,
         project: Union[Project, Callable, str, dict, None] = None,
         code_backup: Union[bool, None] = None,
+        name: Optional[str] = None,
     ):
-        self.experiment = None
+        self._experiments: list = []
+        if experiment is not None:
+            self.set_experiment(experiment)
+
         self.storage = None
         self.engine = None
+        self.code_backup = code_backup
+        self.timestamp = None
+        self.started_at = None
+        self.name = None
 
         if project is None:
             project = get_settings()["default_project"]
 
-        self.project = Project.create(project)
+        self.project = Project.make(project)
 
         # assign project registration
         self._registration = self.project.registration
 
-        self.timestamp = None
-        self.schedule = Schedule()
-        self.code_backup = code_backup
-        self.code_version = None
-        self.started_at = None
-
         self.behavior = {"raise_exceptions": False}
         self.failures = 0
-        self._registration = None
+        self._nickname = None
 
         self.set_storage(storage)
-        self.set_experiment(experiment)
+        self.set_code_backup(code_backup)
         self.set_engine(engine)
 
-    @classmethod
-    def create(self, args):
-        if isinstance(args, Execution):
-            return args
+        self.set_name(name)
 
-        if args is None:
-            return Execution()
+    @property
+    def experiments(self) -> ExperimentCollection:
+        """Experiments of the execution"""
+        return ExperimentCollection(self._experiments)
 
-        discovered = cls.discover()
-        if discovered is not None:
-            return discovered
+    @property
+    def nickname(self):
+        if self._nickname is None:
+            self._nickname = generate_nickname()
 
-        if isinstance(args, dict):
-            return Execution(**args)
+        return self._nickname
 
-        if isinstance(args, (list, tuple)):
-            return Execution(*args)
+    def set_experiment(
+        self,
+        experiment: Union[Experiment, List[Experiment]],
+        resources: Optional[dict] = None,
+    ) -> "Execution":
+        """Specify and experiment
 
-        raise ValueError(f"Invalid argument: {args}")
+        Note that this method replaces previously specified experiments.
+        To append an experiment use `add_experiment`.
 
-    def set_experiment(self, experiment):
-        if experiment is sentinel:
-            self.experiment = None
+        # Arguments
+        see add_experiment
+        """
+        self._experiments = []
+        if not isinstance(experiment, (list, tuple)):
+            experiment = [experiment]
+
+        for e in experiment:
+            self.add_experiment(e)
+
+        return self
+
+    def add_experiment(
+        self,
+        experiment: Union[Experiment, List[Experiment]],
+        resources: Optional[dict] = None,
+    ) -> "Execution":
+        """Adds an experiment to the execution
+
+        # Arguments
+        experiment: Experiment or list of Experiments
+        resources: dict, specifies the resources that are available to the component.
+            This can be computed by passing in a callable (see below)
+
+        # Dynamic resource computation
+
+        You can condition the resource specification on the configuration, for example:
+        ```python
+        resources = lambda component: {'gpu': component.config.num_gpus }
+        ```
+        """
+        if isinstance(experiment, (list, tuple)):
+            for e in experiment:
+                self.add_experiment(e)
             return self
 
-        self.experiment = Experiment.create(experiment)
+        # parse the experiment configuration
+        component, components = self.project.parse_experiment(experiment)
+
+        self._experiments.append(
+            {
+                "component": component,
+                "components": components,
+                "resources": resources,
+            }
+        )
 
         return self
 
@@ -149,110 +204,6 @@ class Execution(Jsonable, Discoverable):
             engine = get_settings()["default_engine"]
 
         self.engine = Engine.create(engine)
-
-        return self
-
-    def set_index(self, index):
-        if index is None:
-            index = get_settings()["default_index"]
-
-        self.index = Index.get(index)
-
-        return self
-
-    def set_seed(self, seed):
-        if isinstance(seed, str):
-            seed = decode_submission_id(seed, or_fail=True)
-        elif isinstance(seed, int):
-            seed = generate_submission_id(
-                random_state=seed, with_encoding=False
-            )
-        else:
-            seed = generate_submission_id(with_encoding=False)
-
-        self.seed = seed
-
-        self.schedule.set_seed(seed)
-
-        return self
-
-    def set_schedule(self, schedule=None, registration=None):
-        if schedule is not None:
-            self.schedule = schedule
-            return self
-
-        _set_registration = registration is not False
-        if _set_registration:
-            Registration.reset(registration or self.registration)
-
-        self.schedule = Schedule(seed=self.seed)
-
-        config = ConfigInterface(
-            self.project.parse_config(),
-            self.experiment.specification["version"],
-        )
-
-        for index, (node, components, resources) in enumerate(
-            parse_experiment(self.experiment, seed=self.seed)
-        ):
-            component_config, components_config = config.get(node, components)
-
-            # compute resources
-            if (
-                isinstance(self.engine, Engine)
-                and not self.engine.supports_resources()
-            ):
-                if resources is not None:
-                    msg(
-                        "Engine does not support resource specification. Skipping ...",
-                        level="warn",
-                        color="header",
-                    )
-                    resources = None
-            else:
-                if callable(resources):
-                    resources = resources(
-                        engine=self.engine,
-                        component=component_config,
-                        components=components_config,
-                    )
-
-                default_resources = self.registration.default_resources(
-                    engine=self.engine,
-                    component=component_config,
-                    components=components_config,
-                )
-
-                if resources is None and default_resources is not None:
-                    # use default resources
-                    resources = default_resources
-                elif resources is not None and default_resources is not None:
-                    # merge with default resources
-                    if resources.pop("_inherit_defaults", True) is not False:
-                        canonicalize_resources = getattr(
-                            self.engine, "canonicalize_resources", lambda x: x
-                        )
-                        resources = merge_dict(
-                            canonicalize_resources(default_resources),
-                            canonicalize_resources(resources),
-                        )
-
-            if "tune" in self.experiment.specification:
-                self.schedule.add_tune(
-                    component=component_config,
-                    components=components_config,
-                    resources=resources,
-                    **self.experiment.specification["tune"]["arguments"],
-                )
-            else:
-                self.schedule.add_execute(
-                    component=component_config,
-                    components=components_config,
-                    resources=resources,
-                )
-
-        if _set_registration:
-            Registration.reset()
 
         return self
 
@@ -300,7 +251,7 @@ class Execution(Jsonable, Discoverable):
 
         return self
 
-    def is_submitted(self):
+    def is_submitted(self) -> bool:
         try:
             with open_fs(self.storage.config["url"]) as filesystem:
                 return filesystem.isdir(
@@ -318,35 +269,49 @@ class Execution(Jsonable, Discoverable):
             pass
         return False
 
-    def set_experiment(self, experiment, resources=None):
-        """
-        experiment: Can be a list
-        resources: dict, specifies the resources that are available to the component.
-            This can be computed by passing in a callable (see below)
+    def set_name(self, name: Optional[str] = None) -> "Execution":
+        """Sets the name of the execution
 
-        # Dynamic resource computation
-
-        You can condition the resource specification on the configuration, for example:
-        ```python
-        resources = lambda(engine, component, components): {'gpu': component.config.num_gpus }
-        ```
-        The arguments of the callable are:
-        engine - The engine instance
-        component - The full component specification (config, flags, module)
-        components - List of sub-component specifications
-
-        """
-        pass
-
-    def name(self, name: str):
-        """Sets an experiment name
+        The name is used as relative storage path
 
         # Arguments
-        name: String, experiment name.
-            Must be a valid Python variable name or path e.g. `my_name` or `example.name` etc.
+        name: Name, defaults to '%U_%a_&NICKNAME'
+            May contain the following variables:
+            - &PROJECT will be replaced by project name
+            - &NICKNAME will be replaced by the random nickname of the execution
+            - %x expressions will be replaced by strftime
+            The variables are expanded following GNU bash's variable expansion rules, e.g.
+            `&{NICKNAME:-default_value}` or `&{PROJECT:?}` can be used.
         """
+        if name is None:
+            name = get_settings()["default_name"]
+
+        if name is None:
+            name = "%U_%a_&NICKNAME"
+
+        if not isinstance(name, str):
+            raise ValueError(f"Name has to be a str. '{name}' given.")
+
+        # expand % variables
+        name = expand(
+            name,
+            environ={
+                "PROJECT": self.project.name or "",
+                "NICKNAME": self.nickname,
+            },
+            var_symbol="&",
+        )
+        # apply strftime
+        name = dt.now().strftime(name)
+
+        name = os.path.normpath(name)
+
+        self.name = name
+
+        return self
 
     def submit(self):
+        """Submit execution to engine"""
         # publish project registration used during execution
         Registration.reset(self.registration)
 
@@ -355,44 +320,6 @@ class Execution(Jsonable, Discoverable):
 
         self.failures = 0
         self.storage.config["submission"] = self.submission_id
-
-        # auto-name experiment if imported via @ directive
-        if self.experiment.specification["name"] is None:
-            if hasattr(self.experiment, "_resolved_module_name"):
-                self.experiment.name(self.experiment._resolved_module_name)
-
-        # expand variables in storage directory
-        if isinstance(self.storage.config["directory"], str):
-            # % variables
-            variables = dict()
-
-            variables["PROJECT"] = (
-                self.project.name.replace(".", "/")
-                if self.project.name is not None
-                else None
-            )
-
-            variables["EXPERIMENT"] = (
-                self.experiment.specification["name"].replace(".", "/")
-                if self.experiment.specification["name"] is not None
-                else ""
-            )
-
-            self.storage.config["directory"] = expand(
-                self.storage.config["directory"],
-                environ=variables,
-                var_symbol="&",
-            )
-            # strftime variables
-            try:
-                self.storage.config["directory"] = dt.now().strftime(
-                    self.storage.config["directory"]
-                )
-            except ValueError:
-                pass
-            self.storage.config["directory"] = self.storage.config[
-                "directory"
-            ].strip("/")
 
         # check if URL is an existing experiment
         derived_from = None
@@ -412,8 +339,46 @@ class Execution(Jsonable, Discoverable):
 
         is_submitted = self.is_submitted()
         if not is_submitted:
-            if len(self.schedule) == 0:
-                self.set_schedule(registration=False)
+            # compute resources
+
+            if (
+                isinstance(self.engine, Engine)
+                and not self.engine.supports_resources()
+            ):
+                if resources is not None:
+                    msg(
+                        "Engine does not support resource specification. Skipping ...",
+                        level="warn",
+                        color="header",
+                    )
+                    resources = None
+            else:
+                if callable(resources):
+                    resources = resources(
+                        engine=self.engine,
+                        component=component_config,
+                        components=components_config,
+                    )
+
+                default_resources = self.registration.default_resources(
+                    engine=self.engine,
+                    component=component_config,
+                    components=components_config,
+                )
+
+                if resources is None and default_resources is not None:
+                    # use default resources
+                    resources = default_resources
+                elif resources is not None and default_resources is not None:
+                    # merge with default resources
+                    if resources.pop("_inherit_defaults", True) is not False:
+                        canonicalize_resources = getattr(
+                            self.engine, "canonicalize_resources", lambda x: x
+                        )
+                        resources = merge_dict(
+                            canonicalize_resources(default_resources),
+                            canonicalize_resources(resources),
+                        )
 
             def set_derived_from_flag(i, component, element):
                 element[1]["flags"]["DERIVED_FROM_SUBMISSION"] = derived_from
@@ -559,6 +524,10 @@ class Execution(Jsonable, Discoverable):
 
     @classmethod
     def unserialize(cls, serialized):
+        for element in serialized:
+            recover_class(element["component"])
+            for i in range(len(element["components"])):
+                recover_class(element["components"][i])
         if not isinstance(serialized, dict):
             raise ValueError(f"Invalid execution: {serialized}")
         execution = cls(None)
@@ -566,14 +535,6 @@ class Execution(Jsonable, Discoverable):
         execution.timestamp = serialized["timestamp"]
         execution.started_at = serialized["started_at"]
         return execution
-
-    @property
-    def unique_id(self):
-        return self.submission_id + "_" + self.components[0]
-
-    @property
-    def submission_id(self):
-        return encode_submission_id(self.seed)
 
     @property
     def registration(self):
@@ -679,10 +640,6 @@ class Execution(Jsonable, Discoverable):
 
     def filter(self, callback=None):
         self.schedule.filter(callback)
-
-    @property
-    def components(self):
-        return self.schedule.components
 
     def __repr__(self):
         submission_id = (
