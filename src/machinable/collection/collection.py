@@ -1171,7 +1171,7 @@ class Collection:
         ``` python
         collection = Collection([{'name': 'Desk', 'price': 200}])
 
-        collection.to_json()
+        collection.as_json()
 
         # '[{"name": "Desk", "price": 200}]'
         ```
