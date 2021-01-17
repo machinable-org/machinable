@@ -9,6 +9,10 @@ class DependencyMissing(MachinableError, ImportError):
 
 
 class ExecutionFailed(MachinableError):
+    """Execution failed
+
+    Bases: MachinableError"""
+
     def __init__(self, message, reason=None):
         super().__init__(message)
         self.reason = reason
@@ -21,3 +25,13 @@ class ExecutionInterrupt(ExecutionFailed):
 
     def __init__(self, message):
         super().__init__(message, reason="interrupt")
+
+
+class GraphQLError(MachinableError):
+    """GraphQL error
+
+    Bases: MachinableError"""
+
+    def __init__(self, message="Request failed", result=None):
+        super().__init__(message)
+        self.result = result
