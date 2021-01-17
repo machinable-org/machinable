@@ -3,7 +3,7 @@ from typing import Optional, Union
 import os
 
 import pendulum
-from machinable.collection import SubmissionCollection
+from machinable.collection.submission import SubmissionCollection
 from machinable.config.mapping import config_map
 from machinable.filesystem import parse_storage_url
 from machinable.submission.models import SubmissionModel

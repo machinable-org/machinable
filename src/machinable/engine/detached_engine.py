@@ -24,8 +24,8 @@ class DetachedEngine(Engine):
             execution.storage.get("directory", ""),
             execution.submission_id,
         )
-        engine = self.engine.to_json().replace('"', '\\"')
-        project = execution.project.to_json().replace('"', '\\"')
+        engine = self.engine.as_json().replace('"', '\\"')
+        project = execution.project.as_json().replace('"', '\\"')
         code = f"""
         import machinable as ml
         e = ml.Execution.from_storage('{url}')

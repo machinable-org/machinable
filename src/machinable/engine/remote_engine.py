@@ -67,7 +67,7 @@ class RemoteEngine(Engine):
             execution.storage.get("directory", ""),
             execution.submission_id,
         )
-        engine = self.engine.to_json().replace('"', '\\"')
+        engine = self.engine.as_json().replace('"', '\\"')
         remote_project = copy.deepcopy(execution.project.options)
         remote_project["directory"] = self.directory
         project = json.dumps(remote_project).replace('"', '\\"')
