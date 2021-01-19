@@ -302,7 +302,7 @@ dev = ["pip", "nose", "wheel", "flake8", "coverage", "psycopg2-binary", "pymysql
 
 [[package]]
 name = "deepdiff"
-version = "5.2.1"
+version = "5.2.2"
 description = "Deep Difference and Search of any Python object/data."
 category = "main"
 optional = true
@@ -1375,7 +1375,7 @@ server = ["ariadne", "uvicorn"]
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.6.1"
-content-hash = "8a4b180a29e58f41cf55204d53f570c3786f07e7d58edb557830d481a0992e08"
+content-hash = "838f16d0265df1e0971be2ed5b574eb8747b945944fd02416de35de44cd78f3d"
 
 [metadata.files]
 aiohttp = [
@@ -1571,8 +1571,8 @@ dataset = [
     {file = "dataset-1.4.3.tar.gz", hash = "sha256:5dcaf2c9eddf05629b4d7841a97ba6311c4c17153af7b4c685fe6955fc3843d1"},
 ]
 deepdiff = [
-    {file = "deepdiff-5.2.1-py3-none-any.whl", hash = "sha256:5e2b90ebe9d371af493a893306546f69dc117e7a36596b97f8fe56869dd0c35d"},
-    {file = "deepdiff-5.2.1.tar.gz", hash = "sha256:2e368943dc257f6fa93d9ce4537dbcd4fea65098208a0f49f675cf40132c1a89"},
+    {file = "deepdiff-5.2.2-py3-none-any.whl", hash = "sha256:ca2484da3cc9ec944a998fb3d03062e64e4c74b84519fb8e5eea53be88514e54"},
+    {file = "deepdiff-5.2.2.tar.gz", hash = "sha256:752995dbd23e9971571c9f45b0bba9462cad3e968a505d644de492d6ff47d4fa"},
 ]
 distlib = [
     {file = "distlib-0.3.1-py2.py3-none-any.whl", hash = "sha256:8c09de2c67b3e7deef7184574fc060ab8a793e7adbb183d942c389c8b13c52fb"},
@@ -2114,6 +2114,8 @@ py-spy = [
     {file = "py_spy-0.3.3-py2.py3-none-macosx_10_7_x86_64.whl", hash = "sha256:ac0ef13fc2bd67593be1d3fcd1bbee93a6324715b3c2944218e50eadb966c46e"},
     {file = "py_spy-0.3.3-py2.py3-none-manylinux1_i686.whl", hash = "sha256:72eb5c0495b050e6e9424ea373ff7245a01554e98f218d89f8f979c0cd762681"},
     {file = "py_spy-0.3.3-py2.py3-none-manylinux1_x86_64.whl", hash = "sha256:e9d6946741c267fe82aef18d2fc1e095a90a83fb5f3d9fc89b0f20a39613a639"},
+    {file = "py_spy-0.3.3-py2.py3-none-manylinux2014_aarch64.whl", hash = "sha256:51d9db79bf6956bbbfcd40b7d1c6733daffec08884f54d0907ed2c55a109a266"},
+    {file = "py_spy-0.3.3-py2.py3-none-manylinux2014_armv7l.whl", hash = "sha256:d5e947c1ecf1d85e2f5ecac95cf190e374dd2834e5a67f35f52b35e45c74d600"},
     {file = "py_spy-0.3.3-py2.py3-none-win_amd64.whl", hash = "sha256:a165d444cfbf24cdcdfe8cdaa858a179e1fae43adcb912e5efb3151362f67aa8"},
 ]
 pyasn1 = [
