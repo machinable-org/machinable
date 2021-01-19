@@ -49,7 +49,7 @@ deepdiff = {version = "^5.0.2", optional = true}
 pandas = {version = "^1.1.5", optional = true}
 tabulate = {version = "^0.8.7", optional = true}
 uvicorn = {version = "^0.13.1", optional = true}
-dataset = {version = "^1.4.1", optional = true}
+dataset = {version = "^1.4.4", optional = true}
 
 
 [tool.poetry.dev-dependencies]
