@@ -60,7 +60,7 @@ pytest = "^6.2"
 pylint = "^2.5"
 pre-commit = "^2.9"
 editorconfig-checker = "^2.1.0"
-pytest-cov = "^2.10.1"
+pytest-cov = "^2.11.1"
 
 [tool.poetry.extras]
 integrations = [
