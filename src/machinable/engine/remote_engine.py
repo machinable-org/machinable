@@ -16,7 +16,7 @@ class RemoteEngine(Engine):
             raise ValueError("You have to provide a remote host")
         if directory is None:
             raise ValueError("You have to provide a remote directory")
-        self.engine = Engine.create(engine)
+        self.engine = Engine.make(engine)
         if isinstance(host, str) and host.startswith("ssh://"):
             host = host.replace("ssh://", "")
         self.host = host
@@ -24,8 +24,6 @@ class RemoteEngine(Engine):
         self.python = python
         self.shell = sh.ssh.bake(self.host)
         self.sync = update_dict({"delete_on_remote": False}, sync)
-
-        Engine.set_latest(self)
 
     def serialize(self):
         return {

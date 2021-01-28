@@ -13,12 +13,7 @@ class NativeEngine(Engine):
         self,
         processes=1,
     ):
-        if "TRAVIS" in os.environ:
-            processes = None
-
         self.processes = processes
-
-        Engine.set_latest(self)
 
     @staticmethod
     def supports_resources():
@@ -46,22 +41,22 @@ class NativeEngine(Engine):
             pool.close()
             pool.join()
         except KeyboardInterrupt:
-            execution.set_result(
-                ExecutionException(
-                    reason="user_interrupt",
-                    message="Execution has been interrupted by the user or system.",
-                ),
-                0,
-            )
+            # execution.set_result(
+            #     ExecutionException(
+            #         reason="user_interrupt",
+            #         message="Execution has been interrupted by the user or system.",
+            #     ),
+            #     0,
+            # )
             pool.terminate()
         except BaseException as e:
-            execution.set_result(
-                ExecutionException(
-                    reason="exception",
-                    message=f"The following exception occurred: {e}\n{exception_to_str(e)}",
-                ),
-                0,
-            )
+            # execution.set_result(
+            #     ExecutionException(
+            #         reason="exception",
+            #         message=f"The following exception occurred: {e}\n{exception_to_str(e)}",
+            #     ),
+            #     0,
+            # )
             pool.terminate()
 
         return execution

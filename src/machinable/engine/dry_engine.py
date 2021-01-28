@@ -2,9 +2,6 @@ from machinable.engine.engine import Engine
 
 
 class DryEngine(Engine):
-    def __init__(self):
-        Engine.set_latest(self)
-
     def __repr__(self):
         return "Engine <dry>"
 

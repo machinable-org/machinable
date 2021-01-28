@@ -16,6 +16,7 @@ from machinable.config.loader import from_callable as load_config_from_callable
 from machinable.config.loader import from_file as load_config_file
 from machinable.config.loader import from_string as load_config_from_string
 from machinable.config.parser import parse_module_list
+from machinable.element.element import Element
 from machinable.project.manager import fetch_imports
 from machinable.settings import get_settings
 from machinable.utils.dicts import update_dict
@@ -26,7 +27,7 @@ from machinable.utils.utils import is_valid_module_path, is_valid_variable_name
 from machinable.utils.vcs import get_commit, get_diff, get_root_commit
 
 
-class Project(Jsonable, Discoverable):
+class Project(Element, Discoverable):
     def __init__(
         self,
         directory: Optional[str] = None,
@@ -44,6 +45,7 @@ class Project(Jsonable, Discoverable):
 
         self._config = None
         self._parsed_config = None
+        self._config_interface = None
 
         if (
             os.path.exists(self.directory_path)
@@ -55,10 +57,10 @@ class Project(Jsonable, Discoverable):
                 sys.path.append(self.directory_path)
 
     def configuration(self) -> ConfigInterface:
-        return ConfigInterface(self.parse_config())
+        if self._config_interface is None:
+            self._config_interface = ConfigInterface(self.parse_config())
 
-    def parse_experiment(self, experiment):
-        return self.configuration().experiment(experiment)
+        return self._config_interface
 
     def __repr__(self):
         r = "Project"
@@ -104,14 +106,14 @@ class Project(Jsonable, Discoverable):
     @property
     def import_prefix(self):
         # find relative address to target import class
-        prefix = os.path.relpath(self.directory_path, os.getcwd())
+        prefix = os.path.relpath(
+            self.directory_path, self.get_root().directory_path
+        )
 
         if prefix == ".":
             return None
 
-        if "../" in prefix:
-            # Attempted import beyond project top-level. Consider changing your current working directory.
-            return None
+        assert "../" not in prefix
 
         return prefix.replace("/", ".")
 

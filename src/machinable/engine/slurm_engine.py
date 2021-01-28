@@ -26,7 +26,6 @@ class SlurmEngine(Engine):
         self.commands = self._parse_commands(commands)
         self.python = python
         self.shebang = shebang
-        Engine.set_latest(self)
 
     def _parse_commands(self, commands):
         if isinstance(commands, (str, list, tuple)):

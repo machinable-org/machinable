@@ -8,6 +8,12 @@ class DependencyMissing(MachinableError, ImportError):
     Bases: ImportError"""
 
 
+class StorageError(MachinableError):
+    """Storage error
+
+    Bases: MachinableError"""
+
+
 class ExecutionFailed(MachinableError):
     """Execution failed
 

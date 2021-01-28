@@ -9,39 +9,27 @@ from machinable.utils.utils import sentinel
 
 
 class FileSystem:
-    def __init__(self, config):
-        if isinstance(config, dict):
-            config = copy.deepcopy(config)
-        elif isinstance(config, str):
-            config = {"url": config}
-        else:
-            raise ValueError("Invalid configuration")
-
-        try:
-            if "://" not in config["url"]:
-                config["url"] = "osfs://" + config["url"]
-        except KeyError:
-            raise ValueError("Configuration must provide a filesystem URL")
-
-        self.config = config
+    def __init__(self, url: str, create: bool = False):
+        if "://" not in url:
+            url = "osfs://" + url
+        self._url = url
+        self._create = create
         self._fs = None
 
     def __enter__(self):
         try:
-            self._fs = open_fs(
-                self.config["url"], create=self.config.get("create", False)
-            )
-        except (errors.ResourceNotFound, errors.CreateFailed):
+            self._fs = open_fs(self._url, create=self._create)
+        except (errors.ResourceNotFound, errors.CreateFailed) as e:
             raise FileNotFoundError(
-                f"Directory {self.config['url']} does not exist"
-            )
+                f"Directory {self.url} does not exist"
+            ) from e
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         self._fs.close()
 
     def get_url(self, append=""):
-        return self.config["url"].rstrip("/") + "/" + append.lstrip("/")
+        return self.url.rstrip("/") + "/" + append.lstrip("/")
 
     def load_file(self, filepath, default=sentinel):
         name, ext = os.path.splitext(filepath)
@@ -126,7 +114,5 @@ class FileSystem:
 
     def __getattr__(self, item):
         if self._fs is None:
-            self._fs = open_fs(
-                self.config["url"], create=self.config.get("create", False)
-            )
+            self._fs = open_fs(self._url, create=self._create)
         return getattr(self._fs, item)

@@ -1,13 +1,16 @@
+from typing import List, Union
+
 import ast
 import copy
 import importlib
 
 import machinable.errors
+from machinable.element.element import Element
 from machinable.utils.dicts import update_dict
 from machinable.utils.formatting import exception_to_str, msg
 from machinable.utils.importing import resolve_instance
 from machinable.utils.system import set_process_title
-from machinable.utils.traits import Jsonable
+from machinable.utils.traits import Discoverable, Jsonable
 
 _register = {
     "native": "machinable.engine.native_engine",
@@ -18,28 +21,8 @@ _register = {
     "slurm": "machinable.engine.slurm_engine",
 }
 
-_latest = [None]
 
-
-class Engine(Jsonable):
-    def __new__(cls, *args, **kwargs):
-        # Engine is an abstract class for which instantiation is meaningless.
-        # Instead, we return the default NativeEngine
-        if cls is Engine:
-            from .native_engine import NativeEngine
-
-            return super().__new__(NativeEngine)
-
-        return super().__new__(cls)
-
-    @classmethod
-    def latest(cls):
-        return _latest[0]
-
-    @classmethod
-    def set_latest(cls, latest):
-        _latest[0] = latest
-
+class Engine(Element, Discoverable):
     @staticmethod
     def register(engine, name=None):
         if name is None:
@@ -47,7 +30,7 @@ class Engine(Jsonable):
         _register[name] = engine
 
     @classmethod
-    def create(cls, args):
+    def make(cls, args):
         if isinstance(args, Engine):
             return args
 
@@ -108,19 +91,29 @@ class Engine(Jsonable):
     def canonicalize_resources(self, resources):
         return resources
 
-    def dispatch(self, execution):
+    def dispatch(self, execution: "Execution"):
+        from machinable.execution.execution import Execution
+
         if self.on_before_dispatch(execution) is False:
             return False
 
-        if not execution.storage.has_file("engine.json"):
-            execution.storage.save_file("engine.json", self.serialize())
-
         set_process_title(repr(execution))
-        execution = self._dispatch(execution)
+        executions = self._dispatch(execution)
 
-        self.on_after_dispatch(execution)
+        if not isinstance(executions, (list, tuple)):
+            executions = [executions]
 
-        return execution
+        executions = [
+            e
+            for e in executions
+            if isinstance(e, Execution) and e is not execution
+        ]
+
+        self.on_after_dispatch(executions)
+
+        # derived execution
+        for e in executions:
+            self.dispatch(e)
 
     def on_before_dispatch(self, execution):
         """Event triggered before engine dispatch of an execution
@@ -131,7 +124,7 @@ class Engine(Jsonable):
         execution: machinable.Execution object
         """
 
-    def on_after_dispatch(self, execution):
+    def on_after_dispatch(self, executions: List["Execution"]):
         """Event triggered after the dispatch of an execution
 
         # Arguments
@@ -149,6 +142,12 @@ class Engine(Jsonable):
 
         machinable.Execution object
         """
+        print(execution.experiments)
+        for experiment in execution.experiments:
+            component = experiment.component["class"](experiment=experiment)
+            component.dispatch()
+
+        return
         for (
             index,
             execution_type,
@@ -169,9 +168,9 @@ class Engine(Jsonable):
                 args,
                 kwargs,
             )
-            execution.set_result(result, i)
+            # execution.set_result(result, i)
 
-        return execution
+        # return execution
 
     def process(self, index, execution_type, *args, **kwargs):
         return index, getattr(self, execution_type)(*args, **kwargs)

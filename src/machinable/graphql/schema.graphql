@@ -5,8 +5,9 @@ scalar JSON
 scalar DateTime
 
 type Query {
-  repository(url: String): Repository
+  storage(url: String!): Storage
   server: String
+  experiment(experiment_id: String!): Experiment
 }
 
 type Mutation {
@@ -17,13 +18,14 @@ type Subscription {
   index(index: JSON!, limit: Int): IndexSubscriptionDelta
 }
 
-type Repository {
+type Storage {
   url: String!
+  repositories: [Repository]
+}
+
+type Repository {
+  name: String!
   executions: [Execution]
-  experiments: [Experiment]
-  experiment(experiment_id: String!): Experiment
-  related: [Repository]
-  ancestor: Repository
 }
 
 # type Execution {
@@ -66,6 +68,7 @@ type Host {
   environ: JSON @json
   argv: [String]
   machinable_version: String
+  # project_directory: 
 }
 
 type Experiment {
@@ -124,7 +127,7 @@ type Execution {
   engine: Engine
   project: Project
   host: Host
-  experiments: [Component]
+  experiments: [Experiment]
 }
 
 type Submission {

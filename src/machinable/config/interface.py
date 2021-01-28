@@ -306,13 +306,3 @@ class ConfigInterface:
         }
 
         return config
-
-    def experiment(
-        self, experiment: Union[Experiment, str]
-    ) -> Tuple[dict, List[dict]]:
-        experiment = Experiment.make(experiment)
-        component = self.component(
-            experiment.component, experiment.version, experiment.flags
-        )
-        components = [self.component(*c) for c in experiment.components]
-        return component, components

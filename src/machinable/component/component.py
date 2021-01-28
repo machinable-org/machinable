@@ -12,6 +12,7 @@ from machinable.component.events import Events
 from machinable.component.mixin import Mixin, MixinInstance
 from machinable.config.mapping import ConfigMap, ConfigMethod, config_map
 from machinable.config.parser import parse_mixins
+from machinable.element.element import Element
 from machinable.registration import Registration
 from machinable.storage import Storage
 from machinable.storage.log import Log
@@ -161,7 +162,7 @@ class ComponentState(Jsonable):
         )
 
 
-class Component(Mixin):
+class Component(Element, Mixin):
     """
     Component base class. All machinable components must inherit from this class.
 
@@ -173,12 +174,20 @@ class Component(Mixin):
 
     attribute_ = None
 
-    def __init__(self, config: dict = None, flags: dict = None, node=None):
+    def __init__(self, experiment, node=None):
         """Constructs the components instance.
 
         The initialisation and its events ought to be side-effect free, meaning the application state is preserved
         as if no execution would have happened.
         """
+        config = experiment.component["config"]
+        flags = experiment.component["flags"]
+
+        self.experiment = experiment
+
+        # re-connect to storage
+        Element.__storage__ = experiment.execution.__storage__
+
         on_before_init = self.on_before_init(config, flags, node)
         if isinstance(on_before_init, tuple):
             config, flags, node = on_before_init
@@ -304,23 +313,27 @@ class Component(Mixin):
 
     def dispatch(
         self,
-        components_config: List[Dict],
-        storage_config: dict,
-        actor_config=None,
+        actor_reference=None,
         lifecycle=True,
     ):
+        self.save()
+        return
+
         # Prepares and dispatches the components lifecycle and returns its result
         try:
             self.on_start()
 
-            self._actor_config = actor_config
+            self._actor_config = actor_reference
 
             if self.node is None and self.on_seeding() is not False:
                 self.set_seed()
 
+            components_config = []
+            storage_config = {"url": "mem://"}
+
             self.on_init_storage(storage_config)
 
-            self.storage = Storage.create(storage_config)
+            self.storage = Storage.make(storage_config)
 
             self.on_after_init_storage(storage_config)
 

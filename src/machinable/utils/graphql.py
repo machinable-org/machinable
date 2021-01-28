@@ -2,6 +2,7 @@ import os
 
 import machinable.errors
 from ariadne.graphql import graphql_sync
+from ariadne.types import ExtensionSync as Extension
 from machinable.graphql.schema import schema
 
 
@@ -16,9 +17,6 @@ def from_string(value):
         return int(value[4:])
 
     return value
-
-
-from ariadne.types import ExtensionSync as Extension
 
 
 class Client:

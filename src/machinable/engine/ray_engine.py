@@ -11,9 +11,6 @@ from ray.exceptions import RayActorError
 
 
 class RayEngine(Engine):
-    def __init__(self):
-        Engine.set_latest(self)
-
     def serialize(self):
         return {"type": "ray"}
 

@@ -10,11 +10,9 @@ class DetachedEngine(Engine):
     def __init__(self, engine=None, using="tmux", exit_on_completion=True):
         if using not in ["tmux"]:
             raise ValueError(f"Invalid detached mode: {using}")
-        self.engine = Engine.create(engine)
+        self.engine = Engine.make(engine)
         self.using = using
         self.exit_on_completion = exit_on_completion
-
-        Engine.set_latest(self)
 
     def _dispatch(self, execution):
         name = "machinable-submission-" + execution.submission_id
