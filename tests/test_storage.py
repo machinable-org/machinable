@@ -6,4 +6,4 @@ def test_storage():
 
     exp = ml.Experiment.find("sdf")
 
-    print(exp.config, "sfddsf")
+    print(exp, "sfddsf")

@@ -11,7 +11,6 @@ import pendulum
 import yaml
 from expandvars import expand
 from machinable.collection.experiment import ExperimentCollection
-from machinable.config.interface import ConfigInterface
 from machinable.config.mapping import config_map
 from machinable.element.element import Element
 from machinable.engine import Engine
@@ -31,6 +30,7 @@ from machinable.utils.host import get_host_info
 from machinable.utils.importing import resolve_instance
 from machinable.utils.traits import Discoverable, Jsonable
 from machinable.utils.utils import (
+    call_with_context,
     decode_experiment_id,
     encode_experiment_id,
     generate_experiment_id,
@@ -84,7 +84,7 @@ class Execution(Element, Discoverable):
     ):
         self._experiments: list = []
         if experiment is not None:
-            self.reset_experiment(experiment)
+            self.set_experiment(experiment)
 
         self.repository = Repository.make(repository)
 
@@ -146,11 +146,7 @@ class Execution(Element, Discoverable):
         see add_experiment
         """
         self._experiments = []
-        if not isinstance(experiment, (list, tuple)):
-            experiment = [experiment]
-
-        for e in experiment:
-            self.add_experiment(e)
+        self.add_experiment(experiment)
 
         return self
 
@@ -178,11 +174,14 @@ class Execution(Element, Discoverable):
                 self.add_experiment(e)
             return self
 
-        # this should be moved into submit!?
-        component = experiment.parse(self.project.configuration())
+        experiment = Experiment.make(experiment)
 
-        # module, config, flags, components:()
-        # + resources
+        # parse components
+        component = self.project.component(
+            name=experiment.on, **experiment.version
+        )
+
+        components = [self.project.component(*c) for c in experiment.uses]
 
         # parse resources
         if not self.engine.supports_resources():
@@ -215,12 +214,19 @@ class Execution(Element, Discoverable):
                         canonicalize_resources(resources),
                     )
 
-        # todo: add_relation
-        experiment.execution = self
+        # hydrate relation
+        experiment.add_relation(
+            {
+                "execution": self,
+                "component": component,
+                "components": components,
+                "resources": resources,
+            }
+        )
 
         self._experiments.append(experiment)
 
-        return
+        return self
 
     def derive(
         self,
@@ -318,8 +324,7 @@ class Execution(Element, Discoverable):
         if self.timestamp is None:
             self.timestamp = dt.now().timestamp()
 
-        if not self.exists():
-            self.save()
+        self.save()
 
         self.engine.dispatch(self)
 

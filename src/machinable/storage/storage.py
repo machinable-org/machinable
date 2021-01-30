@@ -1,4 +1,3 @@
-from machinable.element.element import Element
 from machinable.utils.traits import Discoverable
 
 
@@ -14,4 +13,6 @@ class Storage(Discoverable):
 
     @classmethod
     def connect(cls, url):
+        from machinable.element.element import Element
+
         Element.__storage__ = cls.make(url)

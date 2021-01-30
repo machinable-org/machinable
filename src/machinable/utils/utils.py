@@ -119,7 +119,7 @@ def encode_experiment_id(seed, or_fail=True) -> Optional[str]:
 
 
 def decode_experiment_id(experiment_id, or_fail=True) -> Optional[int]:
-    """Decodes a submission ID into the corresponding seed
+    """Decodes a experiment ID into the corresponding seed
 
     # Arguments
     experiment_id: The base62 experiment ID

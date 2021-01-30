@@ -6,40 +6,76 @@ from typing import Optional
 import machinable.errors
 from machinable.collection import Collection
 from machinable.settings import get_settings
+from machinable.storage.storage import Storage
 from machinable.utils.traits import Jsonable
 
 
-def get_storage(obj) -> "Storage":
-    from machinable.storage.storage import Storage
-
-    if not isinstance(obj.__storage__, Storage):
-        obj.__storage__ = Storage.make(get_settings()["default_storage"])
-
-    return obj.__storage__
+class _ElementMeta(type):
+    def __getattr__(self, attribute, *args, **kwargs):
+        instantiated = self()
+        return getattr(instantiated, attribute)
 
 
-class Element(Jsonable):
+class Element(Jsonable, metaclass=_ElementMeta):
     """Base class for storage models"""
 
     __storage__: Optional["Storage"] = None
-    __relations__ = {}
+    __relations__: Optional[dict] = None
+
+    """Pass through will pass any method calls to the storage.
+    Anytime one of these methods are called on the element it will actually be called on the storage.
+    """
+    __passthrough__ = [
+        "all",
+        "bulk_create",
+        "chunk",
+        "count",
+        "delete",
+        "find_or_fail",
+        "first_or_fail",
+        "first",
+        "get",
+        "has",
+        "joins",
+        "last",
+        "limit",
+        "max",
+        "min",
+        "order_by",
+        "select",
+        "statement",
+        "sum",
+        "to_qmark",
+        "to_sql",
+        "update",
+        "when",
+        "where_has",
+        "where_in",
+        "where_like",
+        "where_not_like",
+        "where_null",
+        "where",
+        "with_",
+    ]
+
+    def __new__(cls, *args, **kwargs):
+        element = super().__new__(cls)
+        element.__attributes__ = {}
+        element.__original_attributes__ = {}
+        element.__dirty_attributes__ = {}
+        element._relationships = {}
+        return element
+
+    def add_relation(self, relations):
+        self._relationships.update(relations)
+        return self
 
     @classmethod
-    def storage(cls) -> "Storage":
-        from machinable.storage.storage import Storage
-
+    def storage(cls) -> Storage:
         if not isinstance(cls.__storage__, Storage):
             cls.__storage__ = Storage.make(get_settings()["default_storage"])
 
         return cls.__storage__
-
-    @property
-    def uid(self):
-        raise NotImplementedError
-
-    @classmethod
-    def from_storage(cls, uri):
-        pass
 
     @classmethod
     def collection(cls, data) -> Collection:
@@ -51,21 +87,50 @@ class Element(Jsonable):
         relations = relations or {}
 
     @classmethod
-    def find_or_create(cls, uid=None):
-        return cls.create()
-
-    def exists(self):
+    def find(cls, uid):
         return False
 
-    @classmethod
-    def find(cls, uid=None):
-        return get_storage(cls).find(cls.__name__, uid)
-
     def save(self):
-        # todo: update
-        get_storage(self).create(self)
+        """Save the element"""
 
-    @classmethod
-    def on(cls, storage):
-        cls.__storage__ = storage
-        return cls
+    def __getattr__(self, attribute):
+        if attribute in self.__passthrough__:
+
+            def method(*args, **kwargs):
+                return getattr(self.storage(), attribute)(*args, **kwargs)
+
+            return method
+
+        if (
+            "__dirty_attributes__" in self.__dict__
+            and attribute in self.__dict__["__dirty_attributes__"]
+        ):
+            return self.__dict__["__dirty_attributes__"][attribute]
+
+        if (
+            "__attributes__" in self.__dict__
+            and attribute in self.__dict__["__attributes__"]
+        ):
+            return self.get_value(attribute)
+
+        if attribute in self.__dict__.get("_relationships", {}):
+            return self.__dict__["_relationships"][attribute]
+
+        if attribute not in self.__dict__:
+            raise AttributeError(
+                f"{self.__class__.__name__} has no attribute {attribute}"
+            )
+
+        return None
+
+    def __setattr__(self, attribute, value):
+        try:
+            if not attribute.startswith("_"):
+                self.__dict__["__dirty_attributes__"].update({attribute: value})
+            else:
+                self.__dict__[attribute] = value
+        except KeyError:
+            pass
+
+    def __str__(self):
+        return self.__repr__()
