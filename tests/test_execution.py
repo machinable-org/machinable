@@ -3,7 +3,7 @@ import machinable as ml
 
 def test_execution():
     execution = ml.Execution(project="./tests/project")
-    execution.set_experiment(ml.Experiment("dummy"))
+    execution.add_experiment(ml.Experiment("dummy"))
     assert len(execution.experiments) == 1
 
     ml.Storage.connect("tmp/")

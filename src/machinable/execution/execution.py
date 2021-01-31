@@ -37,6 +37,7 @@ from machinable.utils.utils import (
     generate_nickname,
     sentinel,
 )
+from masoniteorm.relationships import belongs_to, has_many
 
 
 def _recover_class(element):
@@ -72,8 +73,8 @@ def _code_backup_settings(value):
 
 
 class Execution(Element, Discoverable):
-    __relations__ = {"has_one": ["engine"], "belongs_to": ["project"]}
-    __table__ = "execution"
+    __visible__ = ["name"]
+    __relationship_attributes__ = ["project"]
 
     def __init__(
         self,
@@ -82,39 +83,56 @@ class Execution(Element, Discoverable):
         engine: Union[Engine, str, dict, None] = None,
         project: Union[Project, str, dict, None] = None,
     ):
-        self._experiments: list = []
-        if experiment is not None:
-            self.set_experiment(experiment)
+        super().__init__()
 
-        self.repository = Repository.make(repository)
-
-        self.engine = None
-        self.code_backup = None
-        self.timestamp = None
-        self.started_at = None
-        self.name = None
+        if engine is None:
+            engine = get_settings()["default_engine"]
 
         if project is None:
             project = get_settings()["default_project"]
 
-        self.project = Project.make(project)
+        if project is None:
+            project = get_settings()["default_repository"]
+
+        self.add_relation(
+            {
+                "project": Project.make(project),
+                # "engine": Engine.make(engine),
+                # "repository": Repository.make(repository),
+                "experiments": [],
+            }
+        )
+
+        if experiment is not None:
+            self.add_experiment(experiment)
+
+        self.comments = None
+
+        self._code_backup = None
+        # self.timestamp = None
+        self._started_at = None
+        self._name = None
 
         # assign project registration
-        self._registration = self.project.registration
+        # self._registration = self._project.registration
 
-        self.behavior = {"raise_exceptions": False}
-        self.failures = 0
+        self._behavior = {"raise_exceptions": False}
+        self._failures = 0
         self._nickname = None
 
         self._resources = {}
 
         # self.set_code_backup()
 
-        if engine is None:
-            engine = get_settings()["default_engine"]
-        self.engine = Engine.make(engine)
+        # self.components = []
 
-        self._components = None
+    @belongs_to
+    def project(self):
+        return Project
+
+    @has_many
+    def experiments(self):
+        return Experiment
 
     @property
     def components(self):
@@ -131,24 +149,6 @@ class Execution(Element, Discoverable):
             self._nickname = generate_nickname()
 
         return self._nickname
-
-    def set_experiment(
-        self,
-        experiment: Union[Experiment, List[Experiment]],
-        resources: Optional[dict] = None,
-    ) -> "Execution":
-        """Specify and experiment
-
-        Note that this method replaces previously specified experiments.
-        To append an experiment use `add_experiment`.
-
-        # Arguments
-        see add_experiment
-        """
-        self._experiments = []
-        self.add_experiment(experiment)
-
-        return self
 
     def add_experiment(
         self,
@@ -176,55 +176,52 @@ class Execution(Element, Discoverable):
 
         experiment = Experiment.make(experiment)
 
-        # parse components
-        component = self.project.component(
-            name=experiment.on, **experiment.version
+        project = (
+            self.project if self.is_loaded() else self._relationships["project"]
         )
 
-        components = [self.project.component(*c) for c in experiment.uses]
+        # parse components
+        component = project.component(
+            name=experiment.component_name, **experiment.version
+        )
+        component["components"] = [
+            project.component(*c) for c in experiment.uses
+        ]
+
+        # self.components.append(component)
 
         # parse resources
-        if not self.engine.supports_resources():
-            if resources is not None:
-                msg(
-                    "Engine does not support resource specification. Skipping ...",
-                    level="warn",
-                    color="header",
-                )
-                resources = None
-        else:
-            if callable(resources):
-                resources = resources(engine=self.engine, experiment=experiment)
+        # if not self.engine.supports_resources():
+        #     if resources is not None:
+        #         msg(
+        #             "Engine does not support resource specification. Skipping ...",
+        #             level="warn",
+        #             color="header",
+        #         )
+        #         resources = None
+        # else:
+        #     if callable(resources):
+        #         resources = resources(engine=self.engine, experiment=experiment)
 
-            default_resources = self.registration.default_resources(
-                engine=self.engine, experiment=experiment
-            )
+        #     default_resources = self.registration.default_resources(
+        #         engine=self.engine, experiment=experiment
+        #     )
 
-            if resources is None and default_resources is not None:
-                # use default resources
-                resources = default_resources
-            elif resources is not None and default_resources is not None:
-                # merge with default resources
-                if resources.pop("_inherit_defaults", True) is not False:
-                    canonicalize_resources = getattr(
-                        self.engine, "canonicalize_resources", lambda x: x
-                    )
-                    resources = merge_dict(
-                        canonicalize_resources(default_resources),
-                        canonicalize_resources(resources),
-                    )
+        #     if resources is None and default_resources is not None:
+        #         # use default resources
+        #         resources = default_resources
+        #     elif resources is not None and default_resources is not None:
+        #         # merge with default resources
+        #         if resources.pop("_inherit_defaults", True) is not False:
+        #             canonicalize_resources = getattr(
+        #                 self.engine, "canonicalize_resources", lambda x: x
+        #             )
+        #             resources = merge_dict(
+        #                 canonicalize_resources(default_resources),
+        #                 canonicalize_resources(resources),
+        #             )
 
-        # hydrate relation
-        experiment.add_relation(
-            {
-                "execution": self,
-                "component": component,
-                "components": components,
-                "resources": resources,
-            }
-        )
-
-        self._experiments.append(experiment)
+        self._relationships["experiments"].append(experiment)
 
         return self
 
@@ -321,12 +318,19 @@ class Execution(Element, Discoverable):
 
     def submit(self) -> "Execution":
         # move to constructor?
-        if self.timestamp is None:
-            self.timestamp = dt.now().timestamp()
+        # if self.timestamp is None:
+        #     self.timestamp = dt.now().timestamp()
+        #
+        #
+        project = (
+            self.project if self.is_loaded() else self._relationships["project"]
+        )
 
+        # for experiment in self.experiments:
+        #     experiment.save()
         self.save()
 
-        self.engine.dispatch(self)
+        # self.engine.dispatch(self)
 
         return self
 

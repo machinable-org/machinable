@@ -13,11 +13,10 @@ from machinable.utils.utils import (
 class Experiment(Element, Discoverable):
     def __init__(
         self,
-        on: Union[str, dict, None] = None,
+        component_name: Union[str, dict, None] = None,
         config: Union[str, dict, None, List[Union[str, dict, None]]] = None,
         flags: Union[dict, None, List[Union[dict, None]]] = None,
         seed: Union[str, int, None] = None,
-        uses: Union[List[tuple], None] = None,
     ):
         """Experiment
 
@@ -28,27 +27,21 @@ class Experiment(Element, Discoverable):
         seed: Experiment seed
         uses: List of components (can be added later via .use())
         """
-        self.on = on
+        super().__init__()
+        self.component_name = component_name
         self.version = {"config": config, "flags": flags}
         self.seed = seed
-        self.uses = uses or []
         # compute/generate experiment ID
         if isinstance(seed, str):
             decode_experiment_id(seed, or_fail=True)
             self.experiment_id = seed
         elif seed is None or isinstance(seed, int):
-            self.experiment_id = generate_experiment_id(random_state=seed)
+            self.experiment_id = encode_experiment_id(
+                generate_experiment_id(random_state=seed)
+            )
         else:
             raise ValueError(f"Invalid seed: {seed}")
-
-    def serialize(self):
-        return {
-            "on": self.on,
-            "config": self.version["config"],
-            "flags": self.version["flags"],
-            "seed": self.seed,
-            "uses": self.uses,
-        }
+        self.uses = []
 
     @classmethod
     def unserialize(cls, serialized):
@@ -78,7 +71,7 @@ class Experiment(Element, Discoverable):
         return self
 
     def __str__(self):
-        return f"Experiment({self.on}) <{len(self.uses) + 1}>"
+        return f"Experiment({self.component_name}) [{self.experiment_id}]"
 
     def __repr__(self):
-        return f"Experiment({self.on}, version={self.version}, seed={self.seed}, using={self.uses})"
+        return f"Experiment({self.component_name}, version={self.version}, seed={self.seed}, uses={self.uses})  [{self.experiment_id}]"

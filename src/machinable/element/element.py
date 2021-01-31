@@ -3,72 +3,72 @@
 
 from typing import Optional
 
-import machinable.errors
 from machinable.collection import Collection
 from machinable.settings import get_settings
 from machinable.storage.storage import Storage
 from machinable.utils.traits import Jsonable
+from masoniteorm.connections import ConnectionFactory, ConnectionResolver
+from masoniteorm.models import Model
+from masoniteorm.query import QueryBuilder
+
+connection = {
+    "default": "mysql",
+    "sqlite": {"database": ":mem:"},
+    "mysql": {
+        "host": "127.0.0.1",
+        "database": "masonite",
+        "user": "root",
+        "password": "root",
+        "port": 3306,
+        "prefix": "",
+        "options": {
+            #
+        },
+    },
+}
+DB = ConnectionResolver().set_connection_details(connection)
 
 
-class _ElementMeta(type):
-    def __getattr__(self, attribute, *args, **kwargs):
-        instantiated = self()
-        return getattr(instantiated, attribute)
+class ElementQueryBuilder(QueryBuilder):
+    def on(self, connection):
+
+        if connection == "default":
+            self.connection = self._connection_details.get("default")
+        else:
+            self.connection = connection
+
+        if self.connection not in self._connection_details:
+            raise ConnectionNotRegistered(
+                f"Could not find the '{self.connection}' connection details"
+            )
+
+        self._connection_driver = self._connection_details.get(
+            self.connection
+        ).get("driver")
+        self.connection_class = DB.connection_factory._connections.get("mysql")
+
+        self.grammar = self.connection_class.get_default_query_grammar()
+
+        return self
 
 
-class Element(Jsonable, metaclass=_ElementMeta):
+class Element(Model):
     """Base class for storage models"""
 
     __storage__: Optional["Storage"] = None
-    __relations__: Optional[dict] = None
 
-    """Pass through will pass any method calls to the storage.
-    Anytime one of these methods are called on the element it will actually be called on the storage.
-    """
-    __passthrough__ = [
-        "all",
-        "bulk_create",
-        "chunk",
-        "count",
-        "delete",
-        "find_or_fail",
-        "first_or_fail",
-        "first",
-        "get",
-        "has",
-        "joins",
-        "last",
-        "limit",
-        "max",
-        "min",
-        "order_by",
-        "select",
-        "statement",
-        "sum",
-        "to_qmark",
-        "to_sql",
-        "update",
-        "when",
-        "where_has",
-        "where_in",
-        "where_like",
-        "where_not_like",
-        "where_null",
-        "where",
-        "with_",
-    ]
+    def get_builder(self):
 
-    def __new__(cls, *args, **kwargs):
-        element = super().__new__(cls)
-        element.__attributes__ = {}
-        element.__original_attributes__ = {}
-        element.__dirty_attributes__ = {}
-        element._relationships = {}
-        return element
+        self.builder = ElementQueryBuilder(
+            connection=self.__connection__,
+            table=self.get_table_name(),
+            connection_details=connection,
+            model=self,
+            scopes=self._scopes,
+            dry=self.__dry__,
+        )
 
-    def add_relation(self, relations):
-        self._relationships.update(relations)
-        return self
+        return self.builder
 
     @classmethod
     def storage(cls) -> Storage:
@@ -81,56 +81,6 @@ class Element(Jsonable, metaclass=_ElementMeta):
     def collection(cls, data) -> Collection:
         """Returns a collection of the model type"""
         return Collection(data)
-
-    @classmethod
-    def hydrate(cls, data, relations=None):
-        relations = relations or {}
-
-    @classmethod
-    def find(cls, uid):
-        return False
-
-    def save(self):
-        """Save the element"""
-
-    def __getattr__(self, attribute):
-        if attribute in self.__passthrough__:
-
-            def method(*args, **kwargs):
-                return getattr(self.storage(), attribute)(*args, **kwargs)
-
-            return method
-
-        if (
-            "__dirty_attributes__" in self.__dict__
-            and attribute in self.__dict__["__dirty_attributes__"]
-        ):
-            return self.__dict__["__dirty_attributes__"][attribute]
-
-        if (
-            "__attributes__" in self.__dict__
-            and attribute in self.__dict__["__attributes__"]
-        ):
-            return self.get_value(attribute)
-
-        if attribute in self.__dict__.get("_relationships", {}):
-            return self.__dict__["_relationships"][attribute]
-
-        if attribute not in self.__dict__:
-            raise AttributeError(
-                f"{self.__class__.__name__} has no attribute {attribute}"
-            )
-
-        return None
-
-    def __setattr__(self, attribute, value):
-        try:
-            if not attribute.startswith("_"):
-                self.__dict__["__dirty_attributes__"].update({attribute: value})
-            else:
-                self.__dict__[attribute] = value
-        except KeyError:
-            pass
 
     def __str__(self):
         return self.__repr__()

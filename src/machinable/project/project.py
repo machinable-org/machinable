@@ -42,17 +42,18 @@ class Project(Element, Discoverable):
         parent=None,
         schema_validation=None,
     ):
+        super().__init__()
         if directory is None:
             directory = os.getcwd()
         self.directory: str = directory
         self._name: Optional[str] = None
-        self.parent: Optional[Project] = parent
+        self._parent: Optional[Project] = parent
         if schema_validation is None:
             schema_validation = get_settings()["schema_validation"]
-        self.schema_validation = schema_validation
+        self._schema_validation = schema_validation
 
-        self.config_file: str = "machinable.yaml"
-        self.vendor_caching = get_settings()["cache"].get("imports", False)
+        self._config_file: str = "machinable.yaml"
+        self._vendor_caching = get_settings()["cache"].get("imports", False)
 
         self._config = None
         self._parsed_config = None
@@ -69,7 +70,7 @@ class Project(Element, Discoverable):
 
     @property
     def config_filepath(self) -> str:
-        return os.path.join(self.directory, self.config_file)
+        return os.path.join(self.directory, self._config_file)
 
     @property
     def directory_path(self) -> str:
@@ -124,13 +125,13 @@ class Project(Element, Discoverable):
         return cls(serialized)
 
     def is_root(self):
-        return self.parent is None
+        return self._parent is None
 
     def get_root(self):
         if self.is_root():
             return self
 
-        p = self.parent
+        p = self._parent
         while not p.is_root():
             p = p.parent
 
@@ -138,7 +139,7 @@ class Project(Element, Discoverable):
 
     def has_config_file(self):
         return os.path.isfile(
-            os.path.join(self.directory_path, self.config_file)
+            os.path.join(self.directory_path, self._config_file)
         )
 
     def has_registration(self):
@@ -361,14 +362,14 @@ class Project(Element, Discoverable):
         )
 
     def reload_imports(self):
-        vendor_caching = self.vendor_caching
-        self.vendor_caching = False
+        vendor_caching = self._vendor_caching
+        self._vendor_caching = False
         self.parse_imports()
-        self.vendor_caching = vendor_caching
+        self._vendor_caching = vendor_caching
 
     def parse_imports(self, cached=None):
         if cached is None:
-            cached = self.get_root().vendor_caching
+            cached = self.get_root()._vendor_caching
 
         config = self.get_config()["+"]
 
@@ -392,7 +393,7 @@ class Project(Element, Discoverable):
                 import_project = Project(
                     os.path.join(self.directory, "vendor", import_name),
                     parent=self,
-                    schema_validation=self.schema_validation,
+                    schema_validation=self._schema_validation,
                 )
 
                 if not import_project.has_config_file():
@@ -458,7 +459,7 @@ class Project(Element, Discoverable):
             parse_module_list(
                 config[collection],
                 scope=scope if scope != "components" else None,
-                baseclass=BaseComponent,
+                kind="component",
                 modules=components,
                 imports=imports["components"],
                 reference=reference,
@@ -469,7 +470,7 @@ class Project(Element, Discoverable):
         mixins = parse_module_list(
             config.get("mixins"),
             scope=None,
-            baseclass=BaseMixin,
+            kind="mixin",
             imports=[imports["mixins"], imports["components"]],
             reference=reference,
             import_prefix=self.import_prefix,
@@ -534,7 +535,6 @@ class Project(Element, Discoverable):
         origin = data["components"]["@"][name]
 
         # collect versions
-        config["versions"] = []
         versions = []
 
         version_updates = []
@@ -739,7 +739,7 @@ class Project(Element, Discoverable):
             config["config"] = update_dict(
                 config["config"],
                 version,
-                preserve_schema=self.schema_validation,
+                preserve_schema=self._schema_validation,
             )
         except KeyError as e:
             raise KeyError(

@@ -33,6 +33,7 @@ class FilesystemStorage(Storage):
                 fs.save_file("component.json", model.serialize())
 
     def find(self, model, uid):
+
         pass
 
     def read(self, model, uid):
