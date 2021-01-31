@@ -19,23 +19,19 @@ class RayEngine(Engine):
             ray.init()
 
         results = [
-            self.process(*arguments)
-            for arguments in execution.schedule.iterate(
-                execution.storage.config
-            )
+            self.process(experiment) for experiment in execution.experiments
         ]
 
-        for index, result in results:
+        for result in results:
             try:
                 if isinstance(result, ray.ObjectID):
                     result = ray.get(result)
-                execution.set_result(result, index)
             except RayActorError as ex:
                 result = machinable.errors.ExecutionFailed(
                     reason="exception",
                     message=f"The following exception occurred: {ex}\n{exception_to_str(ex)}",
                 )
-                execution.set_result(result, index)
+                raise ex
 
         return execution
 

@@ -4,6 +4,7 @@ import ast
 import copy
 import inspect
 import os
+import uuid
 from datetime import datetime as dt
 
 import machinable.errors
@@ -22,7 +23,6 @@ from machinable.project import Project
 from machinable.registration import Registration
 from machinable.repository.repository import Repository
 from machinable.settings import get_settings
-from machinable.storage import Storage
 from machinable.submission.submission import Submission
 from machinable.utils.dicts import merge_dict, update_dict
 from machinable.utils.formatting import exception_to_str, msg
@@ -37,7 +37,6 @@ from machinable.utils.utils import (
     generate_nickname,
     sentinel,
 )
-from masoniteorm.relationships import belongs_to, has_many
 
 
 def _recover_class(element):
@@ -94,11 +93,11 @@ class Execution(Element, Discoverable):
         if project is None:
             project = get_settings()["default_repository"]
 
-        self.add_relation(
+        self._related.update(
             {
                 "project": Project.make(project),
-                # "engine": Engine.make(engine),
-                # "repository": Repository.make(repository),
+                "engine": Engine.make(engine),
+                "repository": Repository.make(repository),
                 "experiments": [],
             }
         )
@@ -122,26 +121,11 @@ class Execution(Element, Discoverable):
 
         self._resources = {}
 
+        self.timestamp = dt.now().timestamp()
+
         # self.set_code_backup()
 
         # self.components = []
-
-    @belongs_to
-    def project(self):
-        return Project
-
-    @has_many
-    def experiments(self):
-        return Experiment
-
-    @property
-    def components(self):
-        return self._components
-
-    @property
-    def experiments(self) -> ExperimentCollection:
-        """Experiments of the execution"""
-        return ExperimentCollection(self._experiments)
 
     @property
     def nickname(self):
@@ -149,6 +133,42 @@ class Execution(Element, Discoverable):
             self._nickname = generate_nickname()
 
         return self._nickname
+
+    @property
+    def components(self):
+        return self._components
+
+    # relations
+
+    @property
+    # has_many
+    def experiments(self) -> ExperimentCollection:
+        """Experiments of the execution"""
+        # todo: lookup from filesystem
+        return ExperimentCollection(self._related["experiments"])
+
+    @property
+    # belongs_to
+    def project(self):
+        if "project" in self._related:
+            return self._related["project"]
+
+        # find project from file system, otherwise return None
+        raise NotImplementedError
+
+    @property
+    # has_one
+    def engine(self):
+        return self._related["engine"]
+
+    @property
+    # belongs_to
+    def repository(self):
+        if "repository" in self._related:
+            return self._related["repository"]
+
+        # find project from file system, otherwise return None
+        raise NotImplementedError
 
     def add_experiment(
         self,
@@ -176,17 +196,15 @@ class Execution(Element, Discoverable):
 
         experiment = Experiment.make(experiment)
 
-        project = (
-            self.project if self.is_loaded() else self._relationships["project"]
-        )
-
         # parse components
-        component = project.component(
-            name=experiment.component_name, **experiment.version
-        )
+        # Promise(
+        # )
+        component = self.project.component(experiment.on, **experiment.version)
         component["components"] = [
-            project.component(*c) for c in experiment.uses
+            self.project.component(*c) for c in experiment.uses
         ]
+
+        experiment.spec = component
 
         # self.components.append(component)
 
@@ -221,7 +239,18 @@ class Execution(Element, Discoverable):
         #                 canonicalize_resources(resources),
         #             )
 
-        self._relationships["experiments"].append(experiment)
+        experiment._related["repository"] = self.repository
+        experiment._related["execution"] = self
+
+        self._related["experiments"].append(experiment)
+
+        return self
+
+    def submit(self) -> "Execution":
+        if self.uuid is None:
+            self.__storage__.create(self, repository=self.repository)
+
+        self.engine.dispatch(self)
 
         return self
 
@@ -234,14 +263,6 @@ class Execution(Element, Discoverable):
     ) -> "Execution":
         """Derives a related execution."""
         # user can specify overrides, otherwise it copies all objects over
-
-    def set_storage(self, storage):
-        if storage is None:
-            storage = get_settings()["default_storage"]
-
-        self.storage = Storage.make(storage)
-
-        return self
 
     def set_directory(self, directory):
         if directory is not None:
@@ -309,28 +330,6 @@ class Execution(Element, Discoverable):
         name = os.path.normpath(name)
 
         self.name = name
-
-        return self
-
-    @property
-    def uid(self):
-        return self.timestamp
-
-    def submit(self) -> "Execution":
-        # move to constructor?
-        # if self.timestamp is None:
-        #     self.timestamp = dt.now().timestamp()
-        #
-        #
-        project = (
-            self.project if self.is_loaded() else self._relationships["project"]
-        )
-
-        # for experiment in self.experiments:
-        #     experiment.save()
-        self.save()
-
-        # self.engine.dispatch(self)
 
         return self
 
@@ -602,7 +601,7 @@ class Execution(Element, Discoverable):
         self.schedule.filter(callback)
 
     def __repr__(self):
-        return f"Execution <{self.uid}>"
+        return f"Execution"
 
     def __str__(self):
         return self.__repr__()

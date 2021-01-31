@@ -180,13 +180,11 @@ class Component(Element, Mixin):
         The initialisation and its events ought to be side-effect free, meaning the application state is preserved
         as if no execution would have happened.
         """
-        config = experiment.component["config"]
-        flags = experiment.component["flags"]
+        super().__init__()
 
-        self.experiment = experiment
+        config, flags = experiment.spec["config"], experiment.spec["flags"]
 
-        # re-connect to storage
-        Element.__storage__ = experiment.execution.__storage__
+        self._related["experiment"] = experiment
 
         on_before_init = self.on_before_init(config, flags, node)
         if isinstance(on_before_init, tuple):
@@ -231,6 +229,17 @@ class Component(Element, Mixin):
             self.bind(mixin.get("origin", mixin["name"]), mixin["attribute"])
 
         self.on_after_init()
+
+    # relations
+    # belongsTo
+    @property
+    def experiment(self):
+        if "experiment" in self._related:
+            return self._related["experiment"]
+
+        # find project from file system, otherwise return None
+        raise NotImplementedError
+        # todo: load from filesystem
 
     def bind(self, mixin, attribute):
         """Binds a mixin to the component
@@ -311,7 +320,13 @@ class Component(Element, Mixin):
         """Event interface"""
         return self._events
 
-    def dispatch(
+    def dispatch(self):
+        if not self.exists():
+            self.__storage__.create(
+                self, repository=self.experiment.execution.repository
+            )
+
+    def dispatch_(
         self,
         actor_reference=None,
         lifecycle=True,

@@ -28,15 +28,15 @@ class NativeEngine(Engine):
     def _dispatch(self, execution):
         if self.processes is None:
             # standard execution
-            return super()._dispatch(execution)
 
+            return super()._dispatch(execution)
         pool = Pool(processes=self.processes, maxtasksperchild=1)
         try:
-            for index, result in pool.imap_unordered(
-                self.pool_process,
-                execution.schedule.iterate(execution.storage.config),
+            for _ in pool.imap_unordered(
+                self.process,
+                execution.experiments,
             ):
-                execution.set_result(result, index)
+                pass
 
             pool.close()
             pool.join()
@@ -50,6 +50,7 @@ class NativeEngine(Engine):
             # )
             pool.terminate()
         except BaseException as e:
+            raise e
             # execution.set_result(
             #     ExecutionException(
             #         reason="exception",
@@ -60,9 +61,6 @@ class NativeEngine(Engine):
             pool.terminate()
 
         return execution
-
-    def pool_process(self, payload):
-        return self.process(*payload)
 
     def execute(
         self,

@@ -4,6 +4,6 @@ import machinable as ml
 def test_storage():
     ml.Storage.connect("tmp/")
 
-    exp = ml.Experiment.find("sdf")
+    exp = ml.Experiment.find("wmzFN0")
 
-    print(exp, "sfddsf")
+    print(exp.config, "sfddsf")

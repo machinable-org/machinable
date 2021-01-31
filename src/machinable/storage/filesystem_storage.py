@@ -8,6 +8,8 @@ from machinable.experiment.experiment import Experiment
 from machinable.filesystem.filesystem import FileSystem
 from machinable.storage.storage import Storage
 
+epository.make(repository)
+
 
 class FilesystemStorage(Storage):
     def __init__(self, url):

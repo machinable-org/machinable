@@ -13,7 +13,7 @@ from machinable.utils.utils import (
 class Experiment(Element, Discoverable):
     def __init__(
         self,
-        component_name: Union[str, dict, None] = None,
+        component: Union[str, dict, None] = None,
         config: Union[str, dict, None, List[Union[str, dict, None]]] = None,
         flags: Union[dict, None, List[Union[dict, None]]] = None,
         seed: Union[str, int, None] = None,
@@ -21,14 +21,13 @@ class Experiment(Element, Discoverable):
         """Experiment
 
         # Arguments
-        on: The name of the component as defined in the machinable.yaml
-        version: A config update to override the default config
+        component: The name of the component as defined in the machinable.yaml
+        config: A config update to override the default config
         flags: Additional flags
         seed: Experiment seed
-        uses: List of components (can be added later via .use())
         """
         super().__init__()
-        self.component_name = component_name
+        self.on = component
         self.version = {"config": config, "flags": flags}
         self.seed = seed
         # compute/generate experiment ID
@@ -42,6 +41,16 @@ class Experiment(Element, Discoverable):
         else:
             raise ValueError(f"Invalid seed: {seed}")
         self.uses = []
+        self.spec = None
+
+    @property
+    def execution(self):
+        return self._related["execution"]
+
+    @property
+    def config(self):
+        #
+        pass
 
     @classmethod
     def unserialize(cls, serialized):
@@ -71,7 +80,7 @@ class Experiment(Element, Discoverable):
         return self
 
     def __str__(self):
-        return f"Experiment({self.component_name}) [{self.experiment_id}]"
+        return f"Experiment({self.on}) [{self.experiment_id}]"
 
     def __repr__(self):
-        return f"Experiment({self.component_name}, version={self.version}, seed={self.seed}, uses={self.uses})  [{self.experiment_id}]"
+        return f"Experiment({self.on}, version={self.version}, seed={self.seed}, uses={self.uses})  [{self.experiment_id}]"

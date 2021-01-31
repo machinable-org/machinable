@@ -7,13 +7,10 @@ from machinable.collection import Collection
 from machinable.settings import get_settings
 from machinable.storage.storage import Storage
 from machinable.utils.traits import Jsonable
-from masoniteorm.connections import ConnectionFactory, ConnectionResolver
-from masoniteorm.models import Model
-from masoniteorm.query import QueryBuilder
 
 connection = {
     "default": "mysql",
-    "sqlite": {"database": ":mem:"},
+    "sqlite": {"database": ":memory:"},
     "mysql": {
         "host": "127.0.0.1",
         "database": "masonite",
@@ -26,56 +23,39 @@ connection = {
         },
     },
 }
-DB = ConnectionResolver().set_connection_details(connection)
 
 
-class ElementQueryBuilder(QueryBuilder):
-    def on(self, connection):
-
-        if connection == "default":
-            self.connection = self._connection_details.get("default")
-        else:
-            self.connection = connection
-
-        if self.connection not in self._connection_details:
-            raise ConnectionNotRegistered(
-                f"Could not find the '{self.connection}' connection details"
-            )
-
-        self._connection_driver = self._connection_details.get(
-            self.connection
-        ).get("driver")
-        self.connection_class = DB.connection_factory._connections.get("mysql")
-
-        self.grammar = self.connection_class.get_default_query_grammar()
-
-        return self
-
-
-class Element(Model):
+class Element(Jsonable):
     """Base class for storage models"""
 
     __storage__: Optional["Storage"] = None
 
-    def get_builder(self):
+    def __init__(self) -> None:
+        super().__init__()
+        self.uuid = None
+        self._related = {}
 
-        self.builder = ElementQueryBuilder(
-            connection=self.__connection__,
-            table=self.get_table_name(),
-            connection_details=connection,
-            model=self,
-            scopes=self._scopes,
-            dry=self.__dry__,
-        )
+        if not isinstance(self.__storage__, Storage):
+            self.__storage__ = Storage.make(get_settings()["default_storage"])
 
-        return self.builder
+    def exists(self):
+        return self.uuid is not None
 
+    # todo: resolve __storage__ and forward to self.__storage__.find()
     @classmethod
-    def storage(cls) -> Storage:
-        if not isinstance(cls.__storage__, Storage):
-            cls.__storage__ = Storage.make(get_settings()["default_storage"])
+    def find(cls, element_id):
+        from machinable.repository.repository import Repository
 
-        return cls.__storage__
+        # hack
+        # which uses where(self.__storage__.filesystem.url) and
+        # returns the repository in form of a hydrated element
+        # (and any other elements it like to hydrate)
+        # it has to hydrate the UUID
+        repository = "bla"
+        element = cls()
+        element._related["repository"] = Repository(repository)
+        element.experiment_id = element_id
+        return element
 
     @classmethod
     def collection(cls, data) -> Collection:

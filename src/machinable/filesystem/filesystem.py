@@ -4,6 +4,7 @@ import os
 import pickle
 
 from fs import errors, open_fs
+from machinable.repository.repository import Repository
 from machinable.utils.dicts import serialize
 from machinable.utils.utils import sentinel
 
@@ -27,6 +28,13 @@ class FileSystem:
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         self._fs.close()
+
+    def repository(self, repository, create=None):
+        repository = Repository.make(repository)
+        # hack
+        path = repository.name
+        if create is not False:
+            self._fs.makedirs(path, recreate=create is True)
 
     def get_url(self, append=""):
         return self.url.rstrip("/") + "/" + append.lstrip("/")

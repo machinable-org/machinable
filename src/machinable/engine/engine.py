@@ -8,7 +8,7 @@ import machinable.errors
 from machinable.element.element import Element
 from machinable.utils.dicts import update_dict
 from machinable.utils.formatting import exception_to_str, msg
-from machinable.utils.importing import resolve_instance
+from machinable.utils.importing import ModuleClass, resolve_instance
 from machinable.utils.system import set_process_title
 from machinable.utils.traits import Discoverable, Jsonable
 
@@ -142,10 +142,8 @@ class Engine(Element, Discoverable):
 
         machinable.Execution object
         """
-        print(execution.experiments)
         for experiment in execution.experiments:
-            component = experiment.component["class"](experiment=experiment)
-            component.dispatch()
+            self.process(experiment)
 
         return
         for (
@@ -172,8 +170,18 @@ class Engine(Element, Discoverable):
 
         # return execution
 
-    def process(self, index, execution_type, *args, **kwargs):
-        return index, getattr(self, execution_type)(*args, **kwargs)
+    def process(self, experiment):
+        # CORE EXEC
+        # todo: re-connect to storage
+        # Element.__storage__ = experiment.__storage__
+        # todo: set env variables
+        #
+        from machinable.component.component import Component
+
+        component = ModuleClass(
+            module_name=experiment.spec["module"], baseclass=Component
+        )(experiment=experiment)
+        component.dispatch()
 
     def on_before_storage_creation(self, execution):
         pass
