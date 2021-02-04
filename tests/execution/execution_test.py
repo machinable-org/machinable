@@ -1,6 +1,6 @@
 import os
 
-from machinable import Component, Execution, Experiment, execute
+from machinable import Component, Execution, Experiment, Submission, execute
 from machinable.core.settings import get_settings
 
 
@@ -58,13 +58,14 @@ def test_execution_setters():
 
 def test_execution_continuation():
     experiment = Experiment().component("nodes.continuation")
+    parent = Submission.find("./_test_data/storage/tttttt", 0)
     execution = Execution(
         experiment=experiment,
-        storage="./_test_data/storage/tttttt",
+        storage=parent.url,
         project="./test_project",
     )
     execution.submit()
     assert execution.schedule._result[0] is None  # no exception occurred
     assert os.path.isdir(
-        f"./_test_data/storage/tttttt/submissions/{execution.submission_id}"
+        f"./_test_data/storage/tttttt/{parent.component_id}/submissions/{execution.submission_id}"
     )

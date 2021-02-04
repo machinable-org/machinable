@@ -425,9 +425,7 @@ class Execution(Jsonable):
         derived_from = None
         try:
             with open_fs(self.storage.config["url"]) as filesystem:
-                submission_id = filesystem.load_file("execution.json")[
-                    "submission_id"
-                ]
+                filesystem.load_file("state.json")
                 # register URL as parent storage and rewrite to submissions/ subdirectory
                 derived_from = self.storage.config["url"]
                 self.storage.config["url"] = os.path.join(

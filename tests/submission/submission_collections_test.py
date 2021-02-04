@@ -5,7 +5,6 @@
 from unittest import TestCase
 
 import pytest
-
 from machinable import Submission
 from machinable.submission.collections import (
     Collection,

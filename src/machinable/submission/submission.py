@@ -223,6 +223,7 @@ class Submission:
     @property
     def submissions(self) -> SubmissionCollection:
         """Returns a collection of derived experiments"""
+        print("Submission().submissions is deprecated. To access derived submissions use Submission().components[0].submissions etc.")
         return SubmissionCollection(
             [
                 Submission(self._model.submission_model(url))
@@ -231,17 +232,18 @@ class Submission:
         )
 
     @property
-    def ancestor(self) -> Optional["Submission"]:
+    def ancestor(self) -> Optional["SubmissionComponent"]:
         """Returns parent experiment or None if experiment is independent"""
         if self.url.find("/submissions/") == -1:
             return None
         try:
-            model = self._model.submission_model(
+            from .component import SubmissionComponent
+            model = self._model.submission_component_model(
                 self.url.rsplit("/submissions/", maxsplit=1)[0]
             )
             if not model.exists():
                 return None
-            return Submission(model)
+            return SubmissionComponent(model)
         except ValueError:
             return None
 

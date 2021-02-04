@@ -1,5 +1,4 @@
 import pytest
-
 from machinable import Engine, execute
 from machinable.engine.detached_engine import DetachedEngine as Detached
 from machinable.utils.importing import resolve_instance

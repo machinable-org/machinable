@@ -1,5 +1,4 @@
 import pytest
-
 from machinable.utils.dicts import read_path_dict
 
 
