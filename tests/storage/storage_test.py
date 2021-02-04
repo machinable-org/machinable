@@ -3,7 +3,6 @@ import os
 
 import numpy as np
 import pytest
-
 from machinable import Storage
 
 STORAGE_DIRECTORY = "./_test_data/storage"

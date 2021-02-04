@@ -25,11 +25,13 @@ def test_submission():
     assert len(o.components) == 4
     assert o.engine.type == "native"
 
-    submissions = o.submissions
+    submissions = o.components.first().submissions
     assert len(submissions) >= 2
     assert len(submissions.filter(lambda x: x.submission_id == "SUBEXP")) == 1
     assert all(
-        submissions.transform(lambda x: x.ancestor.submission_id == "tttttt")
+        submissions.transform(
+            lambda x: x.ancestor.execution.submission_id == "tttttt"
+        )
     )
     assert o.ancestor is None
 

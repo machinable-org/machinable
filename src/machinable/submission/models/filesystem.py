@@ -16,8 +16,6 @@ class FileSystemBaseModel:
     def submission_component_model(self, url):
         return FileSystemSubmissionComponentModel(url)
 
-
-class FileSystemSubmissionModel(FileSystemBaseModel, SubmissionModel):
     def submissions(self):
         experiments = []
         try:
@@ -35,6 +33,10 @@ class FileSystemSubmissionModel(FileSystemBaseModel, SubmissionModel):
             pass
         finally:
             return experiments
+
+
+class FileSystemSubmissionModel(FileSystemBaseModel, SubmissionModel):
+    pass
 
 
 class FileSystemSubmissionComponentModel(

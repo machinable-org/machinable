@@ -58,6 +58,9 @@ class BaseModel:
     def submission_component_model(self, url):
         raise NotImplementedError
 
+    def submissions(self):
+        raise NotImplementedError
+
 
 class SubmissionModel(BaseModel):
     def __init__(self, url):
@@ -103,9 +106,6 @@ class SubmissionModel(BaseModel):
             "host.json": self.file("host.json"),
             "code.diff": self.file("code.diff"),
         }
-
-    def submissions(self):
-        raise NotImplementedError
 
 
 class SubmissionComponentModel(BaseModel):
