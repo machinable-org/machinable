@@ -1,5 +1,4 @@
 import pytest
-
 from machinable import Submission
 from machinable.submission import SubmissionComponentView, Views
 from machinable.submission.views.views import _used_attributes
@@ -12,6 +11,7 @@ def test_allowed_attribute_list():
         - _used_attributes["submission"]
     )
     assert len(a) == 0, f"Attribute list does not match: {a}"
+
     a = (
         set(filter(lambda x: not x.startswith("__"), dir(e.components.first())))
         - _used_attributes["component"]

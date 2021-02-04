@@ -8,7 +8,7 @@ from ..config.mapping import config_map
 from ..filesystem import open_fs, parse_storage_url
 from ..submission.models import SubmissionComponentModel
 from ..utils.utils import sentinel
-from .collections import RecordCollection
+from .collections import RecordCollection, SubmissionCollection
 from .views.views import get as get_view
 
 
@@ -105,6 +105,23 @@ class SubmissionComponent:
             )
 
         return self._cache["submission"]
+
+    @property
+    def execution(self):
+        # v3 forward-compatible API
+        return self.submission
+
+    @property
+    def submissions(self) -> SubmissionCollection:
+        """Returns a collection of derived experiments"""
+        from .submission import Submission
+        
+        return SubmissionCollection(
+            [
+                Submission(self._model.submission_model(url))
+                for url in self._model.submissions()
+            ]
+        )
 
     def data(self, name=None, default=sentinel):
         """Retrieves a data object from the submission

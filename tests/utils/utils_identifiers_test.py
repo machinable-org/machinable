@@ -1,5 +1,4 @@
 import pytest
-
 from machinable.utils.identifiers import (
     decode_submission_id,
     encode_submission_id,

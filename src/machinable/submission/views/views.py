@@ -62,6 +62,8 @@ _used_attributes = {
         "heartbeat_at",
         "components",
         "submission",
+        "submissions",
+        "execution",
         "url",
         "_cache",
         "log",
@@ -70,7 +72,6 @@ _used_attributes = {
         "is_active",
         "tuning",
         "host",
-        "engine",
     },
 }
 
