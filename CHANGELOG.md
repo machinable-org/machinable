@@ -2,6 +2,10 @@
 
 <!-- Please add changes under the Unreleased section that reads 'No current changes' otherwise -->
 
+# v2.14.0
+
+- Nest submissions under individual components to simplify storage retrival
+
 # v2.13.0
 
 - Add URL to submission serialization
