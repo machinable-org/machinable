@@ -2,15 +2,16 @@ import machinable as ml
 
 
 def test_execution():
-    execution = ml.Execution(project="./tests/project")
+    ml.Project.connect("./tests/project")
+
+    execution = ml.Execution()
     execution.add_experiment(ml.Experiment("dummy"))
     assert len(execution.experiments) == 1
 
     ml.Storage.connect("tmp/")
 
     execution = ml.Execution(
-        project="./tests/project",
-        repository="bla",
+        repository="test_repo",
         engine="native:None",
     )
     execution.add_experiment(ml.Experiment("dummy"))

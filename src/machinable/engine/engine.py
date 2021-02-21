@@ -179,7 +179,7 @@ class Engine(Element, Discoverable):
         from machinable.component.component import Component
 
         component = ModuleClass(
-            module_name=experiment.spec["module"], baseclass=Component
+            module_name=experiment.components[0]["module"], baseclass=Component
         )(experiment=experiment)
         component.dispatch()
 

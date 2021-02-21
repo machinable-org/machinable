@@ -4,63 +4,71 @@
 from typing import Optional
 
 from machinable.collection import Collection
+from machinable.project.project import Project
 from machinable.settings import get_settings
 from machinable.storage.storage import Storage
 from machinable.utils.traits import Jsonable
 
-connection = {
-    "default": "mysql",
-    "sqlite": {"database": ":memory:"},
-    "mysql": {
-        "host": "127.0.0.1",
-        "database": "masonite",
-        "user": "root",
-        "password": "root",
-        "port": 3306,
-        "prefix": "",
-        "options": {
-            #
-        },
-    },
-}
+
+def _default_storage():
+    return Storage.make(get_settings()["default_storage"])
 
 
 class Element(Jsonable):
-    """Base class for storage models"""
+    """Element baseclass"""
 
-    __storage__: Optional["Storage"] = None
+    __project__: Optional[Project] = None
+    __storage__: Optional[Storage] = None
 
     def __init__(self) -> None:
         super().__init__()
         self.uuid = None
-        self._related = {}
+        self.url = None
+        self.__related__ = {}
+
+        if not isinstance(self.__project__, Project):
+            self.__project__ = Project.make(get_settings()["default_project"])
 
         if not isinstance(self.__storage__, Storage):
-            self.__storage__ = Storage.make(get_settings()["default_storage"])
+            self.__storage__ = _default_storage()
 
     def exists(self):
         return self.uuid is not None
 
-    # todo: resolve __storage__ and forward to self.__storage__.find()
     @classmethod
     def find(cls, element_id):
-        from machinable.repository.repository import Repository
-
-        # hack
-        # which uses where(self.__storage__.filesystem.url) and
-        # returns the repository in form of a hydrated element
-        # (and any other elements it like to hydrate)
-        # it has to hydrate the UUID
-        repository = "bla"
-        element = cls()
-        element._related["repository"] = Repository(repository)
-        element.experiment_id = element_id
-        return element
+        if not isinstance(cls.__storage__, Storage):
+            cls.__storage__ = _default_storage()
+        return cls.__storage__.find(cls.__name__, element_id)
 
     @classmethod
-    def collection(cls, data) -> Collection:
-        """Returns a collection of the model type"""
-        return Collection(data)
+    def collect(cls, elements) -> Collection:
+        """Returns a collection of the element type"""
+        return Collection(elements)
+
+    @classmethod
+    def unserialize(cls, serialized):
+        return cls.make(serialized)
+
+    @classmethod
+    def make(cls, args):
+        """Creates an element instance"""
+        if isinstance(args, cls):
+            return args
+
+        if args is None:
+            return cls()
+
+        if isinstance(args, str):
+            return cls(args)
+
+        if isinstance(args, tuple):
+            return cls(*args)
+
+        if isinstance(args, dict):
+            return cls(**args)
+
+        raise ValueError(f"Invalid arguments: {args}")
 
     def __str__(self):
         return self.__repr__()

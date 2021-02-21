@@ -12,21 +12,17 @@ from collections import OrderedDict
 import pendulum
 import yaml
 from flatten_dict import unflatten
-from machinable.component.component import Component as BaseComponent
-from machinable.component.mixin import Mixin as BaseMixin
 from machinable.config.loader import from_callable as load_config_from_callable
 from machinable.config.loader import from_file as load_config_file
 from machinable.config.loader import from_string as load_config_from_string
 from machinable.config.mapping import config_map
 from machinable.config.parser import parse_mixins, parse_module_list
-from machinable.element.element import Element
-from machinable.experiment.experiment import Experiment
 from machinable.project.manager import fetch_imports
 from machinable.settings import get_settings
 from machinable.utils.dicts import update_dict
 from machinable.utils.formatting import exception_to_str, msg
 from machinable.utils.importing import ModuleClass, import_module_from_directory
-from machinable.utils.traits import Discoverable, Jsonable
+from machinable.utils.traits import Jsonable
 from machinable.utils.utils import (
     call_with_context,
     is_valid_module_path,
@@ -35,22 +31,15 @@ from machinable.utils.utils import (
 from machinable.utils.vcs import get_commit, get_diff, get_root_commit
 
 
-class Project(Element, Discoverable):
-    def __init__(
-        self,
-        directory: Optional[str] = None,
-        parent=None,
-        schema_validation=None,
-    ):
+class Project(Jsonable):
+    def __init__(self, directory: Optional[str] = None, parent=None):
         super().__init__()
         if directory is None:
             directory = os.getcwd()
         self.directory: str = directory
         self._name: Optional[str] = None
         self._parent: Optional[Project] = parent
-        if schema_validation is None:
-            schema_validation = get_settings()["schema_validation"]
-        self._schema_validation = schema_validation
+        self._schema_validation = get_settings()["schema_validation"]
 
         self._config_file: str = "machinable.yaml"
         self._vendor_caching = get_settings()["cache"].get("imports", False)
@@ -59,14 +48,43 @@ class Project(Element, Discoverable):
         self._parsed_config = None
         self._config_interface = None
 
+    @classmethod
+    def make(cls, args):
+        """Creates an element instance"""
+        if isinstance(args, cls):
+            return args
+
+        if args is None:
+            return cls()
+
+        if isinstance(args, str):
+            return cls(args)
+
+        if isinstance(args, tuple):
+            return cls(*args)
+
+        if isinstance(args, dict):
+            return cls(**args)
+
+        raise ValueError(f"Invalid arguments: {args}")
+
+    @classmethod
+    def connect(cls, directory: Optional[str] = None):
+        from machinable.element.element import Element
+
+        instance = cls.make(directory)
         if (
-            os.path.exists(self.directory_path)
-            and self.directory_path not in sys.path
+            os.path.exists(instance.directory_path)
+            and instance.directory_path not in sys.path
         ):
-            if self.is_root():
-                sys.path.insert(0, self.directory_path)
+            if instance.is_root():
+                sys.path.insert(0, instance.directory_path)
             else:
-                sys.path.append(self.directory_path)
+                sys.path.append(instance.directory_path)
+
+        Element.__project__ = instance
+
+        return instance
 
     @property
     def config_filepath(self) -> str:
@@ -487,7 +505,7 @@ class Project(Element, Discoverable):
 
         return self._parsed_config
 
-    def component(self, name: str, config=None, flags=None) -> dict:
+    def parse_component(self, name: str, config=None, flags=None) -> dict:
         data = self.parse_config()
 
         if name not in data["components"]:
@@ -503,7 +521,15 @@ class Project(Element, Discoverable):
         config = copy.deepcopy(data["components"][name])
 
         # flags
-        config["flags"] = update_dict(config["flags"], flags)
+        config["flags"]["__version"] = copy.deepcopy(flags)
+
+        if not isinstance(flags, (list, tuple)):
+            flags = [flags]
+
+        for f in flags:
+            if f is None:
+                continue
+            config["flags"] = update_dict(config["flags"], f)
 
         # name
         config["name"] = name
@@ -754,3 +780,6 @@ class Project(Element, Discoverable):
         }
 
         return config
+
+    def __repr__(self) -> str:
+        return f"Project({self.directory})"

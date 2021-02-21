@@ -31,15 +31,23 @@ class Storage(Discoverable):
         return os.path.join(url, *append)
 
     @classmethod
-    def connect(cls, url):
+    def connect(cls, url) -> "Storage":
         from machinable.element.element import Element
 
-        Element.__storage__ = cls.make(url)
+        instance = cls.make(url)
+
+        Element.__storage__ = instance
+
+        return instance
+
+    def find(self, element_type, element_id):
+        pass
+
+    def create_execution(self, info=None, execution=None):
+        print(self.filesystem)
 
     def create(self, element, repository=None):
-        assert element.uuid is None
-
-        element.uuid = str(uuid.uuid4())
+        assert element.url is None
 
         from machinable.component.component import Component
         from machinable.execution.execution import Execution

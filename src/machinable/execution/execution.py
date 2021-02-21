@@ -72,30 +72,23 @@ def _code_backup_settings(value):
 
 
 class Execution(Element, Discoverable):
-    __visible__ = ["name"]
-    __relationship_attributes__ = ["project"]
-
     def __init__(
         self,
         experiment: Union[Experiment, List[Experiment], None] = None,
         repository: Union[dict, str, None] = None,
         engine: Union[Engine, str, dict, None] = None,
-        project: Union[Project, str, dict, None] = None,
+        seed: Union[str, int, None] = None,
     ):
         super().__init__()
 
         if engine is None:
             engine = get_settings()["default_engine"]
 
-        if project is None:
-            project = get_settings()["default_project"]
+        if repository is None:
+            repository = get_settings()["default_repository"]
 
-        if project is None:
-            project = get_settings()["default_repository"]
-
-        self._related.update(
+        self.__related__.update(
             {
-                "project": Project.make(project),
                 "engine": Engine.make(engine),
                 "repository": Repository.make(repository),
                 "experiments": [],
@@ -105,38 +98,8 @@ class Execution(Element, Discoverable):
         if experiment is not None:
             self.add_experiment(experiment)
 
-        self.comments = None
-
-        self._code_backup = None
-        # self.timestamp = None
-        self._started_at = None
-        self._name = None
-
-        # assign project registration
-        # self._registration = self._project.registration
-
-        self._behavior = {"raise_exceptions": False}
-        self._failures = 0
-        self._nickname = None
-
-        self._resources = {}
-
+        self.nickname = generate_nickname()
         self.timestamp = dt.now().timestamp()
-
-        # self.set_code_backup()
-
-        # self.components = []
-
-    @property
-    def nickname(self):
-        if self._nickname is None:
-            self._nickname = generate_nickname()
-
-        return self._nickname
-
-    @property
-    def components(self):
-        return self._components
 
     # relations
 
@@ -145,13 +108,13 @@ class Execution(Element, Discoverable):
     def experiments(self) -> ExperimentCollection:
         """Experiments of the execution"""
         # todo: lookup from filesystem
-        return ExperimentCollection(self._related["experiments"])
+        return ExperimentCollection(self.__related__["experiments"])
 
     @property
     # belongs_to
     def project(self):
-        if "project" in self._related:
-            return self._related["project"]
+        if "project" in self.__related__:
+            return self.__related__["project"]
 
         # find project from file system, otherwise return None
         raise NotImplementedError
@@ -159,13 +122,13 @@ class Execution(Element, Discoverable):
     @property
     # has_one
     def engine(self):
-        return self._related["engine"]
+        return self.__related__["engine"]
 
     @property
     # belongs_to
     def repository(self):
-        if "repository" in self._related:
-            return self._related["repository"]
+        if "repository" in self.__related__:
+            return self.__related__["repository"]
 
         # find project from file system, otherwise return None
         raise NotImplementedError
@@ -190,23 +153,11 @@ class Execution(Element, Discoverable):
         ```
         """
         if isinstance(experiment, (list, tuple)):
-            for e in experiment:
-                self.add_experiment(e)
+            for _experiment in experiment:
+                self.add_experiment(_experiment)
             return self
 
         experiment = Experiment.make(experiment)
-
-        # parse components
-        # Promise(
-        # )
-        component = self.project.component(experiment.on, **experiment.version)
-        component["components"] = [
-            self.project.component(*c) for c in experiment.uses
-        ]
-
-        experiment.spec = component
-
-        # self.components.append(component)
 
         # parse resources
         # if not self.engine.supports_resources():
@@ -239,16 +190,18 @@ class Execution(Element, Discoverable):
         #                 canonicalize_resources(resources),
         #             )
 
-        experiment._related["repository"] = self.repository
-        experiment._related["execution"] = self
-
-        self._related["experiments"].append(experiment)
+        # relations
+        experiment.__related__["execution"] = self
+        self.__related__["experiments"].append(experiment)
 
         return self
 
     def submit(self) -> "Execution":
+
         if self.uuid is None:
-            self.__storage__.create(self, repository=self.repository)
+            self.__storage__.create_execution(
+                execution={"host": get_host_info(), "project": "Uuid"}
+            )
 
         self.engine.dispatch(self)
 

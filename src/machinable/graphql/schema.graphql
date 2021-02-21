@@ -3,15 +3,15 @@ directive @method on FIELD_DEFINITION
 
 scalar JSON
 scalar DateTime
+scalar UUID
 
 type Query {
   storage(url: String!): Storage
   server: String
-  experiment(experiment_id: String!): Experiment
 }
 
 type Mutation {
-  createRepository(url: String): Repository
+  storage(url: String!): Storage
 }
 
 type Subscription {
@@ -20,7 +20,11 @@ type Subscription {
 
 type Storage {
   url: String!
-  repositories: [Repository]
+  createExecution(execution: StorageCreateExecutionInput!): UUID
+}
+
+input StorageCreateExecutionInput {
+  host: JSON
 }
 
 type Repository {
@@ -68,7 +72,7 @@ type Host {
   environ: JSON @json
   argv: [String]
   machinable_version: String
-  # project_directory: 
+  # project_directory:
 }
 
 type Experiment {

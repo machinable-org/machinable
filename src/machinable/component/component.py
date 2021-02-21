@@ -182,9 +182,12 @@ class Component(Element, Mixin):
         """
         super().__init__()
 
-        config, flags = experiment.spec["config"], experiment.spec["flags"]
+        config, flags = (
+            experiment.components[0]["config"],
+            experiment.components[0]["flags"],
+        )
 
-        self._related["experiment"] = experiment
+        self.__related__["experiment"] = experiment
 
         on_before_init = self.on_before_init(config, flags, node)
         if isinstance(on_before_init, tuple):
@@ -234,12 +237,11 @@ class Component(Element, Mixin):
     # belongsTo
     @property
     def experiment(self):
-        if "experiment" in self._related:
-            return self._related["experiment"]
+        if "experiment" in self.__related__:
+            return self.__related__["experiment"]
 
         # find project from file system, otherwise return None
         raise NotImplementedError
-        # todo: load from filesystem
 
     def bind(self, mixin, attribute):
         """Binds a mixin to the component
@@ -321,19 +323,13 @@ class Component(Element, Mixin):
         return self._events
 
     def dispatch(self):
-        if not self.exists():
-            self.__storage__.create(
-                self, repository=self.experiment.execution.repository
-            )
+        print("dispatch")
 
     def dispatch_(
         self,
         actor_reference=None,
         lifecycle=True,
     ):
-        self.save()
-        return
-
         # Prepares and dispatches the components lifecycle and returns its result
         try:
             self.on_start()

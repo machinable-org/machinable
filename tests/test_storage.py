@@ -1,9 +1,8 @@
 import machinable as ml
+from machinable.utils.graphql import client
 
 
 def test_storage():
     ml.Storage.connect("tmp/")
 
-    exp = ml.Experiment.find("wmzFN0")
-
-    print(exp.config, "sfddsf")
+    experiment = ml.Experiment.find("wmzFN0")
