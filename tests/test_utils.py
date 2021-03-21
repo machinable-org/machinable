@@ -1,5 +1,6 @@
+import numpy as np
 import pytest
-from machinable.utils import utils
+from machinable.utils import system, utils
 
 
 def test_utils():
@@ -21,3 +22,31 @@ def test_utils():
         utils.generate_nickname("non-existent-category")
     assert len(utils.generate_nickname().split("_")) == 2
     assert utils.generate_nickname(["tree"]).find("_") == -1
+
+
+def test_system_utils(tmpdir):
+    # json
+    filepath = str(tmpdir / "random/path/test.json")
+    system.save_file(filepath, {"jsonable": 1, "test": True})
+    r = system.load_file(filepath)
+    assert r["jsonable"] == 1
+    assert r["test"] is True
+
+    # text
+    filepath = str(tmpdir / "random/test.diff")
+    system.save_file(filepath, "test")
+    assert system.load_file(filepath) == "test"
+
+    # pickle
+    filepath = str(tmpdir / "test.p")
+    system.save_file(filepath, ["test"])
+    assert system.load_file(filepath) == ["test"]
+
+    # numpy
+    filepath = str(tmpdir / "number.npy")
+    system.save_file(filepath, np.array([1, 2, 3]))
+    assert system.load_file(filepath).sum() == 6
+
+    assert system.load_file("not_existing.txt", default="default") == "default"
+    with pytest.raises(ValueError):
+        system.save_file("invalid.extension", [])

@@ -9,7 +9,6 @@ from machinable.element.element import Element
 from machinable.utils.dicts import update_dict
 from machinable.utils.formatting import exception_to_str, msg
 from machinable.utils.importing import ModuleClass, resolve_instance
-from machinable.utils.system import set_process_title
 from machinable.utils.traits import Discoverable, Jsonable
 
 _register = {
@@ -97,7 +96,6 @@ class Engine(Element, Discoverable):
         if self.on_before_dispatch(execution) is False:
             return False
 
-        set_process_title(repr(execution))
         executions = self._dispatch(execution)
 
         if not isinstance(executions, (list, tuple)):
@@ -143,34 +141,9 @@ class Engine(Element, Discoverable):
         machinable.Execution object
         """
         for experiment in execution.experiments:
-            self.process(experiment)
+            self._dispatch_experiment(experiment)
 
-        return
-        for (
-            index,
-            execution_type,
-            component,
-            components,
-            storage,
-            resources,
-            args,
-            kwargs,
-        ) in execution.schedule.iterate(execution.storage.config):
-            i, result = self.process(
-                index,
-                execution_type,
-                component,
-                components,
-                storage,
-                resources,
-                args,
-                kwargs,
-            )
-            # execution.set_result(result, i)
-
-        # return execution
-
-    def process(self, experiment):
+    def _dispatch_experiment(self, experiment):
         # CORE EXEC
         # todo: re-connect to storage
         # Element.__storage__ = experiment.__storage__

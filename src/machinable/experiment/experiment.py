@@ -22,6 +22,12 @@ class Experiment(Element):
         self.components = []
         self.use(component, config, flags)
         self.experiment_id = encode_experiment_id(generate_experiment_id())
+        self.__component__ = None
+
+    @property
+    # has_one
+    def component(self):
+        return self.__component__
 
     def use(
         self,
@@ -36,9 +42,9 @@ class Experiment(Element):
         config: Configuration to override the default config
         flags: Additional flags
         """
-        self.components.append(
-            self.__project__.parse_component(component, config, flags)
-        )
+        self.__project__.has_component(component, or_fail=True)
+
+        self.components.append((component, config, flags))
 
         return self
 

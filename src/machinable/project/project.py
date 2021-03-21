@@ -505,6 +505,19 @@ class Project(Jsonable):
 
         return self._parsed_config
 
+    def has_component(self, name: str, or_fail=False) -> bool:
+        data = self.parse_config()
+
+        for kind in ["imports", "mixins", "components"]:
+            if name in data[kind]:
+                return True
+
+        if not or_fail:
+            return False
+
+        # todo: display richer error message with list of available components
+        raise ValueError(f"Project {self.directory} has no component '{name}'")
+
     def parse_component(self, name: str, config=None, flags=None) -> dict:
         data = self.parse_config()
 

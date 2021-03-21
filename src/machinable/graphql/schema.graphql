@@ -25,6 +25,15 @@ type Storage {
 
 input StorageCreateExecutionInput {
   host: JSON
+  code_version: JSON
+  code_diff: String
+  seed: Int
+  experiments: [StorageCreateExperimentInput]
+}
+
+input StorageCreateExperimentInput {
+  experiment_id: String
+  component: JSON
 }
 
 type Repository {

@@ -10,10 +10,6 @@ from machinable.storage.storage import Storage
 from machinable.utils.traits import Jsonable
 
 
-def _default_storage():
-    return Storage.make(get_settings()["default_storage"])
-
-
 class Element(Jsonable):
     """Element baseclass"""
 
@@ -30,7 +26,7 @@ class Element(Jsonable):
             self.__project__ = Project.make(get_settings()["default_project"])
 
         if not isinstance(self.__storage__, Storage):
-            self.__storage__ = _default_storage()
+            self.__storage__ = Storage.make(get_settings()["default_storage"])
 
     def exists(self):
         return self.uuid is not None
@@ -38,7 +34,7 @@ class Element(Jsonable):
     @classmethod
     def find(cls, element_id):
         if not isinstance(cls.__storage__, Storage):
-            cls.__storage__ = _default_storage()
+            cls.__storage__ = Storage.make(get_settings()["default_storage"])
         return cls.__storage__.find(cls.__name__, element_id)
 
     @classmethod

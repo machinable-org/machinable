@@ -29,46 +29,7 @@ from machinable.utils.formatting import exception_to_str, msg
 from machinable.utils.host import get_host_info
 from machinable.utils.importing import resolve_instance
 from machinable.utils.traits import Discoverable, Jsonable
-from machinable.utils.utils import (
-    call_with_context,
-    decode_experiment_id,
-    encode_experiment_id,
-    generate_experiment_id,
-    generate_nickname,
-    sentinel,
-)
-
-
-def _recover_class(element):
-    if "class" not in element:
-        try:
-            element["class"] = ModuleClass(
-                module_name=element["module"], baseclass=BaseComponent
-            ).load(instantiate=False)
-        except ImportError as _ex:
-            # we delay the exception, since a wrapped engine
-            #  might handle the import correctly later
-            class FailedRecovery:
-                def __init__(self, exception):
-                    self.exception = exception
-
-                def __call__(self, *args, **kwargs):
-                    raise self.exception
-
-            element["class"] = FailedRecovery(_ex)
-
-
-def _code_backup_settings(value):
-    enabled = None
-    exclude = None
-    if value in [True, False, None]:
-        enabled = value
-    if isinstance(value, dict):
-        enabled = value.get("enabled", None)
-        exclude = value.get("exclude", None)
-    if isinstance(exclude, tuple):
-        exclude = list(exclude)
-    return {"enabled": enabled, "exclude": exclude}
+from machinable.utils.utils import generate_nickname, generate_seed, sentinel
 
 
 class Execution(Element, Discoverable):
@@ -77,7 +38,7 @@ class Execution(Element, Discoverable):
         experiment: Union[Experiment, List[Experiment], None] = None,
         repository: Union[dict, str, None] = None,
         engine: Union[Engine, str, dict, None] = None,
-        seed: Union[str, int, None] = None,
+        seed: Union[int, None] = None,
     ):
         super().__init__()
 
@@ -94,6 +55,8 @@ class Execution(Element, Discoverable):
                 "experiments": [],
             }
         )
+
+        self.seed = generate_seed(seed)
 
         if experiment is not None:
             self.add_experiment(experiment)
@@ -142,14 +105,14 @@ class Execution(Element, Discoverable):
 
         # Arguments
         experiment: Experiment or list of Experiments
-        resources: dict, specifies the resources that are available to the component.
+        resources: dict, specifies the resources that are available to the experiment.
             This can be computed by passing in a callable (see below)
 
         # Dynamic resource computation
 
         You can condition the resource specification on the configuration, for example:
         ```python
-        resources = lambda component: {'gpu': component.config.num_gpus }
+        resources = lambda component: {'cpu': component.config.num_cpus }
         ```
         """
         if isinstance(experiment, (list, tuple)):
@@ -158,6 +121,14 @@ class Execution(Element, Discoverable):
             return self
 
         experiment = Experiment.make(experiment)
+
+        # parse
+        experiment.__component__ = [
+            self.__project__.parse_component(*spec)
+            for spec in experiment.components
+        ]
+
+        experiment.__related__["execution"] = self
 
         # parse resources
         # if not self.engine.supports_resources():
@@ -190,17 +161,29 @@ class Execution(Element, Discoverable):
         #                 canonicalize_resources(resources),
         #             )
 
-        # relations
-        experiment.__related__["execution"] = self
         self.__related__["experiments"].append(experiment)
 
         return self
 
     def submit(self) -> "Execution":
-
-        if self.uuid is None:
+        """Submit execution to engine"""
+        if self.url is None:
             self.__storage__.create_execution(
-                execution={"host": get_host_info(), "project": "Uuid"}
+                execution={
+                    "host": get_host_info(),
+                    "code_version": self.project.get_code_version(),
+                    "code_diff": self.project.get_diff(),
+                    "seed": self.seed,
+                    "experiments": [
+                        {
+                            "experiment_id": experiment.experiment_id,
+                            "component": experiment.__component__,
+                        }
+                        for experiment in self.experiments
+                    ],
+                    "nickname": self.nickname,
+                    "timestamp": self.timestamp,
+                }
             )
 
         self.engine.dispatch(self)
@@ -210,40 +193,12 @@ class Execution(Element, Discoverable):
     def derive(
         self,
         experiment: Union[Experiment, List[Experiment], None] = None,
-        storage: Union[dict, str, None] = None,
+        repository: Union[dict, str, None] = None,
         engine: Union[Engine, str, dict, None] = None,
-        project: Union[Project, str, dict, None] = None,
+        seed: Union[str, int, None] = None,
     ) -> "Execution":
         """Derives a related execution."""
         # user can specify overrides, otherwise it copies all objects over
-
-    def set_directory(self, directory):
-        if directory is not None:
-            if not isinstance(directory, str):
-                raise ValueError("Directory must be a string")
-            if directory[0] == "/":
-                raise ValueError("Directory must be relative")
-
-        self.storage.config["directory"] = directory
-
-        return self
-
-    def set_code_backup(self, enabled=None, exclude=None):
-        self.code_backup = {"enabled": enabled, "exclude": exclude}
-
-        return self
-
-    def set_behavior(self, **settings):
-        unknown_options = set(settings.keys()) - {"raise_exceptions"}
-        if len(unknown_options) > 0:
-            raise ValueError(f"Invalid options: {unknown_options}")
-        self.behavior.update(settings)
-        return self
-
-    def set_registration(self, registration):
-        self._registration = registration
-
-        return self
 
     def set_name(self, name: Optional[str] = None) -> "Execution":
         """Sets the name of the execution
@@ -386,35 +341,6 @@ class Execution(Element, Discoverable):
 
         return execution
 
-    def host(self):
-        # return host info model
-        pass
-
-    def set_result(self, result, index=None, echo=True):
-        if index is None:
-            index = len(self.schedule._result)
-        if isinstance(result, machinable.errors.ExecutionFailed):
-            self.failures += 1
-            if self.behavior["raise_exceptions"]:
-                raise result
-            if echo or echo == "success":
-                msg(
-                    f"\nComponent <{self.components[index]}> of experiment {self.submission_id} failed "
-                    f"({index + 1}/{len(self.schedule)})\n"
-                    f"{exception_to_str(result)}",
-                    level="error",
-                    color="header",
-                )
-        else:
-            if echo or echo == "failure":
-                msg(
-                    f"\nComponent <{self.components[index]}> of experiment {self.submission_id} completed "
-                    f"({index + 1}/{len(self.schedule)})\n",
-                    level="info",
-                    color="header",
-                )
-        self.schedule.set_result(result, index)
-
     @classmethod
     def from_storage(cls, url):
         with open_fs(url) as filesystem:
@@ -549,9 +475,6 @@ class Execution(Element, Discoverable):
         msg("------\n", color="header")
 
         return self
-
-    def filter(self, callback=None):
-        self.schedule.filter(callback)
 
     def __repr__(self):
         return f"Execution"
