@@ -14,6 +14,7 @@ from expandvars import expand
 from machinable.collection.experiment import ExperimentCollection
 from machinable.config.mapping import config_map
 from machinable.element.element import Element
+from machinable.element.relations import belongs_to, has_many, has_one
 from machinable.engine import Engine
 from machinable.experiment.experiment import Experiment
 from machinable.experiment.parser import parse_experiment
@@ -22,6 +23,7 @@ from machinable.index import Index
 from machinable.project import Project
 from machinable.registration import Registration
 from machinable.repository.repository import Repository
+from machinable.schema import ExecutionType
 from machinable.settings import get_settings
 from machinable.submission.submission import Submission
 from machinable.utils.dicts import merge_dict, update_dict
@@ -42,59 +44,49 @@ class Execution(Element, Discoverable):
     ):
         super().__init__()
 
+        self._seed = generate_seed(seed)
+        self._nickname = generate_nickname()
+        self._timestamp = dt.now().timestamp()
+
         if engine is None:
             engine = get_settings()["default_engine"]
 
         if repository is None:
             repository = get_settings()["default_repository"]
 
-        self.__related__.update(
-            {
-                "engine": Engine.make(engine),
-                "repository": Repository.make(repository),
-                "experiments": [],
-            }
-        )
-
-        self.seed = generate_seed(seed)
+        self._engine = Engine.make(engine)
+        self._repository = Repository.make(repository)
+        self._experiments = []
 
         if experiment is not None:
             self.add_experiment(experiment)
 
-        self.nickname = generate_nickname()
-        self.timestamp = dt.now().timestamp()
+    def _to_model(self) -> ExecutionType:
+        return ExecutionType(timestamp=self._timestamp, nickname=self._nickname)
 
-    # relations
-
-    @property
-    # has_many
+    @has_many
     def experiments(self) -> ExperimentCollection:
-        """Experiments of the execution"""
-        # todo: lookup from filesystem
-        return ExperimentCollection(self.__related__["experiments"])
+        from machinable.experiment.experiment import Experiment
 
-    @property
-    # belongs_to
+        return Experiment, ExperimentCollection
+
+    @belongs_to
     def project(self):
-        if "project" in self.__related__:
-            return self.__related__["project"]
+        from machinable.project.project import Project
 
-        # find project from file system, otherwise return None
-        raise NotImplementedError
+        return Project
 
-    @property
-    # has_one
+    @has_one
     def engine(self):
-        return self.__related__["engine"]
+        from machinable.engine.engine import Engine
 
-    @property
-    # belongs_to
+        return Engine
+
+    @belongs_to
     def repository(self):
-        if "repository" in self.__related__:
-            return self.__related__["repository"]
+        from machinable.repository.repository import Repository
 
-        # find project from file system, otherwise return None
-        raise NotImplementedError
+        return Repository
 
     def add_experiment(
         self,
@@ -123,10 +115,7 @@ class Execution(Element, Discoverable):
         experiment = Experiment.make(experiment)
 
         # parse
-        experiment.__component__ = [
-            self.__project__.parse_component(*spec)
-            for spec in experiment.components
-        ]
+        experiment.to_model()
 
         experiment.__related__["execution"] = self
 
@@ -160,13 +149,22 @@ class Execution(Element, Discoverable):
         #                 canonicalize_resources(default_resources),
         #                 canonicalize_resources(resources),
         #             )
-
+        self.__related__.setdefault("experiments", ExperimentCollection())
         self.__related__["experiments"].append(experiment)
 
         return self
 
     def submit(self) -> "Execution":
         """Submit execution to engine"""
+
+        if not self.mounted():
+            self.__storage__.create_execution(
+                execution=self.to_model(),
+                experiments=[
+                    experiment.to_model() for experiment in self._experiments
+                ],
+            )
+
         if self.url is None:
             self.__storage__.create_execution(
                 execution={

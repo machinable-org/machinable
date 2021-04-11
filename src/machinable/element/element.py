@@ -5,6 +5,7 @@ from typing import Optional
 
 from machinable.collection import Collection
 from machinable.project.project import Project
+from machinable.schema import SchemaType
 from machinable.settings import get_settings
 from machinable.storage.storage import Storage
 from machinable.utils.traits import Jsonable
@@ -16,10 +17,9 @@ class Element(Jsonable):
     __project__: Optional[Project] = None
     __storage__: Optional[Storage] = None
 
-    def __init__(self) -> None:
+    def __init__(self, *args, **kwargs):
         super().__init__()
-        self.uuid = None
-        self.url = None
+        self.__model__ = None
         self.__related__ = {}
 
         if not isinstance(self.__project__, Project):
@@ -28,8 +28,26 @@ class Element(Jsonable):
         if not isinstance(self.__storage__, Storage):
             self.__storage__ = Storage.make(get_settings()["default_storage"])
 
-    def exists(self):
-        return self.uuid is not None
+    def mounted(self):
+        return self.__model__ is not None
+
+    def to_model(self, mount=True) -> SchemaType:
+        model = self._to_model()
+
+        if not mount:
+            return model
+
+        self.__model__ = model
+        return self.__model__
+
+    def _to_model(self) -> SchemaType:
+        raise NotImplementedError
+
+    @classmethod
+    def from_model(cls, model: SchemaType) -> "Element":
+        instance = cls()
+        instance.__model__ = model
+        return instance
 
     @classmethod
     def find(cls, element_id):

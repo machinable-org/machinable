@@ -1,35 +1,20 @@
-from typing import Optional
+from typing import Any, Callable, Optional, Union
 
 import hashlib
 import inspect
+import json
 import os
+import pickle
 import random
+import re
 import string
 from collections import OrderedDict
 from keyword import iskeyword
 
+import pendulum
 from baseconv import base62
 
 sentinel = object()
-
-
-def get_file_hash(filepath):
-    """Returns a hash value of a file
-
-    # Arguments
-    filepath: Absolute filepath
-
-    # Returns
-    md5 hexdigest of file content
-    """
-    if not os.path.isfile(filepath):
-        return None
-    algorithm = hashlib.md5()
-    with open(filepath, "rb") as f:
-        file_content = f.read()
-        algorithm.update(file_content)
-
-    return algorithm.hexdigest()
 
 
 def apply_seed(seed=None):
@@ -71,6 +56,17 @@ def apply_seed(seed=None):
         pass
 
     return True
+
+
+def serialize(obj):
+    """JSON serializer for objects not serializable by default json code"""
+    if isinstance(obj, pendulum.DateTime):
+        return str(obj)
+
+    if getattr(obj, "__dict__", False):
+        return obj.__dict__
+
+    return str(obj)
 
 
 def generate_seed(random_state=None):
@@ -280,3 +276,121 @@ def generate_nickname(categories=None, glue="_"):
             raise KeyError(f"Invalid category: {category}")
         picks.append(random.choice(_WORDS[category]))
     return glue.join(picks)
+
+
+def load_file(
+    filepath: str,
+    default: Any = sentinel,
+    opener=open,
+    **opener_kwargs,
+) -> Any:
+    """Loads a data object from file
+
+    # Arguments
+    filepath: Target filepath. The extension is being used to determine
+        the file format. Supported formats are:
+        .json (JSON), .npy (numpy), .p (pickle), .txt|.log|.diff (txt)
+    default: Optional default if reading fails
+    opener: Customer file opener
+    opener_kwargs: Optional arguments to pass to the opener
+    """
+    _, ext = os.path.splitext(filepath)
+    mode = opener_kwargs.pop("mode", "r")
+    try:
+        if ext == ".p":
+            if "b" not in mode:
+                mode = mode + "b"
+            with opener(filepath, mode, **opener_kwargs) as f:
+                data = pickle.load(f)
+        elif ext == ".json":
+            with opener(filepath, mode, **opener_kwargs) as f:
+                data = json.load(f)
+        elif ext == ".npy":
+            import numpy as np
+
+            if "b" not in mode:
+                mode = mode + "b"
+            with opener(filepath, mode, **opener_kwargs) as f:
+                data = np.load(f, allow_pickle=True)
+        elif ext in [".txt", ".log", ".diff"]:
+            with opener(filepath, mode, **opener_kwargs) as f:
+                data = f.read()
+        else:
+            raise ValueError(
+                f"Invalid format: '{ext}'. "
+                f"Supported formats are .json (JSON), .npy (numpy), .p (pickle), .txt|.log|.diff (txt)"
+            )
+        return data
+    except (FileNotFoundError, Exception) as _ex:
+        if default is not sentinel:
+            return default
+        raise _ex
+
+
+def save_file(
+    filepath: str,
+    data: Any,
+    makedirs: Union[bool, Callable] = True,
+    opener=open,
+    **opener_kwargs,
+) -> str:
+    """Saves a data object to file
+
+    # Arguments
+    filepath: Target filepath. The extension is being used to determine
+        the file format. Supported formats are:
+        .json (JSON), .npy (numpy), .p (pickle), .txt|.log|.diff (txt)
+    data: The data object
+    makedirs: If True or Callable, path will be created
+    opener: Customer file opener
+    opener_kwargs: Optional arguments to pass to the opener
+
+    Returns the absolute path to the written file
+    """
+    path = os.path.dirname(filepath)
+    name = os.path.basename(filepath)
+    _, ext = os.path.splitext(name)
+    mode = opener_kwargs.pop("mode", "w")
+
+    if path != "":
+        if makedirs is True:
+            os.makedirs(path, exist_ok=True)
+        elif callable(makedirs):
+            makedirs(path)
+
+    if ext == ".json":
+        # json
+        with opener(filepath, mode, **opener_kwargs) as f:
+            f.write(json.dumps(data, ensure_ascii=False, default=serialize))
+    elif ext == ".npy":
+        import numpy as np
+
+        if "b" not in mode:
+            mode += "b"
+        # numpy
+        with opener(filepath, mode, **opener_kwargs) as f:
+            np.save(f, data)
+    elif ext == ".p":
+        if "b" not in mode:
+            mode += "b"
+        with opener(filepath, mode, **opener_kwargs) as f:
+            pickle.dump(data, f)
+    elif ext in [".txt", ".log", ".diff"]:
+        with opener(filepath, mode, **opener_kwargs) as f:
+            f.write(data)
+    else:
+        raise ValueError(
+            f"Invalid format: '{ext}'. "
+            f"Supported formats are .json (JSON), .npy (numpy), .p (pickle), .txt|.log|.diff (txt)"
+        )
+
+    return os.path.abspath(filepath)
+
+
+def sanitize_path(path: str) -> str:
+    """Strips special characters from a path (any other than 0-9, a-z, A-Z, -, and _)
+
+    # Arguments
+    path: The path
+    """
+    return re.sub(r"[^0-9a-zA-Z/\-\_]+", "", path).replace("//", "/").strip("/")

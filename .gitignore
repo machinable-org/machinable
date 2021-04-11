@@ -5,6 +5,7 @@ tests/.hypothesis
 **/vendor/.cache
 tests/test_project/code_backup/project/external_link
 tests/test_project/code_backup/project/link
+.hypothesis
 
 # Docs
 node_modules
