@@ -9,13 +9,12 @@ query = ObjectType("Query")
 mutation = ObjectType("Mutation")
 subscription = ObjectType("Subscription")
 
-repository = ObjectType("Repository")
+
+@mutation.field("storage")
+def storage(root, info: GraphQLResolveInfo, url=None):
+    from machinable.storage.storage import Storage
+
+    return Storage(url)
 
 
-# @repository.field("url")
-# def repo_re(repository_model, info: GraphQLResolveInfo):
-#     key = ".".join(info.path.as_list())
-#     return repository_model.read(key)
-
-
-types = [query, mutation, subscription, repository]
+types = [query, mutation, subscription]

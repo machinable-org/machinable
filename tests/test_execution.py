@@ -1,10 +1,9 @@
-from machinable import Execution, Experiment
+import machinable as ml
 
 
 def test_execution():
-    execution = Execution(project="./tests/project")
-    execution.set_experiment(Experiment("dummy"))
+    ml.Project.connect("./tests/project")
+
+    execution = ml.Execution()
+    execution.add_experiment(ml.Experiment("dummy"))
     assert len(execution.experiments) == 1
-    assert isinstance(
-        execution.experiments.first()["component"]["config"], dict
-    )

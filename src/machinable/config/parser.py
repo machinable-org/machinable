@@ -145,7 +145,7 @@ def auto_scope(key, scope):
 def parse_module_list(
     collection,
     scope,
-    baseclass,
+    kind,
     modules=None,
     imports=None,
     reference=None,
@@ -170,7 +170,7 @@ def parse_module_list(
                 parse_module_list(
                     element,
                     scope,
-                    baseclass,
+                    kind,
                     modules,
                     imports,
                     reference,
@@ -281,14 +281,9 @@ def parse_module_list(
         if module_import_prefix:
             module_import = module_import_prefix + "." + module_import
 
-        if module in modules:
-            cls = modules[module]["class"]
-        else:
-            cls = ModuleClass(module_import, baseclass=baseclass)
-
         modules[module] = {
             "module": module_import,
-            "class": cls,
+            "kind": kind,
             "config": args,
             "flags": flags,
         }
@@ -319,7 +314,7 @@ def parse_module_list(
                     modules[aliased] = modules[module]
 
         # make sure mixin have valid attribute name if not aliased
-        if baseclass.__name__ == "Mixin" and not is_valid_variable_name(module):
+        if kind == "mixin" and not is_valid_variable_name(module):
             if not (
                 is_valid_variable_name(alias) or is_valid_variable_name(aliased)
             ):

@@ -1,6 +1,5 @@
 import base64
 
-from machinable.filesystem import open_fs
 from starlette.responses import PlainTextResponse
 
 

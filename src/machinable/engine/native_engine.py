@@ -13,12 +13,7 @@ class NativeEngine(Engine):
         self,
         processes=1,
     ):
-        if "TRAVIS" in os.environ:
-            processes = None
-
         self.processes = processes
-
-        Engine.set_latest(self)
 
     @staticmethod
     def supports_resources():
@@ -33,41 +28,39 @@ class NativeEngine(Engine):
     def _dispatch(self, execution):
         if self.processes is None:
             # standard execution
-            return super()._dispatch(execution)
 
+            return super()._dispatch(execution)
         pool = Pool(processes=self.processes, maxtasksperchild=1)
         try:
-            for index, result in pool.imap_unordered(
-                self.pool_process,
-                execution.schedule.iterate(execution.storage.config),
+            for _ in pool.imap_unordered(
+                self.process,
+                execution.experiments,
             ):
-                execution.set_result(result, index)
+                pass
 
             pool.close()
             pool.join()
         except KeyboardInterrupt:
-            execution.set_result(
-                ExecutionException(
-                    reason="user_interrupt",
-                    message="Execution has been interrupted by the user or system.",
-                ),
-                0,
-            )
+            # execution.set_result(
+            #     ExecutionException(
+            #         reason="user_interrupt",
+            #         message="Execution has been interrupted by the user or system.",
+            #     ),
+            #     0,
+            # )
             pool.terminate()
         except BaseException as e:
-            execution.set_result(
-                ExecutionException(
-                    reason="exception",
-                    message=f"The following exception occurred: {e}\n{exception_to_str(e)}",
-                ),
-                0,
-            )
+            raise e
+            # execution.set_result(
+            #     ExecutionException(
+            #         reason="exception",
+            #         message=f"The following exception occurred: {e}\n{exception_to_str(e)}",
+            #     ),
+            #     0,
+            # )
             pool.terminate()
 
         return execution
-
-    def pool_process(self, payload):
-        return self.process(*payload)
 
     def execute(
         self,

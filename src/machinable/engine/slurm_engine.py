@@ -2,11 +2,10 @@ import json
 import os
 import stat
 
+import arrow
 import machinable.errors
-import pendulum
 import sh
 from machinable.engine.engine import Engine
-from machinable.filesystem import abspath, open_fs
 from machinable.utils.formatting import exception_to_str
 from machinable.utils.utils import call_with_context
 
@@ -26,7 +25,6 @@ class SlurmEngine(Engine):
         self.commands = self._parse_commands(commands)
         self.python = python
         self.shebang = shebang
-        Engine.set_latest(self)
 
     def _parse_commands(self, commands):
         if isinstance(commands, (str, list, tuple)):
@@ -77,7 +75,7 @@ class SlurmEngine(Engine):
         )
 
         # script path
-        script_path = "engine/slurm_" + pendulum.now().strftime(
+        script_path = "engine/slurm_" + arrow.now().strftime(
             "%d-%m-%Y_%H-%M-%S"
         )
         with open_fs(url) as filesystem:

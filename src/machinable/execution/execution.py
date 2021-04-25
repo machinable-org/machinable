@@ -1,146 +1,81 @@
-from typing import Any, Callable, List, Optional, Union
+from typing import List, Optional, Union
 
-import ast
 import copy
-import inspect
 import os
 from datetime import datetime as dt
 
-import machinable.errors
-import pendulum
 import yaml
 from expandvars import expand
 from machinable.collection.experiment import ExperimentCollection
-from machinable.config.interface import ConfigInterface
-from machinable.config.mapping import config_map
+from machinable.element.element import Element
+from machinable.element.relations import belongs_to, has_many, has_one
 from machinable.engine import Engine
 from machinable.experiment.experiment import Experiment
-from machinable.experiment.parser import parse_experiment
-from machinable.filesystem import open_fs
-from machinable.index import Index
-from machinable.project import Project
 from machinable.registration import Registration
+from machinable.repository.repository import Repository
+from machinable.schema import ExecutionType
 from machinable.settings import get_settings
-from machinable.storage import Storage
-from machinable.submission.submission import Submission
 from machinable.utils.dicts import merge_dict, update_dict
 from machinable.utils.formatting import exception_to_str, msg
 from machinable.utils.host import get_host_info
 from machinable.utils.importing import resolve_instance
 from machinable.utils.traits import Discoverable, Jsonable
-from machinable.utils.utils import (
-    decode_experiment_id,
-    encode_experiment_id,
-    generate_experiment_id,
-    generate_nickname,
-    sentinel,
-)
+from machinable.utils.utils import generate_nickname, generate_seed, sentinel
 
 
-def _recover_class(element):
-    if "class" not in element:
-        try:
-            element["class"] = ModuleClass(
-                module_name=element["module"], baseclass=BaseComponent
-            ).load(instantiate=False)
-        except ImportError as _ex:
-            # we delay the exception, since a wrapped engine
-            #  might handle the import correctly later
-            class FailedRecovery:
-                def __init__(self, exception):
-                    self.exception = exception
-
-                def __call__(self, *args, **kwargs):
-                    raise self.exception
-
-            element["class"] = FailedRecovery(_ex)
-
-
-def _code_backup_settings(value):
-    enabled = None
-    exclude = None
-    if value in [True, False, None]:
-        enabled = value
-    if isinstance(value, dict):
-        enabled = value.get("enabled", None)
-        exclude = value.get("exclude", None)
-    if isinstance(exclude, tuple):
-        exclude = list(exclude)
-    return {"enabled": enabled, "exclude": exclude}
-
-
-class Execution(Jsonable, Discoverable):
+class Execution(Element, Discoverable):
     def __init__(
         self,
         experiment: Union[Experiment, List[Experiment], None] = None,
-        storage: Union[dict, str, None] = None,
+        repository: Union[dict, str, None] = None,
         engine: Union[Engine, str, dict, None] = None,
-        project: Union[Project, Callable, str, dict, None] = None,
-        code_backup: Union[bool, None] = None,
-        name: Optional[str] = None,
+        seed: Union[int, None] = None,
     ):
-        self._experiments: list = []
-        if experiment is not None:
-            self.set_experiment(experiment)
+        super().__init__()
 
-        self.storage = None
-        self.engine = None
-        self.code_backup = code_backup
-        self.timestamp = None
-        self.started_at = None
-        self.name = None
+        self._seed = generate_seed(seed)
+        self._nickname = generate_nickname()
+        self._timestamp = dt.now().timestamp()
 
-        if project is None:
-            project = get_settings()["default_project"]
+        if engine is None:
+            engine = get_settings()["default_engine"]
 
-        self.project = Project.make(project)
+        if repository is None:
+            repository = get_settings()["default_repository"]
 
-        # assign project registration
-        self._registration = self.project.registration
-
-        self.behavior = {"raise_exceptions": False}
-        self.failures = 0
-        self._nickname = None
-
-        self.set_storage(storage)
-        self.set_code_backup(code_backup)
-        self.set_engine(engine)
-
-        self.set_name(name)
-
-    @property
-    def experiments(self) -> ExperimentCollection:
-        """Experiments of the execution"""
-        return ExperimentCollection(self._experiments)
-
-    @property
-    def nickname(self):
-        if self._nickname is None:
-            self._nickname = generate_nickname()
-
-        return self._nickname
-
-    def set_experiment(
-        self,
-        experiment: Union[Experiment, List[Experiment]],
-        resources: Optional[dict] = None,
-    ) -> "Execution":
-        """Specify and experiment
-
-        Note that this method replaces previously specified experiments.
-        To append an experiment use `add_experiment`.
-
-        # Arguments
-        see add_experiment
-        """
+        self._engine = Engine.make(engine)
+        self._repository = Repository.make(repository)
         self._experiments = []
-        if not isinstance(experiment, (list, tuple)):
-            experiment = [experiment]
 
-        for e in experiment:
-            self.add_experiment(e)
+        if experiment is not None:
+            self.add_experiment(experiment)
 
-        return self
+    def _to_model(self) -> ExecutionType:
+        return ExecutionType(timestamp=self._timestamp, nickname=self._nickname)
+
+    @has_many
+    def experiments(self) -> ExperimentCollection:
+        from machinable.experiment.experiment import Experiment
+
+        return Experiment, ExperimentCollection
+
+    @belongs_to
+    def project(self):
+        from machinable.project.project import Project
+
+        return Project
+
+    @has_one
+    def engine(self):
+        from machinable.engine.engine import Engine
+
+        return Engine
+
+    @belongs_to
+    def repository(self):
+        from machinable.repository.repository import Repository
+
+        return Repository
 
     def add_experiment(
         self,
@@ -151,122 +86,106 @@ class Execution(Jsonable, Discoverable):
 
         # Arguments
         experiment: Experiment or list of Experiments
-        resources: dict, specifies the resources that are available to the component.
+        resources: dict, specifies the resources that are available to the experiment.
             This can be computed by passing in a callable (see below)
 
         # Dynamic resource computation
 
         You can condition the resource specification on the configuration, for example:
         ```python
-        resources = lambda component: {'gpu': component.config.num_gpus }
+        resources = lambda component: {'cpu': component.config.num_cpus }
         ```
         """
         if isinstance(experiment, (list, tuple)):
-            for e in experiment:
-                self.add_experiment(e)
+            for _experiment in experiment:
+                self.add_experiment(_experiment)
             return self
 
-        # parse the experiment configuration
-        component, components = self.project.parse_experiment(experiment)
+        experiment = Experiment.make(experiment)
 
-        self._experiments.append(
-            {
-                "component": component,
-                "components": components,
-                "resources": resources,
-            }
-        )
+        # parse
+        experiment.to_model()
 
-        return self
+        experiment.__related__["execution"] = self
 
-    def set_storage(self, storage):
-        if storage is None:
-            storage = get_settings()["default_storage"]
+        # parse resources
+        # if not self.engine.supports_resources():
+        #     if resources is not None:
+        #         msg(
+        #             "Engine does not support resource specification. Skipping ...",
+        #             level="warn",
+        #             color="header",
+        #         )
+        #         resources = None
+        # else:
+        #     if callable(resources):
+        #         resources = resources(engine=self.engine, experiment=experiment)
 
-        self.storage = Storage.create(storage)
+        #     default_resources = self.registration.default_resources(
+        #         engine=self.engine, experiment=experiment
+        #     )
 
-        return self
-
-    def set_directory(self, directory):
-        if directory is not None:
-            if not isinstance(directory, str):
-                raise ValueError("Directory must be a string")
-            if directory[0] == "/":
-                raise ValueError("Directory must be relative")
-
-        self.storage.config["directory"] = directory
-
-        return self
-
-    def set_engine(self, engine):
-        if engine is None:
-            engine = get_settings()["default_engine"]
-
-        self.engine = Engine.create(engine)
-
-        return self
-
-    def set_code_backup(self, enabled=None, exclude=None):
-        self.code_backup = {"enabled": enabled, "exclude": exclude}
+        #     if resources is None and default_resources is not None:
+        #         # use default resources
+        #         resources = default_resources
+        #     elif resources is not None and default_resources is not None:
+        #         # merge with default resources
+        #         if resources.pop("_inherit_defaults", True) is not False:
+        #             canonicalize_resources = getattr(
+        #                 self.engine, "canonicalize_resources", lambda x: x
+        #             )
+        #             resources = merge_dict(
+        #                 canonicalize_resources(default_resources),
+        #                 canonicalize_resources(resources),
+        #             )
+        self.__related__.setdefault("experiments", ExperimentCollection())
+        self.__related__["experiments"].append(experiment)
 
         return self
 
-    def set_checkpoint(self, checkpoint):
-        def transformation(i, component, element):
-            element[1]["flags"]["CHECKPOINT"] = checkpoint
-            return element
+    def submit(self) -> "Execution":
+        """Submit execution to engine"""
 
-        self.schedule.transform(transformation)
+        if not self.is_mounted():
+            self.__storage__.create_execution(
+                execution=self.to_model(),
+                experiments=[
+                    experiment.to_model() for experiment in self._experiments
+                ],
+            )
 
-        return self
+        if self.url is None:
+            self.__storage__.create_execution(
+                execution={
+                    "host": get_host_info(),
+                    "code_version": self.project.get_code_version(),
+                    "code_diff": self.project.get_diff(),
+                    "seed": self.seed,
+                    "experiments": [
+                        {
+                            "experiment_id": experiment.experiment_id,
+                            "component": experiment.__component__,
+                        }
+                        for experiment in self.experiments
+                    ],
+                    "nickname": self.nickname,
+                    "timestamp": self.timestamp,
+                }
+            )
 
-    def set_version(self, config=None):
-        if isinstance(config, str):
-            config = ast.literal_eval(config)
-        elif callable(config):
-            self.schedule.transform(config)
-            return self
-
-        if not isinstance(config, dict):
-            raise ValueError("Version must be a dictionary or callable")
-
-        def transformation(i, component, element):
-            element[1]["config"] = update_dict(element[1]["config"], config)
-            return element
-
-        self.schedule.transform(transformation)
-
-        return self
-
-    def set_behavior(self, **settings):
-        unknown_options = set(settings.keys()) - {"raise_exceptions"}
-        if len(unknown_options) > 0:
-            raise ValueError(f"Invalid options: {unknown_options}")
-        self.behavior.update(settings)
-        return self
-
-    def set_registration(self, registration):
-        self._registration = registration
+        self.engine.dispatch(self)
 
         return self
 
-    def is_submitted(self) -> bool:
-        try:
-            with open_fs(self.storage.config["url"]) as filesystem:
-                return filesystem.isdir(
-                    os.path.join(
-                        self.storage.config["directory"], self.submission_id
-                    )
-                )
-        except (
-            FileNotFoundError,
-            AttributeError,
-            KeyError,
-            TypeError,
-            ValueError,
-        ):
-            pass
-        return False
+    def derive(
+        self,
+        experiment: Union[Experiment, List[Experiment], None] = None,
+        repository: Union[dict, str, None] = None,
+        engine: Union[Engine, str, dict, None] = None,
+        seed: Union[str, int, None] = None,
+    ) -> "Execution":
+        """Derives a related execution."""
+        # user can specify overrides, otherwise it copies all objects over
 
     def set_name(self, name: Optional[str] = None) -> "Execution":
         """Sets the name of the execution
@@ -309,7 +228,7 @@ class Execution(Jsonable, Discoverable):
 
         return self
 
-    def submit(self):
+    def submit_(self):
         """Submit execution to engine"""
         # publish project registration used during execution
         Registration.reset(self.registration)
@@ -318,77 +237,15 @@ class Execution(Jsonable, Discoverable):
             return False
 
         self.failures = 0
-        self.storage.config["submission"] = self.submission_id
 
-        # check if URL is an existing experiment
-        derived_from = None
-        try:
-            with open_fs(self.storage.config["url"]) as filesystem:
-                submission_id = filesystem.load_file("execution.json")[
-                    "submission_id"
-                ]
-                # register URL as parent storage and rewrite to submissions/ subdirectory
-                derived_from = self.storage.config["url"]
-                self.storage.config["url"] = os.path.join(
-                    self.storage.config["url"], "submissions"
-                )
+        # todo: tricky to do with database and file model
+        if self._repository.is_experiment():
+            # repository will be derived from an existing experiment
+            derived_from = repository.url
+            self._repository = self._repository.related(self.name)
 
-        except (ValueError, KeyError, FileNotFoundError):
-            pass
-
-        is_submitted = self.is_submitted()
+        is_submitted = self.exists()
         if not is_submitted:
-            # compute resources
-
-            if (
-                isinstance(self.engine, Engine)
-                and not self.engine.supports_resources()
-            ):
-                if resources is not None:
-                    msg(
-                        "Engine does not support resource specification. Skipping ...",
-                        level="warn",
-                        color="header",
-                    )
-                    resources = None
-            else:
-                if callable(resources):
-                    resources = resources(
-                        engine=self.engine,
-                        component=component_config,
-                        components=components_config,
-                    )
-
-                default_resources = self.registration.default_resources(
-                    engine=self.engine,
-                    component=component_config,
-                    components=components_config,
-                )
-
-                if resources is None and default_resources is not None:
-                    # use default resources
-                    resources = default_resources
-                elif resources is not None and default_resources is not None:
-                    # merge with default resources
-                    if resources.pop("_inherit_defaults", True) is not False:
-                        canonicalize_resources = getattr(
-                            self.engine, "canonicalize_resources", lambda x: x
-                        )
-                        resources = merge_dict(
-                            canonicalize_resources(default_resources),
-                            canonicalize_resources(resources),
-                        )
-
-            def set_derived_from_flag(i, component, element):
-                element[1]["flags"]["DERIVED_FROM_SUBMISSION"] = derived_from
-                return element
-
-            self.schedule.transform(set_derived_from_flag)
-
-            now = pendulum.now()
-            self.timestamp = now.timestamp()
-            self.started_at = str(now)
-
             # allow engine and registration to make changes before storage submission
             self.engine.on_before_storage_creation(self)
             self.registration.on_before_storage_creation(self)
@@ -422,6 +279,8 @@ class Execution(Jsonable, Discoverable):
                 code_backup["enabled"] = True
 
             # collect and write execution data
+            self.save()
+
             url = self.storage.get_url()
             data = {
                 "code.json": {
@@ -454,8 +313,6 @@ class Execution(Jsonable, Discoverable):
                 for k, v in data.items():
                     filesystem.save_file(name=k, data=v)
 
-            self.index.add(Submission(url, data))
-
             msg(
                 f"{self.submission_id} <{url}> ({self.started_at})\n",
                 level="info",
@@ -471,31 +328,6 @@ class Execution(Jsonable, Discoverable):
 
         return execution
 
-    def set_result(self, result, index=None, echo=True):
-        if index is None:
-            index = len(self.schedule._result)
-        if isinstance(result, machinable.errors.ExecutionFailed):
-            self.failures += 1
-            if self.behavior["raise_exceptions"]:
-                raise result
-            if echo or echo == "success":
-                msg(
-                    f"\nComponent <{self.components[index]}> of experiment {self.submission_id} failed "
-                    f"({index + 1}/{len(self.schedule)})\n"
-                    f"{exception_to_str(result)}",
-                    level="error",
-                    color="header",
-                )
-        else:
-            if echo or echo == "failure":
-                msg(
-                    f"\nComponent <{self.components[index]}> of experiment {self.submission_id} completed "
-                    f"({index + 1}/{len(self.schedule)})\n",
-                    level="info",
-                    color="header",
-                )
-        self.schedule.set_result(result, index)
-
     @classmethod
     def from_storage(cls, url):
         with open_fs(url) as filesystem:
@@ -508,17 +340,11 @@ class Execution(Jsonable, Discoverable):
 
     def serialize(self):
         return {
-            "submission_id": self.submission_id,
-            "seed": self.seed,
+            # "submission_id": self.submission_id,
+            # "seed": self.seed,
             "timestamp": self.timestamp,
-            "started_at": self.started_at,
-            "components": self.components,
-            "project_name": self.project.name
-            if self.project is not None
-            else None,
-            "experiment_name": self.experiment.specification["name"]
-            if self.experiment is not None
-            else None,
+            "experiments": self.experiments.serialize()
+            # "components": self.components,
         }
 
     @classmethod
@@ -637,14 +463,8 @@ class Execution(Jsonable, Discoverable):
 
         return self
 
-    def filter(self, callback=None):
-        self.schedule.filter(callback)
-
     def __repr__(self):
-        submission_id = (
-            self.submission_id if isinstance(self.seed, int) else "None"
-        )
-        return f"Execution <{submission_id}> ({self.storage})"
+        return f"Execution"
 
     def __str__(self):
         return self.__repr__()

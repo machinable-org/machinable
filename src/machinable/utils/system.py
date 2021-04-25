@@ -1,6 +1,11 @@
 import io
+import json
 import os
+import pickle
 import sys
+
+from machinable.utils.dicts import serialize
+from machinable.utils.utils import sentinel
 
 
 def set_process_title(title):

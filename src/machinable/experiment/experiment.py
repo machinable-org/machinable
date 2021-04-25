@@ -1,73 +1,79 @@
-from typing import List, Tuple, Type, Union
+from typing import TYPE_CHECKING, List, Union
 
-from machinable.utils.traits import Discoverable, Jsonable
+from machinable.element.element import Element
+from machinable.element.relations import belongs_to
+from machinable.schema import ExperimentType
+from machinable.utils import encode_experiment_id, generate_experiment_id
+
+if TYPE_CHECKING:
+    from machinable.execution.execution import Execution
 
 
-class Experiment(Jsonable, Discoverable):
+class Experiment(Element):
     def __init__(
         self,
-        component: str,
-        version: Union[str, dict, None, List[Union[str, dict, None]]] = None,
+        component: Union[str, None] = None,
+        config: Union[str, dict, None, List[Union[str, dict, None]]] = None,
         flags: Union[dict, None, List[Union[dict, None]]] = None,
-        seed: Union[str, int, None] = None,
-        uses: Union[List[tuple], None] = None,
     ):
         """Experiment
 
-        The experiment interface is fluent, methods can be chained in arbitrary order.
-
         # Arguments
-        component: String, the name of the components as defined in the machinable.yaml
-        version: dict|String, a configuration update to override its default config
-        flags: dict, optional flags dictionary
-        seed: Experiment seed
-        uses: List of components (can be added later via .uses())
+        component: The name of the component as defined in the machinable.yaml
+        config: Configuration to override the default config
+        flags: Additional flags
         """
-        self.component = component
-        self.version = version
-        self.flags = flags
-        self.seed = seed
-        self.components = uses or []
+        super().__init__()
+        self._experiment_id = encode_experiment_id(generate_experiment_id())
+        self._component = component
+        self._config = config
+        self._flags = flags
+        self._components = []
 
-    def serialize(self):
-        return {
-            "component": self.component,
-            "version": self.version,
-            "flags": self.flags,
-            "seed": self.seed,
-            "components": self.components,
-        }
-
-    @classmethod
-    def unserialize(cls, serialized):
-        return cls.make(serialized)
-
-    def uses(
+    def use(
         self,
         component: str,
-        version: Union[str, dict, None, List[Union[str, dict, None]]] = None,
+        config: Union[str, dict, None, List[Union[str, dict, None]]] = None,
         flags: Union[dict, None, List[Union[dict, None]]] = None,
     ) -> "Experiment":
         """Makes an additional component available to the experiment
 
         # Arguments
-        component: String, the name of the component as defined in the machinable.yaml
-        version: dict|String, a configuration update to override its default config
-            Use '_mixins_' key to override default mixins where `"^"` will be expanded as the default mixin config.
-        flags: dict, optional flags to be passed to the component
+        component: The name of the component as defined in the machinable.yaml
+        config: Configuration to override the default config
+        flags: Additional flags
         """
-        self.components.append(
-            (
-                component,
-                version,
-                flags,
-            )
-        )
+        self._components.append((component, config, flags))
 
         return self
 
+    def _to_model(self) -> ExperimentType:
+        return ExperimentType(
+            components=[
+                self.__project__.parse_component(*component)
+                for component in self._components
+            ],
+            **self.__project__.parse_component(
+                self._component, self._config, self._flags
+            ),
+        )
+
+    @belongs_to
+    def execution(self) -> "Execution":
+        from machinable.execution.execution import Execution
+
+        return Execution
+
+    @property
+    def config(self):
+        if not self.is_mounted():
+            # generate preview based on the current state
+            return self.to_model(mount=False).config
+
+        return self.__model__.config
+
     def __str__(self):
-        return f"Experiment({self.component}) <{len(self.components) + 1}>"
+        return f"Experiment() [{self._experiment_id}]"
 
     def __repr__(self):
-        return f"Experiment({self.component}, version={self.version}, flags={self.flags}, seed={self.seed}, uses={self.components})"
+        return f"Experiment() [{self._experiment_id}]"

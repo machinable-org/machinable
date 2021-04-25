@@ -1,7 +1,7 @@
 import collections
 import json
 
-import pendulum
+import arrow
 from machinable.filesystem import parse_storage_url
 from machinable.index import Index
 from machinable.submission.models import (
@@ -88,7 +88,7 @@ class SqlSubmissionModel(SqlBaseModel, FileSystemSubmissionModel):
         row = {
             "url": model.url,
             "submission_id": model.submission_id,
-            "started_at": pendulum.parse(execution_json["started_at"]),
+            "started_at": arrow.get(execution_json["started_at"]),
             "execution_json": json.dumps(execution_json),
             "code_json": json.dumps(model.file("code.json")),
             "host_json": json.dumps(model.file("host.json")),
@@ -130,7 +130,7 @@ class SqlSubmissionComponentModel(
                 "url": model.url,
                 "submission_id": model.submission_id,
                 "component_id": model.submission_id,
-                "started_at": pendulum.parse(status_json["started_at"]),
+                "started_at": arrow.get(status_json["started_at"]),
                 "component_json": json.dumps(component_json),
                 "components_json": json.dumps(components_json),
                 "host_json": json.dumps(host_json),
@@ -183,7 +183,7 @@ class SqlIndex(Index):
     def _find_latest(self, limit=10, since=None):
         table = self._table("submissions")
         if since is None:
-            condition = {"<=": pendulum.now()}
+            condition = {"<=": arrow.now()}
         else:
             condition = {">": since}
         return [

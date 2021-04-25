@@ -2,7 +2,7 @@ from typing import Mapping
 
 import copy
 
-import pendulum
+import arrow
 from dotmap import DotMap
 
 

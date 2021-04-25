@@ -3,7 +3,6 @@ import os
 import click
 from machinable.execution.execution import Execution
 from machinable.experiment import Experiment
-from machinable.filesystem import parse_storage_url
 from machinable.utils.formatting import exception_to_str, msg
 from machinable.utils.importing import resolve_instance_from_code
 

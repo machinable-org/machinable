@@ -2,7 +2,7 @@ from typing import Optional, Union
 
 import os
 
-import pendulum
+import arrow
 from machinable.collection.submission import SubmissionCollection
 from machinable.config.mapping import config_map
 from machinable.filesystem import parse_storage_url
@@ -92,7 +92,7 @@ class Submission:
                 self._cache[filepath] = self._model.file(filepath)
                 if filepath not in self._cache["_files"]:
                     self._cache["_files"][filepath] = {}
-                self._cache["_files"][filepath]["loaded_at"] = pendulum.now()
+                self._cache["_files"][filepath]["loaded_at"] = arrow.now()
             except FileNotFoundError:
                 if default is not sentinel:
                     return default
@@ -256,6 +256,52 @@ class Submission:
 
         return records
 
+    def timing(self, mode="iteration", end=None, return_type="seconds"):
+        """Get timing statistics about the records
+
+        # Arguments
+        mode: String, 'iteration', 'avg' or 'total' that determines whether the last iteration, the average iteration
+            or the total time is collected
+        end: Mixed, end of the timespan; if None, datetime.now() is used
+        return_type: String, specifying the return format 'seconds', 'words', or 'period' (pendulum.Period object)
+
+        Returns: See return_type
+        """
+        end = as_datetime(end)
+
+        if mode == "iteration":
+            if self._meta_data["updated_at"] is not None:
+                start = self._meta_data["updated_at"]
+            else:
+                start = self._meta_data["created_at"]
+            elapsed = start.diff(end)
+        elif mode == "total":
+            elapsed = self._meta_data["created_at"].diff(end)
+        elif mode == "avg":
+            start = self._meta_data["created_at"]
+            if self._meta_data["length"] > 0:
+                elapsed = start.diff(end) / self._meta_data["length"]
+            else:
+                elapsed = start.diff(end)
+        else:
+            raise ValueError(
+                f"Invalid mode: '{mode}'; must be 'iteration', 'avg' or 'total'."
+            )
+
+        if return_type == "seconds":
+            seconds = elapsed.in_seconds()
+            if seconds <= 0:
+                return 1e-15  # guard against division by zero
+            return seconds
+        elif return_type == "words":
+            return elapsed.in_words()
+        elif return_type == "period":
+            return elapsed
+        else:
+            raise ValueError(
+                f"Invalid return_type: '{return_type}'; must be 'seconds', 'words' or 'period'."
+            )
+
     @property
     def status(self):
         if "status" in self._cache:
@@ -264,7 +310,7 @@ class Submission:
         try:
             status = config_map(
                 {
-                    k: pendulum.parse(v) if isinstance(v, str) else False
+                    k: arrow.get(v) if isinstance(v, str) else False
                     for k, v in self._model.file("status.json").items()
                 }
             )
@@ -309,7 +355,7 @@ class Submission:
             return False
 
         return (not self.is_finished()) and self.status["heartbeat_at"].diff(
-            pendulum.now()
+            arrow.now()
         ).in_seconds() < 30
 
     def is_incomplete(self):
@@ -352,7 +398,7 @@ class Submission:
     def started_at(self):
         """Start of execution"""
         if "started_at" not in self._cache:
-            self._cache["started_at"] = pendulum.parse(
+            self._cache["started_at"] = arrow.get(
                 self.file("execution.json")["started_at"]
             )
         return self._cache["started_at"]

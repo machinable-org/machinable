@@ -4,11 +4,12 @@ from ariadne import ScalarType
 
 json_scalar = ScalarType("JSON")
 datetime_scalar = ScalarType("DateTime")
+uuid_scalar = ScalarType("UUID")
 
 
 @datetime_scalar.serializer
 def serialize_datetime(value):
-    # pendulum instance
+    # arrow instance
     return value.isoformat()
 
 
@@ -26,4 +27,4 @@ def parse_json(value):
     return json.loads(value)
 
 
-scalars = [datetime_scalar, json_scalar]
+scalars = [datetime_scalar, json_scalar, uuid_scalar]
