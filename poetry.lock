@@ -574,7 +574,7 @@ python-versions = "*"
 
 [[package]]
 name = "isort"
-version = "5.7.0"
+version = "5.8.0"
 description = "A Python utility / library to sort Python imports."
 category = "dev"
 optional = false
@@ -1291,7 +1291,7 @@ server = ["ariadne", "uvicorn"]
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.6.1"
-content-hash = "75991312ba284a6b6a1c30b4683eca8cbe2a91be24ac0484432b9d4f1d51b3e7"
+content-hash = "ad3bd604e3948a72df42fc0b516610b4a2c9806231f62d97de5364111ba572b6"
 
 [metadata.files]
 aiohttp = [
@@ -1676,8 +1676,8 @@ iniconfig = [
     {file = "iniconfig-1.1.1.tar.gz", hash = "sha256:bc3af051d7d14b2ee5ef9969666def0cd1a000e121eaea580d4a313df4b37f32"},
 ]
 isort = [
-    {file = "isort-5.7.0-py3-none-any.whl", hash = "sha256:fff4f0c04e1825522ce6949973e83110a6e907750cd92d128b0d14aaaadbffdc"},
-    {file = "isort-5.7.0.tar.gz", hash = "sha256:c729845434366216d320e936b8ad6f9d681aab72dc7cbc2d51bedc3582f3ad1e"},
+    {file = "isort-5.8.0-py3-none-any.whl", hash = "sha256:2bb1680aad211e3c9944dbce1d4ba09a989f04e238296c87fe2139faa26d655d"},
+    {file = "isort-5.8.0.tar.gz", hash = "sha256:0a943902919f65c5684ac4e0154b1ad4fac6dcaa5d9f3426b732f1c8b5419be6"},
 ]
 jsonlines = [
     {file = "jsonlines-1.2.0-py2.py3-none-any.whl", hash = "sha256:0ebd5b0c3efe0d4b5018b320fb0ee1a7b680ab39f6eb853715859f818d386cc8"},
