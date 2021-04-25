@@ -1,6 +1,3 @@
-# This file contains modified 3rd party source code from https://github.com/MasoniteFramework/orm.
-# The copyright and license agreement can be found in the ThirdPartyNotices.txt file at the root of this repository.
-
 from typing import Optional
 
 from machinable.collection import Collection
@@ -28,7 +25,7 @@ class Element(Jsonable):
         if not isinstance(self.__storage__, Storage):
             self.__storage__ = Storage.make(get_settings()["default_storage"])
 
-    def mounted(self):
+    def is_mounted(self):
         return self.__model__ is not None
 
     def to_model(self, mount=True) -> SchemaType:

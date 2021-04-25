@@ -11,7 +11,8 @@ import string
 from collections import OrderedDict
 from keyword import iskeyword
 
-import pendulum
+import arrow
+import jsonlines
 from baseconv import base62
 
 sentinel = object()
@@ -60,7 +61,7 @@ def apply_seed(seed=None):
 
 def serialize(obj):
     """JSON serializer for objects not serializable by default json code"""
-    if isinstance(obj, pendulum.DateTime):
+    if isinstance(obj, arrow.Arrow):
         return str(obj)
 
     if getattr(obj, "__dict__", False):
@@ -289,7 +290,7 @@ def load_file(
     # Arguments
     filepath: Target filepath. The extension is being used to determine
         the file format. Supported formats are:
-        .json (JSON), .npy (numpy), .p (pickle), .txt|.log|.diff (txt)
+        .json (JSON), .jsonl (JSON-lines), .npy (numpy), .p (pickle), .txt|.log|.diff (txt)
     default: Optional default if reading fails
     opener: Customer file opener
     opener_kwargs: Optional arguments to pass to the opener
@@ -305,6 +306,11 @@ def load_file(
         elif ext == ".json":
             with opener(filepath, mode, **opener_kwargs) as f:
                 data = json.load(f)
+        elif ext == ".jsonl":
+            with jsonlines.Reader(
+                opener(filepath, mode, **opener_kwargs)
+            ) as reader:
+                return list(reader.iter())
         elif ext == ".npy":
             import numpy as np
 
@@ -312,7 +318,7 @@ def load_file(
                 mode = mode + "b"
             with opener(filepath, mode, **opener_kwargs) as f:
                 data = np.load(f, allow_pickle=True)
-        elif ext in [".txt", ".log", ".diff"]:
+        elif ext in [".txt", ".log", ".diff", ""]:
             with opener(filepath, mode, **opener_kwargs) as f:
                 data = f.read()
         else:
@@ -339,7 +345,7 @@ def save_file(
     # Arguments
     filepath: Target filepath. The extension is being used to determine
         the file format. Supported formats are:
-        .json (JSON), .npy (numpy), .p (pickle), .txt|.log|.diff (txt)
+        .json (JSON), .jsonl (JSON-lines), .npy (numpy), .p (pickle), .txt|.log|.diff (txt)
     data: The data object
     makedirs: If True or Callable, path will be created
     opener: Customer file opener
@@ -362,6 +368,15 @@ def save_file(
         # json
         with opener(filepath, mode, **opener_kwargs) as f:
             f.write(json.dumps(data, ensure_ascii=False, default=serialize))
+    elif ext == ".jsonl":
+        # jsonlines
+        with jsonlines.Writer(
+            opener(filepath, mode, **opener_kwargs),
+            dumps=lambda *args, **kwargs: json.dumps(
+                *args, sort_keys=True, default=serialize, **kwargs
+            ),
+        ) as writer:
+            writer.write(data)
     elif ext == ".npy":
         import numpy as np
 
@@ -375,13 +390,13 @@ def save_file(
             mode += "b"
         with opener(filepath, mode, **opener_kwargs) as f:
             pickle.dump(data, f)
-    elif ext in [".txt", ".log", ".diff"]:
+    elif ext in [".txt", ".log", ".diff", ""]:
         with opener(filepath, mode, **opener_kwargs) as f:
-            f.write(data)
+            f.write(str(data))
     else:
         raise ValueError(
             f"Invalid format: '{ext}'. "
-            f"Supported formats are .json (JSON), .npy (numpy), .p (pickle), .txt|.log|.diff (txt)"
+            f"Supported formats are .json (JSON), .jsonl (JSON-lines), .npy (numpy), .p (pickle), .txt|.log|.diff (txt)"
         )
 
     return os.path.abspath(filepath)

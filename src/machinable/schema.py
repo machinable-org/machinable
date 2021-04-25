@@ -42,3 +42,8 @@ class RepositoryType(SchemaType):
 class ExecutionType(SchemaType):
     timestamp: float = Field(default_factory=lambda: datetime.now().timestamp())
     nickname: str = Field(default_factory=generate_nickname)
+
+
+class RecordType(SchemaType):
+    data: dict = {}
+    timestamp: float = Field(default_factory=lambda: datetime.now().timestamp())

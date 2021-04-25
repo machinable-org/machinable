@@ -9,7 +9,7 @@ uuid_scalar = ScalarType("UUID")
 
 @datetime_scalar.serializer
 def serialize_datetime(value):
-    # pendulum instance
+    # arrow instance
     return value.isoformat()
 
 

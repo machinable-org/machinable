@@ -3,7 +3,7 @@ def belongs_to(f):
     def _wrapper(self):
         related_class = f(self)
         name = f.__name__
-        if self.__related__.get(name, None) is None and self.mounted():
+        if self.__related__.get(name, None) is None and self.is_mounted():
             related = self.__model__._storage[name].retrive_related(
                 self.__model__, name
             )
@@ -22,9 +22,9 @@ def has_many(f):
     def _wrapper(self):
         related_class, collection = f(self)
         name = f.__name__
-        if self.__related__.get(name, None) is None and self.mounted():
+        if self.__related__.get(name, None) is None and self.is_mounted():
             related = self.__model__._storage[name].retrieve_related(
-                self.__model__, name
+                name, self.__model__
             )
             self.__related__[name] = collection(
                 [related_class.from_model(r) for r in related]

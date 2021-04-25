@@ -26,7 +26,7 @@ def get_settings(reload=False, file="~/.machinable/settings.yaml"):
                     "imports": {},
                     "schema_validation": True,
                     "tmp_directory": "userdata://machinable:machinable/tmp",
-                    "default_storage": {"url": "mem://"},
+                    "default_storage": "./storage",
                     "default_engine": None,
                     "default_repository": None,
                     "default_project": None,

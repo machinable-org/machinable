@@ -66,7 +66,7 @@ class Experiment(Element):
 
     @property
     def config(self):
-        if not self.mounted():
+        if not self.is_mounted():
             # generate preview based on the current state
             return self.to_model(mount=False).config
 

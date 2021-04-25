@@ -6,8 +6,8 @@ import os
 import re
 from collections import OrderedDict
 
+import arrow
 import machinable.errors
-import pendulum
 from machinable.component.events import Events
 from machinable.component.mixin import Mixin, MixinInstance
 from machinable.config.mapping import ConfigMap, ConfigMethod, config_map
@@ -15,9 +15,6 @@ from machinable.config.parser import parse_mixins
 from machinable.element.element import Element
 from machinable.registration import Registration
 from machinable.storage import Storage
-from machinable.storage.log import Log
-from machinable.storage.record import Record
-from machinable.submission.submission import Submission
 from machinable.utils.dicts import update_dict
 from machinable.utils.formatting import exception_to_str
 from machinable.utils.host import get_host_info
@@ -295,7 +292,7 @@ class Component(Element, Mixin):
         self._storage = value
 
     @property
-    def record(self) -> Record:
+    def record(self):
         """Record writer instance"""
         return self.storage.get_records(
             "default",
@@ -304,12 +301,12 @@ class Component(Element, Mixin):
         )
 
     @property
-    def log(self) -> Log:
+    def log(self):
         """Log writer instance"""
         return self.storage.log
 
     @property
-    def submission(self) -> Optional[Submission]:
+    def submission(self):
         """Submission of this component"""
         if self._storage is None:
             return None
@@ -348,7 +345,7 @@ class Component(Element, Mixin):
 
             self.on_after_init_storage(storage_config)
 
-            self.component_status["started_at"] = str(pendulum.now())
+            self.component_status["started_at"] = str(arrow.now())
             self.component_status["finished_at"] = False
             self.refresh_status(log_errors=True)
 
@@ -531,7 +528,7 @@ class Component(Element, Mixin):
         self.component_state.save(self)
 
         # write finished status (not triggered in the case of an unhandled exception)
-        self.component_status["finished_at"] = str(pendulum.now())
+        self.component_status["finished_at"] = str(arrow.now())
         self.refresh_status(log_errors=True)
 
         self.on_after_destroy()
@@ -542,7 +539,7 @@ class Component(Element, Mixin):
             return False
 
         try:
-            self.component_status["heartbeat_at"] = str(pendulum.now())
+            self.component_status["heartbeat_at"] = str(arrow.now())
             self.storage.save_file("status.json", self.component_status)
         except (OSError, Exception) as ex:
             if log_errors:

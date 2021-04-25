@@ -1,31 +1,20 @@
-from typing import Any, Callable, List, Optional, Union
+from typing import List, Optional, Union
 
-import ast
 import copy
-import inspect
 import os
-import uuid
 from datetime import datetime as dt
 
-import machinable.errors
-import pendulum
 import yaml
 from expandvars import expand
 from machinable.collection.experiment import ExperimentCollection
-from machinable.config.mapping import config_map
 from machinable.element.element import Element
 from machinable.element.relations import belongs_to, has_many, has_one
 from machinable.engine import Engine
 from machinable.experiment.experiment import Experiment
-from machinable.experiment.parser import parse_experiment
-from machinable.filesystem import open_fs
-from machinable.index import Index
-from machinable.project import Project
 from machinable.registration import Registration
 from machinable.repository.repository import Repository
 from machinable.schema import ExecutionType
 from machinable.settings import get_settings
-from machinable.submission.submission import Submission
 from machinable.utils.dicts import merge_dict, update_dict
 from machinable.utils.formatting import exception_to_str, msg
 from machinable.utils.host import get_host_info
@@ -157,7 +146,7 @@ class Execution(Element, Discoverable):
     def submit(self) -> "Execution":
         """Submit execution to engine"""
 
-        if not self.mounted():
+        if not self.is_mounted():
             self.__storage__.create_execution(
                 execution=self.to_model(),
                 experiments=[

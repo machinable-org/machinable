@@ -37,10 +37,22 @@ def test_filesystem_utils(tmpdir):
     assert r["jsonable"] == 1
     assert r["test"] is True
 
+    # jsonlines
+    filepath = str(tmpdir / "random/data/jsonlines.jsonl")
+    utils.save_file(filepath, {"jsonable": 1, "test": True})
+    utils.save_file(filepath, {"jsonable": 2, "test": True}, mode="a")
+    r = utils.load_file(filepath)
+    assert len(r) == 2
+    assert r[1]["jsonable"] == 2
+    assert r[0]["test"] == r[1]["test"]
+
     # text
     filepath = str(tmpdir / "random/test.diff")
     utils.save_file(filepath, "test")
     assert utils.load_file(filepath) == "test"
+    filepath = str(tmpdir / "random/test_ext")
+    utils.save_file(filepath, 1)
+    assert utils.load_file(filepath) == "1"
 
     # pickle
     filepath = str(tmpdir / "test.p")

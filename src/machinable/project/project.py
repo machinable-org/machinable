@@ -9,7 +9,7 @@ import sys
 import time
 from collections import OrderedDict
 
-import pendulum
+import arrow
 import yaml
 from flatten_dict import unflatten
 from machinable.config.loader import from_callable as load_config_from_callable
@@ -351,7 +351,7 @@ class Project(Jsonable):
             # Add zip to PyFS
             zip_fs.write_zip()
 
-        took = pendulum.duration(seconds=time.time() - t).in_words()
+        took = time.time() - t
         msg(
             f" >>> Code backup of {counter} files completed in {took}\n",
             color="green",

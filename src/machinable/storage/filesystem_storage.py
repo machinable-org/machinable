@@ -1,35 +1,32 @@
 from typing import List, Optional
 
+import json
 import os
 
-import pendulum
-from machinable.component.component import Component
-from machinable.element.element import Element
-from machinable.execution.execution import Execution
-from machinable.experiment.experiment import Experiment
-from machinable.filesystem.filesystem import FileSystem
+import arrow
+import jsonlines
 from machinable.schema import (
     ExecutionType,
     ExperimentType,
+    RecordType,
     RepositoryType,
     SchemaType,
 )
 from machinable.storage.storage import Storage
-from machinable.utils import load_file, sanitize_path, save_file
+from machinable.utils import load_file, sanitize_path, save_file, serialize
 
 
 class FilesystemStorage(Storage):
     def __init__(self, url: str):
         self.url: str = url
-        # todo: create and connect to database
-        self.database = None
 
     def path(self, *append):
         return os.path.join(os.path.abspath(self.url), *append)
 
-    def retrieve_related(self, model: SchemaType, relation: str):
+    def retrieve_related(self, relation: str, model: SchemaType):
         # todo: check that model belongs to this storage via type identifier
         assert model._storage_instance is self
+
         if isinstance(model, ExperimentType):
             if relation == "execution":
                 return self.retrieve_execution(
@@ -46,11 +43,43 @@ class FilesystemStorage(Storage):
                     )["_related_experiments"]
                 ]
 
-    def find_related(
+    def create_record(
         self,
-        storage_id: str,
-    ):
-        pass
+        record: RecordType,
+        experiment: ExperimentType,
+        scope: str = "default",
+    ) -> RecordType:
+        if experiment is None:
+            raise ValueError("Invalid experiment")
+
+        if experiment._storage_instance is not self:
+            experiment._storage_instance = self
+            experiment._storage_id = experiment.find_experiment(
+                experiment.experiment_id
+            )
+
+        if experiment._storage_id is None:
+            raise ValueError(
+                f"Experiment {experiment.experiment_id} does not exist"
+            )
+
+        record._storage_id = self._create_record(record, experiment, scope)
+        record._storage_instance = self
+
+        return record
+
+    def _create_record(
+        self,
+        record: RecordType,
+        experiment: ExperimentType,
+        scope: str = "default",
+    ) -> str:
+        save_file(
+            os.path.join(experiment._storage_id, "records", f"{scope}.jsonl"),
+            {"__timestamp": record.timestamp, **record.data},
+            mode="a",
+        )
+        return "n/a"
 
     def create_execution(
         self,
@@ -75,7 +104,7 @@ class FilesystemStorage(Storage):
         repository: Optional[RepositoryType],
     ) -> str:
         timestamp = int(execution.timestamp)
-        dt = pendulum.from_timestamp(timestamp).to_rfc3339_string()
+        timestr = arrow.get(timestamp).format(arrow.FORMAT_RFC3339)
 
         # todo: create repo if not existing
 
@@ -86,9 +115,19 @@ class FilesystemStorage(Storage):
                 sanitize_path(repository.name)
                 if repository is not None
                 else "",
-                f"{experiment.experiment_id}-{dt}",
+                f"{experiment.experiment_id}-{timestr}",
             )
-            self.save_experiment(directory, experiment)
+
+            # save experiment
+            save_file(
+                os.path.join(directory, "experiment.json"),
+                experiment.dict(),
+                makedirs=True,
+            )
+            save_file(os.path.join(directory, "started_at"), arrow.now())
+            experiment._storage_id = directory
+            experiment._storage_instance = self
+
             execution_directory = os.path.join(directory, "execution")
             if i == 0:
                 # create primary directory
@@ -108,7 +147,7 @@ class FilesystemStorage(Storage):
             {
                 **execution.dict(),
                 "_related_experiments": [
-                    f"../../{experiment.experiment_id}-{dt}"
+                    f"../../{experiment.experiment_id}-{timestr}"
                     for experiment in experiments
                 ],
             },
@@ -128,19 +167,17 @@ class FilesystemStorage(Storage):
 
         Returns the storage_id or None if experiment cannot be found
         """
-        pass
+        return None
 
-    def save_experiment(
-        self, storage_id: str, experiment: ExperimentType
-    ) -> None:
-        save_file(
-            os.path.join(storage_id, "experiment.json"),
-            experiment.dict(),
-            makedirs=True,
-        )
-
-        experiment._storage_id = storage_id
-        experiment._storage_instance = self
+    def update_heartbeat(
+        self, storage_id: str, mark_finished=False, timestamp=None
+    ) -> arrow.Arrow:
+        if timestamp is None:
+            timestamp = arrow.now()
+        save_file(os.path.join(storage_id, "heartbeat_at"), timestamp, mode="w")
+        if mark_finished:
+            save_file(os.path.join(storage_id, "finished_at"), timestamp)
+        return timestamp
 
     def retrieve_execution(self, storage_id: str) -> ExecutionType:
         execution = self._retrieve_execution(storage_id)
