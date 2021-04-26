@@ -284,7 +284,7 @@ python-versions = "*"
 
 [[package]]
 name = "editorconfig-checker"
-version = "2.1.0"
+version = "2.3.5"
 description = "A tool to verify that your files are in harmony with your .editorconfig"
 category = "dev"
 optional = false
@@ -294,7 +294,7 @@ python-versions = ">=2.7"
 requests = ">=2.22"
 
 [package.extras]
-dev = ["pycodestyle"]
+dev = ["flake8", "pycodestyle"]
 
 [[package]]
 name = "expandvars"
@@ -1288,7 +1288,7 @@ server = ["ariadne", "uvicorn"]
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.6.1"
-content-hash = "d9cb5b8a93a1f1b64e2cb94fb8b3db301ecee3dedb83b6b09923c16f8db444b0"
+content-hash = "ac2dbcfd3885063772a859402c6c68d33e20b9d4bb60fe83bff46eca6e112c00"
 
 [metadata.files]
 aiohttp = [
@@ -1481,8 +1481,8 @@ dotmap = [
     {file = "dotmap-1.3.23.tar.gz", hash = "sha256:6aaeb51052a465a5aeff47d975d12802fc5d613674fb78b2ebf09ff5ff44c843"},
 ]
 editorconfig-checker = [
-    {file = "editorconfig-checker-2.1.0.tar.gz", hash = "sha256:d9788addd17ef222168ad3cd5e3aadd935d86a24ff3fb5d8590f0ea6f1da35ac"},
-    {file = "editorconfig_checker-2.1.0-py2-none-any.whl", hash = "sha256:3f7f9ec05039f34d98883afe15f73742cef229c025dd5fec15360fc150c29be9"},
+    {file = "editorconfig-checker-2.3.5.tar.gz", hash = "sha256:7274ea19a047bf3f64ae7f29800781015e58ca201267c1338ad078d9120c5eec"},
+    {file = "editorconfig_checker-2.3.5-py3-none-any.whl", hash = "sha256:b5c8f2f28fd43c3c5e7303495f9244db534b371cfa1dfd56f5534c753f807524"},
 ]
 expandvars = [
     {file = "expandvars-0.6.5-py2.py3-none-any.whl", hash = "sha256:1cba07c76da50c2528cf8d70c78e98a62ec3e9cd279ba80fa6b136330f4ad8d3"},
