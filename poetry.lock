@@ -297,11 +297,11 @@ dev = ["flake8", "pycodestyle"]
 
 [[package]]
 name = "expandvars"
-version = "0.6.5"
+version = "0.7.0"
 description = "Expand system variables Unix style"
 category = "main"
 optional = false
-python-versions = "*"
+python-versions = ">=3.4"
 
 [[package]]
 name = "filelock"
@@ -1287,7 +1287,7 @@ server = ["ariadne", "uvicorn"]
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.6.1"
-content-hash = "5934911b6e9985f6f34d260304c6b814275f4f59c14cc0e43150334f6bd4e5eb"
+content-hash = "e5d5bac5c35706153113560ea50ab90761cf32651add6338071509dc1ac38db3"
 
 [metadata.files]
 aiohttp = [
@@ -1484,8 +1484,8 @@ editorconfig-checker = [
     {file = "editorconfig_checker-2.3.5-py3-none-any.whl", hash = "sha256:b5c8f2f28fd43c3c5e7303495f9244db534b371cfa1dfd56f5534c753f807524"},
 ]
 expandvars = [
-    {file = "expandvars-0.6.5-py2.py3-none-any.whl", hash = "sha256:1cba07c76da50c2528cf8d70c78e98a62ec3e9cd279ba80fa6b136330f4ad8d3"},
-    {file = "expandvars-0.6.5.tar.gz", hash = "sha256:1093a7a58ee5087c279a4cc5fd5758ad9c858c2f5bee256927b18b26a6ecc9d3"},
+    {file = "expandvars-0.7.0-py3-none-any.whl", hash = "sha256:6c4cfdf7c6ce25a89bb6680e845c7d8e57202ae47fbd339789814d341b143880"},
+    {file = "expandvars-0.7.0.tar.gz", hash = "sha256:8c4a3879d8a8433b57c8952dada99236a2d194e49b56d41aaeb5193f0bc5e757"},
 ]
 filelock = [
     {file = "filelock-3.0.12-py3-none-any.whl", hash = "sha256:929b7d63ec5b7d6b71b0fa5ac14e030b3f70b75747cef1b10da9b879fef15836"},
