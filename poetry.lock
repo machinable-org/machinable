@@ -1134,7 +1134,7 @@ full = ["aiofiles", "graphene", "itsdangerous", "jinja2", "python-multipart", "p
 
 [[package]]
 name = "tabulate"
-version = "0.8.7"
+version = "0.8.9"
 description = "Pretty-print tabular data"
 category = "main"
 optional = true
@@ -1288,7 +1288,7 @@ server = ["ariadne", "uvicorn"]
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.6.1"
-content-hash = "5624c0ab216538ff9e4ae0eafdd57b96e642323130fa542df9db02eeb4fea7d3"
+content-hash = "6e5384e38faec7765d4e1958516b102f6b5bf6530adb6741e05e86a568155634"
 
 [metadata.files]
 aiohttp = [
@@ -2185,8 +2185,8 @@ starlette = [
     {file = "starlette-0.13.8.tar.gz", hash = "sha256:82df29b2149437ad828a883674bf031788600c876dae50835e98398bd1706183"},
 ]
 tabulate = [
-    {file = "tabulate-0.8.7-py3-none-any.whl", hash = "sha256:ac64cb76d53b1231d364babcd72abbb16855adac7de6665122f97b593f1eb2ba"},
-    {file = "tabulate-0.8.7.tar.gz", hash = "sha256:db2723a20d04bcda8522165c73eea7c300eda74e0ce852d9022e0159d7895007"},
+    {file = "tabulate-0.8.9-py3-none-any.whl", hash = "sha256:d7c013fe7abbc5e491394e10fa845f8f32fe54f8dc60c6622c6cf482d25d47e4"},
+    {file = "tabulate-0.8.9.tar.gz", hash = "sha256:eb1d13f25760052e8931f2ef80aaf6045a6cceb47514db8beab24cded16f13a7"},
 ]
 tensorboardx = [
     {file = "tensorboardX-2.1-py2.py3-none-any.whl", hash = "sha256:2d81c10d9e3225dcd9bb5fb277588610bdf45317603e7682f6953d83b5b38f6a"},
