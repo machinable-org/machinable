@@ -38,6 +38,9 @@ GitPython = "^3.1"
 expandvars = "^0.7"
 flatten-dict = "^0.3"
 jsonlines = "^2.0"
+pydantic = "^1.8.1"
+arrow = "^1.0.3"
+importlib-metadata = "^4.0.1"
 
 # optional dependencies
 ariadne = {version = "^0.13.0", optional = true}
@@ -47,8 +50,6 @@ deepdiff = {version = "^5.3.0", optional = true}
 pandas = {version = "^1.1.5", optional = true}
 tabulate = {version = "^0.8.9", optional = true}
 uvicorn = {version = "^0.13.4", optional = true}
-pydantic = "^1.8.1"
-arrow = "^1.0.3"
 
 
 [tool.poetry.dev-dependencies]
@@ -118,4 +119,4 @@ ensure_newline_before_comments = true
 line_length = 80
 
 [tool.pylint.'MESSAGES CONTROL']
-disable = "protected-access"
+disable = "protected-access, import-outside-toplevel"

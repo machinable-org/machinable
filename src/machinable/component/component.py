@@ -9,18 +9,18 @@ from collections import OrderedDict
 import arrow
 import machinable.errors
 from machinable.component.events import Events
-from machinable.component.mixin import Mixin, MixinInstance
+from machinable.component.mixin import MixinInstance
 from machinable.config.mapping import ConfigMap, ConfigMethod, config_map
 from machinable.config.parser import parse_mixins
-from machinable.element.element import Element
+from machinable.container import Container
 from machinable.registration import Registration
 from machinable.storage import Storage
+from machinable.utils import Jsonable
 from machinable.utils.dicts import update_dict
 from machinable.utils.formatting import exception_to_str
 from machinable.utils.host import get_host_info
 from machinable.utils.importing import ModuleClass
 from machinable.utils.system import OutputRedirection, set_process_title
-from machinable.utils.traits import Jsonable
 from machinable.utils.utils import apply_seed
 
 
@@ -159,7 +159,7 @@ class ComponentState(Jsonable):
         )
 
 
-class Component(Element, Mixin):
+class Component(Container):
     """
     Component base class. All machinable components must inherit from this class.
 
