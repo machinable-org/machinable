@@ -253,7 +253,7 @@ python-versions = ">=3.6, <3.7"
 
 [[package]]
 name = "deepdiff"
-version = "5.3.0"
+version = "5.5.0"
 description = "Deep Difference and Search of any Python object/data."
 category = "main"
 optional = true
@@ -1287,7 +1287,7 @@ server = ["ariadne", "uvicorn"]
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.6.1"
-content-hash = "6c53b57a9a7dc4fba49fac269c077aa3c55647164420eff4e7a5621d51d95b79"
+content-hash = "edf2a350581dafd1770d127a695fd54f1fd56d90600cb3fd63c94f66cb1ce079"
 
 [metadata.files]
 aiohttp = [
@@ -1468,8 +1468,8 @@ dataclasses = [
     {file = "dataclasses-0.8.tar.gz", hash = "sha256:8479067f342acf957dc82ec415d355ab5edb7e7646b90dc6e2fd1d96ad084c97"},
 ]
 deepdiff = [
-    {file = "deepdiff-5.3.0-py3-none-any.whl", hash = "sha256:75c1b19ef2837bfa6a1f02bb00b702e25e7fa0fa75161e98d27a08de6213c91c"},
-    {file = "deepdiff-5.3.0.tar.gz", hash = "sha256:f0b62112799cc15ea02ca472ed4a74f8b0f0f0d29e6f09933d0d9a66afa032b4"},
+    {file = "deepdiff-5.5.0-py3-none-any.whl", hash = "sha256:e054fed9dfe0d83d622921cbb3a3d0b3a6dd76acd2b6955433a0a2d35147774a"},
+    {file = "deepdiff-5.5.0.tar.gz", hash = "sha256:dd79b81c2d84bfa33aa9d94d456b037b68daff6bb87b80dfaa1eca04da68b349"},
 ]
 distlib = [
     {file = "distlib-0.3.1-py2.py3-none-any.whl", hash = "sha256:8c09de2c67b3e7deef7184574fc060ab8a793e7adbb183d942c389c8b13c52fb"},
