@@ -99,7 +99,8 @@ class Execution(Element):
                 self.add_experiment(_experiment)
             return self
 
-        experiment = Experiment.make(experiment)
+        if not isinstance(experiment, Experiment):
+            raise ValueError(f"Invalid experiment: {experiment}")
 
         # parse
         experiment.to_model()

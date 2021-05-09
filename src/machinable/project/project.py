@@ -59,7 +59,7 @@ class Project(Jsonable):
             else:
                 sys.path.append(self._directory)
 
-    def open(self) -> "Project":
+    def connect(self) -> "Project":
         from machinable.element.element import Element
 
         self.add_to_path()
@@ -90,12 +90,6 @@ class Project(Jsonable):
                 self._resolved_provider = Provider(mode=self._mode)
 
         return self._resolved_provider
-
-    def container(self, name: str):
-        find_subclass_in_module(
-            import_from_directory(module, self._directory),
-            base_class=None,  # todo: reverse lookup
-        )
 
     @property
     def config_filepath(self) -> str:
@@ -789,7 +783,7 @@ class Project(Jsonable):
         return config
 
     def __enter__(self):
-        self.open()
+        self.connect()
         return self
 
     def __exit__(self, exc_type, exc_value, exc_traceback):

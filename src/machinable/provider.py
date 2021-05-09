@@ -1,5 +1,7 @@
 from typing import Optional
 
+from machinable.config import Config
+
 
 class Provider:
     """See registration"""
@@ -10,5 +12,6 @@ class Provider:
     def get_container_types(self):
         """Registers core and custom container types"""
 
-    def get_config_provider(self):
-        return None
+    def get_config(self) -> Config:
+        """Registers project configuration parser"""
+        return Config
