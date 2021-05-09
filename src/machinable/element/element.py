@@ -5,9 +5,7 @@ import os
 from machinable.collection import Collection
 from machinable.project.project import Project
 from machinable.schema import SchemaType
-from machinable.storage.storage import Storage
 from machinable.utils import Jsonable
-from machinable.view.view import View
 
 
 class Element(Jsonable):
@@ -22,10 +20,6 @@ class Element(Jsonable):
 
         if not isinstance(self.__project__, Project):
             self.__project__ = Project()
-
-    def view(self, name: str) -> View:
-        # lookup available under alias?
-        pass
 
     def is_mounted(self):
         return self.__model__ is not None
