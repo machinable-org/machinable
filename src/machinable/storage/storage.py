@@ -1,8 +1,7 @@
-from machinable.schema import ExecutionType, ExperimentType, SchemaType
-from machinable.utils.traits import Discoverable
+from machinable.container import Container
 
 
-class Storage(Discoverable):
+class Storage(Container):
     """Storage base class"""
 
     @classmethod
@@ -13,11 +12,10 @@ class Storage(Discoverable):
         return FilesystemStorage(args)
 
     @classmethod
-    def connect(cls, url) -> "Storage":
-        from machinable.element.element import Element
+    def multiple(cls, *storages) -> "Storage":
+        if len(storages) == 1:
+            return Storage.make(storages[0])
 
-        instance = cls.make(url)
+        from machinable.storage.multiple_storage import MultipleStorage
 
-        Element.__storage__ = instance
-
-        return instance
+        return MultipleStorage(storages)

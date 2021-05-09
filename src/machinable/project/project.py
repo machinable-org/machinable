@@ -18,11 +18,16 @@ from machinable.config.loader import from_string as load_config_from_string
 from machinable.config.mapping import config_map
 from machinable.config.parser import parse_mixins, parse_module_list
 from machinable.project.manager import fetch_imports
+from machinable.provider import Provider
 from machinable.settings import get_settings
+from machinable.storage.storage import Storage
+from machinable.utils import (
+    Jsonable,
+    find_subclass_in_module,
+    import_from_directory,
+)
 from machinable.utils.dicts import update_dict
 from machinable.utils.formatting import exception_to_str, msg
-from machinable.utils.importing import ModuleClass, import_module_from_directory
-from machinable.utils.traits import Jsonable
 from machinable.utils.utils import (
     call_with_context,
     is_valid_module_path,
@@ -32,70 +37,66 @@ from machinable.utils.vcs import get_commit, get_diff, get_root_commit
 
 
 class Project(Jsonable):
-    def __init__(self, directory: Optional[str] = None, parent=None):
+    def __init__(
+        self,
+        directory: Optional[str] = None,
+        provider: Union[str, Provider, None] = None,
+        mode: Optional[str] = None,
+    ):
         super().__init__()
         if directory is None:
             directory = os.getcwd()
-        self.directory: str = directory
-        self._name: Optional[str] = None
-        self._parent: Optional[Project] = parent
-        self._schema_validation = get_settings()["schema_validation"]
+        self._directory = os.path.abspath(directory)
+        self._provider: Union[str, Provider, None] = provider
+        self._resolved_provider: Optional[Provider] = None
+        self._mode: Optional[str] = mode
+        self._parent: Optional[Project] = None
 
-        self._config_file: str = "machinable.yaml"
-        self._vendor_caching = get_settings()["cache"].get("imports", False)
+    def add_to_path(self):
+        if os.path.exists(self._directory) and self._directory not in sys.path:
+            if self.is_root():
+                sys.path.insert(0, self._directory)
+            else:
+                sys.path.append(self._directory)
 
-        self._config = None
-        self._parsed_config = None
-        self._config_interface = None
-
-    @classmethod
-    def make(cls, args):
-        """Creates an element instance"""
-        if isinstance(args, cls):
-            return args
-
-        if args is None:
-            return cls()
-
-        if isinstance(args, str):
-            return cls(args)
-
-        if isinstance(args, tuple):
-            return cls(*args)
-
-        if isinstance(args, dict):
-            return cls(**args)
-
-        raise ValueError(f"Invalid arguments: {args}")
-
-    @classmethod
-    def connect(cls, directory: Optional[str] = None):
+    def connect(self) -> "Project":
         from machinable.element.element import Element
 
-        instance = cls.make(directory)
-        if (
-            os.path.exists(instance.directory_path)
-            and instance.directory_path not in sys.path
-        ):
-            if instance.is_root():
-                sys.path.insert(0, instance.directory_path)
+        self.add_to_path()
+        Element.__project__ = self
+        return self
+
+    def close(self) -> "Project":
+        from machinable.element.element import Element
+
+        if Element.__project__ is self:
+            Element.__project__ = None
+        return self
+
+    def provider(self, reload=False) -> Provider:
+        """Resolves and returns the provider instance"""
+        if self._resolved_provider is None or reload:
+            if isinstance(self._provider, str):
+                self._resolved_provider = find_subclass_in_module(
+                    module=import_from_directory(
+                        self._provider, self._directory
+                    ),
+                    base_class=Provider,
+                    default=Provider,
+                )(mode=self._mode)
+            elif issubclass(self._provider, Provider):
+                self._resolved_provider = self._provider(mode=self._mode)
             else:
-                sys.path.append(instance.directory_path)
+                self._resolved_provider = Provider(mode=self._mode)
 
-        Element.__project__ = instance
-
-        return instance
+        return self._resolved_provider
 
     @property
     def config_filepath(self) -> str:
-        return os.path.join(self.directory, self._config_file)
-
-    @property
-    def directory_path(self) -> str:
-        return os.path.abspath(self.directory)
+        return os.path.join(self._directory, "machinable.yaml")
 
     def path(self, *append) -> str:
-        return os.path.join(self.directory_path, *append)
+        return os.path.join(self._directory, *append)
 
     @property
     def name(self) -> Optional[str]:
@@ -122,9 +123,7 @@ class Project(Jsonable):
     @property
     def import_prefix(self):
         # find relative address to target import class
-        prefix = os.path.relpath(
-            self.directory_path, self.get_root().directory_path
-        )
+        prefix = os.path.relpath(self._directory, self.get_root()._directory)
 
         if prefix == ".":
             return None
@@ -156,19 +155,17 @@ class Project(Jsonable):
         return p
 
     def has_config_file(self):
-        return os.path.isfile(
-            os.path.join(self.directory_path, self._config_file)
-        )
+        return os.path.isfile(os.path.join(self._directory, "machinable.yaml"))
 
     def has_registration(self):
         return os.path.isfile(
-            os.path.join(self.directory_path, "_machinable.py")
+            os.path.join(self._directory, "_machinable.py")
         ) or os.path.isfile(
-            os.path.join(self.directory_path, "_machinable", "__init__.py")
+            os.path.join(self._directory, "_machinable", "__init__.py")
         )
 
     def exists(self):
-        return os.path.isfile(self.directory_path)
+        return os.path.exists(self._directory)
 
     @property
     def registration(self):
@@ -386,9 +383,6 @@ class Project(Jsonable):
         self._vendor_caching = vendor_caching
 
     def parse_imports(self, cached=None):
-        if cached is None:
-            cached = self.get_root()._vendor_caching
-
         config = self.get_config()["+"]
 
         if len(config) == 0:
@@ -401,7 +395,7 @@ class Project(Jsonable):
         for import_name in import_names:
             # use pickled import cache if existing
             import_cache = os.path.join(
-                self.directory_path, "vendor", ".cache", import_name + ".p"
+                self._directory, "vendor", ".cache", import_name + ".p"
             )
             if cached and os.path.isfile(import_cache):
                 with open(import_cache, "rb") as f:
@@ -409,10 +403,9 @@ class Project(Jsonable):
             else:
                 # use project abstraction to resolve imports
                 import_project = Project(
-                    os.path.join(self.directory, "vendor", import_name),
-                    parent=self,
-                    schema_validation=self._schema_validation,
+                    os.path.join(self._directory, "vendor", import_name),
                 )
+                import_project._parent = self
 
                 if not import_project.has_config_file():
                     continue
@@ -432,11 +425,6 @@ class Project(Jsonable):
         return imports
 
     def parse_config(self, reference=True, cached=None):
-        if cached is None:
-            cached = False
-
-        if not cached and self._parsed_config is not None:
-            return self._parsed_config
 
         config = self.get_config(cached)
 
@@ -778,7 +766,7 @@ class Project(Jsonable):
             config["config"] = update_dict(
                 config["config"],
                 version,
-                preserve_schema=self._schema_validation,
+                preserve_schema=True,
             )
         except KeyError as e:
             raise KeyError(
@@ -794,5 +782,12 @@ class Project(Jsonable):
 
         return config
 
+    def __enter__(self):
+        self.connect()
+        return self
+
+    def __exit__(self, exc_type, exc_value, exc_traceback):
+        self.close()
+
     def __repr__(self) -> str:
-        return f"Project({self.directory})"
+        return f"Project({self._directory})"

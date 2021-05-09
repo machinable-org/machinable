@@ -1,1 +1,1 @@
-from machinable.component.component import Component, Mixin
+from machinable.component.component import Component

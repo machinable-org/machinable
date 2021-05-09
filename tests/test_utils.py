@@ -6,6 +6,7 @@ import machinable.utils as utils
 import numpy as np
 import pytest
 from hypothesis import given, strategies
+from machinable import Component
 
 
 def test_experiment_id_encoding():
@@ -77,3 +78,47 @@ def test_sanitize_path(path):
     assert not cleaned.endswith("/")
     ok = "-_abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ/0123456789"
     assert len([c for c in cleaned if (c not in ok)]) == 0
+
+
+def test_import_from_directory():
+    # relative imports
+    assert type(
+        utils.import_from_directory(
+            "top", "./tests/samples/importing"
+        ).TopComponent
+    ) is type(
+        utils.import_from_directory(
+            "importing.top", "./tests/samples"
+        ).TopComponent
+    )
+
+    # import modules with and without __init__.py
+    assert (
+        utils.import_from_directory("nested", "./tests/samples/importing")
+        is not None
+    )
+    assert (
+        utils.import_from_directory("importing", "./tests/samples").__doc__
+        == "Importing"
+    )
+
+    assert utils.import_from_directory("non_existing", "./tests") is None
+    with pytest.raises(ModuleNotFoundError):
+        utils.import_from_directory("non_existing", "./tests", or_fail=True)
+
+
+def test_find_subclass_in_module():
+    assert utils.find_subclass_in_module(None, None) is None
+
+    module = utils.import_from_directory("top", "./tests/samples/importing")
+    assert type(utils.find_subclass_in_module(module, Component)) is type(
+        module.TopComponent
+    )
+
+    # ignores imported classes?
+    module = utils.import_from_directory(
+        "nested.bottom", "./tests/samples/importing"
+    )
+    assert type(utils.find_subclass_in_module(module, Component)) is type(
+        module.BottomComponent
+    )

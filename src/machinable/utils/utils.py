@@ -1,6 +1,8 @@
+import types
+from types import ModuleType
 from typing import Any, Callable, Optional, Union
 
-import hashlib
+import importlib
 import inspect
 import json
 import os
@@ -8,14 +10,44 @@ import pickle
 import random
 import re
 import string
+import sys
 from collections import OrderedDict
 from keyword import iskeyword
+from pathlib import Path
 
 import arrow
 import jsonlines
 from baseconv import base62
 
 sentinel = object()
+
+import json
+
+
+class Jsonable:
+    def as_json(self, stringify=True, **dumps_kwargs):
+        serialized = self.serialize()
+        if stringify:
+            serialized = json.dumps(serialized, **dumps_kwargs)
+        return serialized
+
+    @classmethod
+    def from_json(cls, serialized, **loads_kwargs):
+        if isinstance(serialized, str):
+            serialized = json.loads(serialized, **loads_kwargs)
+        return cls.unserialize(serialized)
+
+    def clone(self):
+        return self.__class__.from_json(self.as_json())
+
+    # abstract methods
+
+    def serialize(self):
+        raise NotImplementedError
+
+    @classmethod
+    def unserialize(cls, serialized):
+        raise NotImplementedError
 
 
 def apply_seed(seed=None):
@@ -409,3 +441,70 @@ def sanitize_path(path: str) -> str:
     path: The path
     """
     return re.sub(r"[^0-9a-zA-Z/\-\_]+", "", path).replace("//", "/").strip("/")
+
+
+def import_from_directory(
+    module_name: str, directory: str, or_fail: bool = False
+) -> Optional[ModuleType]:
+    """Imports a module relative to a given absolute directory"""
+    # determine the target .py file path
+    file_path = os.path.join(directory, module_name.replace(".", "/"))
+    tmp_file = False
+    if os.path.isdir(file_path):
+        file_path = os.path.join(file_path, "__init__.py")
+        # if the __init__.py file does not exists, we temporily create it to emulate
+        # the standard Python 3 import behaviour
+        try:
+            Path(file_path).touch(exist_ok=False)
+            tmp_file = True
+        except FileExistsError:
+            pass
+    else:
+        file_path += ".py"
+
+    try:
+        spec = importlib.util.spec_from_file_location(module_name, file_path)
+        module = importlib.util.module_from_spec(spec)
+        sys.modules[module_name] = module
+        spec.loader.exec_module(module)
+        return module
+    except FileNotFoundError as _e:
+        if or_fail:
+            raise ModuleNotFoundError(
+                f"No module named '{module_name}'"
+            ) from _e
+    finally:
+        if tmp_file:
+            os.remove(file_path)
+
+    return None
+
+
+def find_subclass_in_module(
+    module: Optional[types.ModuleType],
+    base_class: Any,
+    default: Optional[Any] = None,
+) -> Any:
+    if module is not None:
+        candidates = inspect.getmembers(
+            module,
+            lambda x: bool(
+                # is class of given type that is defined in the target module
+                inspect.isclass(x)
+                and issubclass(x, base_class)
+                and x.__module__ == module.__name__
+            ),
+        )
+        if len(candidates) > 0:
+            return candidates[0][1]
+
+    return default
+
+
+def find_installed_extensions(key):
+    from importlib_metadata import entry_points
+
+    return [
+        (module.name, module.load())
+        for module in entry_points().get(f"machinable.{key}", [])
+    ]

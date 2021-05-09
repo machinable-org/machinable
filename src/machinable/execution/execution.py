@@ -15,15 +15,13 @@ from machinable.registration import Registration
 from machinable.repository.repository import Repository
 from machinable.schema import ExecutionType
 from machinable.settings import get_settings
-from machinable.utils.dicts import merge_dict, update_dict
-from machinable.utils.formatting import exception_to_str, msg
+from machinable.utils.formatting import msg
 from machinable.utils.host import get_host_info
 from machinable.utils.importing import resolve_instance
-from machinable.utils.traits import Discoverable, Jsonable
-from machinable.utils.utils import generate_nickname, generate_seed, sentinel
+from machinable.utils.utils import generate_nickname, generate_seed
 
 
-class Execution(Element, Discoverable):
+class Execution(Element):
     def __init__(
         self,
         experiment: Union[Experiment, List[Experiment], None] = None,
@@ -101,7 +99,8 @@ class Execution(Element, Discoverable):
                 self.add_experiment(_experiment)
             return self
 
-        experiment = Experiment.make(experiment)
+        if not isinstance(experiment, Experiment):
+            raise ValueError(f"Invalid experiment: {experiment}")
 
         # parse
         experiment.to_model()

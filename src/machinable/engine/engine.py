@@ -5,11 +5,10 @@ import copy
 import importlib
 
 import machinable.errors
-from machinable.element.element import Element
+from machinable.container import Container
 from machinable.utils.dicts import update_dict
 from machinable.utils.formatting import exception_to_str, msg
 from machinable.utils.importing import ModuleClass, resolve_instance
-from machinable.utils.traits import Discoverable, Jsonable
 
 _register = {
     "native": "machinable.engine.native_engine",
@@ -21,7 +20,7 @@ _register = {
 }
 
 
-class Engine(Element, Discoverable):
+class Engine(Container):
     @staticmethod
     def register(engine, name=None):
         if name is None:
