@@ -48,15 +48,7 @@ class Experiment(Element):
         return self
 
     def _to_model(self) -> ExperimentType:
-        return ExperimentType(
-            components=[
-                self.__project__.parse_component(*component)
-                for component in self._components
-            ],
-            **self.__project__.parse_component(
-                self._component, self._config, self._flags
-            ),
-        )
+        return ExperimentType()  # todo
 
     @belongs_to
     def execution(self) -> "Execution":

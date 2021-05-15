@@ -5,7 +5,6 @@ import os
 from datetime import datetime as dt
 
 import yaml
-from expandvars import expand
 from machinable.collection.experiment import ExperimentCollection
 from machinable.element.element import Element
 from machinable.element.relations import belongs_to, has_many, has_one
@@ -35,11 +34,11 @@ class Execution(Element):
         self._nickname = generate_nickname()
         self._timestamp = dt.now().timestamp()
 
-        if engine is None:
-            engine = get_settings()["default_engine"]
+        # if engine is None:
+        #     engine = get_settings()["default_engine"]
 
-        if repository is None:
-            repository = get_settings()["default_repository"]
+        # if repository is None:
+        #     repository = get_settings()["default_repository"]
 
         self._engine = Engine.make(engine)
         self._repository = Repository.make(repository)

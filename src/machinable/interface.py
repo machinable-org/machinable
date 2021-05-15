@@ -1,328 +1,19 @@
-from typing import Dict, List, Optional, Union
+from typing import Optional, Union
 
-import copy
-import inspect
-import os
-import re
-from collections import OrderedDict
-
-import arrow
-import machinable.errors
-from machinable.component.events import Events
-from machinable.component.mixin import MixinInstance
-from machinable.config.mapping import ConfigMap, ConfigMethod, config_map
-from machinable.config.parser import parse_mixins
-from machinable.container import Container
-from machinable.registration import Registration
-from machinable.storage import Storage
-from machinable.utils import Jsonable
-from machinable.utils.dicts import update_dict
-from machinable.utils.formatting import exception_to_str
-from machinable.utils.host import get_host_info
-from machinable.utils.importing import ModuleClass
-from machinable.utils.system import OutputRedirection, set_process_title
-from machinable.utils.utils import apply_seed
+from machinable.component import Component
+from machinable.storage.storage import Storage
+from machinable.utils import Events
 
 
-def set_alias(obj, alias, value):
-    if isinstance(alias, str) and not hasattr(obj, alias):
-        setattr(obj, alias, value)
+class Interface(Component):
+    """Interface base class"""
 
-
-def inject_components(component, components, on_create):
-    signature = inspect.signature(on_create)
-
-    if components is None:
-        components = []
-
-    # default: if there are no given parameters, create each component and assign suggested attribute_
-    if len(signature.parameters) == 0:
-        for index, c in enumerate(components):
-            if not c.component_state.created:
-                c.create()
-            set_alias(component, c.attribute_, c)
-            component.flags.COMPONENTS_ALIAS[c.attribute_] = index
-
-        if component.node is not None:
-            set_alias(component, component.node.attribute_, component.node)
-
-        on_create()
-
-        return True
-
-    # user defined
-    payload = OrderedDict()
-    for index, (key, parameter) in enumerate(signature.parameters.items()):
-        if parameter.kind is not parameter.POSITIONAL_OR_KEYWORD:
-            # ignore *args and **kwargs
-            raise TypeError(
-                f"on_create only allows simple positional or keyword arguments"
-            )
-
-        try:
-            c = components[index]
-            alias = parameter.name
-            if not parameter.name.startswith("_"):
-                c.create()
-                alias = parameter.name[1:]
-            payload[parameter.name] = c
-            component.flags.COMPONENTS_ALIAS[alias] = index
-        except IndexError:
-            if parameter.default is parameter.empty:
-                raise TypeError(
-                    f"Component {component.__class__.__name__}.on_create requires "
-                    f"a component argument '{parameter.name}'. Please specify the "
-                    f"component in Experiment.components()."
-                )
-
-            payload[parameter.name] = parameter.default
-
-    on_create(**payload)
-
-    return True
-
-
-def bind_config_methods(obj, config):
-    if isinstance(config, list):
-        return [bind_config_methods(obj, v) for v in config]
-
-    if isinstance(config, tuple):
-        return (bind_config_methods(obj, v) for v in config)
-
-    if isinstance(config, dict):
-        for k, v in config.items():
-            if k == "_mixins_":
-                continue
-            config[k] = bind_config_methods(obj, v)
-        return config
-
-    if isinstance(config, str):
-        # config method
-        fn_match = re.match(r"(?P<method>\w+)\s?\((?P<args>.*)\)", config)
-        if fn_match is not None:
-            definition = config
-            method = "config_" + fn_match.groupdict()["method"]
-            args = fn_match.groupdict()["args"]
-
-            # local config method
-            if getattr(obj, method, False) is not False:
-                return ConfigMethod(obj, method, args, definition)
-
-            # global config method
-            registration = Registration.get()
-            if getattr(registration, method, False) is not False:
-                return ConfigMethod(registration, method, args, definition)
-
-            raise AttributeError(
-                f"Config method {definition} specified but {type(obj).__name__}.{method}() does not exist."
-            )
-
-    return config
-
-
-class ComponentState(Jsonable):
-    def __init__(
-        self, created=False, executed=False, destroyed=False, checkpoints=None
-    ):
-        self.created = created
-        self.executed = executed
-        self.destroyed = destroyed
-        self.checkpoints = checkpoints or []
-
-    def serialize(self):
-        return {
-            "created": self.created,
-            "executed": self.executed,
-            "destroyed": self.destroyed,
-            "checkpoints": self.checkpoints,
-        }
-
-    @classmethod
-    def unserialize(cls, serialized):
-        return cls(**serialized)
-
-    @staticmethod
-    def save(component):
-        if component.node is not None or component.storage is None:
-            return False
-        component.storage.save_file(
-            "state.json",
-            {
-                "component": component.component_state.serialize(),
-                "components": [
-                    c.component_state.serialize() for c in component.components
-                ]
-                if component.components is not None
-                else None,
-            },
-            overwrite=True,
-        )
-
-
-class Component(Container):
-    """
-    Component base class. All machinable components must inherit from this class.
-
-    ::: tip
-    All components are Mixins by default. However, if you want to explicitly mark your components for Mixin-only use
-    consider inheriting from the Mixin base class ``machinable.Mixin``.
-    :::
-    """
-
-    attribute_ = None
-
-    def __init__(self, experiment, node=None):
-        """Constructs the components instance.
-
-        The initialisation and its events ought to be side-effect free, meaning the application state is preserved
-        as if no execution would have happened.
-        """
-        super().__init__()
-
-        config, flags = (
-            experiment.components[0]["config"],
-            experiment.components[0]["flags"],
-        )
-
-        self.__related__["experiment"] = experiment
-
-        on_before_init = self.on_before_init(config, flags, node)
-        if isinstance(on_before_init, tuple):
-            config, flags, node = on_before_init
-
-        self._node: Optional[Component] = node
-        self._components: Optional[List[Component]] = None
+    def __init__(self, config: dict, flags: dict):
+        super().__init__(config, flags)
         self._storage: Optional[Storage] = None
-        self._submission: Optional[SubmissionComponent] = None
         self._events: Events = Events()
-        self._actor_config = None
-        self.__mixin__ = None
-        self.component_status = dict()
-        self.component_state = ComponentState()
 
-        on_init = self.on_init(config, flags, node)
-        if on_init is False:
-            return
-        if isinstance(on_init, tuple):
-            config, flags, node = on_init
-
-        if config is None:
-            config = {}
-
-        # we assign the raw config to allow config_methods to access it
-        self._config: ConfigMap = config_map(config)
-
-        # resolve config methods
-        self._config: ConfigMap = bind_config_methods(self, config)
-        self._config: ConfigMap = ConfigMap(
-            self.config,
-            _dynamic=False,
-            _evaluate=self.config.get("_evaluate", True),
-        )
-
-        self._flags: ConfigMap = config_map(
-            update_dict({"TUNING": False, "COMPONENTS_ALIAS": {}}, flags)
-        )
-
-        # bind mixins
-        for mixin in parse_mixins(self.config.get("_mixins_"), valid_only=True):
-            self.bind(mixin.get("origin", mixin["name"]), mixin["attribute"])
-
-        self.on_after_init()
-
-    # relations
-    # belongsTo
-    @property
-    def experiment(self):
-        if "experiment" in self.__related__:
-            return self.__related__["experiment"]
-
-        # find project from file system, otherwise return None
-        raise NotImplementedError
-
-    def bind(self, mixin, attribute):
-        """Binds a mixin to the component
-
-        # Arguments
-        mixin: Mixin module or class
-        attribute: Attribute name, e.g. _my_mixin_
-        """
-        if isinstance(mixin, str):
-            mixin = ModuleClass(mixin.replace("+.", "vendor."), baseclass=Mixin)
-        setattr(self, attribute, MixinInstance(self, mixin, attribute))
-
-    @property
-    def config(self) -> ConfigMap:
-        """Component configuration"""
-        return self._config
-
-    @property
-    def flags(self) -> ConfigMap:
-        """Component flags"""
-        return self._flags
-
-    @property
-    def node(self) -> Optional["Component"]:
-        """Node component or None"""
-        return self._node
-
-    @node.setter
-    def node(self, value):
-        self._node = value
-
-    @property
-    def components(self) -> Optional[List["Component"]]:
-        """List of sub components or None"""
-        return self._components
-
-    @components.setter
-    def components(self, value):
-        self._components = value
-
-    @property
-    def storage(self) -> Storage:
-        """Storage interface"""
-        if self._storage is None and isinstance(self.node, Component):
-            # forward to node store if available
-            return self.node.storage
-        return self._storage
-
-    @storage.setter
-    def storage(self, value):
-        self._storage = value
-
-    @property
-    def record(self):
-        """Record writer instance"""
-        return self.storage.get_records(
-            "default",
-            events=self.events,
-            created_at=self.component_status["started_at"],
-        )
-
-    @property
-    def log(self):
-        """Log writer instance"""
-        return self.storage.log
-
-    @property
-    def submission(self):
-        """Submission of this component"""
-        if self._storage is None:
-            return None
-        if self._submission is None:
-            self._submission = Submission(self.storage.get_url())
-        return self._submission
-
-    @property
-    def events(self) -> Events:
-        """Event interface"""
-        return self._events
-
-    def dispatch(self):
-        print("dispatch")
-
-    def dispatch_(
+    def dispatch(
         self,
         actor_reference=None,
         lifecycle=True,
@@ -612,12 +303,6 @@ class Component(Container):
             self.log.info(f"Restoring checkpoint `{checkpoint}`")
         return self.on_restore(checkpoint)
 
-    def serialize(self):
-        return {
-            "config": self.config.as_dict(evaluate=True, discard_hidden=True),
-            "flags": self.flags.as_dict(evaluate=True),
-        }
-
     # life cycle
 
     def on_start(self):
@@ -628,21 +313,6 @@ class Component(Container):
 
         Return False to prevent the default seeding procedure
         """
-        pass
-
-    def on_before_init(self, config=None, flags=None, node=None):
-        """Lifecycle event triggered before components initialisation"""
-        pass
-
-    def on_init(self, config=None, flags=None, node=None):
-        """Lifecycle event triggered during components initialisation
-
-        Return False to prevent the default configuration and flag instantiation
-        """
-        pass
-
-    def on_after_init(self):
-        """Lifecycle event triggered after components initialisation"""
         pass
 
     def on_before_create(self):
@@ -705,11 +375,11 @@ class Component(Container):
         """Lifecycle event triggered after components initialisation"""
         pass
 
-    def on_init_storage(self, storage_config: Dict):
+    def on_init_storage(self, storage_config: dict):
         """Lifecycle event triggered at write initialisation"""
         pass
 
-    def on_after_init_storage(self, storage_config: Dict):
+    def on_after_init_storage(self, storage_config: dict):
         """Lifecycle event triggered when storage is available"""
 
     def on_after_create(self):
@@ -789,16 +459,3 @@ class Component(Container):
         # Arguments
         result: Execution exception
         """
-
-    def __repr__(self):
-        if isinstance(self.node, Component):
-            return "Sub" + repr(self.node)
-
-        flags = getattr(self, "flags", {})
-        r = f"Component <{flags.get('SUBMISSION_ID', '-')}:{flags.get('UID', '-')}>"
-        if self.storage is not None:
-            r += f" ({self.storage.get_url()})"
-        return r
-
-    def __str__(self):
-        return self.__repr__()

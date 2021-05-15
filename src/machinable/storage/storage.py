@@ -1,7 +1,7 @@
-from machinable.container import Container
+from machinable.component import Component
 
 
-class Storage(Container):
+class Storage(Component):
     """Storage base class"""
 
     @classmethod

@@ -1,7 +1,5 @@
 from typing import TYPE_CHECKING, Optional
 
-import os
-
 from machinable.collection import Collection
 from machinable.project.project import Project
 from machinable.schema import SchemaType
@@ -11,15 +9,11 @@ from machinable.utils import Jsonable
 class Element(Jsonable):
     """Element baseclass"""
 
-    __project__: Optional[Project] = None
-
     def __init__(self, *args, **kwargs):
         super().__init__()
         self.__model__ = None
         self.__related__ = {}
-
-        if not isinstance(self.__project__, Project):
-            self.__project__ = Project()
+        self.__project__ = Project.get()
 
     def is_mounted(self):
         return self.__model__ is not None
@@ -44,9 +38,7 @@ class Element(Jsonable):
 
     @classmethod
     def find(cls, element_id):
-        if not isinstance(cls.__project__, Project):
-            cls.__project__ = Project()
-        return cls.__project__.provider().find(cls.__name__, element_id)
+        return Project.get().provider().find(cls.__name__, element_id)
 
     @classmethod
     def collect(cls, elements) -> Collection:

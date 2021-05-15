@@ -7,6 +7,7 @@ import numpy as np
 import pytest
 from hypothesis import given, strategies
 from machinable import Component
+from machinable.project.project import Project
 
 
 def test_experiment_id_encoding():
@@ -122,3 +123,16 @@ def test_find_subclass_in_module():
     assert type(utils.find_subclass_in_module(module, Component)) is type(
         module.BottomComponent
     )
+
+
+def test_unflatten_dict():
+    d = {"a.b": "c"}
+    original = {"a.b": "c"}
+    assert utils.unflatten_dict(d)["a"]["b"] == "c"
+    assert d == original
+
+    # recursive
+    d = {"a.b": {"c.d": "e"}}
+    original = {"a.b": {"c.d": "e"}}
+    assert utils.unflatten_dict(d)["a"]["b"]["c"]["d"] == "e"
+    assert d == original

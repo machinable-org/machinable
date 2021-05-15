@@ -1,6 +1,6 @@
 import types
 from types import ModuleType
-from typing import Any, Callable, Optional, Union
+from typing import Any, Callable, List, Mapping, Optional, Tuple, Union
 
 import importlib
 import inspect
@@ -18,10 +18,113 @@ from pathlib import Path
 import arrow
 import jsonlines
 from baseconv import base62
+from flatten_dict import unflatten as _unflatten_dict
+from importlib_metadata import entry_points
 
 sentinel = object()
 
 import json
+import threading
+from inspect import getattr_static
+
+from observable import Observable
+
+
+class Mixin:
+    """
+    Allows to dynamically extend object instances
+
+    # Example
+    ```yaml
+    class Extension:
+        def greet(self):
+            # write an extension for Example class
+            # note that self refers to the instance we are extending
+            print(self.hello)
+
+    class Example:
+        def __init__(self):
+            self.hello = 'hello world'
+            # extend dynamically
+            self.extension = Mixin(self, Extension, 'extension')
+
+    Example().extension.greet()
+    >>> 'hello world'
+    ```
+    """
+
+    def __init__(
+        self, target: Any, mixin_class: Any, attribute: Optional[str] = None
+    ):
+        self._binding = {
+            "controller": target,
+            "class": mixin_class,
+            "attribute": attribute,
+        }
+
+    def __getattr__(self, item):
+        # forward dynamically into mix-in class
+        attribute = getattr(self._binding["class"], item, None)
+
+        if attribute is None:
+            raise AttributeError(
+                f"'{self._binding['class'].__name__}' has no attribute '{item}'"
+            )
+
+        if isinstance(attribute, property):
+            return attribute.fget(self._binding["controller"])
+
+        if not callable(attribute):
+            return attribute
+
+        if isinstance(
+            getattr_static(self._binding["class"], item), staticmethod
+        ):
+            return attribute
+
+        # if attribute is non-static method we decorate it to pass in the controller
+
+        def bound_method(*args, **kwargs):
+            # bind mixin instance to controller for mixin self reference
+            if self._binding["attribute"] is not None:
+                self._binding["controller"].__mixin__ = getattr(
+                    self._binding["controller"], self._binding["attribute"]
+                )
+            output = attribute(self._binding["controller"], *args, **kwargs)
+
+            return output
+
+        return bound_method
+
+
+class Events(Observable):
+    def __init__(self) -> None:
+        super().__init__()
+        self._heartbeat = None
+
+    def trigger(self, event: str, *args: Any, **kw: Any) -> list:
+        """Triggers all handlers which are subscribed to an event.
+        Returns True when there were callbacks to execute, False otherwise."""
+        # upstream pending on issue https://github.com/timofurrer/observable/issues/17
+        callbacks = list(self._events.get(event, []))
+        return [callback(*args, **kw) for callback in callbacks]
+
+    def heartbeats(self, seconds=10):
+        if self._heartbeat is not None:
+            self._heartbeat.cancel()
+
+        if seconds is None or int(seconds) == 0:
+            # disable heartbeats
+            return
+
+        def heartbeat():
+            t = threading.Timer(seconds, heartbeat)
+            t.daemon = True
+            t.start()
+            self.trigger("heartbeat")
+            return t
+
+        self._heartbeat = heartbeat()
 
 
 class Jsonable:
@@ -42,11 +145,11 @@ class Jsonable:
 
     # abstract methods
 
-    def serialize(self):
+    def serialize(self) -> dict:
         raise NotImplementedError
 
     @classmethod
-    def unserialize(cls, serialized):
+    def unserialize(cls, serialized: dict) -> Any:
         raise NotImplementedError
 
 
@@ -501,10 +604,74 @@ def find_subclass_in_module(
     return default
 
 
-def find_installed_extensions(key):
-    from importlib_metadata import entry_points
-
+def find_installed_extensions(key: str) -> List[Tuple[str, ModuleType]]:
     return [
         (module.name, module.load())
         for module in entry_points().get(f"machinable.{key}", [])
     ]
+
+
+def update_dict(
+    d: Mapping, update: Optional[Mapping] = None, copy: bool = False
+) -> Mapping:
+    if d is None:
+        d = {}
+    if not isinstance(d, Mapping):
+        raise ValueError(
+            f"Error: Expected mapping but found {type(d).__name__}: {d}"
+        )
+    if copy:
+        d = d.copy()
+    if not update:
+        return d
+    for k, val in update.items():
+        if isinstance(val, Mapping):
+            d[k] = update_dict(d.get(k, {}), val, copy=copy)
+        else:
+            d[k] = val
+    return d
+
+
+def unflatten_dict(
+    d: Mapping,
+    splitter: Union[str, Callable] = "dot",
+    inverse: bool = False,
+    recursive: bool = True,
+    copy: bool = True,
+) -> dict:
+    """Recursively unflatten a dict-like object
+
+    # Arguments
+    d: The dict-like to unflatten
+    splitter: The key splitting method
+        If a Callable is given, the Callable will be used to split `d`.
+        'tuple': Use each element in the tuple key as the key of the unflattened dict.
+        'path': Use `pathlib.Path.parts` to split keys.
+        'underscore': Use underscores to split keys.
+        'dot': Use underscores to split keys.
+    inverse: If True, inverts the key and value before flattening
+    recursive: Perform unflatting recursively
+    copy: Creates copies to leave d unmodified
+    """
+    if recursive is False:
+        return _unflatten_dict(d=d, splitter=splitter, inverse=inverse)
+
+    if isinstance(d, list):
+        return [
+            unflatten_dict(v, splitter, inverse, recursive, copy) for v in d
+        ]
+
+    if isinstance(d, tuple):
+        return (
+            unflatten_dict(v, splitter, inverse, recursive, copy) for v in d
+        )
+
+    if isinstance(d, Mapping):
+        if copy:
+            d = d.copy()
+        flat = _unflatten_dict(d=d, splitter=splitter, inverse=inverse)
+        for k, nested in flat.items():
+            flat[k] = unflatten_dict(nested, splitter, inverse, recursive, copy)
+        return flat
+
+    return d

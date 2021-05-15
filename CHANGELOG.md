@@ -2,6 +2,12 @@
 
 <!-- Please add changes under the Unreleased section that reads 'No current changes' otherwise -->
 
+# Unreleased v3
+
+- New two-way binding storage API
+- New configuration parser, with support for complex interpolation and recursive dot-notation
+- Mixin API is superseded by Slot API
+
 # v2.13.0
 
 - Add URL to submission serialization
