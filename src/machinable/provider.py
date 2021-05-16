@@ -28,3 +28,16 @@ class Provider:
         return load_config_from_file(
             os.path.join(directory, "machinable.yaml"), default={}
         )
+
+    def on_resolve_vendor(
+        self, name: str, source: str, target: str
+    ) -> Optional[bool]:
+        """Event triggered when vendor is resolved
+
+        # Arguments
+        name: The name of the vendor
+        source: The source configuration
+        target: The target directory (may or may not exists yet)
+
+        Return False to prevent the default automatic resolution
+        """

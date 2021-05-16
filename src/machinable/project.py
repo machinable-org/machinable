@@ -4,6 +4,7 @@ import os
 import pickle
 import sys
 
+from commandlib import Command
 from machinable.component import Component
 from machinable.config import parse as parse_config
 from machinable.config import prefix as prefix_config
@@ -19,10 +20,110 @@ from machinable.utils import (
 from machinable.utils.vcs import get_commit, get_diff, get_root_commit
 
 
+def fetch_link(source, target):
+    os.symlink(source, target, target_is_directory=True)
+    return True
+
+
+def fetch_directory(source, target):
+    if not os.path.isdir(source):
+        raise ValueError(f"{source} is not a directory")
+
+    # we use symlink rather than copy for performance and consistency
+    fetch_link(source, target)
+
+    return True
+
+
+def fetch_git(source, target):
+    git = Command("git")
+    name, directory = os.path.split(target)
+    clone = git("clone").in_dir(directory)
+    clone(source, name).run()
+
+    return True
+
+
+def fetch_vendor(source, target):
+    if source is None:
+        return False
+
+    # git
+    if source.startswith("git+"):
+        return fetch_git(source[4:], target)
+
+    # symlink
+    if source.startswith("link+"):
+        return fetch_link(source[5:], target)
+
+    # default: directory
+    return fetch_directory(source, target)
+
+
+def fetch_vendors(project: "Project", config: Optional[dict] = None):
+    if config is None:
+        config = project.config().get("vendors", {})
+    top_level_vendor = project.get_root().path("vendor")
+    os.makedirs(top_level_vendor, exist_ok=True)
+
+    vendors = []
+    for dependency in project.get_vendors():
+        if isinstance(dependency, str):
+            dependency = {dependency: None}
+
+        for name, args in dependency.items():
+            vendors.append(name)
+
+            # source config
+            if not isinstance(args, str):
+                args = None
+
+            # give local .machinablerc priority over project config
+            source = args
+            if isinstance(source, str):
+                source = os.path.expanduser(source)
+
+            # local target folder
+            os.makedirs(project.path("vendor"), exist_ok=True)
+            target = project.path("vendor", name)
+
+            # protect against invalid symlinks
+            if os.path.islink(target) and not os.path.exists(target):
+                os.unlink(target)
+
+            # skip if already existing
+            if os.path.exists(target):
+                break
+
+            # top-level target folder
+            top_level = os.path.join(top_level_vendor, name)
+
+            # protect against invalid symlinks
+            if os.path.islink(top_level) and not os.path.exists(top_level):
+                os.unlink(top_level)
+
+            if (
+                project.provider().on_resolve_vendor(name, source, top_level)
+                is not False
+            ):
+                # fetch import to the top-level if it does not exist
+                if not os.path.exists(top_level):
+                    msg(f"Fetching '+.{name}' to {top_level}")
+                    if not fetch_vendor(source, top_level):
+                        raise FileNotFoundError(
+                            f"Could not fetch '+.{name}'. Please place it into {top_level}"
+                        )
+
+            # symlink from top-level to local target if not identical
+            if top_level != target:
+                os.symlink(top_level, target, target_is_directory=True)
+
+            break
+
+    return vendors
+
+
 class Project(Jsonable):
-
-    __connection__: Optional["Project"] = None
-
     def __init__(
         self,
         directory: Optional[str] = None,
@@ -82,9 +183,9 @@ class Project(Jsonable):
         try:
             return [
                 vendor
-                for vendor in os.listdir(
-                    self.path("vendor")
-                )  # todo: how to ignore vendors?
+                for vendor in os.listdir(self.path("vendor"))
+                if os.path.isdir(self.path("vendor", vendor))
+                # todo: how to ignore vendors?
             ]
         except FileNotFoundError:
             return []
@@ -116,8 +217,6 @@ class Project(Jsonable):
                     base_class=Provider,
                     default=Provider,
                 )(mode=self._mode)
-            elif issubclass(self._provider, Provider):
-                self._resolved_provider = self._provider(mode=self._mode)
             else:
                 self._resolved_provider = Provider(mode=self._mode)
 

@@ -1,7 +1,7 @@
-from machinable.utils.traits import Discoverable
+from machinable.element import Element
 
 
-class Repository(Discoverable):
+class Repository(Element):
     def __init__(self, name: str = None):
         """Repository base class
 
@@ -14,4 +14,5 @@ class Repository(Discoverable):
             The variables are expanded following GNU bash's variable expansion rules, e.g.
             `&{EXPERIMENT:-default_value}` or `&{PROJECT:?}` can be used.
         """
+        super().__init__()
         self.name = name

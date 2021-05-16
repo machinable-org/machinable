@@ -72,50 +72,56 @@ class Component(Jsonable):
     @classmethod
     def make(
         cls,
+        name: Optional[str] = None,
         version: Union[str, dict, None, List[Union[str, dict, None]]] = None,
     ):
+        if name is None:
+            if (
+                cls.__module__.startswith("machinable.component")
+                and cls.__name__ == "Component"
+            ):
+                raise ValueError("You have to provide a component name.")
+
+            name = cls.__module__
+
         from machinable.project import Project
 
-        return Project.get().get_component(cls.__module__, version)
+        return Project.get().get_component(name, version)
 
     @property
     def config(self) -> DictConfig:
         """Component configuration"""
         if self.__config is None:
             # register resolvers
-            for name, method in inspect.getmembers(
-                self,
-                predicate=lambda x: bool(
-                    inspect.isfunction(x) or inspect.ismethod(x)
-                ),
-            ):
+            for name in dir(self):
                 if name.startswith("resolver_") and len(name) > 9:
-                    OmegaConf.register_new_resolver(
-                        name=name[9:], resolver=method, replace=True
-                    )
+                    method = getattr(self, name, None)
+                    if callable(method):
+                        OmegaConf.register_new_resolver(
+                            name=name[9:], resolver=method, replace=True
+                        )
 
             # we assign the raw resolved config to allow config_methods to access it
-            self.__config = OmegaConf.resolve(
-                OmegaConf.create(self.__spec["config"])
-            )
+            self.__config = OmegaConf.create(self.__spec["config"])
+            OmegaConf.resolve(self.__config)
 
             # resolve config and version
             resolved_config = _resolve_config_methods(
                 self, OmegaConf.to_container(self.__config)
             )
-            resolved_version = [
-                _resolve_config_methods(
-                    self,
-                    unflatten_dict(
-                        OmegaConf.to_container(
-                            OmegaConf.resolve(OmegaConf.create(v))
-                        )
-                    ),
-                )
-                if isinstance(v, dict)
-                else v
-                for v in self.__version
-            ]
+            resolved_version = []
+            for v in self.__version:
+                if isinstance(v, dict):
+                    v = OmegaConf.create(v)
+                    OmegaConf.resolve(v)
+                    v = OmegaConf.to_container(v)
+                    v = unflatten_dict(v)
+                    v = _resolve_config_methods(
+                        self,
+                        v,
+                    )
+
+                resolved_version.append(v)
 
             # compose configuration update
             config_update = {}

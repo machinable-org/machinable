@@ -1,0 +1,76 @@
+# test_project.machinable.yaml
+name: test_project
+scientific: 5e-6
+outsource: $/outsourced.yaml
++:
+  - $/outsourced.yaml
+  - appended:
+      section: True
+components::
+  dummy:
+    timeout: 0
+    a: through_config_method(1)
+    b:
+    alpha: 0
+    works:
+    nested:
+    added:
+    unaffected: true
+    q:
+    key:
+      mixing:
+      very:
+    beta:
+      test:
+    ~one:
+      alpha: 1
+      beta:
+        test: True
+    ~two:
+      alpha: 2
+    ~three:
+      alpha: 3
+      unaffected: value
+      ~nested:
+        works: False
+        alpha: 4
+        beta: nested
+        ~nestednested:
+          beta: overwritten
+          alpha: 5
+          added: value
+      ~second_nested:
+        should_not_be: selected
+    ~nested:
+      nested: True
+      works: True
+  child^dummy=dummy_alias:
+    a: 2
+    b: 3
+  inherit^vendor.fooba.experiments.start:
+    blub: bla
+components:components:
+  configmethods:
+    method: hello()
+    argmethod: arghello('world')
+    nested:
+      method: hello()
+    resursive: recursive_call('test')
+  inherited_flatness:
+    flat.can.be.useful: False
+    inherited.flat: value
+  flattened_notation^inherited_flatness:
+    flat:
+      nested: True
+      merge:
+    flat.can.be.useful: True
+    flat.can_also_save_space: " "
+    flat.version: 1
+    more.nested.values: False
+    ~flat_version:
+      flat:
+        nested: False
+      flat.version: 2
+interfaces:interfaces:
+  uses_default_module:
+    works: True

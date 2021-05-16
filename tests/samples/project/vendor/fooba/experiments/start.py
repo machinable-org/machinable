@@ -1,5 +1,6 @@
 from machinable import Component
 
 
-class Dummy(Component):
+class TestNode(Component):
+
     pass

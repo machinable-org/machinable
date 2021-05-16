@@ -85,20 +85,6 @@ class Registration:
         default: Optional default component that will be used if import fails
         """
 
-    def on_resolve_vendor(self, name, config, target):
-        """Event triggered when vendor is resolved
-
-        machinable attempts to fetch any vendor directories that
-        are registered under the '+'-section in the machinable.yaml
-
-        # Arguments
-        name: The name of the vendor
-        config: The vendor configuration from the machinable.yaml
-        target: The target directory (may or may not exists yet)
-
-        Return False to prevent the default automatic resolution
-        """
-
     def host_information(self) -> dict:
         """Returned dictionary will be recorded as host information
 

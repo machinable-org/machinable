@@ -1,4 +1,4 @@
-from typing import Mapping, Optional
+from typing import Any, Mapping, Optional, Union
 
 import copy
 import os
@@ -57,14 +57,18 @@ Loader.add_implicit_resolver(
 )
 
 
-def from_string(text, cwd="./"):
+def from_string(text: str, cwd="./") -> dict:
     config = yaml.load(text, lambda stream: Loader(stream, cwd))
 
-    includes = config.pop("+", None)
+    if "+" not in config:
+        return config
+
+    includes = config.pop("+")
+
     if not isinstance(includes, list):
         includes = [includes]
     for include in includes:
-        if isinstance(include, str) and includes.startswith("$/"):
+        if isinstance(include, str) and include.startswith("$/"):
             target = include[2:]
             filename = (
                 target if os.path.isabs(target) else os.path.join(cwd, target)
@@ -75,21 +79,12 @@ def from_string(text, cwd="./"):
                 f"Include must be a mapping. {include} given."
             )
 
-        for section, components in include.items():
-            if ":" not in section:
-                # not a component section
-                continue
-
-            if section not in config:
-                config[section] = components
-                continue
-
-            config[section].extend(components)
+        config = update_dict(config, include)
 
     return config
 
 
-def from_file(filename, default=sentinel):
+def from_file(filename: str, default: Any = sentinel) -> Union[dict, Any]:
     if not os.path.isfile(filename):
         if default is not sentinel:
             return default
@@ -148,7 +143,7 @@ def parse(config: dict, components: Optional[dict] = None) -> dict:
 
                 # find in current scope, considering aliases
                 inherited = None
-                for candidate in modules:
+                for candidate in modules.values():
                     if (
                         candidate["module"] == parent
                         or candidate["key"] == parent
@@ -160,7 +155,7 @@ def parse(config: dict, components: Optional[dict] = None) -> dict:
                     inherited = components.get(parent, None)
                 if inherited is None:
                     raise ConfigurationError(
-                        f"Parent component '^{parent}' of {key} does not exist."
+                        f"Parent component '^{parent}' of '{key}' does not exist."
                     )
 
                 # push standard name to lineage

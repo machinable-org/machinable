@@ -1,10 +1,6 @@
 """machinable's public object API"""
-# core
-# components
 from machinable.component import Component
 from machinable.engine import Engine
-
-# elements
 from machinable.execution import Execution
 from machinable.experiment import Experiment
 from machinable.interface import Interface

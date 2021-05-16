@@ -1,7 +1,6 @@
 from typing import TYPE_CHECKING, List, Union
 
-from machinable.element.element import Element
-from machinable.element.relations import belongs_to
+from machinable.element import Element, belongs_to
 from machinable.schema import ExperimentType
 from machinable.utils import encode_experiment_id, generate_experiment_id
 
@@ -12,38 +11,33 @@ if TYPE_CHECKING:
 class Experiment(Element):
     def __init__(
         self,
-        component: Union[str, None] = None,
+        interface: Union[str, None] = None,
         config: Union[str, dict, None, List[Union[str, dict, None]]] = None,
-        flags: Union[dict, None, List[Union[dict, None]]] = None,
     ):
         """Experiment
 
         # Arguments
-        component: The name of the component as defined in the machinable.yaml
+        interface: The name of the interface as defined in the machinable.yaml
         config: Configuration to override the default config
-        flags: Additional flags
         """
         super().__init__()
         self._experiment_id = encode_experiment_id(generate_experiment_id())
-        self._component = component
+        self._interface = interface
         self._config = config
-        self._flags = flags
         self._components = []
 
     def use(
         self,
         component: str,
         config: Union[str, dict, None, List[Union[str, dict, None]]] = None,
-        flags: Union[dict, None, List[Union[dict, None]]] = None,
     ) -> "Experiment":
-        """Makes an additional component available to the experiment
+        """Adds a component
 
         # Arguments
         component: The name of the component as defined in the machinable.yaml
         config: Configuration to override the default config
-        flags: Additional flags
         """
-        self._components.append((component, config, flags))
+        self._components.append((component, config))
 
         return self
 
