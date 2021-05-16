@@ -90,7 +90,7 @@ class Engine(Component):
         return resources
 
     def dispatch(self, execution: "Execution"):
-        from machinable.execution.execution import Execution
+        from machinable.execution import Execution
 
         if self.on_before_dispatch(execution) is False:
             return False

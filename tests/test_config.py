@@ -51,8 +51,7 @@ def test_config_parser():
     assert config["inherit"]["config"]["blub"] == "bla"
     assert config["inherit"]["config"]["test"] == 123
     assert config["inherit"]["lineage"] == [
-        "vendor.fooba.experiments.start",
-        # todo: should be "vendor.fooba.experiments.start_parent",
+        "experiments.start",
         "experiments.start_parent",
     ]
 

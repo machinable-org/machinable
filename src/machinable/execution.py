@@ -73,7 +73,6 @@ class Execution(Element):
         self,
         experiment: Union[Experiment, List[Experiment]],
         resources: Optional[dict] = None,
-        environ: Optional[dict] = None,
     ) -> "Execution":
         """Adds an experiment to the execution
 

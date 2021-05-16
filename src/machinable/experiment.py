@@ -5,7 +5,7 @@ from machinable.schema import ExperimentType
 from machinable.utils import encode_experiment_id, generate_experiment_id
 
 if TYPE_CHECKING:
-    from machinable.execution.execution import Execution
+    from machinable.execution import Execution
 
 
 class Experiment(Element):
@@ -46,7 +46,7 @@ class Experiment(Element):
 
     @belongs_to
     def execution(self) -> "Execution":
-        from machinable.execution.execution import Execution
+        from machinable.execution import Execution
 
         return Execution
 

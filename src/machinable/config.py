@@ -159,7 +159,7 @@ def parse(config: dict, components: Optional[dict] = None) -> dict:
                     )
 
                 # push standard name to lineage
-                lineage += [inherited["module"]] + inherited["lineage"]
+                lineage += [inherited["name"]] + inherited["lineage"]
                 # inherit the parent's configuration
                 # todo: deepcopy might be too conservative here
                 data = update_dict(copy.deepcopy(inherited["config"]), data)
