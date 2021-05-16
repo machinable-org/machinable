@@ -5,7 +5,7 @@
 # Unreleased v3
 
 - New two-way binding storage API
-- New configuration parser, with support for complex interpolation and recursive dot-notation
+- Next generation configuration parser using pydantic and OmegaConf, bringing optional type safety, recursive dot-notations, versioning using Python code, advanced interpolations, and many fixes and simplifications
 - Mixin API is superseded by Slot API
 
 # v2.13.0
