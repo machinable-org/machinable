@@ -5,14 +5,12 @@ import os
 from datetime import datetime as dt
 
 import yaml
-from expandvars import expand
 from machinable.collection.experiment import ExperimentCollection
-from machinable.element.element import Element
-from machinable.element.relations import belongs_to, has_many, has_one
+from machinable.element import Element, belongs_to, has_many, has_one
 from machinable.engine import Engine
-from machinable.experiment.experiment import Experiment
+from machinable.experiment import Experiment
 from machinable.registration import Registration
-from machinable.repository.repository import Repository
+from machinable.repository import Repository
 from machinable.schema import ExecutionType
 from machinable.settings import get_settings
 from machinable.utils.formatting import msg
@@ -26,7 +24,6 @@ class Execution(Element):
         self,
         experiment: Union[Experiment, List[Experiment], None] = None,
         repository: Union[dict, str, None] = None,
-        engine: Union[Engine, str, dict, None] = None,
         seed: Union[int, None] = None,
     ):
         super().__init__()
@@ -35,14 +32,11 @@ class Execution(Element):
         self._nickname = generate_nickname()
         self._timestamp = dt.now().timestamp()
 
-        if engine is None:
-            engine = get_settings()["default_engine"]
+        # if repository is None:
+        #     repository = get_settings()["default_repository"]
 
-        if repository is None:
-            repository = get_settings()["default_repository"]
-
-        self._engine = Engine.make(engine)
-        self._repository = Repository.make(repository)
+        self._engine = None
+        self._repository = repository
         self._experiments = []
 
         if experiment is not None:
@@ -53,13 +47,13 @@ class Execution(Element):
 
     @has_many
     def experiments(self) -> ExperimentCollection:
-        from machinable.experiment.experiment import Experiment
+        from machinable.experiment import Experiment
 
         return Experiment, ExperimentCollection
 
     @belongs_to
     def project(self):
-        from machinable.project.project import Project
+        from machinable.project import Project
 
         return Project
 
@@ -71,7 +65,7 @@ class Execution(Element):
 
     @belongs_to
     def repository(self):
-        from machinable.repository.repository import Repository
+        from machinable.repository import Repository
 
         return Repository
 
@@ -79,6 +73,7 @@ class Execution(Element):
         self,
         experiment: Union[Experiment, List[Experiment]],
         resources: Optional[dict] = None,
+        environ: Optional[dict] = None,
     ) -> "Execution":
         """Adds an experiment to the execution
 

@@ -5,7 +5,7 @@ import copy
 import importlib
 
 import machinable.errors
-from machinable.container import Container
+from machinable.component import Component
 from machinable.utils.dicts import update_dict
 from machinable.utils.formatting import exception_to_str, msg
 from machinable.utils.importing import ModuleClass, resolve_instance
@@ -20,7 +20,7 @@ _register = {
 }
 
 
-class Engine(Container):
+class Engine(Component):
     @staticmethod
     def register(engine, name=None):
         if name is None:

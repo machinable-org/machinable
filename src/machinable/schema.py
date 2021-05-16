@@ -20,9 +20,8 @@ class SchemaType(BaseModel):
 
 
 class ComponentType(SchemaType):
-    config: dict
-    flags: dict
     module: str
+    config: dict
 
 
 class ExperimentType(SchemaType):
@@ -30,8 +29,7 @@ class ExperimentType(SchemaType):
         default_factory=lambda: encode_experiment_id(generate_experiment_id())
     )
     config: dict = {}
-    flags: dict = {}
-    module: str = ""
+    interface: str = ""
     components: List[ComponentType] = []
 
 

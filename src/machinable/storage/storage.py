@@ -1,15 +1,8 @@
-from machinable.container import Container
+from machinable.component import Component
 
 
-class Storage(Container):
+class Storage(Component):
     """Storage base class"""
-
-    @classmethod
-    def make(cls, args):
-        """hack"""
-        from machinable.storage.filesystem_storage import FilesystemStorage
-
-        return FilesystemStorage(args)
 
     @classmethod
     def multiple(cls, *storages) -> "Storage":

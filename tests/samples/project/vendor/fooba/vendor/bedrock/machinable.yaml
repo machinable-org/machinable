@@ -1,0 +1,5 @@
+components:
+components:models:
+  base:
+    from_deep_down: huzzah
+    deep_overwrite: me

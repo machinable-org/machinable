@@ -7,6 +7,7 @@ import numpy as np
 import pytest
 from hypothesis import given, strategies
 from machinable import Component
+from machinable.project import Project
 
 
 def test_experiment_id_encoding():
@@ -122,3 +123,41 @@ def test_find_subclass_in_module():
     assert type(utils.find_subclass_in_module(module, Component)) is type(
         module.BottomComponent
     )
+
+
+def test_unflatten_dict():
+    d = {"a.b": "c"}
+    original = {"a.b": "c"}
+    assert utils.unflatten_dict(d)["a"]["b"] == "c"
+    assert d == original
+
+    # recursive
+    d = {"a.b": {"c.d": "e"}}
+    original = {"a.b": {"c.d": "e"}}
+    assert utils.unflatten_dict(d)["a"]["b"]["c"]["d"] == "e"
+    assert d == original
+
+
+def test_mixins():
+    class MixinImplementation:
+        attribute = "works"
+
+        def is_bound(self, param):
+            return "bound_to_" + self.flags.BOUND + "_" + str(param)
+
+        def this_reference(self, param):
+            return self.__mixin__.is_bound("and_referenced_" + str(param))
+
+        def this_attribute(self):
+            return self.__mixin__.attribute
+
+        def this_static(self, param):
+            return self.__mixin__.static_method(param)
+
+        @staticmethod
+        def static_method(foo):
+            return foo
+
+        @property
+        def key_propery(self):
+            return 1

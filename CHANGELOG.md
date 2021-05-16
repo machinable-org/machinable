@@ -2,6 +2,12 @@
 
 <!-- Please add changes under the Unreleased section that reads 'No current changes' otherwise -->
 
+# Unreleased v3
+
+- New two-way binding storage API
+- Next generation configuration parser using pydantic and OmegaConf, bringing optional type safety, recursive dot-notations, versioning using Python code, advanced interpolations, and many fixes and simplifications
+- Mixin API is superseded by Slot API
+
 # v2.13.0
 
 - Add URL to submission serialization

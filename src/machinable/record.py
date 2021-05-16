@@ -2,8 +2,8 @@ from typing import Any, Dict, Optional
 
 import copy
 
-from machinable.element.element import Element
-from machinable.experiment.experiment import Experiment
+from machinable.element import Element
+from machinable.experiment import Experiment
 from machinable.schema import RecordType
 
 
