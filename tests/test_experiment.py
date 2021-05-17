@@ -9,4 +9,4 @@ def test_experiment():
     assert isinstance(repr(experiment), str)
 
     # uses
-    assert len(experiment.use("dummy")._components) == 1
+    assert len(experiment.add("dummy")._components) == 1

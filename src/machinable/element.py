@@ -9,7 +9,7 @@ from machinable.utils import Jsonable
 def belongs_to(f):
     @property
     def _wrapper(self):
-        related_class = f(self)
+        related_class = f()
         name = f.__name__
         if self.__related__.get(name, None) is None and self.is_mounted():
             related = self.__model__._storage[name].retrive_related(
@@ -28,7 +28,7 @@ has_one = belongs_to
 def has_many(f):
     @property
     def _wrapper(self):
-        related_class, collection = f(self)
+        related_class, collection = f()
         name = f.__name__
         if self.__related__.get(name, None) is None and self.is_mounted():
             related = self.__model__._storage[name].retrieve_related(

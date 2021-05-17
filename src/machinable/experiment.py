@@ -13,20 +13,24 @@ class Experiment(Element):
         self,
         interface: Union[str, None] = None,
         config: Union[str, dict, None, List[Union[str, dict, None]]] = None,
+        seed: Union[int, None] = None,
     ):
         """Experiment
 
         # Arguments
         interface: The name of the interface as defined in the machinable.yaml
         config: Configuration to override the default config
+        seed: Optional seed.
         """
         super().__init__()
-        self._experiment_id = encode_experiment_id(generate_experiment_id())
         self._interface = interface
         self._config = config
-        self._components = []
+        self._seed = seed
 
-    def use(
+        self._components = []
+        self._experiment_id = encode_experiment_id(generate_experiment_id())
+
+    def add(
         self,
         component: str,
         config: Union[str, dict, None, List[Union[str, dict, None]]] = None,
@@ -45,7 +49,7 @@ class Experiment(Element):
         return ExperimentType()  # todo
 
     @belongs_to
-    def execution(self) -> "Execution":
+    def execution() -> "Execution":
         from machinable.execution import Execution
 
         return Execution

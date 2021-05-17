@@ -1,14 +1,13 @@
-from typing import List, Optional, Tuple, Union
+from typing import List, Optional, Union
 
 import os
-import pickle
 import sys
 
 from commandlib import Command
 from machinable.component import Component
 from machinable.config import parse as parse_config
 from machinable.config import prefix as prefix_config
-from machinable.errors import ConfigurationError, ExecutionFailed
+from machinable.errors import ConfigurationError
 from machinable.provider import Provider
 from machinable.settings import get_settings
 from machinable.storage.storage import Storage
@@ -108,7 +107,7 @@ def fetch_vendors(project: "Project", config: Optional[dict] = None):
             ):
                 # fetch import to the top-level if it does not exist
                 if not os.path.exists(top_level):
-                    msg(f"Fetching '+.{name}' to {top_level}")
+                    print(f"Fetching '+.{name}' to {top_level}")
                     if not fetch_vendor(source, top_level):
                         raise FileNotFoundError(
                             f"Could not fetch '+.{name}'. Please place it into {top_level}"
