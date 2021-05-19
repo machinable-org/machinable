@@ -1,7 +1,10 @@
-from machinable.storage.filesystem_storage import FilesystemStorage
+from machinable import Storage
 from machinable.testing import storage_tests
 
 
 def test_filesystem_storage(tmpdir):
-    storage = FilesystemStorage(str(tmpdir / "storage"))
+    storage = Storage.make(
+        "machinable.storage.filesystem_storage",
+        {"path": str(tmpdir / "storage")},
+    )
     storage_tests(storage)

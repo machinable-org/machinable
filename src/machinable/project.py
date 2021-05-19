@@ -1,21 +1,19 @@
 from typing import List, Optional, Union
 
+import importlib
 import os
 import sys
 
 from commandlib import Command
-from machinable.component import Component
+from machinable.component import CORE_COMPONENTS, Component, normversion
 from machinable.config import parse as parse_config
 from machinable.config import prefix as prefix_config
+from machinable.element import Connectable, Element
 from machinable.errors import ConfigurationError
 from machinable.provider import Provider
-from machinable.settings import get_settings
 from machinable.storage.storage import Storage
-from machinable.utils import (
-    Jsonable,
-    find_subclass_in_module,
-    import_from_directory,
-)
+from machinable.types import Version
+from machinable.utils import find_subclass_in_module, import_from_directory
 from machinable.utils.vcs import get_commit, get_diff, get_root_commit
 
 
@@ -122,28 +120,21 @@ def fetch_vendors(project: "Project", config: Optional[dict] = None):
     return vendors
 
 
-class Project(Jsonable):
+class Project(Connectable, Element):
     def __init__(
-        self,
-        directory: Optional[str] = None,
-        provider: Union[str, Provider, None] = None,
-        mode: Optional[str] = None,
+        self, directory: Optional[str] = None, version: Version = None
     ):
         super().__init__()
         if directory is None:
             directory = os.getcwd()
         self._directory = os.path.abspath(directory)
-        self._provider: Union[str, Provider, None] = provider
+        self._provider: str = "_machinable/project"
         self._resolved_provider: Optional[Provider] = None
-        self._mode: Optional[str] = mode
+        self._version: Version = version
         self._parent: Optional[Project] = None
         self._config: Optional[dict] = None
         self._parsed_config: Optional[dict] = None
         self._vendor_config: Optional[dict] = None
-
-    @classmethod
-    def get(cls) -> "Project":
-        return Project() if cls.__connection__ is None else cls.__connection__
 
     def add_to_path(self) -> None:
         if os.path.exists(self._directory) and self._directory not in sys.path:
@@ -154,13 +145,7 @@ class Project(Jsonable):
 
     def connect(self) -> "Project":
         self.add_to_path()
-        Project.__connection__ = self
-        return self
-
-    def close(self) -> "Project":
-        if Project.__connection__ is self:
-            Project.__connection__ = None
-        return self
+        return super().connect()
 
     def path(self, *append: str) -> str:
         return os.path.join(self._directory, *append)
@@ -205,8 +190,11 @@ class Project(Jsonable):
     def exists(self) -> bool:
         return os.path.exists(self._directory)
 
-    def provider(self, reload: bool = False) -> Provider:
+    def provider(self, reload: Union[str, bool] = False) -> Provider:
         """Resolves and returns the provider instance"""
+        if isinstance(reload, str):
+            self._provider = reload
+            self._resolved_provider = None
         if self._resolved_provider is None or reload:
             if isinstance(self._provider, str):
                 self._resolved_provider = find_subclass_in_module(
@@ -215,9 +203,9 @@ class Project(Jsonable):
                     ),
                     base_class=Provider,
                     default=Provider,
-                )(mode=self._mode)
+                )(version=self._version)
             else:
-                self._resolved_provider = Provider(mode=self._mode)
+                self._resolved_provider = Provider(version=self._version)
 
         return self._resolved_provider
 
@@ -241,7 +229,7 @@ class Project(Jsonable):
 
         return self._vendor_config
 
-    def parsed_config(self, reload: bool = False):
+    def parsed_config(self, reload: bool = False) -> dict:
         if self._parsed_config is None or reload:
             vendor_config = self.vendor_config(reload=reload)
             self._parsed_config = parse_config(
@@ -250,27 +238,22 @@ class Project(Jsonable):
 
         return self._parsed_config
 
-    def has_component(self, name: str, or_fail=False) -> bool:
+    def has_component(self, name: str) -> bool:
+        return name in self.parsed_config()
+
+    def get_component(self, name: str, version: Version = None) -> Component:
         if name in self.parsed_config():
-            return True
+            spec = self.parsed_config()[name]
+            module = import_from_directory(
+                spec["module"], self._directory, or_fail=True
+            )
+        elif name in CORE_COMPONENTS:
+            spec = CORE_COMPONENTS[name]
+            module = importlib.import_module(spec["module"])
+        else:
+            # todo: check entry-points
+            raise ValueError(f"Could not find component '{name}'")
 
-        if not or_fail:
-            return False
-
-        # todo: display richer error message with list of available components
-        raise ValueError(f"Project {self._directory} has no component '{name}'")
-
-    def get_component(
-        self,
-        name: str,
-        version: Union[str, dict, None, List[Union[str, dict, None]]] = None,
-    ) -> Component:
-        self.has_component(name, or_fail=True)
-
-        spec = self.parsed_config()[name]
-        module = import_from_directory(
-            spec["module"], self._directory, or_fail=True
-        )
         base_class = self.provider().get_component_class(spec["kind"])
         if base_class is None:
             raise ConfigurationError(
@@ -303,13 +286,6 @@ class Project(Jsonable):
             return None
 
         return self.config()["name"]
-
-    def __enter__(self):
-        self.connect()
-        return self
-
-    def __exit__(self, exc_type, exc_value, exc_traceback):
-        self.close()
 
     def __repr__(self) -> str:
         return f"Project({self._directory})"

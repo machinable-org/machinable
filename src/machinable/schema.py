@@ -20,8 +20,15 @@ class SchemaType(BaseModel):
 
 
 class ComponentType(SchemaType):
+    name: str
     module: str
     config: dict
+    kind: str
+    key: str
+    alias: Optional[str] = None
+    prefix: str = ""
+    parent: Optional[str] = None
+    lineage: List[str] = []
 
 
 class ExperimentType(SchemaType):
@@ -30,7 +37,7 @@ class ExperimentType(SchemaType):
     )
     config: dict = {}
     interface: str = ""
-    components: List[ComponentType] = []
+    components: List = []
 
 
 class RepositoryType(SchemaType):

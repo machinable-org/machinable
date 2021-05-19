@@ -1,5 +1,4 @@
 from machinable import Provider
-from machinable.engine import Slurm
 
 
 class Project(Provider):
@@ -17,6 +16,8 @@ class Project(Provider):
         return "test_info"
 
     def default_resources(self, engine, component, components):
+        from machinable.engine import Slurm
+
         if isinstance(engine, Slurm):
             return {"used_engine": "Slurm"}
 

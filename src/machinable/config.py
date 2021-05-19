@@ -6,6 +6,7 @@ import re
 
 import yaml
 from machinable.errors import ConfigurationError
+from machinable.schema import ComponentType
 from machinable.utils import sentinel, unflatten_dict, update_dict
 
 

@@ -1,87 +1,10 @@
 from typing import List, Union
 
-import ast
-import copy
-import importlib
-
 import machinable.errors
 from machinable.component import Component
-from machinable.utils.dicts import update_dict
-from machinable.utils.formatting import exception_to_str, msg
-from machinable.utils.importing import ModuleClass, resolve_instance
-
-_register = {
-    "native": "machinable.engine.native_engine",
-    "ray": "machinable.engine.ray_engine",
-    "detached": "machinable.engine.detached_engine",
-    "remote": "machinable.engine.remote_engine",
-    "dry": "machinable.engine.dry_engine",
-    "slurm": "machinable.engine.slurm_engine",
-}
 
 
 class Engine(Component):
-    @staticmethod
-    def register(engine, name=None):
-        if name is None:
-            name = engine.__name__
-        _register[name] = engine
-
-    @classmethod
-    def make(cls, args):
-        if isinstance(args, Engine):
-            return args
-
-        resolved = resolve_instance(args, Engine, "_machinable.engines")
-        if resolved is not None:
-            return resolved
-
-        if isinstance(args, dict):
-            args = copy.deepcopy(args)
-
-        if isinstance(args, str):
-            args = {"type": args}
-
-        if args is None:
-            args = {"type": "native"}
-
-        engine = args.pop("type")
-
-        arg = []
-        if engine.find(":") != -1:
-            engine, version = engine.split(":", maxsplit=1)
-            try:
-                options = ast.literal_eval(version)
-            except ValueError:
-                options = version
-            if isinstance(options, dict):
-                args = update_dict(args, options)
-            elif isinstance(options, (list, tuple)):
-                arg.extend(options)
-            else:
-                arg.append(options)
-
-        try:
-            if isinstance(_register[engine], str):
-                engine_module = importlib.import_module(_register[engine])
-                class_name_snake = _register[engine].split(".")[-1]
-                class_name = "".join(
-                    p.capitalize() for p in class_name_snake.split("_")
-                )
-                _register[engine] = getattr(engine_module, class_name)
-        except KeyError:
-            raise ValueError(f"Unknown engine: {engine}.")
-        except ImportError as ex:
-            raise ValueError(f"Engine import failed: {exception_to_str(ex)}")
-        except AttributeError:
-            raise ValueError(f"Engine could not be found.")
-
-        return _register[engine](*arg, **args)
-
-    @classmethod
-    def unserialize(cls, serialized):
-        return cls.create(serialized)
-
     @staticmethod
     def supports_resources():
         return True

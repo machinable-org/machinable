@@ -9,11 +9,8 @@ from machinable.utils.utils import call_with_context
 
 
 class NativeEngine(Engine):
-    def __init__(
-        self,
-        processes=1,
-    ):
-        self.processes = processes
+    class Config:
+        processes: int = 1
 
     @staticmethod
     def supports_resources():

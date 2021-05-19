@@ -1,7 +1,9 @@
-from typing import TYPE_CHECKING, List, Union
+from typing import TYPE_CHECKING, List, Optional, Union
 
+from machinable.component import compact, extract
 from machinable.element import Element, belongs_to
 from machinable.schema import ExperimentType
+from machinable.types import Version
 from machinable.utils import encode_experiment_id, generate_experiment_id
 
 if TYPE_CHECKING:
@@ -11,8 +13,8 @@ if TYPE_CHECKING:
 class Experiment(Element):
     def __init__(
         self,
-        interface: Union[str, None] = None,
-        config: Union[str, dict, None, List[Union[str, dict, None]]] = None,
+        interface: str,
+        version: Version = None,
         seed: Union[int, None] = None,
     ):
         """Experiment
@@ -23,25 +25,35 @@ class Experiment(Element):
         seed: Optional seed.
         """
         super().__init__()
-        self._interface = interface
-        self._config = config
+        self._interface = compact(interface, version)
         self._seed = seed
 
         self._components = []
         self._experiment_id = encode_experiment_id(generate_experiment_id())
 
-    def add(
+    def execute(
         self,
-        component: str,
-        config: Union[str, dict, None, List[Union[str, dict, None]]] = None,
+        repository: List[Union[str, dict, None]] = None,
+        engine: List[Union[str, dict, None]] = None,
+        resources: Optional[dict] = None,
     ) -> "Experiment":
+        """Executes the experiment"""
+        from machinable.execution import Execution
+
+        Execution(*extract(engine), seed=None).add(
+            experiment=self, resources=resources
+        ).submit(repository=repository)
+
+        return self
+
+    def use(self, component: str, version: Version = None) -> "Experiment":
         """Adds a component
 
         # Arguments
         component: The name of the component as defined in the machinable.yaml
         config: Configuration to override the default config
         """
-        self._components.append((component, config))
+        self._components.append(compact(component, version))
 
         return self
 

@@ -3,27 +3,29 @@ from typing import List, Optional, Union
 from datetime import datetime as dt
 
 from machinable.collection.experiment import ExperimentCollection
+from machinable.component import compact
 from machinable.element import Element, belongs_to, has_many
 from machinable.engine import Engine
 from machinable.experiment import Experiment
+from machinable.project import Project
 from machinable.repository import Repository
 from machinable.schema import ExecutionType
-from machinable.utils.utils import generate_nickname, generate_seed
+from machinable.settings import get_settings
+from machinable.types import Version
+from machinable.utils import generate_nickname, generate_seed
 
 
 class Execution(Element):
     def __init__(
         self,
         engine: Union[str, None] = None,
-        config: Union[str, dict, None, List[Union[str, dict, None]]] = None,
+        version: Version = None,
         seed: Union[int, None] = None,
     ):
         super().__init__()
         if engine is None:
-            # default
-            engine = "machinable.engine.native_engine"
-        self._engine = engine
-        self._config = config
+            engine = Engine.default or get_settings().default_engine
+        self._engine = compact(engine, version)
         self._experiments = []
 
         self._seed = generate_seed(seed)
@@ -35,14 +37,10 @@ class Execution(Element):
 
     @has_many
     def experiments() -> ExperimentCollection:
-        from machinable.experiment import Experiment
-
         return Experiment, ExperimentCollection
 
     @belongs_to
     def repository():
-        from machinable.repository import Repository
-
         return Repository
 
     def add(
@@ -113,11 +111,14 @@ class Execution(Element):
         return self
 
     def submit(
-        self, repository: Union[Repository, str, None] = None
+        self,
+        repository: Union[
+            Repository, str, None, List[Union[str, dict, None]]
+        ] = None,
     ) -> "Execution":
         """Submit the execution
 
-        repository: Optional storage repository
+        repository: Storage repository
         """
         if not isinstance(repository, Repository):
             repository = Repository(repository)
@@ -130,10 +131,51 @@ class Execution(Element):
 
         return self
 
+    def name(self, name: Optional[str] = None) -> "Execution":
+        """Sets the name of the execution
+
+        The name is used as relative storage path
+
+        # Arguments
+        name: Name, defaults to '%U_%a_&NICKNAME'
+            May contain the following variables:
+            - &PROJECT will be replaced by project name
+            - &NICKNAME will be replaced by the random nickname of the execution
+            - %x expressions will be replaced by strftime
+            The variables are expanded following GNU bash's variable expansion rules, e.g.
+            `&{NICKNAME:-default_value}` or `&{PROJECT:?}` can be used.
+        """
+        if name is None:
+            name = get_settings()["default_name"]
+
+        if name is None:
+            name = "%U_%a_&NICKNAME"
+
+        if not isinstance(name, str):
+            raise ValueError(f"Name has to be a str. '{name}' given.")
+
+        # expand % variables
+        name = expand(
+            name,
+            environ={
+                "PROJECT": self.project.name or "",
+                "NICKNAME": self.nickname,
+            },
+            var_symbol="&",
+        )
+        # apply strftime
+        name = datetime.now().strftime(name)
+
+        name = os.path.normpath(name)
+
+        self.name = name
+
+        return self
+
     def derive(
         self,
         engine: Union[str, None] = None,
-        config: Union[str, dict, None, List[Union[str, dict, None]]] = None,
+        config: Version = None,
         seed: Union[int, None] = None,
     ) -> "Execution":
         """Derives a related execution."""

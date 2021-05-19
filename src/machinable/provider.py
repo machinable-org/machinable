@@ -1,21 +1,39 @@
-from typing import Any, Optional
+from typing import Any, List, Optional, Union
 
 import os
 
 import machinable
+from machinable.component import Component
 from machinable.config import from_file as load_config_from_file
+from machinable.types import Version
 
 
-class Provider:
+class Provider(Component):
     """See registration"""
 
-    def __init__(self, mode: Optional[str] = None):
-        self._mode = mode
+    def __init__(self, version: Version = None):
+        super().__init__(
+            spec={
+                "name": self.__class__.__module__,
+                "module": self.__class__.__module__,
+                "kind": "providers",
+                "prefix": "",
+                "key": self.__class__.__module__,
+                "alias": None,
+                "parent": None,
+                "lineage": [],
+                "config": {},
+            },
+            version=version,
+        )
 
     def get_component_class(self, kind: str) -> Optional[Any]:
         """Returns the component base class for the component kind"""
         # todo: make extendable
         return getattr(machinable, kind[:-1].capitalize(), None)
+
+    def get_component_defaults(self, kind: str) -> List[Union[str, dict]]:
+        pass
 
     def load_config(self, directory: str) -> dict:
         """Returns the configuration of the given project directory

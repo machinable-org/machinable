@@ -1,14 +1,13 @@
-from typing import TYPE_CHECKING, Optional
+from typing import Any, Callable, Optional
 
 from machinable.collection import Collection
-from machinable.project import Project
 from machinable.schema import SchemaType
 from machinable.utils import Jsonable
 
 
-def belongs_to(f):
+def belongs_to(f: Callable) -> Any:
     @property
-    def _wrapper(self):
+    def _wrapper(self: "Element"):
         related_class = f()
         name = f.__name__
         if self.__related__.get(name, None) is None and self.is_mounted():
@@ -25,9 +24,9 @@ def belongs_to(f):
 has_one = belongs_to
 
 
-def has_many(f):
+def has_many(f: Callable) -> Any:
     @property
-    def _wrapper(self):
+    def _wrapper(self: "Element") -> Any:
         related_class, collection = f()
         name = f.__name__
         if self.__related__.get(name, None) is None and self.is_mounted():
@@ -43,14 +42,39 @@ def has_many(f):
     return _wrapper
 
 
+class Connectable:
+    """Connectable trait"""
+
+    __connection__: Optional["Connectable"] = None
+
+    @classmethod
+    def get(cls) -> "Connectable":
+        return cls() if cls.__connection__ is None else cls.__connection__
+
+    def connect(self) -> "Connectable":
+        self.__connection__ = self
+        return self
+
+    def close(self) -> "Connectable":
+        if self.__class__.__connection__ is self:
+            self.__class__.__connection__ = None
+        return self
+
+    def __enter__(self):
+        self.connect()
+        return self
+
+    def __exit__(self, exc_type, exc_value, exc_traceback):
+        self.close()
+
+
 class Element(Jsonable):
     """Element baseclass"""
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self):
         super().__init__()
         self.__model__ = None
         self.__related__ = {}
-        self.__project__ = Project.get()
 
     def is_mounted(self):
         return self.__model__ is not None
@@ -67,6 +91,12 @@ class Element(Jsonable):
     def _to_model(self) -> SchemaType:
         raise NotImplementedError
 
+    @belongs_to
+    def project():
+        from machinable.project import Project
+
+        return Project
+
     @classmethod
     def from_model(cls, model: SchemaType) -> "Element":
         instance = cls()
@@ -75,7 +105,7 @@ class Element(Jsonable):
 
     @classmethod
     def find(cls, element_id):
-        return Project.get().provider().find(cls.__name__, element_id)
+        return self.__storage__.find(cls.__name__, element_id)
 
     @classmethod
     def collect(cls, elements) -> Collection:

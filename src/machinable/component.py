@@ -1,13 +1,37 @@
-from typing import Any, List, Optional, Union
+from typing import Any, List, Optional, Tuple, Union
 
 import copy
-import inspect
 import re
 
 from machinable.errors import ConfigurationError
+from machinable.settings import get_settings
+from machinable.types import Version
 from machinable.utils import Jsonable, unflatten_dict, update_dict
 from omegaconf import DictConfig, OmegaConf
 from pydantic import BaseModel
+
+CORE_COMPONENTS = {
+    module: {
+        "name": module,
+        "module": module,
+        "kind": kind,
+        "prefix": "",
+        "key": module,
+        "alias": None,
+        "parent": None,
+        "lineage": [],
+        "config": {},
+    }
+    for kind, module, _ in [
+        ("engines", "machinable.engine.native_engine", "native"),
+        ("engines", "machinable.engine.ray_engine", "ray"),
+        ("engines", "machinable.engine.detached_engine", "detached"),
+        ("engines", "machinable.engine.remote_engine", "remote"),
+        ("engines", "machinable.engine.dry_engine", "dry"),
+        ("engines", "machinable.engine.slurm_engine", "slurm"),
+        ("storages", "machinable.storage.filesystem_storage", "filesystem"),
+    ]
+}
 
 
 def _resolve_config_methods(
@@ -43,23 +67,88 @@ def _resolve_config_methods(
     return config
 
 
+def normversion(version: Version = None) -> List[Union[str, dict]]:
+    if not isinstance(version, (list, tuple)):
+        version = [version]
+
+    def _valid(item):
+        if item is None or item == {}:
+            # skip
+            return False
+
+        if not isinstance(item, (dict, str)):
+            raise ValueError(
+                f"Invalid version. Expected str or dict but found {item}"
+            )
+
+        return True
+
+    return [v for v in version if _valid(v)]
+
+
+def compact(
+    component: Union[str, List[Union[str, dict, None]]],
+    version: Version = None,
+) -> List[Union[str, dict]]:
+    if isinstance(component, (list, tuple)):
+        component, *default_version = component
+        if not isinstance(version, (list, tuple)):
+            version = [version]
+        version = list(default_version) + version
+
+    if not isinstance(component, str):
+        raise ValueError(
+            f"Invalid component, expected str but found {component}"
+        )
+
+    return [component] + normversion(version)
+
+
+def extract(
+    compact_component: Union[str, List[Union[str, dict]], None]
+) -> Tuple[Optional[str], Optional[List[Union[str, dict]]]]:
+    if compact_component is None:
+        return None, None
+
+    if isinstance(compact_component, str):
+        return compact_component, None
+
+    if not isinstance(compact_component, (list, tuple)):
+        raise ValueError(
+            f"Invalid component defintion. Expected list or str but found {compact_component}"
+        )
+
+    if len(compact_component) == 0:
+        raise ValueError(
+            f"Invalid component defintion. Expected str or non-empty list."
+        )
+
+    if not isinstance(compact_component[0], str):
+        raise ValueError(
+            f"Invalid component defintion. First element in list has to be a string."
+        )
+
+    if len(compact_component) == 1:
+        return compact_component[0], None
+
+    return compact_component[0], normversion(compact_component[1:])
+
+
 class Component(Jsonable):
     """
     Component base class. All machinable components inherit from this class.
     """
 
+    default: Optional["Component"] = None
+
     def __init__(
         self,
         spec: dict,
-        version: Union[str, dict, None, List[Union[str, dict, None]]] = None,
+        version: Version = None,
     ):
         # defensive deep-copy
         self.__spec: dict = copy.deepcopy(spec)
-        if not isinstance(version, (list, tuple)):
-            version = [version]
-        self.__version: Union[str, dict, None, List[Union[str, dict, None]]] = [
-            v for v in version if (v is not None and v != {})
-        ]
+        self.__version: List[Union[str, dict]] = normversion(version)
         self.__config: Optional[DictConfig] = None
 
     def serialize(self) -> dict:
@@ -73,8 +162,8 @@ class Component(Jsonable):
     def make(
         cls,
         name: Optional[str] = None,
-        version: Union[str, dict, None, List[Union[str, dict, None]]] = None,
-    ):
+        version: Version = None,
+    ) -> "Component":
         if name is None:
             if (
                 cls.__module__.startswith("machinable.component")
@@ -87,6 +176,14 @@ class Component(Jsonable):
         from machinable.project import Project
 
         return Project.get().get_component(name, version)
+
+    @classmethod
+    def set_default(
+        cls,
+        name: Optional[str] = None,
+        version: Version = None,
+    ) -> None:
+        cls.default = compact(name, version)
 
     @property
     def config(self) -> DictConfig:
@@ -110,18 +207,18 @@ class Component(Jsonable):
                 self, OmegaConf.to_container(self.__config)
             )
             resolved_version = []
-            for v in self.__version:
-                if isinstance(v, dict):
-                    v = OmegaConf.create(v)
-                    OmegaConf.resolve(v)
-                    v = OmegaConf.to_container(v)
-                    v = unflatten_dict(v)
-                    v = _resolve_config_methods(
+            for vrs in self.__version:
+                if isinstance(vrs, dict):
+                    vrs = OmegaConf.create(vrs)
+                    OmegaConf.resolve(vrs)
+                    vrs = OmegaConf.to_container(vrs)
+                    vrs = unflatten_dict(vrs)
+                    vrs = _resolve_config_methods(
                         self,
-                        v,
+                        vrs,
                     )
 
-                resolved_version.append(v)
+                resolved_version.append(vrs)
 
             # compose configuration update
             config_update = {}
@@ -136,12 +233,12 @@ class Component(Jsonable):
                         for key in path:
                             level = level["~" + key]
                             # extract config on this level
-                            u = {
+                            patch = {
                                 k: copy.deepcopy(v)
                                 for k, v in level.items()
                                 if not k.startswith("~")
                             }
-                            version = update_dict(version, u)
+                            version = update_dict(version, patch)
                     except KeyError as _e:
                         raise ConfigurationError(
                             f"'~{name}' could not be resolved."

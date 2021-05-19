@@ -17,11 +17,8 @@ from machinable.utils import load_file, sanitize_path, save_file, serialize
 
 
 class FilesystemStorage(Storage):
-    def __init__(self, url: str):
-        self.url: str = url
-
     def path(self, *append):
-        return os.path.join(os.path.abspath(self.url), *append)
+        return os.path.join(os.path.abspath(self.config.path), *append)
 
     def retrieve_related(self, relation: str, model: SchemaType):
         # todo: check that model belongs to this storage via type identifier
