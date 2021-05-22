@@ -1,7 +1,7 @@
 from machinable.collection.collection import Collection
 
 
-class SubmissionCollection(Collection):
+class ExecutionCollection(Collection):
     @property
     def components(self):
         if len(self._items) == 0:

@@ -1,17 +1,31 @@
-from typing import Optional, Union
+from typing import TYPE_CHECKING, Optional, Union
 
 from machinable.component import Component
 from machinable.storage.storage import Storage
+from machinable.types import VersionType
 from machinable.utils import Events
+
+if TYPE_CHECKING:
+    from machinable.engine.engine import Engine
+
+
+def get_slots(interface: "Interface"):
+    pass
 
 
 class Interface(Component):
     """Interface base class"""
 
-    def __init__(self, config: dict, flags: dict):
-        super().__init__(config, flags)
+    def __init__(self, component: dict, version: VersionType = None):
+        super().__init__(component, version)
         self._storage: Optional[Storage] = None
         self._events: Events = Events()
+
+    def default_resources(self, engine: "Engine") -> Optional[dict]:
+        """Default resources"""
+
+    def on_init(self):
+        """Event when interface is """
 
     def dispatch(
         self,

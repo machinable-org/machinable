@@ -675,3 +675,14 @@ def unflatten_dict(
         return flat
 
     return d
+
+
+def get_machinable_version() -> Optional[str]:
+    try:
+        import pkg_resources
+    except ImportError:
+        return None
+    try:
+        return pkg_resources.require("machinable")[0].version
+    except pkg_resources.DistributionNotFound:
+        return None

@@ -1,12 +1,11 @@
 import pytest
 from machinable import Project
+from machinable.component import compact, extract, normversion
 from machinable.errors import ConfigurationError
 
 
 def test_component_version():
     project = Project("./tests/samples/project")
-
-    data = project.parsed_config()
 
     assert project.get_component("dummy", {"alpha": -1}).config.alpha == -1
 
@@ -77,3 +76,41 @@ def test_component_version():
     assert c.method == "test"
     assert c.argmethod == "world"
     assert c.nested.method == "test"
+
+
+def test_normversion():
+    assert normversion([]) == []
+    assert normversion("test") == ["test"]
+    assert normversion({"test": 1}) == [{"test": 1}]
+    assert normversion({}) == []
+    assert normversion(None) == []
+    assert normversion([None, {}]) == []
+    assert normversion(("test", {})) == ["test"]
+    with pytest.raises(ValueError):
+        normversion({"invalid"})
+    with pytest.raises(ValueError):
+        normversion(["test", {"invalid"}])
+
+
+def test_compact():
+    assert compact("test") == ["test"]
+    assert compact("test", "me") == ["test", "me"]
+    assert compact("test", ("one", {}, "two")) == ["test", "one", "two"]
+    with pytest.raises(ValueError):
+        compact({"invalid"})
+    assert compact(["test"]) == ["test"]
+    assert compact(["test", "one"], ["two"]) == ["test", "one", "two"]
+    assert compact(["test"], "one") == ["test", "one"]
+
+
+def test_extract():
+    assert extract(None) == (None, None)
+    assert extract("test") == ("test", None)
+    assert extract(["test"]) == ("test", None)
+    assert extract(("test", "one")) == ("test", ["one"])
+    with pytest.raises(ValueError):
+        extract({"invalid"})
+    with pytest.raises(ValueError):
+        extract([{"invalid"}, "test"])
+    with pytest.raises(ValueError):
+        extract([])

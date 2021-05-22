@@ -1,23 +1,19 @@
-from typing import List, Optional, Tuple, Union
+from typing import List, Optional, Union
 
+import importlib
 import os
-import pickle
 import sys
 
 from commandlib import Command
+from machinable import schema
 from machinable.component import Component
 from machinable.config import parse as parse_config
 from machinable.config import prefix as prefix_config
-from machinable.errors import ConfigurationError, ExecutionFailed
+from machinable.element import Connectable, Element
+from machinable.errors import ConfigurationError
 from machinable.provider import Provider
-from machinable.settings import get_settings
-from machinable.storage.storage import Storage
-from machinable.utils import (
-    Jsonable,
-    find_subclass_in_module,
-    import_from_directory,
-)
-from machinable.utils.vcs import get_commit, get_diff, get_root_commit
+from machinable.types import VersionType
+from machinable.utils import find_subclass_in_module, import_from_directory
 
 
 def fetch_link(source, target):
@@ -108,7 +104,7 @@ def fetch_vendors(project: "Project", config: Optional[dict] = None):
             ):
                 # fetch import to the top-level if it does not exist
                 if not os.path.exists(top_level):
-                    msg(f"Fetching '+.{name}' to {top_level}")
+                    print(f"Fetching '+.{name}' to {top_level}")
                     if not fetch_vendor(source, top_level):
                         raise FileNotFoundError(
                             f"Could not fetch '+.{name}'. Please place it into {top_level}"
@@ -123,28 +119,21 @@ def fetch_vendors(project: "Project", config: Optional[dict] = None):
     return vendors
 
 
-class Project(Jsonable):
+class Project(Connectable, Element):
     def __init__(
-        self,
-        directory: Optional[str] = None,
-        provider: Union[str, Provider, None] = None,
-        mode: Optional[str] = None,
+        self, directory: Optional[str] = None, version: VersionType = None
     ):
         super().__init__()
         if directory is None:
             directory = os.getcwd()
         self._directory = os.path.abspath(directory)
-        self._provider: Union[str, Provider, None] = provider
+        self._provider: str = "_machinable/project"
         self._resolved_provider: Optional[Provider] = None
-        self._mode: Optional[str] = mode
+        self._version: VersionType = version
         self._parent: Optional[Project] = None
         self._config: Optional[dict] = None
         self._parsed_config: Optional[dict] = None
         self._vendor_config: Optional[dict] = None
-
-    @classmethod
-    def get(cls) -> "Project":
-        return Project() if cls.__connection__ is None else cls.__connection__
 
     def add_to_path(self) -> None:
         if os.path.exists(self._directory) and self._directory not in sys.path:
@@ -155,13 +144,17 @@ class Project(Jsonable):
 
     def connect(self) -> "Project":
         self.add_to_path()
-        Project.__connection__ = self
-        return self
+        return super().connect()
 
-    def close(self) -> "Project":
-        if Project.__connection__ is self:
-            Project.__connection__ = None
-        return self
+    def to_model(self):
+        # todo: code version + diff
+        return schema.Project(
+            directory=self._directory,
+            version=self._version,
+            host_info=self.provider().get_host_info(),
+            code_version={},
+            code_diff="",
+        )
 
     def path(self, *append: str) -> str:
         return os.path.join(self._directory, *append)
@@ -206,8 +199,11 @@ class Project(Jsonable):
     def exists(self) -> bool:
         return os.path.exists(self._directory)
 
-    def provider(self, reload: bool = False) -> Provider:
+    def provider(self, reload: Union[str, bool] = False) -> Provider:
         """Resolves and returns the provider instance"""
+        if isinstance(reload, str):
+            self._provider = reload
+            self._resolved_provider = None
         if self._resolved_provider is None or reload:
             if isinstance(self._provider, str):
                 self._resolved_provider = find_subclass_in_module(
@@ -216,9 +212,9 @@ class Project(Jsonable):
                     ),
                     base_class=Provider,
                     default=Provider,
-                )(mode=self._mode)
+                )(version=self._version)
             else:
-                self._resolved_provider = Provider(mode=self._mode)
+                self._resolved_provider = Provider(version=self._version)
 
         return self._resolved_provider
 
@@ -242,7 +238,7 @@ class Project(Jsonable):
 
         return self._vendor_config
 
-    def parsed_config(self, reload: bool = False):
+    def parsed_config(self, reload: bool = False) -> dict:
         if self._parsed_config is None or reload:
             vendor_config = self.vendor_config(reload=reload)
             self._parsed_config = parse_config(
@@ -251,31 +247,35 @@ class Project(Jsonable):
 
         return self._parsed_config
 
-    def has_component(self, name: str, or_fail=False) -> bool:
-        if name in self.parsed_config():
-            return True
-
-        if not or_fail:
-            return False
-
-        # todo: display richer error message with list of available components
-        raise ValueError(f"Project {self._directory} has no component '{name}'")
+    def has_component(self, name: str) -> bool:
+        return name in self.parsed_config()
 
     def get_component(
-        self,
-        name: str,
-        version: Union[str, dict, None, List[Union[str, dict, None]]] = None,
+        self, name: str, version: VersionType = None
     ) -> Component:
-        self.has_component(name, or_fail=True)
+        config = {}
+        kind = "components"
+        if name in self.parsed_config():
+            component = self.parsed_config()[name]
+            module = import_from_directory(
+                component["module"], self._directory, or_fail=True
+            )
+            config = {
+                **component["config_data"],
+                "__lineage": component["lineage"],
+            }
+            kind = component["kind"]
+        else:
+            try:
+                # todo: check entry-points
+                module = importlib.import_module(name)
+            except ModuleNotFoundError as _e:
+                raise ValueError(f"Could not find component '{name}'") from _e
 
-        spec = self.parsed_config()[name]
-        module = import_from_directory(
-            spec["module"], self._directory, or_fail=True
-        )
-        base_class = self.provider().get_component_class(spec["kind"])
+        base_class = self.provider().get_component_class(kind)
         if base_class is None:
             raise ConfigurationError(
-                f"Could not resolve component type {spec['kind']}. "
+                f"Could not resolve component type {kind}. "
                 "Is it registered in the project's provider?"
             )
         component_class = find_subclass_in_module(module, base_class)
@@ -285,7 +285,10 @@ class Project(Jsonable):
                 f"Is it correctly defined in {module}?"
             )
 
-        return component_class(spec=spec, version=version)
+        return component_class(
+            config=config,
+            version=version,
+        )
 
     def serialize(self) -> dict:
         return {
@@ -304,13 +307,6 @@ class Project(Jsonable):
             return None
 
         return self.config()["name"]
-
-    def __enter__(self):
-        self.connect()
-        return self
-
-    def __exit__(self, exc_type, exc_value, exc_traceback):
-        self.close()
 
     def __repr__(self) -> str:
         return f"Project({self._directory})"

@@ -1,18 +1,70 @@
-from machinable.element import Element
+from typing import TYPE_CHECKING, List, Optional, Tuple, Union
+
+from machinable.component import compact
+from machinable.element import Connectable, Element
+from machinable.grouping import Grouping
+from machinable.project import Project
+from machinable.settings import get_settings
+from machinable.storage.storage import Storage
+from machinable.types import VersionType
+
+if TYPE_CHECKING:
+    from machinable.execution import Execution
 
 
-class Repository(Element):
-    def __init__(self, name: str = None):
-        """Repository base class
+class Repository(Connectable, Element):
+    """Repository base class"""
 
-        # Arguments
-        name: defines the repository path name
-            May contain the following variables:
-            - &EXPERIMENT will be replaced by the experiment name
-            - &PROJECT will be replaced by project name
-            - %x expressions will be replaced by strftime
-            The variables are expanded following GNU bash's variable expansion rules, e.g.
-            `&{EXPERIMENT:-default_value}` or `&{PROJECT:?}` can be used.
-        """
+    def __init__(
+        self,
+        storage: Union[str, None] = None,
+        version: VersionType = None,
+        default_grouping: Optional[str] = "%y_%U_%a",
+    ):
         super().__init__()
-        self.name = name
+        if storage is None:
+            storage = Storage.default or get_settings().default_storage
+        self._storage = compact(storage, version)
+        self._resolved_storage = Optional[Storage]
+        self._default_grouping = default_grouping
+
+    def storage(self, reload: bool = False) -> Storage:
+        """Resolves and returns the storage instance"""
+        if self._resolved_storage is None or reload:
+            self._resolved_storage = Storage.make(
+                self._storage[0], self._storage[1:]
+            )
+
+        return self._resolved_storage
+
+    def commit(
+        self, execution: "Execution", grouping: Optional[str] = None
+    ) -> bool:
+        if execution.is_mounted():
+            return False
+
+        if grouping is None:
+            grouping = self._default_grouping
+
+        grouping = Grouping(grouping)
+
+        grouping_model = grouping.to_model()
+        execution_model = execution.to_model()
+        experiment_models = [
+            experiment.to_model() for experiment in execution.experiments
+        ]
+
+        self.storage().create_execution(
+            project=Project.get().to_model(),
+            execution=execution.to_model(),
+            experiments=experiment_models,
+            grouping=grouping_model,
+        )
+
+        grouping.mount(grouping_model)
+        execution.mount(execution_model)
+
+        # set relations
+        execution.__related__["grouping"] = grouping
+
+        return True

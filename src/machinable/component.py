@@ -1,13 +1,24 @@
-from typing import Any, List, Optional, Union
+from typing import Any, List, Optional, Tuple, Union
 
 import copy
-import inspect
 import re
 
 from machinable.errors import ConfigurationError
+from machinable.settings import get_settings
+from machinable.types import ComponentType, VersionType
 from machinable.utils import Jsonable, unflatten_dict, update_dict
 from omegaconf import DictConfig, OmegaConf
 from pydantic import BaseModel
+
+CORE_COMPONENTS = [
+    ("engines", "machinable.engine.native_engine", "native"),
+    ("engines", "machinable.engine.ray_engine", "ray"),
+    ("engines", "machinable.engine.detached_engine", "detached"),
+    ("engines", "machinable.engine.remote_engine", "remote"),
+    ("engines", "machinable.engine.dry_engine", "dry"),
+    ("engines", "machinable.engine.slurm_engine", "slurm"),
+    ("storages", "machinable.storage.filesystem_storage", "filesystem"),
+]
 
 
 def _resolve_config_methods(
@@ -43,27 +54,90 @@ def _resolve_config_methods(
     return config
 
 
+def normversion(version: VersionType = None) -> List[Union[str, dict]]:
+    if not isinstance(version, (list, tuple)):
+        version = [version]
+
+    def _valid(item):
+        if item is None or item == {}:
+            # skip
+            return False
+
+        if not isinstance(item, (dict, str)):
+            raise ValueError(
+                f"Invalid version. Expected str or dict but found {item}"
+            )
+
+        return True
+
+    return [v for v in version if _valid(v)]
+
+
+def compact(
+    component: Union[str, List[Union[str, dict, None]]],
+    version: VersionType = None,
+) -> ComponentType:
+    if isinstance(component, (list, tuple)):
+        component, *default_version = component
+        if not isinstance(version, (list, tuple)):
+            version = [version]
+        version = list(default_version) + version
+
+    if not isinstance(component, str):
+        raise ValueError(
+            f"Invalid component, expected str but found {component}"
+        )
+
+    return [component] + normversion(version)
+
+
+def extract(
+    compact_component: Union[str, List[Union[str, dict]], None]
+) -> Tuple[Optional[str], Optional[List[Union[str, dict]]]]:
+    if compact_component is None:
+        return None, None
+
+    if isinstance(compact_component, str):
+        return compact_component, None
+
+    if not isinstance(compact_component, (list, tuple)):
+        raise ValueError(
+            f"Invalid component defintion. Expected list or str but found {compact_component}"
+        )
+
+    if len(compact_component) == 0:
+        raise ValueError(
+            f"Invalid component defintion. Expected str or non-empty list."
+        )
+
+    if not isinstance(compact_component[0], str):
+        raise ValueError(
+            f"Invalid component defintion. First element in list has to be a string."
+        )
+
+    if len(compact_component) == 1:
+        return compact_component[0], None
+
+    return compact_component[0], normversion(compact_component[1:])
+
+
 class Component(Jsonable):
     """
     Component base class. All machinable components inherit from this class.
     """
 
-    def __init__(
-        self,
-        spec: dict,
-        version: Union[str, dict, None, List[Union[str, dict, None]]] = None,
-    ):
-        # defensive deep-copy
-        self.__spec: dict = copy.deepcopy(spec)
-        if not isinstance(version, (list, tuple)):
-            version = [version]
-        self.__version: Union[str, dict, None, List[Union[str, dict, None]]] = [
-            v for v in version if (v is not None and v != {})
-        ]
-        self.__config: Optional[DictConfig] = None
+    default: Optional["Component"] = None
+
+    def __init__(self, config: dict, version: VersionType = None):
+        self.__config = config
+        self.__version = normversion(version)
+        self._config: Optional[DictConfig] = None
 
     def serialize(self) -> dict:
-        return {"spec": self.__spec, "version": self.__version}
+        return {
+            "config": self.__config,
+            "version": self.__version,
+        }
 
     @classmethod
     def unserialize(cls, serialized: dict) -> "Component":
@@ -73,8 +147,8 @@ class Component(Jsonable):
     def make(
         cls,
         name: Optional[str] = None,
-        version: Union[str, dict, None, List[Union[str, dict, None]]] = None,
-    ):
+        version: VersionType = None,
+    ) -> "Component":
         if name is None:
             if (
                 cls.__module__.startswith("machinable.component")
@@ -88,10 +162,18 @@ class Component(Jsonable):
 
         return Project.get().get_component(name, version)
 
+    @classmethod
+    def set_default(
+        cls,
+        name: Optional[str] = None,
+        version: VersionType = None,
+    ) -> None:
+        cls.default = compact(name, version)
+
     @property
     def config(self) -> DictConfig:
         """Component configuration"""
-        if self.__config is None:
+        if self._config is None:
             # register resolvers
             for name in dir(self):
                 if name.startswith("resolver_") and len(name) > 9:
@@ -101,27 +183,30 @@ class Component(Jsonable):
                             name=name[9:], resolver=method, replace=True
                         )
 
+            __config = copy.deepcopy(self.__config)
+            __version = copy.deepcopy(self.__version)
+
             # we assign the raw resolved config to allow config_methods to access it
-            self.__config = OmegaConf.create(self.__spec["config"])
-            OmegaConf.resolve(self.__config)
+            self._config = OmegaConf.create(__config)
 
             # resolve config and version
+            OmegaConf.resolve(self._config)
             resolved_config = _resolve_config_methods(
-                self, OmegaConf.to_container(self.__config)
+                self, OmegaConf.to_container(self._config)
             )
+
             resolved_version = []
-            for v in self.__version:
-                if isinstance(v, dict):
-                    v = OmegaConf.create(v)
-                    OmegaConf.resolve(v)
-                    v = OmegaConf.to_container(v)
-                    v = unflatten_dict(v)
-                    v = _resolve_config_methods(
+            for ver in __version:
+                if isinstance(ver, dict):
+                    ver = OmegaConf.create(ver)
+                    ver = OmegaConf.to_container(ver, resolve=True)
+                    ver = unflatten_dict(ver)
+                    ver = _resolve_config_methods(
                         self,
-                        v,
+                        ver,
                     )
 
-                resolved_version.append(v)
+                resolved_version.append(ver)
 
             # compose configuration update
             config_update = {}
@@ -136,12 +221,12 @@ class Component(Jsonable):
                         for key in path:
                             level = level["~" + key]
                             # extract config on this level
-                            u = {
+                            patch = {
                                 k: copy.deepcopy(v)
                                 for k, v in level.items()
                                 if not k.startswith("~")
                             }
-                            version = update_dict(version, u)
+                            version = update_dict(version, patch)
                     except KeyError as _e:
                         raise ConfigurationError(
                             f"'~{name}' could not be resolved."
@@ -157,12 +242,12 @@ class Component(Jsonable):
             }
 
             # apply update
-            config = OmegaConf.unsafe_merge(config, config_update)
+            config = OmegaConf.merge(config, config_update)
 
             # computed configuration transform
             self.on_configure(config)
 
-            # apply schema if available
+            # parse config if config class is available
             if hasattr(self.__class__, "Config"):
                 schema = type(
                     self.__class__.__name__ + "ConfigSchema",
@@ -175,12 +260,18 @@ class Component(Jsonable):
                 # todo: verify that config model has not added any values
                 # that are not defined in the machinable.yaml
 
+            # add introspection data
+            config["__raw"] = __config
+            config["__version"] = __version
+            config["__resolved_version"] = resolved_version
+            config["__update"] = config_update
+
             # disallow further transformation
             OmegaConf.set_readonly(config, True)
 
-            self.__config = config
+            self._config = config
 
-        return self.__config
+        return self._config
 
     def on_configure(self, config: DictConfig) -> None:
         """Configuration event

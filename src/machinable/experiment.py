@@ -1,60 +1,112 @@
-from typing import TYPE_CHECKING, List, Union
+from typing import TYPE_CHECKING, List, Optional, Union
 
+from machinable import schema
+from machinable.component import compact
 from machinable.element import Element, belongs_to
-from machinable.schema import ExperimentType
+from machinable.interface import Interface
+from machinable.project import Project
+from machinable.types import VersionType
 from machinable.utils import encode_experiment_id, generate_experiment_id
+from machinable.utils.utils import serialize
 
 if TYPE_CHECKING:
-    from machinable.execution.execution import Execution
+    from machinable.component import Component
+    from machinable.execution import Execution
 
 
 class Experiment(Element):
-    def __init__(
-        self,
-        interface: Union[str, None] = None,
-        config: Union[str, dict, None, List[Union[str, dict, None]]] = None,
-    ):
+    def __init__(self, interface: str, version: VersionType = None):
         """Experiment
 
         # Arguments
         interface: The name of the interface as defined in the machinable.yaml
         config: Configuration to override the default config
+        seed: Optional seed.
         """
         super().__init__()
-        self._experiment_id = encode_experiment_id(generate_experiment_id())
-        self._interface = interface
-        self._config = config
-        self._components = []
+        self.__model__: Optional[schema.Experiment] = None
+        self._interface = compact(interface, version)
+        self._resolved_interface: Optional[Interface] = None
 
-    def use(
+        self._components: List[List[Union[str, dict]]] = []
+        self._resolved_components: List["Component"] = []
+        self._experiment_id = encode_experiment_id(generate_experiment_id())
+        self._resources: Optional[dict] = None
+        self._seed: Optional[int] = None
+
+    def to_model(self) -> schema.Experiment:
+        return schema.Experiment(
+            interface=self._interface,
+            config=dict(self.interface().config.copy()),
+            experiment_id=self._experiment_id,
+            resources=self._resources,
+            seed=self._seed,
+            components=[
+                (
+                    component,
+                    dict(resolved_component.config.copy()),
+                )
+                for component, resolved_component in zip(
+                    self._components, self.components()
+                )
+            ],
+        )
+
+    def components(self, reload: bool = False) -> List["Component"]:
+        if reload:
+            self._resolved_components = []
+        for component in self._components[len(self._resolved_components) :]:
+            self._resolved_components.append(
+                Project.get_component(component[0], component[1:])
+            )
+
+    def interface(self, reload: bool = False) -> Interface:
+        """Resolves and returns the interface instance"""
+        if self._resolved_interface is None or reload:
+            self._resolved_interface = Interface.make(
+                self._interface[0], self._interface[1:]
+            )
+
+        return self._resolved_interface
+
+    def execute(
         self,
-        component: str,
-        config: Union[str, dict, None, List[Union[str, dict, None]]] = None,
+        engine: Union[str, None] = None,
+        version: VersionType = None,
+        grouping: Optional[str] = None,
+        resources: Optional[dict] = None,
+        seed: Optional[int] = None,
     ) -> "Experiment":
+        """Executes the experiment"""
+        from machinable.execution import Execution
+
+        Execution(engine=engine, version=version).add(
+            experiment=self, resources=resources, seed=seed
+        ).submit(grouping=grouping)
+
+        return self
+
+    def use(self, component: str, version: VersionType = None) -> "Experiment":
         """Adds a component
 
         # Arguments
         component: The name of the component as defined in the machinable.yaml
         config: Configuration to override the default config
         """
-        self._components.append((component, config))
+        self._components.append(compact(component, version))
 
         return self
 
-    def _to_model(self) -> ExperimentType:
-        return ExperimentType()  # todo
-
     @belongs_to
-    def execution(self) -> "Execution":
-        from machinable.execution.execution import Execution
+    def execution() -> "Execution":
+        from machinable.execution import Execution
 
         return Execution
 
     @property
     def config(self):
         if not self.is_mounted():
-            # generate preview based on the current state
-            return self.to_model(mount=False).config
+            return self.interface().config
 
         return self.__model__.config
 

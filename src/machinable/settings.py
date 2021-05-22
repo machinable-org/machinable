@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import List, Optional, Union
 
 import os
 
@@ -8,8 +8,11 @@ from pydantic import BaseModel
 
 
 class Settings(BaseModel):
-    default_storage: str = "./storage"
-    default_repository: Optional[str] = None
+    default_engine: List[Union[str, dict]] = ["machinable.engine.native_engine"]
+    default_storage: List[Union[str, dict]] = [
+        "machinable.storage.filesystem_storage",
+        {"directory": "./storage"},
+    ]
 
 
 def get_settings():

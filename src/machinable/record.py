@@ -2,9 +2,9 @@ from typing import Any, Dict, Optional
 
 import copy
 
+from machinable import schema
 from machinable.element import Element
 from machinable.experiment import Experiment
-from machinable.schema import RecordType
 
 
 class Record(Element):
@@ -12,6 +12,7 @@ class Record(Element):
 
     def __init__(self, experiment: Experiment, scope: str = "default"):
         super().__init__()
+        self.__model__: Optional[schema.Record] = None
         self._experiment = experiment
         self._data: dict = {}
         self._scope: str = scope
@@ -47,7 +48,7 @@ class Record(Element):
         """Whether the record writer is empty (len(self._data) == 0)"""
         return len(self._data) == 0
 
-    def save(self, force=False) -> RecordType:
+    def save(self, force=False) -> schema.Record:
         """Save the record
 
         # Arguments
@@ -64,7 +65,7 @@ class Record(Element):
             raise ValueError("")
 
         return self.__storage__.create_record(
-            record=RecordType(data=data),
+            record=schema.Record(data=data),
             experiment=self._experiment.__model__,
             scope=self._scope,
         )
