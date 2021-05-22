@@ -20,7 +20,7 @@ import commandlib
 import jsonlines
 from baseconv import base62
 from flatten_dict import unflatten as _unflatten_dict
-from importlib_metadata import entry_points
+from importlib_metadata import entry_points, version
 
 sentinel = object()
 
@@ -676,15 +676,8 @@ def unflatten_dict(
     return d
 
 
-def get_machinable_version() -> Optional[str]:
-    try:
-        import pkg_resources
-    except ImportError:
-        return None
-    try:
-        return pkg_resources.require("machinable")[0].version
-    except pkg_resources.ResolutionError:
-        return None
+def get_machinable_version() -> str:
+    return version("machinable")
 
 
 def set_process_title(title):

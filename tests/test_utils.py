@@ -157,9 +157,8 @@ def test_git_utils(tmp_path):
     with open(os.path.join(repo_dir, "test"), "w") as f:
         f.write("some test data")
 
-    print(git("commit", "-m 'test'").output)
-
-    assert utils.get_diff(repo_dir) is None
+    git("add", ".").run()
+    assert "some test data" in utils.get_diff(repo_dir)
 
 
 def test_mixins():
