@@ -16,10 +16,11 @@ from keyword import iskeyword
 from pathlib import Path
 
 import arrow
+import commandlib
 import jsonlines
 from baseconv import base62
 from flatten_dict import unflatten as _unflatten_dict
-from importlib_metadata import entry_points
+from importlib_metadata import entry_points, version
 
 sentinel = object()
 
@@ -222,10 +223,8 @@ def generate_seed(random_state=None):
 
 def as_color(experiment_id: str):
     return "".join(
-        [
-            encode_experiment_id(decode_experiment_id(i) % 16)
-            for i in experiment_id
-        ]
+        encode_experiment_id(decode_experiment_id(i) % 16)
+        for i in experiment_id
     )
 
 
@@ -677,12 +676,93 @@ def unflatten_dict(
     return d
 
 
-def get_machinable_version() -> Optional[str]:
+def get_machinable_version() -> str:
+    return version("machinable")
+
+
+def set_process_title(title):
     try:
-        import pkg_resources
+        import setproctitle
+
+        setproctitle.setproctitle(title)
     except ImportError:
-        return None
+        pass
+    # tmux
+    if (
+        os.environ.get("TERM", None) == "screen"
+        and os.environ.get("TMUX", None) is not None
+    ):
+        os.system(f"printf '\033]2;%s\033\\' '{title}'")
+
+
+def get_diff(repository: str) -> Optional[str]:
     try:
-        return pkg_resources.require("machinable")[0].version
-    except pkg_resources.DistributionNotFound:
+        from git import InvalidGitRepositoryError, Repo
+
+        try:
+            repo = Repo(repository, search_parent_directories=False)
+            return repo.git.diff(repo.head.commit.tree)
+        except (InvalidGitRepositoryError, ValueError):
+            return None
+    except ImportError:
+        pass
+
+    # fallback on commandlib
+
+    git = commandlib.Command("git").in_dir(os.path.abspath(repository))
+
+    try:
+        diff = git("diff", "--staged").output()
+        return diff if diff != "" else None
+    except commandlib.exceptions.CommandError:
+        return None
+
+
+# This following method is modified 3rd party source code from
+# https://github.com/IDSIA/sacred/blob/7897c664b1b93fa2e2b6f3af244dfee590b1342a/sacred/dependencies.py#L401.
+# The copyright and license agreement can be found in the ThirdPartyNotices.txt file at the root of this repository.
+
+
+def get_commit(repository: str) -> dict:
+    try:
+        import git
+
+        try:
+            repo = git.Repo(directory, search_parent_directories=False)
+            try:
+                branch = str(repo.active_branch)
+            except TypeError:
+                branch = None
+
+            try:
+                path = repo.remote().url
+            except ValueError:
+                path = "git:/" + repo.working_dir
+            is_dirty = repo.is_dirty()
+            commit = repo.head.commit.hexsha
+            return {
+                "path": path,
+                "commit": commit,
+                "is_dirty": is_dirty,
+                "branch": branch,
+            }
+        except (git.exc.GitError, ValueError):
+            pass
+    except ImportError:
+        pass
+
+    # todo: fallback
+
+    return {"path": None, "commit": None, "is_dirty": None, "branch": None}
+
+
+def get_root_commit(repository: str) -> Optional[str]:
+    try:
+        return (
+            commandlib.Command("git", "rev-list", "--parents", "HEAD")
+            .in_dir(repository)
+            .output()[-1]
+            .replace("\n", "")
+        )
+    except commandlib.exceptions.CommandError:
         return None

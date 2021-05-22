@@ -8,11 +8,6 @@ import os
 from machinable.collection.submission import SubmissionCollection
 from machinable.filesystem.filesystem import open_fs
 from machinable.submission.submission import Submission
-from machinable.utils.dicts import update_dict
-from machinable.utils.formatting import exception_to_str
-from machinable.utils.importing import resolve_instance
-from machinable.utils.traits import Jsonable
-from machinable.utils.utils import decode_experiment_id
 
 _register = {
     "native": "machinable.index.native_index",
@@ -98,7 +93,7 @@ class Index(Jsonable):
         except KeyError:
             raise ValueError(f"Unknown index: {index}.")
         except ImportError as ex:
-            raise ValueError(f"Index import failed: {exception_to_str(ex)}")
+            raise ValueError(f"Index import failed: {str(ex)}")
         except AttributeError:
             raise ValueError(f"Index could not be found.")
 

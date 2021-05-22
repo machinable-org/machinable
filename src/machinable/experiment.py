@@ -7,7 +7,6 @@ from machinable.interface import Interface
 from machinable.project import Project
 from machinable.types import VersionType
 from machinable.utils import encode_experiment_id, generate_experiment_id
-from machinable.utils.utils import serialize
 
 if TYPE_CHECKING:
     from machinable.component import Component

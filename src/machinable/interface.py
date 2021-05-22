@@ -107,9 +107,6 @@ class Interface(Component):
 
             self.create(components)
 
-            if self.node is None:
-                set_process_title(repr(self))
-
             status = self.execute()
             self.destroy()
 
@@ -125,7 +122,7 @@ class Interface(Component):
         except BaseException as ex:
             status = machinable.errors.ExecutionFailed(
                 reason="exception",
-                message=f"The following exception occurred: {ex}\n{exception_to_str(ex)}",
+                message=f"The following exception occurred: {ex}\n{str(ex)}",
             )
             self.on_failure(status)
             self.on_finish(status, success=False)
@@ -248,9 +245,7 @@ class Interface(Component):
             self.storage.save_file("status.json", self.component_status)
         except (OSError, Exception) as ex:
             if log_errors:
-                self.log.error(
-                    f"Could not write status information. {exception_to_str(ex)}"
-                )
+                self.log.error(f"Could not write status information. {str(ex)}")
 
             return ex
 

@@ -1,13 +1,10 @@
-from typing import Any, Callable, Union
+import os
 
-import re
-
-import machinable.utils as utils
 import numpy as np
 import pytest
+from commandlib import Command
 from hypothesis import given, strategies
-from machinable import Component
-from machinable.project import Project
+from machinable import Component, utils
 
 
 def test_experiment_id_encoding():
@@ -136,6 +133,32 @@ def test_unflatten_dict():
     original = {"a.b": {"c.d": "e"}}
     assert utils.unflatten_dict(d)["a"]["b"]["c"]["d"] == "e"
     assert d == original
+
+
+def test_machinable_version():
+    assert isinstance(utils.get_machinable_version(), str)
+
+
+def test_set_process_title():
+    utils.set_process_title("test")
+
+
+def test_git_utils(tmp_path):
+    # create a repository
+    repo_dir = str(tmp_path / "test_repo")
+    os.makedirs(repo_dir, exist_ok=True)
+    git = Command("git").in_dir(repo_dir)
+    git("init").run()
+
+    # get_diff
+    assert utils.get_diff(str(tmp_path)) is None
+    assert utils.get_diff(repo_dir) is None
+
+    with open(os.path.join(repo_dir, "test"), "w") as f:
+        f.write("some test data")
+
+    git("add", ".").run()
+    assert "some test data" in utils.get_diff(repo_dir)
 
 
 def test_mixins():

@@ -3,8 +3,6 @@ import os
 import click
 from machinable.execution import Execution
 from machinable.experiment import Experiment
-from machinable.utils.formatting import exception_to_str, msg
-from machinable.utils.importing import resolve_instance_from_code
 
 
 @click.command()
@@ -42,7 +40,7 @@ def execute(experiment, storage, engine, project, seed):
                 experiment = resolve_instance_from_code(code, Experiment)
                 c = False
             except ImportError as e:
-                msg(exception_to_str(e), color="fail")
+                print(e)
                 click.confirm("Continue editing?", abort=True)
 
     try:

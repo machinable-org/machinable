@@ -1,7 +1,6 @@
 import inspect
 
-from machinable.utils.importing import ModuleClass
-from machinable.utils.utils import is_valid_variable_name
+from machinable.utils import is_valid_variable_name
 
 _register = {}
 
