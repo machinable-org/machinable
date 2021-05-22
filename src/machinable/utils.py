@@ -696,24 +696,10 @@ def set_process_title(title):
 
 
 def get_diff(repository: str) -> Optional[str]:
-    try:
-        from git import InvalidGitRepositoryError, Repo
-
-        try:
-            repo = Repo(repository, search_parent_directories=False)
-            return repo.git.diff(repo.head.commit.tree)
-        except (InvalidGitRepositoryError, ValueError):
-            return None
-    except ImportError:
-        pass
-
-    # fallback on commandlib
-
     git = commandlib.Command("git").in_dir(os.path.abspath(repository))
 
     try:
-        diff = git("diff", "--staged").output()
-        return diff if diff != "" else None
+        return git("diff", "--staged").output()
     except commandlib.exceptions.CommandError:
         return None
 
@@ -728,7 +714,7 @@ def get_commit(repository: str) -> dict:
         import git
 
         try:
-            repo = git.Repo(directory, search_parent_directories=False)
+            repo = git.Repo(repository, search_parent_directories=False)
             try:
                 branch = str(repo.active_branch)
             except TypeError:
