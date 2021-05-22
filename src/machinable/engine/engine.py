@@ -15,6 +15,15 @@ class Engine(Component):
     def dispatch(self, execution: "Execution"):
         from machinable.execution import Execution
 
+        if not self.engine.supports_resources():
+            if resources is not None:
+                msg(
+                    "Engine does not support resource specification. Skipping ...",
+                    level="warn",
+                    color="header",
+                )
+                resources = None
+
         if self.on_before_dispatch(execution) is False:
             return False
 

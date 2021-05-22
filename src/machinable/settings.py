@@ -11,9 +11,8 @@ class Settings(BaseModel):
     default_engine: List[Union[str, dict]] = ["machinable.engine.native_engine"]
     default_storage: List[Union[str, dict]] = [
         "machinable.storage.filesystem_storage",
-        {"path": "./storage"},
+        {"directory": "./storage"},
     ]
-    default_folder: Optional[str] = None
 
 
 def get_settings():

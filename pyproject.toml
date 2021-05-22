@@ -25,7 +25,6 @@ include = ["CHANGELOG.md"]
 
 [tool.poetry.dependencies]
 python = "^3.6.1"
-dotmap = "^1.3"
 python-baseconv = "^1.2"
 regex = "2021.4.4"
 observable = "^1.0"

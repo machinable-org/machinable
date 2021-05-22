@@ -1,12 +1,15 @@
 from typing import Any, Callable, Optional
 
+from functools import wraps
+
+from machinable import schema
 from machinable.collection import Collection
-from machinable.schema import SchemaType
 from machinable.utils import Jsonable
 
 
 def belongs_to(f: Callable) -> Any:
     @property
+    @wraps(f)
     def _wrapper(self: "Element"):
         related_class = f()
         name = f.__name__
@@ -16,7 +19,7 @@ def belongs_to(f: Callable) -> Any:
             )
             self.__related__[name] = related_class.from_model(related)
 
-        return self.__related__[name]
+        return self.__related__.get(name, None)
 
     return _wrapper
 
@@ -26,8 +29,18 @@ has_one = belongs_to
 
 def has_many(f: Callable) -> Any:
     @property
+    @wraps(f)
     def _wrapper(self: "Element") -> Any:
-        related_class, collection = f()
+        args = f()
+        use_cache = True
+        if len(args) == 2:
+            related_class, collection = args
+        elif len(args) == 3:
+            related_class, collection, use_cache = args
+        else:
+            assert False, "Invalid number of relation arguments"
+        if not self.is_mounted() and use_cache is False:
+            return None
         name = f.__name__
         if self.__related__.get(name, None) is None and self.is_mounted():
             related = self.__model__._storage[name].retrieve_related(
@@ -37,7 +50,7 @@ def has_many(f: Callable) -> Any:
                 [related_class.from_model(r) for r in related]
             )
 
-        return self.__related__[name]
+        return self.__related__.get(name, None)
 
     return _wrapper
 
@@ -52,7 +65,7 @@ class Connectable:
         return cls() if cls.__connection__ is None else cls.__connection__
 
     def connect(self) -> "Connectable":
-        self.__connection__ = self
+        self.__class__.__connection__ = self
         return self
 
     def close(self) -> "Connectable":
@@ -61,11 +74,17 @@ class Connectable:
         return self
 
     def __enter__(self):
+        self._outer_connection = (  # pylint: disable=attribute-defined-outside-init
+            self.__class__.__connection__
+        )
         self.connect()
         return self
 
     def __exit__(self, exc_type, exc_value, exc_traceback):
-        self.close()
+        if self.__class__.__connection__ is self:
+            self.__class__.__connection__ = None
+        if getattr(self, "_outer_connection", None) is not None:
+            self.__class__.__connection__ = self._outer_connection
 
 
 class Element(Jsonable):
@@ -79,17 +98,11 @@ class Element(Jsonable):
     def is_mounted(self):
         return self.__model__ is not None
 
-    def to_model(self, mount=True) -> SchemaType:
-        model = self._to_model()
-
-        if not mount:
-            return model
+    def mount(self, model: schema.Model):
+        if model._storage_instance is None or model._storage_id is None:
+            raise ValueError("Model has to expose storage information")
 
         self.__model__ = model
-        return self.__model__
-
-    def _to_model(self) -> SchemaType:
-        raise NotImplementedError
 
     @belongs_to
     def project():
@@ -98,14 +111,19 @@ class Element(Jsonable):
         return Project
 
     @classmethod
-    def from_model(cls, model: SchemaType) -> "Element":
+    def from_model(cls, model: schema.Model) -> "Element":
         instance = cls()
         instance.__model__ = model
         return instance
 
+    def to_model(self):
+        raise NotImplementedError
+
     @classmethod
     def find(cls, element_id):
-        return self.__storage__.find(cls.__name__, element_id)
+        from machinable.repository import Repository
+
+        return Repository.get().storage().find(cls.__name__, element_id)
 
     @classmethod
     def collect(cls, elements) -> Collection:

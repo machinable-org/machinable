@@ -1,15 +1,23 @@
-from machinable.schema import ExecutionType, ExperimentType, RecordType
+from machinable import schema
 from machinable.storage.storage import Storage
 
 
 def storage_tests(storage: Storage) -> None:
     # execution
-    execution = ExecutionType()
-    experiments = [ExperimentType(), ExperimentType(), ExperimentType()]
+    execution = schema.Execution(engine=["example"])
+    experiments = [
+        schema.Experiment(interface=["a"]),
+        schema.Experiment(interface=["b"]),
+        schema.Experiment(interface=["c"]),
+    ]
+    project = schema.Project()
+    grouping = schema.Grouping(group="test/me", resolved_group="test/me")
 
     storage.create_execution(
-        execution,
+        project=project,
+        execution=execution,
         experiments=experiments,
+        grouping=grouping,
     )
 
     execution_ = storage.retrieve_execution(execution._storage_id)
@@ -25,4 +33,4 @@ def storage_tests(storage: Storage) -> None:
     assert all([experiments[i] == inverse[i] for i in range(len(experiments))])
 
     # records
-    storage.create_record(RecordType(data={"test": 1}), experiments[0])
+    storage.create_record(schema.Record(data={"test": 1}), experiments[0])

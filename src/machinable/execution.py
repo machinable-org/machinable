@@ -1,52 +1,71 @@
-from typing import List, Optional, Union
+from typing import Callable, List, Optional, Union
 
+import copy
 from datetime import datetime as dt
 
+from machinable import schema
 from machinable.collection.experiment import ExperimentCollection
 from machinable.component import compact
 from machinable.element import Element, belongs_to, has_many
 from machinable.engine import Engine
 from machinable.experiment import Experiment
+from machinable.grouping import Grouping
 from machinable.project import Project
 from machinable.repository import Repository
-from machinable.schema import ExecutionType
 from machinable.settings import get_settings
-from machinable.types import Version
-from machinable.utils import generate_nickname, generate_seed
+from machinable.types import VersionType
+from machinable.utils import generate_nickname, generate_seed, update_dict
 
 
 class Execution(Element):
     def __init__(
         self,
         engine: Union[str, None] = None,
-        version: Version = None,
+        version: VersionType = None,
         seed: Union[int, None] = None,
     ):
         super().__init__()
         if engine is None:
             engine = Engine.default or get_settings().default_engine
         self._engine = compact(engine, version)
-        self._experiments = []
-
+        self._resolved_engine: Optional[Engine] = None
         self._seed = generate_seed(seed)
         self._nickname = generate_nickname()
         self._timestamp = dt.now().timestamp()
 
-    def _to_model(self) -> ExecutionType:
-        return ExecutionType(timestamp=self._timestamp, nickname=self._nickname)
+    def to_model(self) -> schema.Execution:
+        return schema.Execution(
+            engine=self._engine,
+            config=dict(self.engine().config.copy()),
+            timestamp=self._timestamp,
+            nickname=self._nickname,
+            seed=self._seed,
+        )
 
     @has_many
     def experiments() -> ExperimentCollection:
         return Experiment, ExperimentCollection
 
     @belongs_to
-    def repository():
-        return Repository
+    def grouping():
+        return Grouping
+
+    def engine(self, reload: bool = False) -> "Engine":
+        """Resolves and returns the engine instance"""
+        if self._resolved_engine is None or reload:
+            self._resolved_engine = Engine.make(
+                self._engine[0], self._engine[1:]
+            )
+
+        return self._resolved_engine
 
     def add(
         self,
         experiment: Union[Experiment, List[Experiment]],
-        resources: Optional[dict] = None,
+        resources: Union[
+            Callable[[Engine, Experiment], dict], dict, None
+        ] = None,
+        seed: Optional[int] = None,
     ) -> "Execution":
         """Adds an experiment to the execution
 
@@ -59,7 +78,7 @@ class Execution(Element):
 
         You can condition the resource specification on the configuration, for example:
         ```python
-        resources = lambda component: {'cpu': component.config.num_cpus }
+        resources = lambda engine, experiment: {'cpu': experiment.config.num_cpus }
         ```
         """
         if isinstance(experiment, (list, tuple)):
@@ -70,112 +89,68 @@ class Execution(Element):
         if not isinstance(experiment, Experiment):
             raise ValueError(f"Invalid experiment: {experiment}")
 
-        # set relation
+        # parse resources
+        if callable(resources):
+            resources = resources(engine=self.engine(), experiment=experiment)
+
+        try:
+            default_resources = experiment.interface().default_resources(
+                engine=self.engine()
+            )
+        except AttributeError:
+            default_resources = None
+
+        if resources is None and default_resources is not None:
+            # use default resources
+            resources = default_resources
+        elif resources is not None and default_resources is not None:
+            # merge with default resources
+            if resources.pop("_inherit_defaults", True) is not False:
+                defaults = self.engine().canonicalize_resources(
+                    default_resources
+                )
+                update = self.engine().canonicalize_resources(resources)
+
+                defaults_ = copy.deepcopy(defaults)
+                update_ = copy.deepcopy(update)
+
+                # apply removals (e.g. #remove_me)
+                removals = [k for k in update.keys() if k.startswith("#")]
+                for removal in removals:
+                    defaults_.pop(removal[1:], None)
+                    update_.pop(removal, None)
+
+                resources = update_dict(defaults_, update_)
+
+        # set relations
         experiment.__related__["execution"] = self
         self.__related__.setdefault("experiments", ExperimentCollection())
         self.__related__["experiments"].append(experiment)
 
-        self._experiments.append((experiment, resources))
+        experiment._resources = resources
 
-        # parse resources
-        # if not self.engine.supports_resources():
-        #     if resources is not None:
-        #         msg(
-        #             "Engine does not support resource specification. Skipping ...",
-        #             level="warn",
-        #             color="header",
-        #         )
-        #         resources = None
-        # else:
-        #     if callable(resources):
-        #         resources = resources(engine=self.engine, experiment=experiment)
+        if seed is None:
+            seed = generate_seed(self._seed + len(self.experiments))
 
-        #     default_resources = self.registration.default_resources(
-        #         engine=self.engine, experiment=experiment
-        #     )
-
-        #     if resources is None and default_resources is not None:
-        #         # use default resources
-        #         resources = default_resources
-        #     elif resources is not None and default_resources is not None:
-        #         # merge with default resources
-        #         if resources.pop("_inherit_defaults", True) is not False:
-        #             canonicalize_resources = getattr(
-        #                 self.engine, "canonicalize_resources", lambda x: x
-        #             )
-        #             resources = merge_dict(
-        #                 canonicalize_resources(default_resources),
-        #                 canonicalize_resources(resources),
-        #             )
+        experiment._seed = seed
 
         return self
 
-    def submit(
-        self,
-        repository: Union[
-            Repository, str, None, List[Union[str, dict, None]]
-        ] = None,
-    ) -> "Execution":
+    def submit(self, grouping: Optional[str] = None) -> "Execution":
         """Submit the execution
 
-        repository: Storage repository
+        grouping: See repository.commit()
         """
-        if not isinstance(repository, Repository):
-            repository = Repository(repository)
+        Repository.get().commit(self, grouping=grouping)
 
-        repository.commit(self)
-
-        engine = self.__project__.get_component(self._engine, self._config)
-
-        engine.dispatch(self)
-
-        return self
-
-    def name(self, name: Optional[str] = None) -> "Execution":
-        """Sets the name of the execution
-
-        The name is used as relative storage path
-
-        # Arguments
-        name: Name, defaults to '%U_%a_&NICKNAME'
-            May contain the following variables:
-            - &PROJECT will be replaced by project name
-            - &NICKNAME will be replaced by the random nickname of the execution
-            - %x expressions will be replaced by strftime
-            The variables are expanded following GNU bash's variable expansion rules, e.g.
-            `&{NICKNAME:-default_value}` or `&{PROJECT:?}` can be used.
-        """
-        if name is None:
-            name = get_settings()["default_name"]
-
-        if name is None:
-            name = "%U_%a_&NICKNAME"
-
-        if not isinstance(name, str):
-            raise ValueError(f"Name has to be a str. '{name}' given.")
-
-        # expand % variables
-        name = expand(
-            name,
-            environ={
-                "PROJECT": self.project.name or "",
-                "NICKNAME": self.nickname,
-            },
-            var_symbol="&",
-        )
-        # apply strftime
-        name = datetime.now().strftime(name)
-
-        name = os.path.normpath(name)
-
-        self.name = name
+        self.engine().dispatch(self)
 
         return self
 
     def derive(
         self,
         engine: Union[str, None] = None,
-        config: Version = None,
+        version: VersionType = None,
         seed: Union[int, None] = None,
     ) -> "Execution":
         """Derives a related execution."""
@@ -183,7 +158,9 @@ class Execution(Element):
 
     def serialize(self):
         return {
-            # "seed": self.seed,
+            "engine": self._engine,
+            "nickname": self._nickname,
+            "seed": self._seed,
             "timestamp": self._timestamp,
         }
 

@@ -1,3 +1,4 @@
 from typing import List, Union
 
-Version = Union[str, dict, None, List[Union[str, dict, None]]]
+VersionType = Union[str, dict, None, List[Union[str, dict, None]]]
+ComponentType = List[Union[str, dict]]

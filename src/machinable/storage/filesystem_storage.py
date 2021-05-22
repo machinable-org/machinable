@@ -1,35 +1,27 @@
-from typing import List, Optional
+from typing import List, Optional, Tuple
 
-import json
 import os
 
 import arrow
-import jsonlines
-from machinable.schema import (
-    ExecutionType,
-    ExperimentType,
-    RecordType,
-    RepositoryType,
-    SchemaType,
-)
+from machinable import schema
 from machinable.storage.storage import Storage
-from machinable.utils import load_file, sanitize_path, save_file, serialize
+from machinable.utils import load_file, sanitize_path, save_file
 
 
 class FilesystemStorage(Storage):
     def path(self, *append):
         return os.path.join(os.path.abspath(self.config.path), *append)
 
-    def retrieve_related(self, relation: str, model: SchemaType):
+    def retrieve_related(self, relation: str, model: schema.Model):
         # todo: check that model belongs to this storage via type identifier
         assert model._storage_instance is self
 
-        if isinstance(model, ExperimentType):
+        if isinstance(model, schema.Experiment):
             if relation == "execution":
                 return self.retrieve_execution(
                     os.path.join(model._storage_id, "execution")
                 )
-        if isinstance(model, ExecutionType):
+        if isinstance(model, schema.Execution):
             if relation == "experiments":
                 return [
                     self.retrieve_experiment(
@@ -42,10 +34,10 @@ class FilesystemStorage(Storage):
 
     def create_record(
         self,
-        record: RecordType,
-        experiment: ExperimentType,
+        record: schema.Record,
+        experiment: schema.Experiment,
         scope: str = "default",
-    ) -> RecordType:
+    ) -> schema.Record:
         if experiment is None:
             raise ValueError("Invalid experiment")
 
@@ -67,8 +59,8 @@ class FilesystemStorage(Storage):
 
     def _create_record(
         self,
-        record: RecordType,
-        experiment: ExperimentType,
+        record: schema.Record,
+        experiment: schema.Experiment,
         scope: str = "default",
     ) -> str:
         save_file(
@@ -80,14 +72,13 @@ class FilesystemStorage(Storage):
 
     def create_execution(
         self,
-        execution: ExecutionType,
-        experiments: List[ExperimentType],
-        repository: Optional[RepositoryType] = None,
-    ) -> ExecutionType:
-        if repository is None:
-            repository = RepositoryType()  # root repo
+        project: schema.Project,
+        execution: schema.Execution,
+        experiments: List[schema.Experiment],
+        grouping: Optional[schema.Grouping] = None,
+    ) -> schema.Execution:
 
-        storage_id = self._create_execution(execution, experiments, repository)
+        storage_id = self._create_execution(execution, experiments, grouping)
 
         execution._storage_id = storage_id
         execution._storage_instance = self
@@ -96,9 +87,9 @@ class FilesystemStorage(Storage):
 
     def _create_execution(
         self,
-        execution: ExecutionType,
-        experiments: List[ExperimentType],
-        repository: Optional[RepositoryType],
+        execution: schema.Execution,
+        experiments: List[schema.Experiment],
+        grouping: Optional[schema.Grouping],
     ) -> str:
         timestamp = int(execution.timestamp)
         timestr = arrow.get(timestamp).format(arrow.FORMAT_RFC3339)
@@ -109,11 +100,11 @@ class FilesystemStorage(Storage):
         for i, experiment in enumerate(experiments):
             # write experiment
             directory = self.path(
-                sanitize_path(repository.name)
-                if repository is not None
-                else "",
+                sanitize_path(grouping.resolved_group),
                 f"{experiment.experiment_id}-{timestr}",
             )
+
+            # TODO: refactor into own method such that storage_id, storage_instance is set automatically
 
             # save experiment
             save_file(
@@ -176,26 +167,26 @@ class FilesystemStorage(Storage):
             save_file(os.path.join(storage_id, "finished_at"), timestamp)
         return timestamp
 
-    def retrieve_execution(self, storage_id: str) -> ExecutionType:
+    def retrieve_execution(self, storage_id: str) -> schema.Execution:
         execution = self._retrieve_execution(storage_id)
         execution._storage_id = storage_id
         execution._storage_instance = self
 
         return execution
 
-    def _retrieve_execution(self, storage_id: str) -> ExecutionType:
-        return ExecutionType(
+    def _retrieve_execution(self, storage_id: str) -> schema.Execution:
+        return schema.Execution(
             **load_file(os.path.join(storage_id, "execution.json")),
         )
 
-    def retrieve_experiment(self, storage_id: str) -> ExperimentType:
+    def retrieve_experiment(self, storage_id: str) -> schema.Experiment:
         experiment = self._retrieve_experiment(storage_id)
         experiment._storage_id = storage_id
         experiment._storage_instance = self
 
         return experiment
 
-    def _retrieve_experiment(self, storage_id: str) -> ExperimentType:
-        return ExperimentType(
+    def _retrieve_experiment(self, storage_id: str) -> schema.Experiment:
+        return schema.Experiment(
             **load_file(os.path.join(storage_id, "experiment.json")),
         )

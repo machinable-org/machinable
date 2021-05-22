@@ -6,7 +6,6 @@ import re
 
 import yaml
 from machinable.errors import ConfigurationError
-from machinable.schema import ComponentType
 from machinable.utils import sentinel, unflatten_dict, update_dict
 
 
@@ -163,7 +162,9 @@ def parse(config: dict, components: Optional[dict] = None) -> dict:
                 lineage += [inherited["name"]] + inherited["lineage"]
                 # inherit the parent's configuration
                 # todo: deepcopy might be too conservative here
-                data = update_dict(copy.deepcopy(inherited["config"]), data)
+                data = update_dict(
+                    copy.deepcopy(inherited["config_data"]), data
+                )
 
             module = key if prefix == "" else prefix + "." + key
 
@@ -180,7 +181,7 @@ def parse(config: dict, components: Optional[dict] = None) -> dict:
                 "alias": alias,
                 "parent": parent,
                 "lineage": lineage,
-                "config": data,
+                "config_data": data,
             }
 
     return modules

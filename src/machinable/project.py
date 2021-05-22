@@ -5,16 +5,15 @@ import os
 import sys
 
 from commandlib import Command
-from machinable.component import CORE_COMPONENTS, Component, normversion
+from machinable import schema
+from machinable.component import Component
 from machinable.config import parse as parse_config
 from machinable.config import prefix as prefix_config
 from machinable.element import Connectable, Element
 from machinable.errors import ConfigurationError
 from machinable.provider import Provider
-from machinable.storage.storage import Storage
-from machinable.types import Version
+from machinable.types import VersionType
 from machinable.utils import find_subclass_in_module, import_from_directory
-from machinable.utils.vcs import get_commit, get_diff, get_root_commit
 
 
 def fetch_link(source, target):
@@ -122,7 +121,7 @@ def fetch_vendors(project: "Project", config: Optional[dict] = None):
 
 class Project(Connectable, Element):
     def __init__(
-        self, directory: Optional[str] = None, version: Version = None
+        self, directory: Optional[str] = None, version: VersionType = None
     ):
         super().__init__()
         if directory is None:
@@ -130,7 +129,7 @@ class Project(Connectable, Element):
         self._directory = os.path.abspath(directory)
         self._provider: str = "_machinable/project"
         self._resolved_provider: Optional[Provider] = None
-        self._version: Version = version
+        self._version: VersionType = version
         self._parent: Optional[Project] = None
         self._config: Optional[dict] = None
         self._parsed_config: Optional[dict] = None
@@ -146,6 +145,16 @@ class Project(Connectable, Element):
     def connect(self) -> "Project":
         self.add_to_path()
         return super().connect()
+
+    def to_model(self):
+        # todo: code version + diff
+        return schema.Project(
+            directory=self._directory,
+            version=self._version,
+            host_info=self.provider().get_host_info(),
+            code_version={},
+            code_diff="",
+        )
 
     def path(self, *append: str) -> str:
         return os.path.join(self._directory, *append)
@@ -241,23 +250,32 @@ class Project(Connectable, Element):
     def has_component(self, name: str) -> bool:
         return name in self.parsed_config()
 
-    def get_component(self, name: str, version: Version = None) -> Component:
+    def get_component(
+        self, name: str, version: VersionType = None
+    ) -> Component:
+        config = {}
+        kind = "components"
         if name in self.parsed_config():
-            spec = self.parsed_config()[name]
+            component = self.parsed_config()[name]
             module = import_from_directory(
-                spec["module"], self._directory, or_fail=True
+                component["module"], self._directory, or_fail=True
             )
-        elif name in CORE_COMPONENTS:
-            spec = CORE_COMPONENTS[name]
-            module = importlib.import_module(spec["module"])
+            config = {
+                **component["config_data"],
+                "__lineage": component["lineage"],
+            }
+            kind = component["kind"]
         else:
-            # todo: check entry-points
-            raise ValueError(f"Could not find component '{name}'")
+            try:
+                # todo: check entry-points
+                module = importlib.import_module(name)
+            except ModuleNotFoundError as _e:
+                raise ValueError(f"Could not find component '{name}'") from _e
 
-        base_class = self.provider().get_component_class(spec["kind"])
+        base_class = self.provider().get_component_class(kind)
         if base_class is None:
             raise ConfigurationError(
-                f"Could not resolve component type {spec['kind']}. "
+                f"Could not resolve component type {kind}. "
                 "Is it registered in the project's provider?"
             )
         component_class = find_subclass_in_module(module, base_class)
@@ -267,7 +285,10 @@ class Project(Connectable, Element):
                 f"Is it correctly defined in {module}?"
             )
 
-        return component_class(spec=spec, version=version)
+        return component_class(
+            config=config,
+            version=version,
+        )
 
     def serialize(self) -> dict:
         return {

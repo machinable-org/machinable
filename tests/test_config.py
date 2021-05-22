@@ -43,13 +43,13 @@ def test_config_parser():
     assert config["child"]["alias"] == "dummy_alias"
 
     # inheritance
-    assert config["child"]["config"]["a"] == 2
-    assert config["child"]["config"]["b"] == 3
-    assert config["child"]["config"]["unaffected"] is True
+    assert config["child"]["config_data"]["a"] == 2
+    assert config["child"]["config_data"]["b"] == 3
+    assert config["child"]["config_data"]["unaffected"] is True
     assert config["child"]["lineage"] == ["dummy"]
 
-    assert config["inherit"]["config"]["blub"] == "bla"
-    assert config["inherit"]["config"]["test"] == 123
+    assert config["inherit"]["config_data"]["blub"] == "bla"
+    assert config["inherit"]["config_data"]["test"] == 123
     assert config["inherit"]["lineage"] == [
         "experiments.start",
         "experiments.start_parent",
@@ -60,7 +60,7 @@ def test_config_parser():
     assert config["components.flattened_notation"]["prefix"] == "components"
 
     # unflattening
-    c = config["components.flattened_notation"]["config"]
+    c = config["components.flattened_notation"]["config_data"]
     assert c["flat"]["nested"] is True
     assert c["inherited"]["flat"] == "value"
     assert c["flat"]["can"]["be"]["useful"]

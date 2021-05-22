@@ -7,8 +7,6 @@ from machinable.errors import ConfigurationError
 def test_component_version():
     project = Project("./tests/samples/project")
 
-    data = project.parsed_config()
-
     assert project.get_component("dummy", {"alpha": -1}).config.alpha == -1
 
     c = project.get_component("dummy", ({"a": 1}, {"a": 2, "b": 3})).config

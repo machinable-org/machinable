@@ -1,39 +1,40 @@
 from typing import Any, List, Optional, Union
 
+import getpass
 import os
+import platform
+import socket
+import sys
 
 import machinable
 from machinable.component import Component
 from machinable.config import from_file as load_config_from_file
-from machinable.types import Version
+from machinable.types import VersionType
+from machinable.utils import get_machinable_version
 
 
 class Provider(Component):
     """See registration"""
 
-    def __init__(self, version: Version = None):
-        super().__init__(
-            spec={
-                "name": self.__class__.__module__,
-                "module": self.__class__.__module__,
-                "kind": "providers",
-                "prefix": "",
-                "key": self.__class__.__module__,
-                "alias": None,
-                "parent": None,
-                "lineage": [],
-                "config": {},
-            },
-            version=version,
-        )
+    def __init__(self, version: VersionType = None):
+        super().__init__(config={}, version=version)
 
     def get_component_class(self, kind: str) -> Optional[Any]:
         """Returns the component base class for the component kind"""
         # todo: make extendable
         return getattr(machinable, kind[:-1].capitalize(), None)
 
-    def get_component_defaults(self, kind: str) -> List[Union[str, dict]]:
-        pass
+    def get_host_info() -> dict:
+        return {
+            "network_name": platform.node(),
+            "hostname": socket.gethostname(),
+            "machine": platform.machine(),
+            "python_version": platform.python_version(),
+            "user": getpass.getuser(),
+            "environ": os.environ.copy(),
+            "argv": sys.argv,
+            "machinable_version": get_machinable_version(),
+        }
 
     def load_config(self, directory: str) -> dict:
         """Returns the configuration of the given project directory

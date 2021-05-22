@@ -279,14 +279,6 @@ optional = false
 python-versions = "*"
 
 [[package]]
-name = "dotmap"
-version = "1.3.23"
-description = "ordered, dynamically-expandable dot-access dictionary"
-category = "main"
-optional = false
-python-versions = "*"
-
-[[package]]
 name = "editorconfig-checker"
 version = "2.3.5"
 description = "A tool to verify that your files are in harmony with your .editorconfig"
@@ -1295,7 +1287,7 @@ server = ["ariadne", "uvicorn"]
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.6.1"
-content-hash = "0a93ef4c09a0e121ebe11e71a9752fe6bd48cf0c283fe8d5430704fa7f0e4998"
+content-hash = "ee86a0efa3c631972e7a878e2284cc295d11211d7b0e9c48bb08eed4f4124a01"
 
 [metadata.files]
 aiohttp = [
@@ -1487,10 +1479,6 @@ dataclasses = [
 distlib = [
     {file = "distlib-0.3.1-py2.py3-none-any.whl", hash = "sha256:8c09de2c67b3e7deef7184574fc060ab8a793e7adbb183d942c389c8b13c52fb"},
     {file = "distlib-0.3.1.zip", hash = "sha256:edf6116872c863e1aa9d5bb7cb5e05a022c519a4594dc703843343a9ddd9bff1"},
-]
-dotmap = [
-    {file = "dotmap-1.3.23-py3-none-any.whl", hash = "sha256:88270f02a34f42af6f760de8fa9b7080156d118bb9e252508f30633d4f21ce51"},
-    {file = "dotmap-1.3.23.tar.gz", hash = "sha256:6aaeb51052a465a5aeff47d975d12802fc5d613674fb78b2ebf09ff5ff44c843"},
 ]
 editorconfig-checker = [
     {file = "editorconfig-checker-2.3.5.tar.gz", hash = "sha256:7274ea19a047bf3f64ae7f29800781015e58ca201267c1338ad078d9120c5eec"},

@@ -1,16 +1,14 @@
-from typing import TYPE_CHECKING, List, Optional, Union
+from typing import TYPE_CHECKING, List, Optional, Tuple, Union
 
-import os
-from datetime import datetime
-
-from machinable.collection.execution import ExecutionCollection
 from machinable.component import compact
-from machinable.element import Connectable, Element, has_many
+from machinable.element import Connectable, Element
+from machinable.grouping import Grouping
+from machinable.project import Project
 from machinable.settings import get_settings
-from machinable.types import Version
+from machinable.storage.storage import Storage
+from machinable.types import VersionType
 
 if TYPE_CHECKING:
-    from machinable import Storage
     from machinable.execution import Execution
 
 
@@ -18,17 +16,19 @@ class Repository(Connectable, Element):
     """Repository base class"""
 
     def __init__(
-        self, storage: Union[str, None] = None, version: Version = None
+        self,
+        storage: Union[str, None] = None,
+        version: VersionType = None,
+        default_grouping: Optional[str] = "%y_%U_%a",
     ):
         super().__init__()
         if storage is None:
-            from machinable import Storage
-
             storage = Storage.default or get_settings().default_storage
         self._storage = compact(storage, version)
         self._resolved_storage = Optional[Storage]
+        self._default_grouping = default_grouping
 
-    def storage(self, reload: bool = False) -> "Storage":
+    def storage(self, reload: bool = False) -> Storage:
         """Resolves and returns the storage instance"""
         if self._resolved_storage is None or reload:
             self._resolved_storage = Storage.make(
@@ -37,23 +37,34 @@ class Repository(Connectable, Element):
 
         return self._resolved_storage
 
-    def commit(self, execution: "Execution"):
+    def commit(
+        self, execution: "Execution", grouping: Optional[str] = None
+    ) -> bool:
         if execution.is_mounted():
-            raise NotImplementedError  # todo: handle duplicates
+            return False
+
+        if grouping is None:
+            grouping = self._default_grouping
+
+        grouping = Grouping(grouping)
+
+        grouping_model = grouping.to_model()
+        execution_model = execution.to_model()
+        experiment_models = [
+            experiment.to_model() for experiment in execution.experiments
+        ]
 
         self.storage().create_execution(
-            # todo: host_info, code_version, code_diff, seed
-            execution=self.to_model(),
-            experiments=[
-                experiment.to_model() for experiment in self._experiments
-            ],
+            project=Project.get().to_model(),
+            execution=execution.to_model(),
+            experiments=experiment_models,
+            grouping=grouping_model,
         )
 
-        self.__related__["executions"] = execution
-        execution.__related__["repository"] = self
+        grouping.mount(grouping_model)
+        execution.mount(execution_model)
 
-    @has_many
-    def executions() -> ExecutionCollection:
-        from machinable.execution import Execution
+        # set relations
+        execution.__related__["grouping"] = grouping
 
-        return Execution, ExecutionCollection
+        return True
