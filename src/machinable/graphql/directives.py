@@ -2,14 +2,10 @@ import json
 
 from ariadne import SchemaDirectiveVisitor
 from graphql import default_field_resolver
-from machinable.config.mapping import ConfigMap
-from machinable.utils.dicts import serialize
+from machinable.utils import serialize
 
 
 def as_json(obj):
-    if isinstance(obj, ConfigMap):
-        obj = obj.as_dict(evaluate=True)
-
     return json.dumps(obj, default=serialize)
 
 

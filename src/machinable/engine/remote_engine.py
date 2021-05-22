@@ -3,9 +3,7 @@ import json
 import os
 
 import machinable.errors
-import sh
 from machinable.engine import Engine
-from machinable.utils.dicts import update_dict
 
 
 class RemoteEngine(Engine):

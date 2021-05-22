@@ -3,8 +3,8 @@ import os
 import stat
 
 import arrow
+import commandlib
 import machinable.errors
-import sh
 from machinable.engine.engine import Engine
 from machinable.utils import call_with_context
 
@@ -67,11 +67,18 @@ class SlurmEngine(Engine):
         }
 
     def _dispatch(self, execution):
+        sbatch = commandlib.Command("sbatch")
+
         url = os.path.join(
             execution.storage.config["url"],
             execution.storage.config["directory"] or "",
             execution.submission_id,
         )
+
+        if url.startswith("ssh://"):
+            local_url = url.replace(url.rsplit(":/", maxsplit=1)[0] + ":", "")
+        else:
+            local_url = url.split("://")[-1]
 
         # script path
         script_path = "engine/slurm_" + arrow.now().strftime(
@@ -113,12 +120,28 @@ class SlurmEngine(Engine):
                 url.replace("osfs://", ""), component_id
             )
             os.makedirs(component_path, exist_ok=True)
+
             script = f"{self.shebang}\n"
-            script += f'#SBATCH --job-name="{execution.submission_id}:{component_id}"\n'
-            script += (
-                f"#SBATCH -o {os.path.join(component_path,  'output.log')}\n"
-            )
-            script += "#SBATCH --open-mode=append\n"
+
+            canonical_resources = self.canonicalize_resources(resources)
+            if "--job-name" not in canonical_resources:
+                canonical_resources[
+                    "--job-name"
+                ] = f"{execution.submission_id}:{component_id}"
+            if "--output" not in canonical_resources:
+                canonical_resources["--output"] = os.path.join(
+                    local_url, component_id, "output.log"
+                )
+            if "--open-mode" not in canonical_resources:
+                canonical_resources["--open-mode"] = "append"
+            sbatch_arguments = []
+            for k, v in canonical_resources.items():
+                line = "#SBATCH " + k
+                if v not in [None, True]:
+                    line += f"={v}"
+                sbatch_arguments.append(line)
+            script += "\n".join(sbatch_arguments) + "\n"
+
             script += _wrap(
                 call_with_context(
                     self.before_script,
@@ -168,37 +191,26 @@ class SlurmEngine(Engine):
 
             # submit to slurm
             try:
-                sbatch_arguments = []
-                canonical_resources = self.canonicalize_resources(resources)
-                for k, v in canonical_resources.items():
-                    sbatch_arguments.append(k)
-                    if v not in [None, True]:
-                        sbatch_arguments.append(str(v))
-                sbatch_arguments.append(target)
-                p = sh.sbatch(*sbatch_arguments)
-                output = p.stdout.decode("utf-8")
+                output = sbatch.piped.from_string(script).output().strip()
                 try:
                     job_id = int(output.rsplit(" ", maxsplit=1)[-1])
                 except ValueError:
                     job_id = False
                 info = {
                     "job_id": job_id,
-                    "cmd": "sbatch " + " ".join(sbatch_arguments),
-                    "script": target,
+                    "cmd": sbatch_arguments,
+                    "script": script_url,
                     "resources": canonical_resources,
                 }
                 execution.set_result(info, echo=False)
                 execution.storage.save_file(
                     f"{component_id}/engine/slurm.json", info
                 )
-            except Exception as ex:
-                if isinstance(ex, sh.ErrorReturnCode):
-                    message = ex.stderr.decode("utf-8")
-                else:
-                    message = str(ex)
+                print(output)
+            except commandlib.exceptions.CommandExitError as _exception:
                 execution.set_result(
-                    machinable.errors.ExecutionFailed(
-                        message, reason="engine_failure"
+                    ExecutionException(
+                        exception_to_str(_exception), reason="engine_failure"
                     ),
                     echo=True,
                 )

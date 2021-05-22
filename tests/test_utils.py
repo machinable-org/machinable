@@ -152,7 +152,7 @@ def test_git_utils(tmp_path):
 
     # get_diff
     assert utils.get_diff(str(tmp_path)) is None
-    assert utils.get_diff(repo_dir) is None
+    assert utils.get_diff(repo_dir) == ""
 
     with open(os.path.join(repo_dir, "test"), "w") as f:
         f.write("some test data")
