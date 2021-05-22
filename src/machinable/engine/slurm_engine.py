@@ -6,8 +6,7 @@ import arrow
 import machinable.errors
 import sh
 from machinable.engine.engine import Engine
-from machinable.utils.formatting import exception_to_str
-from machinable.utils.utils import call_with_context
+from machinable.utils import call_with_context
 
 
 def _wrap(line):
@@ -196,7 +195,7 @@ class SlurmEngine(Engine):
                 if isinstance(ex, sh.ErrorReturnCode):
                     message = ex.stderr.decode("utf-8")
                 else:
-                    message = exception_to_str(ex)
+                    message = str(ex)
                 execution.set_result(
                     machinable.errors.ExecutionFailed(
                         message, reason="engine_failure"

@@ -4,9 +4,6 @@ import os
 import machinable.errors
 import ray
 from machinable.engine import Engine
-from machinable.utils.dicts import update_dict
-from machinable.utils.formatting import exception_to_str
-from machinable.utils.importing import ModuleClass
 from ray.exceptions import RayActorError
 
 
@@ -29,7 +26,7 @@ class RayEngine(Engine):
             except RayActorError as ex:
                 result = machinable.errors.ExecutionFailed(
                     reason="exception",
-                    message=f"The following exception occurred: {ex}\n{exception_to_str(ex)}",
+                    message=f"The following exception occurred: {ex}\n{str(ex)}",
                 )
                 raise ex
 

@@ -17,7 +17,7 @@ class Engine(Component):
 
         if not self.engine.supports_resources():
             if resources is not None:
-                msg(
+                print(
                     "Engine does not support resource specification. Skipping ...",
                     level="warn",
                     color="header",
@@ -91,7 +91,7 @@ class Engine(Component):
         pass
 
     def log(self, text, level="info"):
-        msg("[Engine] " + text, level, color="header")
+        print("[Engine] " + text, level, color="header")
 
     def __str__(self):
         return self.__repr__()

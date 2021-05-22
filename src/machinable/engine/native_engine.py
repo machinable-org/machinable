@@ -1,11 +1,9 @@
 import os
 from multiprocessing import Pool
 
-import machinable.errors
 from machinable.engine import Engine
 from machinable.registration import Registration
-from machinable.utils.formatting import exception_to_str
-from machinable.utils.utils import call_with_context
+from machinable.utils import call_with_context
 
 
 class NativeEngine(Engine):
@@ -51,7 +49,7 @@ class NativeEngine(Engine):
             # execution.set_result(
             #     ExecutionException(
             #         reason="exception",
-            #         message=f"The following exception occurred: {e}\n{exception_to_str(e)}",
+            #         message=f"The following exception occurred: {e}\n{str(e)}",
             #     ),
             #     0,
             # )
@@ -92,7 +90,7 @@ class NativeEngine(Engine):
             except TypeError as e:
                 return machinabe.errors.ExecutionFailed(
                     reason="exception",
-                    message=f"Could not apply environment variables: {e}\n{exception_to_str(e)}",
+                    message=f"Could not apply environment variables: {e}\n{str(e)}",
                 )
 
         nd = component["class"](component["config"], component["flags"])

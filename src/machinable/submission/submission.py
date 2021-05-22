@@ -8,7 +8,7 @@ from machinable.config.mapping import config_map
 from machinable.filesystem import parse_storage_url
 from machinable.submission.models import SubmissionModel
 from machinable.submission.views.views import get as get_view
-from machinable.utils.utils import sentinel
+from machinable.utils import sentinel
 
 
 class Submission:
