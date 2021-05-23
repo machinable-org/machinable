@@ -1,8 +1,15 @@
+from typing import Any, Optional
+
 from machinable.component import Component
 
 
 class Storage(Component):
     """Storage base class"""
+
+    def retrieve_file(
+        experiment_storage_id: str, filepath: str
+    ) -> Optional[Any]:
+        raise NotImplementedError
 
     @classmethod
     def multiple(cls, *storages) -> "Storage":

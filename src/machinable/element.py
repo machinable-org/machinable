@@ -1,7 +1,8 @@
-from typing import Any, Callable, Optional
+from typing import Any, Callable, List, Optional
 
 from functools import wraps
 
+import arrow
 from machinable import schema
 from machinable.collection import Collection
 from machinable.utils import Jsonable
@@ -94,6 +95,7 @@ class Element(Jsonable):
         super().__init__()
         self.__model__ = None
         self.__related__ = {}
+        self._cache = {}
 
     def is_mounted(self):
         return self.__model__ is not None
@@ -120,10 +122,21 @@ class Element(Jsonable):
         raise NotImplementedError
 
     @classmethod
-    def find(cls, element_id):
+    def find(cls, element_id: str) -> "Element":
         from machinable.repository import Repository
 
         return Repository.get().storage().find(cls.__name__, element_id)
+
+    @classmethod
+    def find_many(cls, elements: List[str]) -> "Collection":
+        return cls.collect([cls.find(element_id) for element_id in elements])
+
+    def find_latest(self, limit=10, since=None):
+        if since is None:
+            condition = {"<=": arrow.now()}
+        else:
+            condition = {">": since}
+        raise NotImplementedError
 
     @classmethod
     def collect(cls, elements) -> Collection:
