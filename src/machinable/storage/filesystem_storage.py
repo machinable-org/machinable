@@ -1,16 +1,56 @@
-from typing import List, Optional, Tuple
+from typing import Any, List, Optional
 
 import os
 
 import arrow
-from machinable import schema
+from machinable import schema, storage
 from machinable.storage.storage import Storage
-from machinable.utils import load_file, sanitize_path, save_file
+from machinable.utils import load_file, save_file
 
 
 class FilesystemStorage(Storage):
     def path(self, *append):
         return os.path.join(os.path.abspath(self.config.path), *append)
+
+    def retrieve_file(self, filepath: str, reload=None):
+        """Returns the content of a file in the submission's storage
+
+        # Arguments
+        filepath: Relative filepath
+        default: Optional default if file does not exist
+        reload: If True, cache will be ignored. If datetime, file will be reloaded
+                if cached version is older than the date
+        """
+        if reload is None:
+            finished_at = self.finished_at
+            if finished_at is False:
+                reload = True
+            else:
+                reload = finished_at
+
+        if "_files" not in self._cache:
+            self._cache["_files"] = {}
+
+        if isinstance(reload, pendulum.DateTime):
+            try:
+                loaded_at = self._cache["_files"][filepath]["loaded_at"]
+                # buffer reloading by 1 second
+                reload = reload >= loaded_at.add(seconds=1)
+            except KeyError:
+                reload = True
+
+        if filepath not in self._cache or reload:
+            try:
+                self._cache[filepath] = self._model.file(filepath)
+                if filepath not in self._cache["_files"]:
+                    self._cache["_files"][filepath] = {}
+                self._cache["_files"][filepath]["loaded_at"] = arrow.now()
+            except FileNotFoundError:
+                if default is not sentinel:
+                    return default
+                raise
+
+        return self._cache[filepath]
 
     def retrieve_related(self, relation: str, model: schema.Model):
         # todo: check that model belongs to this storage via type identifier
@@ -91,32 +131,14 @@ class FilesystemStorage(Storage):
         experiments: List[schema.Experiment],
         grouping: Optional[schema.Grouping],
     ) -> str:
-        timestamp = int(execution.timestamp)
-        timestr = arrow.get(timestamp).format(arrow.FORMAT_RFC3339)
-
-        # todo: create repo if not existing
-
         primary_directory = None
         for i, experiment in enumerate(experiments):
-            # write experiment
-            directory = self.path(
-                sanitize_path(grouping.resolved_group),
-                f"{experiment.experiment_id}-{timestr}",
+            self.create_experiment(
+                experiment=experiment, execution=execution, grouping=grouping
             )
-
-            # TODO: refactor into own method such that storage_id, storage_instance is set automatically
-
-            # save experiment
-            save_file(
-                os.path.join(directory, "experiment.json"),
-                experiment.dict(),
-                makedirs=True,
+            execution_directory = os.path.join(
+                experiment._storage_id, "execution"
             )
-            save_file(os.path.join(directory, "started_at"), arrow.now())
-            experiment._storage_id = directory
-            experiment._storage_instance = self
-
-            execution_directory = os.path.join(directory, "execution")
             if i == 0:
                 # create primary directory
                 primary_directory = execution_directory
@@ -128,14 +150,13 @@ class FilesystemStorage(Storage):
                     execution_directory,
                     target_is_directory=True,
                 )
-
         # write execution data
         save_file(
-            os.path.join(directory, "execution", "execution.json"),
+            os.path.join(execution_directory, "execution.json"),
             {
                 **execution.dict(),
                 "_related_experiments": [
-                    f"../../{experiment.experiment_id}-{timestr}"
+                    f"../../{os.path.basename(experiment._storage_id)}"
                     for experiment in experiments
                 ],
             },
@@ -143,6 +164,57 @@ class FilesystemStorage(Storage):
 
         # todo: commit to database
         return primary_directory
+
+    def create_experiment(
+        self,
+        experiment: schema.Experiment,
+        execution: schema.Execution,
+        grouping: schema.Grouping,
+    ) -> schema.Experiment:
+        storage_id = self._create_experiment(experiment, execution, grouping)
+
+        experiment._storage_id = storage_id
+        experiment._storage_instance = self
+
+        return experiment
+
+    def _create_experiment(
+        self,
+        experiment: schema.Experiment,
+        execution: schema.Execution,
+        grouping: schema.Grouping,
+    ) -> str:
+        grouping = self.create_grouping(grouping)
+
+        path, prefix = os.path.split(grouping._storage_id)
+
+        timestamp = int(execution.timestamp)
+
+        storage_id = self.path(
+            path,
+            f"{prefix}-{experiment.experiment_id}-{arrow.get(timestamp)}",
+        )
+
+        save_file(
+            os.path.join(storage_id, "experiment.json"),
+            experiment.dict(),
+            makedirs=True,
+        )
+
+        return storage_id
+
+    def create_grouping(self, grouping: schema.Grouping) -> schema.Grouping:
+        storage_id = self._create_grouping(grouping)
+
+        grouping._storage_id = storage_id
+        grouping._storage_instance = self
+
+        return grouping
+
+    def _create_grouping(self, grouping: schema.Grouping) -> str:
+        # directory is created implicitly during experiment creation
+        # so we just return the resolved group
+        return grouping.resolved_group
 
     def find_experiment(
         self, experiment_id: str, timestamp: float = None
@@ -158,7 +230,10 @@ class FilesystemStorage(Storage):
         return None
 
     def update_heartbeat(
-        self, storage_id: str, mark_finished=False, timestamp=None
+        self,
+        storage_id: str,
+        mark_finished=False,
+        timestamp: Optional[float] = None,
     ) -> arrow.Arrow:
         if timestamp is None:
             timestamp = arrow.now()
@@ -166,6 +241,18 @@ class FilesystemStorage(Storage):
         if mark_finished:
             save_file(os.path.join(storage_id, "finished_at"), timestamp)
         return timestamp
+
+    def mark_started(
+        self, storage_id: str, timestamp: Optional[float] = None
+    ) -> float:
+        if timestamp is None:
+            timestamp = arrow.now()
+        save_file(os.path.join(storage_id, "started_at"), timestamp)
+
+    def retrieve_status(
+        self,
+    ):
+        pass
 
     def retrieve_execution(self, storage_id: str) -> schema.Execution:
         execution = self._retrieve_execution(storage_id)
