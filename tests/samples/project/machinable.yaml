@@ -71,6 +71,5 @@ components:components:
       flat:
         nested: False
       flat.version: 2
-interfaces:interfaces:
-  uses_default_module:
-    works: True
+interfaces:
+  execution.basics:

@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Any, List, Optional, Union
+from typing import TYPE_CHECKING, Any, List, Optional, Union, Dict
 
 from machinable import schema
 from machinable.component import compact
@@ -29,8 +29,8 @@ class Experiment(Element):
         self._interface = compact(interface, version)
         self._resolved_interface: Optional[Interface] = None
 
-        self._components: List[List[Union[str, dict]]] = []
-        self._resolved_components: List["Component"] = []
+        self._components: Dict[str, List[Union[str, dict]]] = {}
+        self._resolved_components: Dict[str, "Component"] = {}
         self._experiment_id = encode_experiment_id(generate_experiment_id())
         self._resources: Optional[dict] = None
         self._seed: Optional[int] = None
@@ -42,13 +42,21 @@ class Experiment(Element):
             experiment_id=self._experiment_id,
             resources=self._resources,
             seed=self._seed,
-            components=[
-                (component, dict(resolved_component.config.copy()))
-                for component, resolved_component in zip(
-                    self._components, self.components()
+            components={
+                slot: (
+                    self._components[slot],
+                    dict(self.components()[slot].config.copy()),
                 )
-            ],
+                for slot in self._components
+            },
         )
+
+    @property
+    def seed(self):
+        if self.is_mounted():
+            return self.__model__.seed
+
+        return self._seed
 
     @classmethod
     def from_model(cls, model: schema.Experiment) -> "Experiment":
@@ -63,13 +71,19 @@ class Experiment(Element):
         self.__model__.config = OmegaConf.create(self.__model__.config)
         OmegaConf.set_readonly(self.__model__.config, True)
 
-    def components(self, reload: bool = False) -> List["Component"]:
+    def components(self, reload: bool = False) -> Dict[str, "Component"]:
         if reload:
-            self._resolved_components = []
-        for component in self._components[len(self._resolved_components) :]:
-            self._resolved_components.append(
-                Project.get_component(component[0], component[1:])
-            )
+            self._resolved_components = {}
+        if len(self._components) == len(self._resolved_components):
+            return self._resolved_components
+
+        for slot, component in self._components.items():
+            if slot not in self._resolved_components:
+                self._resolved_components[slot] = Project.get_component(
+                    component[0], component[1:]
+                )
+
+        return self._resolved_components
 
     def interface(self, reload: bool = False) -> Interface:
         """Resolves and returns the interface instance"""
@@ -97,16 +111,21 @@ class Experiment(Element):
 
         return self
 
-    def use(self, component: str, version: VersionType = None) -> "Experiment":
+    def use(
+        self, slot: str, component: str, version: VersionType = None, **uses
+    ) -> "Experiment":
         """Adds a component
 
         # Arguments
+        slot: The slot name
         component: The name of the component as defined in the machinable.yaml
-        config: Configuration to override the default config
+        version: Configuration to override the default config
         """
-        # todo: if mounted has to derive automatically
-
-        self._components.append(compact(component, version))
+        for key, payload in uses.items():
+            self.use(key, payload)
+        # todo: if mounted has to derive automatically or error
+        # TODO: inspect on_init signature of the interface to detect non existing slots early
+        self._components[slot] = compact(component, version)
 
         return self
 

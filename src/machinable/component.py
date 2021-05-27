@@ -4,11 +4,11 @@ import copy
 import re
 
 from machinable.errors import ConfigurationError
-from machinable.settings import get_settings
 from machinable.types import ComponentType, VersionType
 from machinable.utils import Jsonable, unflatten_dict, update_dict
 from omegaconf import DictConfig, OmegaConf
-from pydantic import BaseModel
+from pydantic.dataclasses import dataclass
+from dataclasses import asdict
 
 CORE_COMPONENTS = [
     ("engines", "machinable.engine.native_engine", "native"),
@@ -249,13 +249,9 @@ class Component(Jsonable):
 
             # parse config if config class is available
             if hasattr(self.__class__, "Config"):
-                schema = type(
-                    self.__class__.__name__ + "ConfigSchema",
-                    (getattr(self.__class__, "Config", None), BaseModel),
-                    {},
-                )
+                schema = dataclass(getattr(self.__class__, "Config"))
                 config = OmegaConf.create(
-                    dict(schema(**OmegaConf.to_container(config)))
+                    asdict(schema(**OmegaConf.to_container(config)))
                 )
                 # todo: verify that config model has not added any values
                 # that are not defined in the machinable.yaml
