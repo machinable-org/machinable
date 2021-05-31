@@ -32,7 +32,7 @@ flatten-dict = "^0.4"
 jsonlines = "^2.0"
 pydantic = "^1.8.1"
 arrow = "^1.0.3"
-importlib-metadata = "^4.0.1"
+importlib-metadata = "^4.3.1"
 PyYAML = "^5.4.1"
 commandlib = "^0.3.5"
 omegaconf = {version = "2.1.0.rc1", allow-prereleases = true}
