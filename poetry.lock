@@ -404,7 +404,7 @@ python-versions = ">=3.6"
 
 [[package]]
 name = "hypothesis"
-version = "6.13.1"
+version = "6.13.10"
 description = "A library for property-based testing"
 category = "dev"
 optional = false
@@ -1192,7 +1192,7 @@ server = ["ariadne", "uvicorn"]
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.6.1"
-content-hash = "8cbd6b238b592d3291b0c6087a50edf42fe8629f6a8b0279637f7bd52551b4ab"
+content-hash = "85bf8f4f35d1ff5fde3042289d289f675402e95f6a4a870aef5df6cec471ae38"
 
 [metadata.files]
 aiohttp = [
@@ -1505,8 +1505,8 @@ hiredis = [
     {file = "hiredis-2.0.0.tar.gz", hash = "sha256:81d6d8e39695f2c37954d1011c0480ef7cf444d4e3ae24bc5e89ee5de360139a"},
 ]
 hypothesis = [
-    {file = "hypothesis-6.13.1-py3-none-any.whl", hash = "sha256:c703a8c274ce72f0bf87a2a1e2c24c41087ede2c4a340b9396bace758e4062fb"},
-    {file = "hypothesis-6.13.1.tar.gz", hash = "sha256:074e27e514b305ba0b0c6bc0037faad1abbe2ea641ab4a8ec90e12a5e3238009"},
+    {file = "hypothesis-6.13.10-py3-none-any.whl", hash = "sha256:d3038cb55263cc31e42cd79d98197d16b74cff28a3b8c0f41ccda30fdabf0752"},
+    {file = "hypothesis-6.13.10.tar.gz", hash = "sha256:f431ec921d4d1eb1c0fd8e59e64452158e8587342c3841a39d24bb1e5788a7fd"},
 ]
 identify = [
     {file = "identify-2.2.5-py2.py3-none-any.whl", hash = "sha256:9c3ab58543c03bd794a1735e4552ef6dec49ec32053278130d525f0982447d47"},
