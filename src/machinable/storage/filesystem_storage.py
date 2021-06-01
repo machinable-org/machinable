@@ -9,10 +9,13 @@ from machinable.utils import load_file, save_file
 
 
 class FilesystemStorage(Storage):
-    def path(self, *append):
+    def path(self, *append: str) -> str:
         return os.path.join(os.path.abspath(self.config.path), *append)
 
-    def retrieve_file(self, filepath: str, reload=None):
+    def local_directory(experiment_storage_id: str, *append: str):
+        return os.path.join(experiment_storage_id, *append)
+
+    def retrieve_file(self, filepath: str, reload=None) -> Any:
         """Returns the content of a file in the submission's storage
 
         # Arguments

@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Any, List, Optional, Union, Dict
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
 
 from machinable import schema
 from machinable.component import compact
@@ -149,6 +149,17 @@ class Experiment(Element):
 
         return self.__model__.experiment_id
 
+    def local_directory(self, *append: str) -> Optional[str]:
+        if not self.is_mounted():
+            return None
+
+        if self.__model__._storage_instance is None:
+            return None
+
+        return self.__model__._storage_instance.local_directory(
+            self.__model__._storage_id, **append
+        )
+
     def records(self, scope="default") -> "RecordCollection":
         pass
 
@@ -233,6 +244,9 @@ class Experiment(Element):
     def ancestor(self):
         """Returns parent experiment or None if experiment is independent"""
         raise NotImplementedError
+
+    def serialize(self) -> dict:
+        return {}
 
     def __str__(self):
         return f"Experiment() [{self._experiment_id}]"

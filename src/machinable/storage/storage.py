@@ -11,6 +11,9 @@ class Storage(Component):
     ) -> Optional[Any]:
         raise NotImplementedError
 
+    def local_directory(experiment_storage_id: str, *append: str):
+        raise NotImplementedError
+
     @classmethod
     def multiple(cls, *storages) -> "Storage":
         if len(storages) == 1:

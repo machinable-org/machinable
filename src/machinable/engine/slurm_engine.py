@@ -1,12 +1,10 @@
-import json
-import os
-import stat
+from typing import Optional
 
-import arrow
 import commandlib
-import machinable.errors
+from machinable import errors
 from machinable.engine.engine import Engine
-from machinable.utils import call_with_context
+from machinable.execution import Execution
+from machinable.experiment import Experiment
 
 
 def _wrap(line):
@@ -18,122 +16,31 @@ def _wrap(line):
 
 
 class SlurmEngine(Engine):
-    def __init__(
-        self, commands=None, python="python", shebang="#!/usr/bin/env bash"
-    ):
-        self.commands = self._parse_commands(commands)
-        self.python = python
-        self.shebang = shebang
+    class Config:
+        python: str = "python"
+        shebang: str = "#!/usr/bin/env bash"
 
-    def _parse_commands(self, commands):
-        if isinstance(commands, (str, list, tuple)):
-            commands = {"script": commands}
-        elif commands is None:
-            commands = {}
-
-        if not isinstance(commands, dict):
-            raise ValueError(f"Invalid command specification: {commands}")
-
-        parsed = {}
-        events = [
-            "before_script",
-            "after_script",
-        ]
-        for key, command in commands.items():
-            if key not in events:
-                raise ValueError(
-                    f"Invalid command event: {key}. Available events: {events}"
-                )
-
-            if isinstance(command, (list, tuple)):
-                command = ";\n".join(command)
-
-            if command is None or command.strip() == "":
-                continue
-
-            if command.endswith(";"):
-                command = command[:-1]
-
-            parsed[key] = command
-
-        return parsed
-
-    def serialize(self):
-        return {
-            "type": "slurm",
-            "commands": self.commands,
-            "python": self.python,
-            "shebang": self.shebang,
-        }
-
-    def _dispatch(self, execution):
+    def _dispatch(self, execution: Execution):
         sbatch = commandlib.Command("sbatch")
 
-        url = os.path.join(
-            execution.storage.config["url"],
-            execution.storage.config["directory"] or "",
-            execution.submission_id,
-        )
+        results = []
+        for experiment in execution.experiments:
+            script = f"{self.config.shebang}\n"
 
-        if url.startswith("ssh://"):
-            local_url = url.replace(url.rsplit(":/", maxsplit=1)[0] + ":", "")
-        else:
-            local_url = url.split("://")[-1]
-
-        # script path
-        script_path = "engine/slurm_" + arrow.now().strftime(
-            "%d-%m-%Y_%H-%M-%S"
-        )
-        with open_fs(url) as filesystem:
-            filesystem.makedirs(script_path, recreate=True)
-        script_url = os.path.join(url, script_path)
-
-        # submission
-        project = json.dumps(execution.project.options).replace('"', '\\"')
-        code = f"""
-        import machinable as ml
-        e = ml.Execution.from_storage('{abspath(url)}')
-        e.set_engine('native')
-        e.set_storage({execution.storage.config})
-        e.set_project(ml.Project.from_json('{project}'))
-        e.filter(lambda i, component, _: component == '$COMPONENT_ID')
-        e.submit()
-        """.replace(
-            "\n        ", ";"
-        )[
-            1:-1
-        ]
-        submission = f'cd {execution.project.directory_path};\n{self.python} -c "{code};"\n'
-
-        for (
-            index,
-            execution_type,
-            component,
-            components,
-            storage,
-            resources,
-            args,
-            kwargs,
-        ) in execution.schedule.iterate(execution.storage.config):
-            component_id = component["flags"]["COMPONENT_ID"]
-            component_path = os.path.join(
-                url.replace("osfs://", ""), component_id
+            canonical_resources = self.canonicalize_resources(
+                experiment._resources
             )
-            os.makedirs(component_path, exist_ok=True)
-
-            script = f"{self.shebang}\n"
-
-            canonical_resources = self.canonicalize_resources(resources)
             if "--job-name" not in canonical_resources:
                 canonical_resources[
                     "--job-name"
-                ] = f"{execution.submission_id}:{component_id}"
+                ] = f"{experiment._experiment_id}"
             if "--output" not in canonical_resources:
-                canonical_resources["--output"] = os.path.join(
-                    local_url, component_id, "output.log"
+                canonical_resources["--output"] = experiment.local_directory(
+                    "output.log"
                 )
             if "--open-mode" not in canonical_resources:
                 canonical_resources["--open-mode"] = "append"
+
             sbatch_arguments = []
             for k, v in canonical_resources.items():
                 line = "#SBATCH " + k
@@ -142,52 +49,11 @@ class SlurmEngine(Engine):
                 sbatch_arguments.append(line)
             script += "\n".join(sbatch_arguments) + "\n"
 
-            script += _wrap(
-                call_with_context(
-                    self.before_script,
-                    execution=execution,
-                    index=index,
-                    execution_type=execution_type,
-                    component=component,
-                    components=components,
-                    config=component.config,
-                    flags=component.flags,
-                    storage=storage,
-                    resources=resources,
-                    args=args,
-                    kwargs=kwargs,
-                )
-            )
-            script += submission.replace("$COMPONENT_ID", component_id)
-            script += _wrap(
-                call_with_context(
-                    self.after_script,
-                    execution=execution,
-                    index=index,
-                    execution_type=execution_type,
-                    component=_c,
-                    components=_cc,
-                    config=_c.config,
-                    flags=_c.flags,
-                    storage=storage,
-                    resources=resources,
-                    args=args,
-                    kwargs=kwargs,
-                )
-            )
+            script += _wrap(self.before_script(experiment))
 
-            # write script to disk
-            target = os.path.join(
-                script_url.replace("osfs://", ""), f"{component_id}.sh"
-            )
+            script += _wrap(self.script(experiment))
 
-            if target.find("://") != -1:
-                raise ValueError("Slurm engine only supports local storages")
-
-            with open(target, "w") as f:
-                f.write(script)
-            st = os.stat(target)
-            os.chmod(target, st.st_mode | stat.S_IEXEC)
+            script += _wrap(self.after_script(experiment))
 
             # submit to slurm
             try:
@@ -199,50 +65,39 @@ class SlurmEngine(Engine):
                 info = {
                     "job_id": job_id,
                     "cmd": sbatch_arguments,
-                    "script": script_url,
+                    "script": script,
                     "resources": canonical_resources,
                 }
-                execution.set_result(info, echo=False)
-                execution.storage.save_file(
-                    f"{component_id}/engine/slurm.json", info
-                )
+                experiment.save_file(f"slurm.json", info)
                 print(output)
+            except FileNotFoundError as _exception:
+                raise errors.ExecutionFailed(
+                    "Slurm sbatch not found."
+                ) from _exception
             except commandlib.exceptions.CommandExitError as _exception:
-                execution.set_result(
-                    ExecutionException(
-                        exception_to_str(_exception), reason="engine_failure"
-                    ),
-                    echo=True,
-                )
+                raise errors.ExecutionFailed(
+                    "Could not submit job to Slurm"
+                ) from _exception
 
-        total = len(execution.schedule._result)
-        success = len(execution.schedule._result) - execution.failures
-        self.log(f"Submitted {success}/{total} jobs successfully")
+    def before_script(self, experiment: Experiment) -> Optional[str]:
+        """"""
 
-        return execution
+    def script(self, experiment: Experiment) -> Optional[str]:
+        return f'{self.config.python} -c "{self.code(experiment)}"'
 
-    def before_script(self) -> str:
-        if "before_script" not in self.commands:
-            return ""
-        return self.commands["before_script"] + ";"
+    def code(self, experiment: Experiment) -> Optional[str]:
+        return f"""
+        from machinable import Experiment
+        experiment = Experiment.from_json('{experiment.as_json()}')
+        experiment.interface().dispatch(experiment)
+        """.replace(
+            "\n        ", ";"
+        )[
+            1:-1
+        ]
 
-    def after_script(self) -> str:
-        if "after_script" not in self.commands:
-            return ""
-        return self.commands["after_script"] + ";"
-
-    def on_before_storage_creation(self, execution):
-        if execution.storage.config.get("url", "mem://").startswith("mem://"):
-            raise ValueError(
-                "Remote engine does not support temporary file systems"
-            )
-
-        # disable output redirection and rely on Slurm output log instead
-        def disable_output_redirection(i, component, element):
-            element[1]["flags"]["OUTPUT_REDIRECTION"] = "DISABLED"
-            return element
-
-        execution.schedule.transform(disable_output_redirection)
+    def after_script(self, experiment: Experiment) -> Optional[str]:
+        """"""
 
     def canonicalize_resources(self, resources):
         if resources is None:
@@ -286,9 +141,9 @@ class SlurmEngine(Engine):
         canonicalized = {}
         for k, v in resources.items():
             prefix = ""
-            if k.startswith("-/"):
-                prefix = "-/"
-                k = k[2:]
+            if k.startswith("#"):
+                prefix = "#"
+                k = k[1:]
 
             if k.startswith("--"):
                 # already correct

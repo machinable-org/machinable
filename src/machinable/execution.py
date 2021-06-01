@@ -20,6 +20,7 @@ from machinable.utils import generate_nickname, generate_seed, update_dict
 class Execution(Element):
     def __init__(
         self,
+        experiment: Union[Experiment, List[Experiment]],
         engine: Union[str, None] = None,
         version: VersionType = None,
         seed: Union[int, None] = None,
@@ -32,6 +33,7 @@ class Execution(Element):
         self._seed = generate_seed(seed)
         self._nickname = generate_nickname()
         self._timestamp = dt.now().timestamp()
+        self.add_experiment(experiment)
 
     def to_model(self) -> schema.Execution:
         return schema.Execution(
@@ -59,7 +61,7 @@ class Execution(Element):
 
         return self._resolved_engine
 
-    def add(
+    def add_experiment(
         self,
         experiment: Union[Experiment, List[Experiment]],
         resources: Union[
@@ -157,12 +159,7 @@ class Execution(Element):
         # user can specify overrides, otherwise it copies all objects over
 
     def serialize(self):
-        return {
-            "engine": self._engine,
-            "nickname": self._nickname,
-            "seed": self._seed,
-            "timestamp": self._timestamp,
-        }
+        return {}
 
     @classmethod
     def unserialize(cls, serialized):

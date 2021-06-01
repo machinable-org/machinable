@@ -8,7 +8,7 @@ from pydantic import BaseModel
 
 
 class Settings(BaseModel):
-    default_engine: List[Union[str, dict]] = ["machinable.engine.native_engine"]
+    default_engine: List[Union[str, dict]] = ["machinable.engine.local_engine"]
     default_storage: List[Union[str, dict]] = [
         "machinable.storage.filesystem_storage",
         {"directory": "./storage"},

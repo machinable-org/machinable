@@ -1,11 +1,12 @@
-from typing import TYPE_CHECKING, Optional, Union, Dict, Any
-from machinable import errors
+from typing import TYPE_CHECKING, Any, Dict, Optional, Union
 
+from functools import partial
+
+from machinable import errors
 from machinable.component import Component
 from machinable.storage.storage import Storage
 from machinable.types import VersionType
 from machinable.utils import Events, apply_seed
-from functools import partial
 
 if TYPE_CHECKING:
     from machinable.engine.engine import Engine
@@ -28,11 +29,15 @@ class Interface(Component):  # pylint: disable=too-many-public-methods
     def default_resources(self, engine: "Engine") -> Optional[dict]:
         """Default resources"""
 
-    def dispatch(self, experiment: "Experiment"):
+    def dispatch(
+        self, experiment: "Experiment", storage: Optional[Storage] = None
+    ):
         """Execute the interface lifecycle"""
+        if storage is None and experiment.is_mounted():
+            storage = experiment.__model__._storage_instance
+
         self._experiment = experiment
-        if experiment.is_mounted():
-            self._storage = experiment.__model__._storage_instance
+        self._storage = storage
 
         try:
             self.on_dispatch()
@@ -152,7 +157,7 @@ class Interface(Component):  # pylint: disable=too-many-public-methods
     def on_init(self):
         """Event when interface is initialised
 
-         The method can declare arguments to handle components explicitly. For example, the signature
+        The method can declare arguments to handle components explicitly. For example, the signature
         ``on_create(self, node, alias_of_child_1, alias_of_child_2=None)`` declares that components
         accepts two sub components with alias ``alias_of_child_1`` and ``alias_of_child_2`` where
         the latter is declared optional. If the alias starts with an underscore ``_`` the components lifecycle

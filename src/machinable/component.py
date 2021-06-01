@@ -2,23 +2,13 @@ from typing import Any, List, Optional, Tuple, Union
 
 import copy
 import re
+from dataclasses import asdict
 
 from machinable.errors import ConfigurationError
 from machinable.types import ComponentType, VersionType
 from machinable.utils import Jsonable, unflatten_dict, update_dict
 from omegaconf import DictConfig, OmegaConf
 from pydantic.dataclasses import dataclass
-from dataclasses import asdict
-
-CORE_COMPONENTS = [
-    ("engines", "machinable.engine.native_engine", "native"),
-    ("engines", "machinable.engine.ray_engine", "ray"),
-    ("engines", "machinable.engine.detached_engine", "detached"),
-    ("engines", "machinable.engine.remote_engine", "remote"),
-    ("engines", "machinable.engine.dry_engine", "dry"),
-    ("engines", "machinable.engine.slurm_engine", "slurm"),
-    ("storages", "machinable.storage.filesystem_storage", "filesystem"),
-]
 
 
 def _resolve_config_methods(
