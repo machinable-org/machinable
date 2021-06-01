@@ -144,8 +144,6 @@ class Jsonable:
     def clone(self):
         return self.__class__.from_json(self.as_json())
 
-    # abstract methods
-
     def serialize(self) -> dict:
         raise NotImplementedError
 

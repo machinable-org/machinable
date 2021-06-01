@@ -10,7 +10,7 @@ from machinable.component import Component
 from machinable.config import parse as parse_config
 from machinable.config import prefix as prefix_config
 from machinable.element import Connectable, Element
-from machinable.errors import ConfigurationError
+from machinable.errors import ConfigurationError, MachinableError
 from machinable.provider import Provider
 from machinable.types import VersionType
 from machinable.utils import find_subclass_in_module, import_from_directory
@@ -284,17 +284,20 @@ class Project(Connectable, Element):
                 f"Could not find a component inheriting from the {base_class.__name__} base class."
                 f"Is it correctly defined in {module}?"
             )
-
-        return component_class(
-            config=config,
-            version=version,
-        )
+        try:
+            return component_class(
+                config=config,
+                version=version,
+            )
+        except TypeError as _e:
+            raise MachinableError(
+                f"Could instantiate component {component_class.__module__}.{component_class.__name__}"
+            ) from _e
 
     def serialize(self) -> dict:
         return {
             "directory": self._directory,
             "provider": self._provider,
-            "mode": self._mode,
         }
 
     @classmethod

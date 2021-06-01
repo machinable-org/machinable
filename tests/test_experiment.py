@@ -10,7 +10,7 @@ def test_experiment():
     assert experiment.config.a == 1
 
     # uses
-    assert len(experiment.use("dummy")._components) == 1
+    assert len(experiment.use("test", "dummy")._components) == 1
 
 
 def test_experiment_storage(tmp_path):

@@ -1,50 +1,39 @@
-from typing import List, Union
+from typing import TYPE_CHECKING, Any, List, Union
 
-import machinable.errors
 from machinable.component import Component
+
+if TYPE_CHECKING:
+    from machinable.execution import Execution
 
 
 class Engine(Component):
-    @staticmethod
-    def supports_resources():
-        return True
-
     def canonicalize_resources(self, resources):
         return resources
 
     def dispatch(self, execution: "Execution"):
         from machinable.execution import Execution
 
-        if not self.engine.supports_resources():
-            if resources is not None:
-                print(
-                    "Engine does not support resource specification. Skipping ...",
-                    level="warn",
-                    color="header",
-                )
-                resources = None
-
         if self.on_before_dispatch(execution) is False:
             return False
 
-        executions = self._dispatch(execution)
+        results = self._dispatch(execution)
 
-        if not isinstance(executions, (list, tuple)):
-            executions = [executions]
+        if not isinstance(results, (list, tuple)):
+            results = [results]
 
         executions = [
-            e
-            for e in executions
-            if isinstance(e, Execution) and e is not execution
+            result
+            for result in results
+            if isinstance(result, Execution) and result is not execution
         ]
 
-        self.on_after_dispatch(executions)
+        self.on_after_dispatch(results, executions)
 
         # derived execution
-        for e in executions:
-            self.dispatch(e)
+        for derived_execution in executions:
+            self.dispatch(derived_execution)
 
-    def on_before_dispatch(self, execution):
+    def on_before_dispatch(self, execution: "Execution"):
         """Event triggered before engine dispatch of an execution
 
         Return False to prevent the dispatch
@@ -53,76 +42,26 @@ class Engine(Component):
         execution: machinable.Execution object
         """
 
-    def on_after_dispatch(self, executions: List["Execution"]):
+    def on_after_dispatch(
+        self, results: List[Any], executions: List["Execution"]
+    ):
         """Event triggered after the dispatch of an execution
 
         # Arguments
         execution: machinable.Execution object
         """
 
-    def _dispatch(self, execution):
-        """Retrieves an execution instance for execution
-
-        Must call execution.set_result() with result and
-        return the execution instance
-
-        # Arguments
-        execution: machinable.Execution
-
-        machinable.Execution object
-        """
-        for experiment in execution.experiments:
+    def _dispatch(self, execution: "Execution"):
+        return [
             self._dispatch_experiment(experiment)
+            for experiment in execution.experiments
+        ]
 
     def _dispatch_experiment(self, experiment):
-        # CORE EXEC
-        # todo: re-connect to storage
-        # Element.__storage__ = experiment.__storage__
-        # todo: set env variables
-        #
-        from machinable.component.component import Component
-
-        component = ModuleClass(
-            module_name=experiment.components[0]["module"], baseclass=Component
-        )(experiment=experiment)
-        component.dispatch()
-
-    def on_before_storage_creation(self, execution):
-        pass
-
-    def log(self, text, level="info"):
-        print("[Engine] " + text, level, color="header")
+        return experiment.interface().dispatch(experiment)
 
     def __str__(self):
         return self.__repr__()
 
     def __repr__(self):
         return "Engine"
-
-    def execute(
-        self,
-        component,
-        components=None,
-        storage=None,
-        resources=None,
-        args=None,
-        kwargs=None,
-    ):
-        return machinable.errors.ExecutionFailed(
-            reason="unsupported",
-            message="The engine does not support execution operations",
-        )
-
-    def tune(
-        self,
-        component,
-        components=None,
-        storage=None,
-        resources=None,
-        args=None,
-        kwargs=None,
-    ):
-        return machinable.errors.ExecutionFailed(
-            reason="unsupported",
-            message="The engine does not support tuning operations",
-        )

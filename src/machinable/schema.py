@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, List, Optional, Tuple
+from typing import TYPE_CHECKING, Dict, List, Optional, Tuple
 
 from datetime import datetime
 
@@ -36,7 +36,7 @@ class Experiment(Model):
     )
     resources: Optional[dict] = None
     seed: Optional[int] = None
-    components: List[Tuple[ComponentType, dict]] = []
+    components: Dict[str, Tuple[ComponentType, dict]] = {}
 
 
 class Repository(Model):
