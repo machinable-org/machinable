@@ -9,8 +9,11 @@ from machinable.utils import load_file, save_file
 
 
 class FilesystemStorage(Storage):
+    class Config:
+        directory: str
+
     def path(self, *append: str) -> str:
-        return os.path.join(os.path.abspath(self.config.path), *append)
+        return os.path.join(os.path.abspath(self.config.directory), *append)
 
     def local_directory(experiment_storage_id: str, *append: str):
         return os.path.join(experiment_storage_id, *append)

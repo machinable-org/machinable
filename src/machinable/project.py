@@ -146,15 +146,18 @@ class Project(Connectable, Element):
         self.add_to_path()
         return super().connect()
 
-    def to_model(self):
+    def to_model(self, mount: bool = True):
         # todo: code version + diff
-        return schema.Project(
+        model = schema.Project(
             directory=self._directory,
             version=self._version,
             host_info=self.provider().get_host_info(),
             code_version={},
             code_diff="",
         )
+        if mount:
+            self.__model__ = model
+        return model
 
     def path(self, *append: str) -> str:
         return os.path.join(self._directory, *append)

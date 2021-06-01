@@ -18,7 +18,7 @@ def test_experiment_storage(tmp_path):
 
     storage: FilesystemStorage = Storage.make(
         "machinable.storage.filesystem_storage",
-        {"path": str(tmp_path / "storage")},
+        {"directory": str(tmp_path / "storage")},
     )
 
     model = storage.create_experiment(

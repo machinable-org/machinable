@@ -30,10 +30,13 @@ class Grouping(Element):
         self._group = normgrouping(group)
         self._resolved_group: Optional[str] = None
 
-    def to_model(self) -> schema.Grouping:
-        return schema.Grouping(
+    def to_model(self, mount: bool = True) -> schema.Grouping:
+        model = schema.Grouping(
             group=self._group, resolved_group=self.resolved()
         )
+        if mount:
+            self.__model__ = model
+        return model
 
     def group(self) -> str:
         return self._group

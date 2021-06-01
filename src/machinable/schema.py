@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Dict, List, Optional, Tuple
+from typing import TYPE_CHECKING, Dict, List, Optional, Tuple, Union
 
 from datetime import datetime
 
@@ -34,6 +34,7 @@ class Experiment(Model):
     experiment_id: str = Field(
         default_factory=lambda: encode_experiment_id(generate_experiment_id())
     )
+    components: Dict[str, List[Union[str, dict]]] = {}
     resources: Optional[dict] = None
     seed: Optional[int] = None
     components: Dict[str, Tuple[ComponentType, dict]] = {}

@@ -20,7 +20,6 @@ from machinable.utils import generate_nickname, generate_seed, update_dict
 class Execution(Element):
     def __init__(
         self,
-        experiment: Union[Experiment, List[Experiment]],
         engine: Union[str, None] = None,
         version: VersionType = None,
         seed: Union[int, None] = None,
@@ -33,16 +32,20 @@ class Execution(Element):
         self._seed = generate_seed(seed)
         self._nickname = generate_nickname()
         self._timestamp = dt.now().timestamp()
-        self.add_experiment(experiment)
 
-    def to_model(self) -> schema.Execution:
-        return schema.Execution(
+    def to_model(self, mount: bool = True) -> schema.Execution:
+        model = schema.Execution(
             engine=self._engine,
             config=dict(self.engine().config.copy()),
             timestamp=self._timestamp,
             nickname=self._nickname,
             seed=self._seed,
         )
+
+        if mount:
+            self.__model__ = model
+
+        return model
 
     @has_many
     def experiments() -> ExperimentCollection:
@@ -61,7 +64,7 @@ class Execution(Element):
 
         return self._resolved_engine
 
-    def add_experiment(
+    def add(
         self,
         experiment: Union[Experiment, List[Experiment]],
         resources: Union[

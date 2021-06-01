@@ -4,6 +4,8 @@ import copy
 import re
 from dataclasses import asdict
 
+import pydantic
+from attr import Attribute
 from machinable.errors import ConfigurationError
 from machinable.types import ComponentType, VersionType
 from machinable.utils import Jsonable, unflatten_dict, update_dict
@@ -239,10 +241,11 @@ class Component(Jsonable):
 
             # parse config if config class is available
             if hasattr(self.__class__, "Config"):
-                schema = dataclass(getattr(self.__class__, "Config"))
-                config = OmegaConf.create(
-                    asdict(schema(**OmegaConf.to_container(config)))
-                )
+                schema = dataclass(
+                    getattr(self.__class__, "Config")
+                ).__pydantic_model__
+                parsed = schema(**OmegaConf.to_container(config))
+                config = OmegaConf.create(parsed.dict())
                 # todo: verify that config model has not added any values
                 # that are not defined in the machinable.yaml
 
@@ -267,3 +270,6 @@ class Component(Jsonable):
         Do not use to validate the configuration but use validators in the config schema
         that are applied at a later stage.
         """
+
+    def __reduce__(self) -> Union[str, Tuple[Any, ...]]:
+        return (self.__class__, (self.__config, self.__version))

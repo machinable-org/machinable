@@ -25,7 +25,7 @@ class Repository(Connectable, Element):
         if storage is None:
             storage = Storage.default or get_settings().default_storage
         self._storage = compact(storage, version)
-        self._resolved_storage = Optional[Storage]
+        self._resolved_storage: Optional[Storage] = None
         self._default_grouping = default_grouping
 
     def storage(self, reload: bool = False) -> Storage:
@@ -48,21 +48,14 @@ class Repository(Connectable, Element):
 
         grouping = Grouping(grouping)
 
-        grouping_model = grouping.to_model()
-        execution_model = execution.to_model()
-        experiment_models = [
-            experiment.to_model() for experiment in execution.experiments
-        ]
-
         self.storage().create_execution(
             project=Project.get().to_model(),
             execution=execution.to_model(),
-            experiments=experiment_models,
-            grouping=grouping_model,
+            experiments=[
+                experiment.to_model() for experiment in execution.experiments
+            ],
+            grouping=grouping.to_model(),
         )
-
-        grouping.mount(grouping_model)
-        execution.mount(execution_model)
 
         # set relations
         execution.__related__["grouping"] = grouping

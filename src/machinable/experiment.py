@@ -35,8 +35,8 @@ class Experiment(Element):
         self._resources: Optional[dict] = None
         self._seed: Optional[int] = None
 
-    def to_model(self) -> schema.Experiment:
-        return schema.Experiment(
+    def to_model(self, mount: bool = True) -> schema.Experiment:
+        model = schema.Experiment(
             interface=self._interface,
             config=dict(self.interface().config.copy()),
             experiment_id=self._experiment_id,
@@ -50,6 +50,9 @@ class Experiment(Element):
                 for slot in self._components
             },
         )
+        if mount:
+            self.__model__ = model
+        return model
 
     @property
     def seed(self):
@@ -63,13 +66,11 @@ class Experiment(Element):
         instance = cls(
             interface=model.interface[0], version=model.interface[1:]
         )
-        instance.mount(model)
-        return instance
+        instance.__model__ = model
+        instance.__model__.config = OmegaConf.create(instance.__model__.config)
+        OmegaConf.set_readonly(instance.__model__.config, True)
 
-    def mount(self, model: schema.Experiment):
-        super().mount(model)
-        self.__model__.config = OmegaConf.create(self.__model__.config)
-        OmegaConf.set_readonly(self.__model__.config, True)
+        return instance
 
     def components(self, reload: bool = False) -> Dict[str, "Component"]:
         if reload:
@@ -79,7 +80,7 @@ class Experiment(Element):
 
         for slot, component in self._components.items():
             if slot not in self._resolved_components:
-                self._resolved_components[slot] = Project.get_component(
+                self._resolved_components[slot] = Project.get().get_component(
                     component[0], component[1:]
                 )
 
@@ -244,9 +245,6 @@ class Experiment(Element):
     def ancestor(self):
         """Returns parent experiment or None if experiment is independent"""
         raise NotImplementedError
-
-    def serialize(self) -> dict:
-        return {}
 
     def __str__(self):
         return f"Experiment() [{self._experiment_id}]"
