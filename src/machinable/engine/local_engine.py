@@ -1,6 +1,8 @@
-from machinable import Engine
-from typing import Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
+
 from multiprocessing import Pool
+
+from machinable import Engine
 
 if TYPE_CHECKING:
     from machinable.execution import Execution

@@ -1,4 +1,5 @@
-from typing import List, Union, Any, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, List, Union
+
 from machinable.component import Component
 
 if TYPE_CHECKING:
