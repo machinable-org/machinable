@@ -14,7 +14,7 @@ from machinable.project import Project
 from machinable.repository import Repository
 from machinable.settings import get_settings
 from machinable.types import VersionType
-from machinable.utils import generate_nickname, generate_seed, update_dict
+from machinable.utils import generate_seed, update_dict
 
 
 class Execution(Element):
@@ -27,25 +27,11 @@ class Execution(Element):
         super().__init__()
         if engine is None:
             engine = Engine.default or get_settings().default_engine
-        self._engine = compact(engine, version)
-        self._resolved_engine: Optional[Engine] = None
-        self._seed = generate_seed(seed)
-        self._nickname = generate_nickname()
-        self._timestamp = dt.now().timestamp()
-
-    def to_model(self, mount: bool = True) -> schema.Execution:
-        model = schema.Execution(
-            engine=self._engine,
-            config=dict(self.engine().config.copy()),
-            timestamp=self._timestamp,
-            nickname=self._nickname,
-            seed=self._seed,
+        self.__model__ = schema.Execution(
+            engine=compact(engine, version),
+            seed=generate_seed() if seed is None else seed,
         )
-
-        if mount:
-            self.__model__ = model
-
-        return model
+        self._resolved_engine: Optional[Engine] = None
 
     @has_many
     def experiments() -> ExperimentCollection:
@@ -59,7 +45,7 @@ class Execution(Element):
         """Resolves and returns the engine instance"""
         if self._resolved_engine is None or reload:
             self._resolved_engine = Engine.make(
-                self._engine[0], self._engine[1:]
+                self.__model__.engine[0], self.__model__.engine[1:]
             )
 
         return self._resolved_engine
@@ -135,9 +121,9 @@ class Execution(Element):
         experiment._resources = resources
 
         if seed is None:
-            seed = generate_seed(self._seed + len(self.experiments))
+            seed = generate_seed(self.__model__.seed + len(self.experiments))
 
-        experiment._seed = seed
+        experiment.__model__.seed = seed
 
         return self
 
@@ -169,7 +155,7 @@ class Execution(Element):
         raise NotImplementedError
 
     def __repr__(self):
-        return f"Execution"
+        return "Execution"
 
     def __str__(self):
         return self.__repr__()

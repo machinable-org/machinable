@@ -1,6 +1,7 @@
 from typing import Any, Callable, List, Optional, Tuple, Union
 
 from functools import wraps
+from multiprocessing import Value
 
 import arrow
 from machinable import schema
@@ -118,9 +119,6 @@ class Element(Jsonable):
         instance.__model__ = model
         return instance
 
-    def to_model(self, mount: bool = True):
-        raise NotImplementedError
-
     @classmethod
     def find(cls, element_id: str) -> "Element":
         from machinable.repository import Repository
@@ -144,7 +142,18 @@ class Element(Jsonable):
         return Collection(elements)
 
     @classmethod
-    def model(cls):
+    def model(cls, element: Optional[Any] = None) -> schema.Model:
+        if element is not None:
+            if isinstance(element, cls):
+                return element.__model__
+
+            if isinstance(element, cls.model()):
+                return element
+
+            raise ValueError(
+                f"Invalid {cls.__name__.lower()} model: {element}."
+            )
+
         return getattr(schema, cls.__name__)
 
     def serialize(self) -> dict:
@@ -161,7 +170,7 @@ class Element(Jsonable):
         return self.serialize()
 
     def __setstate__(self, state):
-        self.__model__ = self.__class__.model(**state)
+        self.__model__ = self.__class__.model()(**state)
 
     def __str__(self):
         return self.__repr__()

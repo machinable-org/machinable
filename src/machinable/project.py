@@ -6,14 +6,20 @@ import sys
 
 from commandlib import Command
 from machinable import schema
-from machinable.component import Component
+from machinable.component import Component, normversion
 from machinable.config import parse as parse_config
 from machinable.config import prefix as prefix_config
 from machinable.element import Connectable, Element
 from machinable.errors import ConfigurationError, MachinableError
 from machinable.provider import Provider
 from machinable.types import VersionType
-from machinable.utils import find_subclass_in_module, import_from_directory
+from machinable.utils import (
+    find_subclass_in_module,
+    get_commit,
+    get_diff,
+    get_root_commit,
+    import_from_directory,
+)
 
 
 def fetch_link(source, target):
@@ -126,41 +132,34 @@ class Project(Connectable, Element):
         super().__init__()
         if directory is None:
             directory = os.getcwd()
-        self._directory = os.path.abspath(directory)
+        directory = os.path.abspath(directory)
+        self.__model__ = schema.Project(
+            directory=directory,
+            version=normversion(version),
+        )
         self._provider: str = "_machinable/project"
         self._resolved_provider: Optional[Provider] = None
-        self._version: VersionType = version
         self._parent: Optional[Project] = None
         self._config: Optional[dict] = None
         self._parsed_config: Optional[dict] = None
         self._vendor_config: Optional[dict] = None
 
     def add_to_path(self) -> None:
-        if os.path.exists(self._directory) and self._directory not in sys.path:
+        if (
+            os.path.exists(self.__model__.directory)
+            and self.__model__.directory not in sys.path
+        ):
             if self.is_root():
-                sys.path.insert(0, self._directory)
+                sys.path.insert(0, self.__model__.directory)
             else:
-                sys.path.append(self._directory)
+                sys.path.append(self.__model__.directory)
 
     def connect(self) -> "Project":
         self.add_to_path()
         return super().connect()
 
-    def to_model(self, mount: bool = True):
-        # todo: code version + diff
-        model = schema.Project(
-            directory=self._directory,
-            version=self._version,
-            host_info=self.provider().get_host_info(),
-            code_version={},
-            code_diff="",
-        )
-        if mount:
-            self.__model__ = model
-        return model
-
     def path(self, *append: str) -> str:
-        return os.path.join(self._directory, *append)
+        return os.path.join(self.__model__.directory, *append)
 
     def is_root(self) -> bool:
         return self._parent is None
@@ -188,19 +187,19 @@ class Project(Connectable, Element):
 
     def get_code_version(self) -> dict:
         return {
-            "id": get_root_commit(self._directory),
-            "project": get_commit(self._directory),
+            "id": get_root_commit(self.__model__.directory),
+            "project": get_commit(self.__model__.directory),
             "vendor": {
                 vendor: get_commit(self.path("vendor", vendor))
                 for vendor in self.get_vendors()
             },
         }
 
-    def get_diff(self):
-        return get_diff(self._directory, search_parent_directories=False) or ""
+    def get_diff(self) -> Union[str, None]:
+        return
 
     def exists(self) -> bool:
-        return os.path.exists(self._directory)
+        return os.path.exists(self.__model__.directory)
 
     def provider(self, reload: Union[str, bool] = False) -> Provider:
         """Resolves and returns the provider instance"""
@@ -211,19 +210,21 @@ class Project(Connectable, Element):
             if isinstance(self._provider, str):
                 self._resolved_provider = find_subclass_in_module(
                     module=import_from_directory(
-                        self._provider, self._directory
+                        self._provider, self.__model__.directory
                     ),
                     base_class=Provider,
                     default=Provider,
-                )(version=self._version)
+                )(version=self.__model__.version)
             else:
-                self._resolved_provider = Provider(version=self._version)
+                self._resolved_provider = Provider(
+                    version=self.__model__.version
+                )
 
         return self._resolved_provider
 
     def config(self, reload: bool = False) -> dict:
         if self._config is None or reload:
-            self._config = self.provider().load_config(self._directory)
+            self._config = self.provider().load_config(self.__model__.directory)
 
         return self._config
 
@@ -261,7 +262,7 @@ class Project(Connectable, Element):
         if name in self.parsed_config():
             component = self.parsed_config()[name]
             module = import_from_directory(
-                component["module"], self._directory, or_fail=True
+                component["module"], self.__model__.directory, or_fail=True
             )
             config = {
                 **component["config_data"],
@@ -284,7 +285,7 @@ class Project(Connectable, Element):
         component_class = find_subclass_in_module(module, base_class)
         if component_class is None:
             raise ConfigurationError(
-                f"Could not find a component inheriting from the {base_class.__name__} base class."
+                f"Could not find a component inheriting from the {base_class.__name__} base class. "
                 f"Is it correctly defined in {module}?"
             )
         try:
@@ -299,7 +300,7 @@ class Project(Connectable, Element):
 
     def serialize(self) -> dict:
         return {
-            "directory": self._directory,
+            "directory": self.__model__.directory,
             "provider": self._provider,
         }
 
@@ -315,4 +316,4 @@ class Project(Connectable, Element):
         return self.config()["name"]
 
     def __repr__(self) -> str:
-        return f"Project({self._directory})"
+        return f"Project({self.__model__.directory})"

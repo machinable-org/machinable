@@ -1,13 +1,14 @@
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
 
 from machinable import schema
 from machinable.component import compact
 from machinable.element import Element, belongs_to
 from machinable.interface import Interface
 from machinable.project import Project
+from machinable.settings import get_settings
 from machinable.types import VersionType
-from machinable.utils import encode_experiment_id, generate_experiment_id
 from omegaconf import OmegaConf
+from omegaconf.dictconfig import DictConfig
 
 if TYPE_CHECKING:
     from machinable.component import Component
@@ -16,7 +17,9 @@ if TYPE_CHECKING:
 
 
 class Experiment(Element):
-    def __init__(self, interface: str, version: VersionType = None):
+    def __init__(
+        self, interface: Optional[str] = None, version: VersionType = None
+    ):
         """Experiment
 
         # Arguments
@@ -25,60 +28,35 @@ class Experiment(Element):
         seed: Optional seed.
         """
         super().__init__()
-        self.__model__: Optional[schema.Experiment] = None
-        self._interface = compact(interface, version)
-        self._resolved_interface: Optional[Interface] = None
-
-        self._components: Dict[str, List[Union[str, dict]]] = {}
-        self._resolved_components: Dict[str, "Component"] = {}
-        self._experiment_id = encode_experiment_id(generate_experiment_id())
-        self._resources: Optional[dict] = None
-        self._seed: Optional[int] = None
-
-    def to_model(self, mount: bool = True) -> schema.Experiment:
-        model = schema.Experiment(
-            interface=self._interface,
-            config=dict(self.interface().config.copy()),
-            experiment_id=self._experiment_id,
-            resources=self._resources,
-            seed=self._seed,
-            components={
-                slot: (
-                    self._components[slot],
-                    dict(self.components()[slot].config.copy()),
-                )
-                for slot in self._components
-            },
+        if interface is None:
+            interface = Interface.default or get_settings().default_interface
+        self.__model__ = schema.Experiment(
+            interface=compact(interface, version)
         )
-        if mount:
-            self.__model__ = model
-        return model
-
-    @property
-    def seed(self):
-        if self.is_mounted():
-            return self.__model__.seed
-
-        return self._seed
+        self._resolved_interface: Optional[Interface] = None
+        self._resolved_components: Dict[str, "Component"] = {}
+        self._resolved_config: Optional[DictConfig] = None
 
     @classmethod
     def from_model(cls, model: schema.Experiment) -> "Experiment":
-        instance = cls(
-            interface=model.interface[0], version=model.interface[1:]
-        )
+        instance = cls("")
         instance.__model__ = model
-        instance.__model__.config = OmegaConf.create(instance.__model__.config)
-        OmegaConf.set_readonly(instance.__model__.config, True)
-
         return instance
+
+    def __reduce__(self) -> Union[str, Tuple[Any, ...]]:
+        return (self.__class__, ("",), self.serialize())
+
+    @property
+    def seed(self) -> Optional[int]:
+        return self.__model__.seed
 
     def components(self, reload: bool = False) -> Dict[str, "Component"]:
         if reload:
             self._resolved_components = {}
-        if len(self._components) == len(self._resolved_components):
+        if len(self.__model__.components) == len(self._resolved_components):
             return self._resolved_components
 
-        for slot, component in self._components.items():
+        for slot, component in self.__model__.components.items():
             if slot not in self._resolved_components:
                 self._resolved_components[slot] = Project.get().get_component(
                     component[0], component[1:]
@@ -90,7 +68,7 @@ class Experiment(Element):
         """Resolves and returns the interface instance"""
         if self._resolved_interface is None or reload:
             self._resolved_interface = Interface.make(
-                self._interface[0], self._interface[1:]
+                self.__model__.interface[0], self.__model__.interface[1:]
             )
 
         return self._resolved_interface
@@ -113,7 +91,11 @@ class Experiment(Element):
         return self
 
     def use(
-        self, slot: str, component: str, version: VersionType = None, **uses
+        self,
+        slot: Optional[str] = None,
+        component: Optional[str] = None,
+        version: VersionType = None,
+        **uses,
     ) -> "Experiment":
         """Adds a component
 
@@ -124,9 +106,11 @@ class Experiment(Element):
         """
         for key, payload in uses.items():
             self.use(key, payload)
-        # todo: if mounted has to derive automatically or error
+
+        # TODO: if mounted has to derive automatically or error
         # TODO: inspect on_init signature of the interface to detect non existing slots early
-        self._components[slot] = compact(component, version)
+        if slot is not None:
+            self.__model__.components[slot] = compact(component, version)
 
         return self
 
@@ -137,17 +121,17 @@ class Experiment(Element):
         return Execution
 
     @property
-    def config(self):
-        if not self.is_mounted():
-            return self.interface().config
+    def config(self) -> DictConfig:
+        if self._resolved_config is None:
+            self._resolved_config = self.interface().config
+            self.__model__.config = OmegaConf.to_container(
+                self.interface().config
+            )
 
-        return self.__model__.config
+        return self._resolved_config
 
     @property
     def experiment_id(self) -> str:
-        if not self.is_mounted():
-            return self._experiment_id
-
         return self.__model__.experiment_id
 
     def local_directory(self, *append: str) -> Optional[str]:
@@ -247,7 +231,7 @@ class Experiment(Element):
         raise NotImplementedError
 
     def __str__(self):
-        return f"Experiment() [{self._experiment_id}]"
+        return f"Experiment() [{self.__model__.experiment_id}]"
 
     def __repr__(self):
-        return f"Experiment() [{self._experiment_id}]"
+        return f"Experiment() [{self.__model__.experiment_id}]"

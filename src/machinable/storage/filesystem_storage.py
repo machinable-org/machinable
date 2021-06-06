@@ -3,7 +3,7 @@ from typing import Any, List, Optional
 import os
 
 import arrow
-from machinable import schema, storage
+from machinable import schema
 from machinable.storage.storage import Storage
 from machinable.utils import load_file, save_file
 
@@ -115,21 +115,6 @@ class FilesystemStorage(Storage):
             mode="a",
         )
         return "n/a"
-
-    def create_execution(
-        self,
-        project: schema.Project,
-        execution: schema.Execution,
-        experiments: List[schema.Experiment],
-        grouping: Optional[schema.Grouping] = None,
-    ) -> schema.Execution:
-
-        storage_id = self._create_execution(execution, experiments, grouping)
-
-        execution._storage_id = storage_id
-        execution._storage_instance = self
-
-        return execution
 
     def _create_execution(
         self,

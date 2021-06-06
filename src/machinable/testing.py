@@ -10,7 +10,7 @@ def storage_tests(storage: Storage) -> None:
         schema.Experiment(interface=["b"]),
         schema.Experiment(interface=["c"]),
     ]
-    project = schema.Project()
+    project = schema.Project(directory=".")
     grouping = schema.Grouping(group="test/me", resolved_group="test/me")
 
     storage.create_execution(
