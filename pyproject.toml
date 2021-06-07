@@ -55,7 +55,7 @@ pytest = "^6.2"
 pylint = "^2.8"
 pre-commit = "^2.12"
 editorconfig-checker = "^2.3.5"
-pytest-cov = "^2.10.1"
+pytest-cov = "^2.12.1"
 numpy = "^1.19.4"
 hypothesis = "^6.10.1"
 
