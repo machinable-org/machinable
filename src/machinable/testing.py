@@ -53,6 +53,9 @@ def storage_tests(storage: Storage) -> None:
     # local directory
     assert storage.local_directory(experiments[0]).startswith("/")
 
+    # output
+    assert storage.retrieve_output(experiments[0]) is None
+
     # files
     assert storage.retrieve_file(experiments[0], "non-existing") is None
     storage.create_file(experiments[0], "payload.json", {"test": True})

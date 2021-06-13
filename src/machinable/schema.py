@@ -61,3 +61,9 @@ class Execution(Model):
     timestamp: float = Field(default_factory=lambda: datetime.now().timestamp())
     nickname: str = Field(default_factory=generate_nickname)
     seed: Optional[int] = Field(default_factory=generate_seed)
+
+
+class Record(Model):
+    scope: str
+    current: dict = {}
+    last: dict = None

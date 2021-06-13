@@ -223,6 +223,17 @@ class Storage(Component):
     ) -> Optional[Any]:
         raise NotImplementedError
 
+    def retrieve_output(
+        self, experiment: Union["Experiment", schema.Experiment]
+    ) -> Optional[str]:
+        from machinable.experiment import Experiment
+
+        experiment = Experiment.model(experiment)
+        return self._retrieve_output(experiment._storage_id)
+
+    def _retrieve_output(self, experiment_storage_id: str) -> str:
+        raise NotImplementedError
+
     def local_directory(
         self, experiment: Union["Experiment", schema.Experiment], *append: str
     ) -> Optional[str]:

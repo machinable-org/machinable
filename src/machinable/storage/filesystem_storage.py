@@ -144,8 +144,12 @@ class FilesystemStorage(Storage):
         self, experiment_storage_id: str, scope: str
     ) -> List[JsonableType]:
         return load_file(
-            os.path.join(experiment_storage_id, "records", f"{scope}.jsonl")
+            os.path.join(experiment_storage_id, "records", f"{scope}.jsonl"),
+            default=[],
         )
+
+    def _retrieve_output(self, experiment_storage_id: str) -> str:
+        return self._retrieve_file(experiment_storage_id, "output.log")
 
     def path(self, *append: str) -> str:
         return os.path.join(os.path.abspath(self.config.directory), *append)

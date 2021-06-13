@@ -147,13 +147,6 @@ class Execution(Element):
         """Derives a related execution."""
         # user can specify overrides, otherwise it copies all objects over
 
-    def serialize(self):
-        return {}
-
-    @classmethod
-    def unserialize(cls, serialized):
-        raise NotImplementedError
-
     def __repr__(self):
         return "Execution"
 

@@ -1,12 +1,15 @@
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
 
+import arrow
 from machinable import schema
+from machinable.collection.record import RecordCollection
 from machinable.component import compact
 from machinable.element import Element, belongs_to
+from machinable.errors import StorageError
 from machinable.interface import Interface
 from machinable.project import Project
 from machinable.settings import get_settings
-from machinable.types import VersionType
+from machinable.types import DatetimeType, VersionType
 from omegaconf import OmegaConf
 from omegaconf.dictconfig import DictConfig
 
@@ -123,10 +126,13 @@ class Experiment(Element):
     @property
     def config(self) -> DictConfig:
         if self._resolved_config is None:
-            self._resolved_config = self.interface().config
-            self.__model__.config = OmegaConf.to_container(
-                self.interface().config
-            )
+            if self.__model__.config is not None:
+                self._resolved_config = OmegaConf.create(self.__model__.config)
+            else:
+                self._resolved_config = self.interface().config
+                self.__model__.config = OmegaConf.to_container(
+                    self.interface().config
+                )
 
         return self._resolved_config
 
@@ -138,112 +144,99 @@ class Experiment(Element):
         if not self.is_mounted():
             return None
 
-        if self.__model__._storage_instance is None:
-            return None
-
         return self.__model__._storage_instance.local_directory(
             self.__model__._storage_id, **append
         )
 
-    def records(self, scope="default") -> "RecordCollection":
-        pass
+    def records(self, scope="default") -> RecordCollection:
+        if not self.is_mounted():
+            return RecordCollection()
 
-    def create_record(self, scope="default") -> "Record":
-        pass
+        if f"records.{scope}" in self._cache:
+            return self._cache[f"records.{scope}"]
+
+        records = RecordCollection(
+            self.__model__._storage_instance.retrieve_records(self, scope)
+        )
+
+        if self.is_finished():
+            self._cache[f"records.{scope}"] = records
+
+        return records
+
+    def record(self, scope="default") -> "Record":
+        from machinable.record import Record
+
+        if f"record.{scope}" not in self._cache:
+            self._cache[f"record.{scope}"] = Record(self, scope)
+
+        return self._cache[f"record.{scope}"]
 
     def load_file(self, filepath: str, default=None) -> Optional[Any]:
-        """Retrieves a data object from the storage
-
-        # Arguments
-        filepath: File to retrieve
-        """
-        if reload is None:
-            finished_at = self.finished_at
-            if finished_at is False:
-                reload = True
-            else:
-                reload = finished_at
-
-        if "_files" not in self._cache:
-            self._cache["_files"] = {}
-
-        if isinstance(reload, pendulum.DateTime):
-            try:
-                loaded_at = self._cache["_files"][filepath]["loaded_at"]
-                # buffer reloading by 1 second
-                reload = reload >= loaded_at.add(seconds=1)
-            except KeyError:
-                reload = True
-
-        if filepath not in self._cache or reload:
-            try:
-                self._cache[filepath] = self._model.file(filepath)
-                if filepath not in self._cache["_files"]:
-                    self._cache["_files"][filepath] = {}
-                self._cache["_files"][filepath]["loaded_at"] = arrow.now()
-            except FileNotFoundError:
-                if default is not sentinel:
-                    return default
-                raise
-
-        return self._cache[filepath]
-
         if not self.is_mounted():
             return default
 
-        data = self.__model__._storage_instance.retrieve_file(
-            self.__model__._storage_id, filepath
-        )
+        data = self.__model__._storage_instance.retrieve_file(self, filepath)
 
         return data if data is not None else default
 
-    def save_file(self, filepath: str):
-        # todo: if is finished refuse to write data
-        pass
+    def create_file(self, filepath: str, data: Any) -> str:
+        if not self.is_mounted():
+            raise StorageError(
+                "Experiment has not been written to a storage yet."
+            )
 
-    def output(self):
-        """Returns the output log if available"""
+        if self.is_finished():
+            raise StorageError("Experiment is finished and thus read-only")
+
+        return self.__model__._storage_instance.create_file(
+            self, filepath, data
+        )
+
+    def output(self) -> Optional[str]:
+        """Returns the output log"""
         if "output" in self._cache:
             return self._cache["output"]
 
-        output = self.__model__._storage_instance.retrieve_output()
+        output = self.__model__._storage_instance.retrieve_output(self)
 
         if self.is_finished():
             self._cache["output"] = output
 
         return output
 
-    @property
-    def started_at(self):
+    def started_at(self) -> Optional[DatetimeType]:
         """Returns the starting time"""
-        return self.status["started_at"]
+        return self.__model__._storage_instance.retrieve_status(self, "started")
 
-    @property
     def heartbeat_at(self):
         """Returns the last heartbeat time"""
-        return self.status["heartbeat_at"]
+        return self.__model__._storage_instance.retrieve_status(
+            self, "heartbeat"
+        )
 
-    @property
     def finished_at(self):
         """Returns the finishing time"""
-        return self.status["finished_at"]
+        return self.__model__._storage_instance.retrieve_status(
+            self, "finished"
+        )
 
     def is_finished(self):
         """True if finishing time has been written"""
-        return bool(self.status["finished_at"])
+        return bool(self.finished_at())
 
     def is_started(self):
         """True if starting time has been written"""
-        return bool(self.status["started_at"])
+        return bool(self.started_at())
 
     def is_active(self):
         """True if not finished and last heartbeat occurred less than 30 seconds ago"""
-        if not self.status["heartbeat_at"]:
+        if not self.heartbeat_at():
             return False
 
-        return (not self.is_finished()) and self.status["heartbeat_at"].diff(
-            arrow.now()
-        ).in_seconds() < 30
+        return (not self.is_finished()) and (
+            (arrow.now() - self.heartbeat_at()).seconds < 30
+        )
 
     def is_incomplete(self):
         """Shorthand for is_started() and not (is_active() or is_finished())"""
@@ -251,12 +244,10 @@ class Experiment(Element):
             self.is_active() or self.is_finished()
         )
 
-    @property
     def derived(self):
         """Returns a collection of derived experiments"""
         raise NotImplementedError
 
-    @property
     def ancestor(self):
         """Returns parent experiment or None if experiment is independent"""
         raise NotImplementedError

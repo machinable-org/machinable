@@ -33,7 +33,7 @@ class SlurmEngine(Engine):
             if "--job-name" not in canonical_resources:
                 canonical_resources[
                     "--job-name"
-                ] = f"{experiment._experiment_id}"
+                ] = f"{experiment.experiment_id}"
             if "--output" not in canonical_resources:
                 canonical_resources["--output"] = experiment.local_directory(
                     "output.log"

@@ -3,9 +3,9 @@ from typing import Any, Dict, List, Optional
 import copy
 
 from machinable import schema
-from machinable.element import Element
+from machinable.element import Element, belongs_to
+from machinable.errors import StorageError
 from machinable.experiment import Experiment
-from machinable.repository import Repository
 from machinable.types import JsonableType
 
 
@@ -14,10 +14,12 @@ class Record(Element):
 
     def __init__(self, experiment: Experiment, scope: str = "default"):
         super().__init__()
-        self.__model__: Optional[schema.Record] = None
-        self._experiment = experiment
-        self._data: dict = {}
-        self._scope: str = scope
+        self.__model__ = schema.Record(scope=scope)
+        self.__related__["experiment"] = experiment
+
+    @belongs_to
+    def experiment() -> Experiment:
+        return Experiment
 
     def write(self, key: str, value: Any) -> None:
         """Writes a cell value
@@ -32,7 +34,7 @@ class Record(Element):
         key: String, the column name
         value: Value to write
         """
-        self._data[key] = value
+        self.__model__.current[key] = value
 
     def update(
         self, dict_like: Optional[Dict[str, Any]] = None, **kwargs
@@ -43,14 +45,14 @@ class Record(Element):
         dict_like: update values
         """
         if dict_like is None:
-            return self._data.update(kwargs)
-        return self._data.update(dict_like, **kwargs)
+            return self.__model__.current.update(kwargs)
+        return self.__model__.current.update(dict_like, **kwargs)
 
     def empty(self) -> bool:
         """Whether the record writer is empty (len(self._data) == 0)"""
-        return len(self._data) == 0
+        return len(self.__model__.current) == 0
 
-    def save(self, force=False) -> List[JsonableType]:
+    def save(self, force=False) -> JsonableType:
         """Save the record
 
         # Arguments
@@ -59,31 +61,33 @@ class Record(Element):
         # Returns
         The row data
         """
-        data = copy.deepcopy(self._data)
-        self._data = {}
+        if not self.experiment.is_mounted():
+            raise StorageError(
+                "The experiment has not been written to storage yet."
+            )
+
+        data = copy.deepcopy(self.__model__.current)
+        self.__model__.last = copy.deepcopy(self.__model__.current)
+        self.__model__.current = {}
 
         # don't save if there are no records
         if len(data) == 0 and not force:
-            raise ValueError("")
+            return {}
 
-        return (
-            Repository.get()
-            .storage()
-            .create_record(
-                data=data,
-                experiment=self._experiment.__model__,
-                scope=self._scope,
-            )
+        return self.experiment.__model__.storage_instance.create_record(
+            experiment=self.experiment.__model__,
+            data=data,
+            scope=self.__model__.scope,
         )
 
     def __len__(self):
-        return len(self._data)
+        return len(self.__model__.current)
 
     def __delitem__(self, key):
-        del self._data[key]
+        del self.__model__.current[key]
 
     def __getitem__(self, key):
-        return self._data[key]
+        return self.__model__.current[key]
 
     def __setitem__(self, key, value):
-        self._data[key] = value
+        self.__model__.current[key] = value
