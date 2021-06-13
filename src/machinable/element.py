@@ -1,6 +1,7 @@
-from typing import Any, Callable, List, Optional
+from typing import Any, Callable, List, Optional, Tuple, Union
 
 from functools import wraps
+from multiprocessing import Value
 
 import arrow
 from machinable import schema
@@ -93,18 +94,18 @@ class Element(Jsonable):
 
     def __init__(self):
         super().__init__()
-        self.__model__ = None
+        self.__model__: schema.Model = None
         self.__related__ = {}
         self._cache = {}
 
-    def is_mounted(self):
-        return self.__model__ is not None
+    def is_mounted(self) -> bool:
+        if self.__model__ is None:
+            return False
 
-    def mount(self, model: schema.Model):
-        if model._storage_instance is None or model._storage_id is None:
-            raise ValueError("Model has to expose storage information")
-
-        self.__model__ = model
+        return (
+            self.__model__._storage_instance is not None
+            and self.__model__._storage_id is not None
+        )
 
     @belongs_to
     def project():
@@ -117,9 +118,6 @@ class Element(Jsonable):
         instance = cls()
         instance.__model__ = model
         return instance
-
-    def to_model(self):
-        raise NotImplementedError
 
     @classmethod
     def find(cls, element_id: str) -> "Element":
@@ -144,8 +142,35 @@ class Element(Jsonable):
         return Collection(elements)
 
     @classmethod
+    def model(cls, element: Optional[Any] = None) -> schema.Model:
+        if element is not None:
+            if isinstance(element, cls):
+                return element.__model__
+
+            if isinstance(element, cls.model()):
+                return element
+
+            raise ValueError(
+                f"Invalid {cls.__name__.lower()} model: {element}."
+            )
+
+        return getattr(schema, cls.__name__)
+
+    def serialize(self) -> dict:
+        return self.__model__.dict()
+
+    @classmethod
     def unserialize(cls, serialized):
-        return cls(**serialized)
+        return cls.from_model(cls.model(**serialized))
+
+    def __reduce__(self) -> Union[str, Tuple[Any, ...]]:
+        return (self.__class__, (), self.serialize())
+
+    def __getstate__(self):
+        return self.serialize()
+
+    def __setstate__(self, state):
+        self.__model__ = self.__class__.model()(**state)
 
     def __str__(self):
         return self.__repr__()

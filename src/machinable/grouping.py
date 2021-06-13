@@ -26,30 +26,23 @@ class Grouping(Element):
 
     def __init__(self, group: Optional[str] = None):
         super().__init__()
-        self.__model__: Optional[schema.Grouping] = None
-        self._group = normgrouping(group)
-        self._resolved_group: Optional[str] = None
+        self.__model__ = schema.Grouping(group=normgrouping(group))
 
-    def to_model(self) -> schema.Grouping:
-        return schema.Grouping(
-            group=self._group, resolved_group=self.resolved()
-        )
-
+    @property
     def group(self) -> str:
-        return self._group
+        return self.__model__.group
 
     def resolved(self, reload: Union[str, bool] = False) -> str:
         if isinstance(reload, str):
-            self._resolved_group = reload
+            self.__model__.resolved_group = reload
             reload = False
 
-        if self._resolved_group is None or reload:
-            _, self._resolved_group = resolve_grouping(self._group)
+        if self.__model__.resolved_group is None or reload:
+            _, self.__model__.resolved_group = resolve_grouping(
+                self.__model__.group
+            )
 
-        return self._resolved_group
-
-    def serialize(self) -> dict:
-        return {"group": self._group}
+        return self.__model__.resolved_group
 
     @has_many
     def executions() -> ExecutionCollection:

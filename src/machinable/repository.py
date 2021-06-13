@@ -1,5 +1,6 @@
 from typing import TYPE_CHECKING, List, Optional, Tuple, Union
 
+from machinable import schema
 from machinable.component import compact
 from machinable.element import Connectable, Element
 from machinable.grouping import Grouping
@@ -24,15 +25,16 @@ class Repository(Connectable, Element):
         super().__init__()
         if storage is None:
             storage = Storage.default or get_settings().default_storage
-        self._storage = compact(storage, version)
-        self._resolved_storage = Optional[Storage]
-        self._default_grouping = default_grouping
+        self.__model__ = schema.Repository(
+            storage=compact(storage, version), default_grouping=default_grouping
+        )
+        self._resolved_storage: Optional[Storage] = None
 
     def storage(self, reload: bool = False) -> Storage:
         """Resolves and returns the storage instance"""
         if self._resolved_storage is None or reload:
             self._resolved_storage = Storage.make(
-                self._storage[0], self._storage[1:]
+                self.__model__.storage[0], self.__model__.storage[1:]
             )
 
         return self._resolved_storage
@@ -44,25 +46,16 @@ class Repository(Connectable, Element):
             return False
 
         if grouping is None:
-            grouping = self._default_grouping
+            grouping = self.__model__.default_grouping
 
         grouping = Grouping(grouping)
 
-        grouping_model = grouping.to_model()
-        execution_model = execution.to_model()
-        experiment_models = [
-            experiment.to_model() for experiment in execution.experiments
-        ]
-
         self.storage().create_execution(
-            project=Project.get().to_model(),
-            execution=execution.to_model(),
-            experiments=experiment_models,
-            grouping=grouping_model,
+            project=Project.get(),
+            execution=execution,
+            experiments=[experiment for experiment in execution.experiments],
+            grouping=grouping,
         )
-
-        grouping.mount(grouping_model)
-        execution.mount(execution_model)
 
         # set relations
         execution.__related__["grouping"] = grouping

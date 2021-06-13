@@ -5,5 +5,5 @@ from machinable import Project
 
 def test_project():
     project = Project()
-    assert project._directory == os.getcwd()
+    assert project.__model__.directory == os.getcwd()
     project = Project("tests/project")

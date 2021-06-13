@@ -24,7 +24,7 @@ class Provider(Component):
         # todo: make extendable
         return getattr(machinable, kind[:-1].capitalize(), None)
 
-    def get_host_info() -> dict:
+    def get_host_info(self) -> dict:
         return {
             "network_name": platform.node(),
             "hostname": socket.gethostname(),

@@ -114,4 +114,4 @@ ensure_newline_before_comments = true
 line_length = 80
 
 [tool.pylint.'MESSAGES CONTROL']
-disable = "protected-access, import-outside-toplevel"
+disable = "protected-access, import-outside-toplevel, too-few-public-methods"

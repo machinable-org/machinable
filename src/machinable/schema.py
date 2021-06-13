@@ -1,9 +1,14 @@
-from typing import TYPE_CHECKING, Dict, List, Optional, Tuple
+from typing import TYPE_CHECKING, Dict, List, Optional, Tuple, Union
 
 from datetime import datetime
 
 import arrow
-from machinable.types import ComponentType, DatetimeType
+from machinable.types import (
+    ComponentType,
+    DatetimeType,
+    JsonableType,
+    VersionType,
+)
 from machinable.utils import (
     encode_experiment_id,
     generate_experiment_id,
@@ -23,29 +28,32 @@ class Model(BaseModel):
 
 
 class Project(Model):
-    code_version: dict = {}
-    code_diff: str = ""
-    host_info: dict = {}
+    directory: str
+    version: VersionType = None
+    code_version: Optional[dict] = None
+    code_diff: Optional[str] = None
+    host_info: Optional[dict] = None
 
 
 class Experiment(Model):
     interface: ComponentType
-    config: dict = {}
+    components: Dict[str, ComponentType] = {}
     experiment_id: str = Field(
         default_factory=lambda: encode_experiment_id(generate_experiment_id())
     )
     resources: Optional[dict] = None
     seed: Optional[int] = None
-    components: Dict[str, Tuple[ComponentType, dict]] = {}
+    config: Optional[str] = None
 
 
 class Repository(Model):
-    pass
+    storage: ComponentType
+    default_grouping: Optional[str] = None
 
 
 class Grouping(Model):
     group: str
-    resolved_group: str
+    resolved_group: Optional[str] = None
 
 
 class Execution(Model):
@@ -56,5 +64,6 @@ class Execution(Model):
 
 
 class Record(Model):
-    data: dict = {}
-    timestamp: float = Field(default_factory=lambda: datetime.now().timestamp())
+    scope: str
+    current: dict = {}
+    last: dict = None

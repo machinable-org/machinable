@@ -18,9 +18,11 @@ from pathlib import Path
 import arrow
 import commandlib
 import jsonlines
+import omegaconf
 from baseconv import base62
 from flatten_dict import unflatten as _unflatten_dict
 from importlib_metadata import entry_points, version
+from omegaconf.omegaconf import OmegaConf
 
 sentinel = object()
 
@@ -28,6 +30,7 @@ import json
 import threading
 from inspect import getattr_static
 
+from machinable.types import DatetimeType
 from observable import Observable
 
 
@@ -195,13 +198,12 @@ def apply_seed(seed=None):
 
 def serialize(obj):
     """JSON serializer for objects not serializable by default json code"""
-    if isinstance(obj, arrow.Arrow):
+    if isinstance(obj, DatetimeType):
         return str(obj)
-
-    if getattr(obj, "__dict__", False):
-        return obj.__dict__
-
-    return str(obj)
+    if isinstance(obj, (omegaconf.DictConfig, omegaconf.ListConfig)):
+        return OmegaConf.to_container(obj)
+    else:
+        raise TypeError(f"Unserializable object {obj} of type {type(obj)}")
 
 
 def generate_seed(random_state=None):

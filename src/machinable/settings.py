@@ -13,6 +13,7 @@ class Settings(BaseModel):
         "machinable.storage.filesystem_storage",
         {"directory": "./storage"},
     ]
+    default_interface: Optional[str] = None
 
 
 def get_settings():
