@@ -1,10 +1,12 @@
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
 import copy
 
 from machinable import schema
 from machinable.element import Element
 from machinable.experiment import Experiment
+from machinable.repository import Repository
+from machinable.types import JsonableType
 
 
 class Record(Element):
@@ -48,7 +50,7 @@ class Record(Element):
         """Whether the record writer is empty (len(self._data) == 0)"""
         return len(self._data) == 0
 
-    def save(self, force=False) -> schema.Record:
+    def save(self, force=False) -> List[JsonableType]:
         """Save the record
 
         # Arguments
@@ -64,10 +66,14 @@ class Record(Element):
         if len(data) == 0 and not force:
             raise ValueError("")
 
-        return self.__storage__.create_record(
-            record=schema.Record(data=data),
-            experiment=self._experiment.__model__,
-            scope=self._scope,
+        return (
+            Repository.get()
+            .storage()
+            .create_record(
+                data=data,
+                experiment=self._experiment.__model__,
+                scope=self._scope,
+            )
         )
 
     def __len__(self):

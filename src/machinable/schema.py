@@ -3,7 +3,12 @@ from typing import TYPE_CHECKING, Dict, List, Optional, Tuple, Union
 from datetime import datetime
 
 import arrow
-from machinable.types import ComponentType, DatetimeType, VersionType
+from machinable.types import (
+    ComponentType,
+    DatetimeType,
+    JsonableType,
+    VersionType,
+)
 from machinable.utils import (
     encode_experiment_id,
     generate_experiment_id,
@@ -56,8 +61,3 @@ class Execution(Model):
     timestamp: float = Field(default_factory=lambda: datetime.now().timestamp())
     nickname: str = Field(default_factory=generate_nickname)
     seed: Optional[int] = Field(default_factory=generate_seed)
-
-
-class Record(Model):
-    data: dict = {}
-    timestamp: float = Field(default_factory=lambda: datetime.now().timestamp())

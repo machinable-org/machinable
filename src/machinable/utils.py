@@ -30,6 +30,7 @@ import json
 import threading
 from inspect import getattr_static
 
+from machinable.types import DatetimeType
 from observable import Observable
 
 
@@ -197,7 +198,7 @@ def apply_seed(seed=None):
 
 def serialize(obj):
     """JSON serializer for objects not serializable by default json code"""
-    if isinstance(obj, arrow.Arrow):
+    if isinstance(obj, DatetimeType):
         return str(obj)
     if isinstance(obj, (omegaconf.DictConfig, omegaconf.ListConfig)):
         return OmegaConf.to_container(obj)

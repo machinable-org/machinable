@@ -157,6 +157,37 @@ class Experiment(Element):
         # Arguments
         filepath: File to retrieve
         """
+        if reload is None:
+            finished_at = self.finished_at
+            if finished_at is False:
+                reload = True
+            else:
+                reload = finished_at
+
+        if "_files" not in self._cache:
+            self._cache["_files"] = {}
+
+        if isinstance(reload, pendulum.DateTime):
+            try:
+                loaded_at = self._cache["_files"][filepath]["loaded_at"]
+                # buffer reloading by 1 second
+                reload = reload >= loaded_at.add(seconds=1)
+            except KeyError:
+                reload = True
+
+        if filepath not in self._cache or reload:
+            try:
+                self._cache[filepath] = self._model.file(filepath)
+                if filepath not in self._cache["_files"]:
+                    self._cache["_files"][filepath] = {}
+                self._cache["_files"][filepath]["loaded_at"] = arrow.now()
+            except FileNotFoundError:
+                if default is not sentinel:
+                    return default
+                raise
+
+        return self._cache[filepath]
+
         if not self.is_mounted():
             return default
 

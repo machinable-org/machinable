@@ -1,9 +1,12 @@
 from typing import TYPE_CHECKING, Any, List, Optional, Union
 
+import arrow
 from machinable import schema
 from machinable.component import Component
 from machinable.grouping import Grouping
 from machinable.project import Project
+from machinable.types import DatetimeType, JsonableType, TimestampType
+from machinable.utils import Jsonable
 
 if TYPE_CHECKING:
     from machinable.execution import Execution
@@ -13,30 +16,37 @@ if TYPE_CHECKING:
 class Storage(Component):
     """Storage base class"""
 
-    def retrieve_file(
-        experiment_storage_id: str, filepath: str
-    ) -> Optional[Any]:
-        raise NotImplementedError
+    @classmethod
+    def multiple(cls, *storages) -> "Storage":
+        if len(storages) == 1:
+            return Storage.make(storages[0])
 
-    def local_directory(experiment_storage_id: str, *append: str):
-        raise NotImplementedError
+        from machinable.storage.multiple_storage import MultipleStorage
+
+        return MultipleStorage(storages)
 
     def create_execution(
         self,
-        project: Union[Project, schema.Project],
         execution: Union["Execution", schema.Execution],
         experiments: List[Union["Experiment", schema.Experiment]],
         grouping: Union[Grouping, schema.Grouping],
+        project: Union[Project, schema.Project],
     ) -> schema.Execution:
         from machinable.execution import Execution
         from machinable.experiment import Experiment
 
+        project = Project.model(project)
         execution = Execution.model(execution)
+        experiments = [
+            Experiment.model(experiment) for experiment in experiments
+        ]
+        grouping = Grouping.model(grouping)
 
         storage_id = self._create_execution(
-            execution,
-            [Experiment.model(experiment) for experiment in experiments],
-            Grouping.model(grouping),
+            execution=execution,
+            experiments=experiments,
+            grouping=grouping,
+            project=project,
         )
 
         execution._storage_id = storage_id
@@ -49,14 +59,276 @@ class Storage(Component):
         execution: schema.Execution,
         experiments: List[schema.Experiment],
         grouping: Optional[schema.Grouping],
+        project: schema.Project,
     ) -> str:
         raise NotImplementedError
 
-    @classmethod
-    def multiple(cls, *storages) -> "Storage":
-        if len(storages) == 1:
-            return Storage.make(storages[0])
+    def create_experiment(
+        self,
+        experiment: schema.Experiment,
+        execution: schema.Execution,
+        grouping: schema.Grouping,
+        project: schema.Project,
+    ) -> schema.Experiment:
+        storage_id = self._create_experiment(
+            experiment, execution, grouping, project
+        )
 
-        from machinable.storage.multiple_storage import MultipleStorage
+        experiment._storage_id = storage_id
+        experiment._storage_instance = self
 
-        return MultipleStorage(storages)
+        return experiment
+
+    def _create_experiment(
+        self,
+        experiment: schema.Experiment,
+        execution: schema.Execution,
+        grouping: schema.Grouping,
+        project: schema.Project,
+    ) -> str:
+        raise NotImplementedError
+
+    def create_grouping(
+        self, grouping: Union[Grouping, schema.Grouping]
+    ) -> schema.Grouping:
+        grouping = Grouping.model(grouping)
+
+        storage_id = self._create_grouping(grouping)
+
+        grouping._storage_id = storage_id
+        grouping._storage_instance = self
+
+        return grouping
+
+    def _create_grouping(self, grouping: schema.Grouping) -> str:
+        raise NotImplementedError
+
+    def create_record(
+        self,
+        experiment: Union["Experiment", schema.Experiment],
+        data: JsonableType,
+        scope: str = "default",
+        timestamp: Optional[TimestampType] = None,
+    ) -> JsonableType:
+        from machinable.experiment import Experiment
+
+        if timestamp is None:
+            timestamp = arrow.now()
+        if isinstance(timestamp, arrow.Arrow):
+            timestamp = arrow.get(timestamp)
+
+        experiment = Experiment.model(experiment)
+
+        if experiment._storage_instance is not self:
+            experiment._storage_instance = self
+            experiment._storage_id = self.find_experiment(
+                experiment.experiment_id
+            )
+
+        if experiment._storage_id is None:
+            raise ValueError(
+                f"Experiment {experiment.experiment_id} does not exist"
+            )
+
+        record = {**data, "__timestamp": str(timestamp)}
+
+        self._create_record(experiment, record, scope)
+
+        return record
+
+    def _create_record(
+        self,
+        experiment: schema.Experiment,
+        data: JsonableType,
+        scope: str = "default",
+    ) -> str:
+        raise NotImplementedError
+
+    def create_file(
+        self,
+        experiment: Union["Experiment", schema.Experiment],
+        filepath: str,
+        data: Any,
+    ) -> Optional[Any]:
+        from machinable.experiment import Experiment
+
+        experiment = Experiment.model(experiment)
+        return self._create_file(experiment._storage_id, filepath, data)
+
+    def _create_file(
+        self, experiment_storage_id: str, filepath: str, data: Any
+    ) -> str:
+        raise NotImplementedError
+
+    def retrieve_execution(self, storage_id: str) -> schema.Execution:
+        execution = self._retrieve_execution(storage_id)
+        execution._storage_id = storage_id
+        execution._storage_instance = self
+
+        return execution
+
+    def retrieve_executions(
+        self, storage_ids: List[str]
+    ) -> List[schema.Execution]:
+        return [
+            self.retrieve_execution(storage_id) for storage_id in storage_ids
+        ]
+
+    def _retrieve_execution(self, storage_id: str) -> schema.Execution:
+        raise NotImplementedError
+
+    def retrieve_experiment(self, storage_id: str) -> schema.Experiment:
+        experiment = self._retrieve_experiment(storage_id)
+        experiment._storage_id = storage_id
+        experiment._storage_instance = self
+
+        return experiment
+
+    def retrieve_experiments(
+        self, storage_ids: List[str]
+    ) -> List[schema.Experiment]:
+        return [
+            self.retrieve_experiment(storage_id) for storage_id in storage_ids
+        ]
+
+    def _retrieve_experiment(self, storage_id: str) -> schema.Experiment:
+        raise NotImplementedError
+
+    def retrieve_records(
+        self,
+        experiment: Union["Experiment", schema.Experiment],
+        scope: str = "default",
+    ) -> List[JsonableType]:
+        from machinable.experiment import Experiment
+
+        experiment = Experiment.model(experiment)
+
+        return self._retrieve_records(experiment._storage_id, scope)
+
+    def _retrieve_records(
+        self, experiment_storage_id: str, scope: str
+    ) -> List[JsonableType]:
+        raise NotImplementedError
+
+    def retrieve_file(
+        self, experiment: Union["Experiment", schema.Experiment], filepath: str
+    ) -> Optional[Any]:
+        from machinable.experiment import Experiment
+
+        experiment = Experiment.model(experiment)
+        return self._retrieve_file(experiment._storage_id, filepath)
+
+    def _retrieve_file(
+        self, experiment_storage_id: str, filepath: str
+    ) -> Optional[Any]:
+        raise NotImplementedError
+
+    def local_directory(
+        self, experiment: Union["Experiment", schema.Experiment], *append: str
+    ) -> Optional[str]:
+        from machinable.experiment import Experiment
+
+        experiment = Experiment.model(experiment)
+        return self._local_directory(experiment._storage_id, *append)
+
+    def _local_directory(
+        self, experiment_storage_id: str, *append: str
+    ) -> Optional[str]:
+        raise NotImplementedError
+
+    def mark_started(
+        self,
+        experiment: Union["Experiment", schema.Experiment],
+        timestamp: Optional[TimestampType] = None,
+    ) -> DatetimeType:
+        from machinable.experiment import Experiment
+
+        experiment = Experiment.model(experiment)
+        if timestamp is None:
+            timestamp = arrow.now()
+        if isinstance(timestamp, arrow.Arrow):
+            timestamp = arrow.get(timestamp)
+        self._mark_started(experiment._storage_id, timestamp)
+
+        return timestamp
+
+    def _mark_started(self, storage_id: str, timestamp: DatetimeType) -> None:
+        raise NotImplementedError
+
+    def update_heartbeat(
+        self,
+        experiment: Union["Experiment", schema.Experiment],
+        timestamp: Union[float, int, DatetimeType, None] = None,
+        mark_finished=False,
+    ) -> arrow.Arrow:
+        from machinable.experiment import Experiment
+
+        experiment = Experiment.model(experiment)
+        if timestamp is None:
+            timestamp = arrow.now()
+        if isinstance(timestamp, arrow.Arrow):
+            timestamp = arrow.get(timestamp)
+        self._update_heartbeat(experiment._storage_id, timestamp, mark_finished)
+        return timestamp
+
+    def _update_heartbeat(
+        self,
+        storage_id: str,
+        timestamp: DatetimeType,
+        mark_finished=False,
+    ) -> None:
+        raise NotImplementedError
+
+    def retrieve_status(
+        self, experiment: Union["Experiment", schema.Experiment], field: str
+    ) -> Optional[DatetimeType]:
+        from machinable.experiment import Experiment
+
+        experiment = Experiment.model(experiment)
+        fields = ["started", "heartbeat", "finished"]
+        if field not in fields:
+            raise ValueError(f"Invalid field: {field}. Must be on of {fields}")
+        status = self._retrieve_status(experiment._storage_id, field)
+        if status is None:
+            return None
+
+        return arrow.get(status)
+
+    def _retrieve_status(
+        self, experiment_storage_id: str, field: str
+    ) -> Optional[str]:
+        raise NotImplementedError
+
+    def find_experiment(
+        self, experiment_id: str, timestamp: float = None
+    ) -> Optional[str]:
+        return self._find_experiment(experiment_id, timestamp)
+
+    def _find_experiment(
+        self, experiment_id: str, timestamp: float = None
+    ) -> Optional[str]:
+        raise NotImplementedError
+
+    def retrieve_related(
+        self, storage_id: str, relation: str
+    ) -> Optional[schema.Model]:
+        relations = ["experiment.execution", "execution.experiments"]
+
+        if relation not in relations:
+            raise ValueError(
+                f"Invalid relation: {relation}. Must be one of {relations}"
+            )
+
+        related = self.find_related(storage_id, relation)
+        if related is None:
+            return None
+
+        return getattr(self, "retrieve_" + relation.split(".")[-1])(related)
+
+    def find_related(self, storage_id: str, relation: str) -> Optional[str]:
+        raise NotImplementedError
+
+    def _retrieve_file(
+        self, experiment_storage_id: str, filepath: str
+    ) -> Optional[Any]:
+        raise NotImplementedError
