@@ -567,8 +567,8 @@ def import_from_directory(
     try:
         spec = importlib.util.spec_from_file_location(module_name, file_path)
         module = importlib.util.module_from_spec(spec)
-        sys.modules[module_name] = module
         spec.loader.exec_module(module)
+        sys.modules[module_name] = module
         return module
     except FileNotFoundError as _e:
         if or_fail:

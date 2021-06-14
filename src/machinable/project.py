@@ -286,7 +286,7 @@ class Project(Connectable, Element):
         if component_class is None:
             raise ConfigurationError(
                 f"Could not find a component inheriting from the {base_class.__name__} base class. "
-                f"Is it correctly defined in {module}?"
+                f"Is it correctly defined in {module.__name__}?"
             )
         try:
             return component_class(

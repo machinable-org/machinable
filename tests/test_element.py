@@ -1,4 +1,14 @@
-from machinable.element import Connectable
+from machinable.element import Connectable, Element
+
+
+def test_element_views():
+    element = Element()
+    view = "tests.samples.project.views.basic"
+    assert element[view].hello() == "there"
+    assert element[view].get_state() is None
+    element[view].set_state("test")
+    assert element[view].get_state() == "test"
+    assert element["!" + view].get_state() is None
 
 
 def test_connectable():

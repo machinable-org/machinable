@@ -6,39 +6,39 @@ scalar DateTime
 scalar UUID
 
 type Query {
-  storage(url: String!): Storage
-  server: String
+    storage(url: String!): Storage
+    server: String
 }
 
 type Mutation {
-  storage(url: String!): Storage
+    storage(url: String!): Storage
 }
 
 type Subscription {
-  index(index: JSON!, limit: Int): IndexSubscriptionDelta
+    index(index: JSON!, limit: Int): IndexSubscriptionDelta
 }
 
 type Storage {
-  url: String!
-  createExecution(execution: StorageCreateExecutionInput!): UUID
+    url: String!
+    createExecution(execution: StorageCreateExecutionInput!): UUID
 }
 
 input StorageCreateExecutionInput {
-  host: JSON
-  code_version: JSON
-  code_diff: String
-  seed: Int
-  experiments: [StorageCreateExperimentInput]
+    host: JSON
+    code_version: JSON
+    code_diff: String
+    seed: Int
+    experiments: [StorageCreateExperimentInput]
 }
 
 input StorageCreateExperimentInput {
-  experiment_id: String
-  component: JSON
+    experiment_id: String
+    component: JSON
 }
 
 type Repository {
-  name: String!
-  executions: [Execution]
+    name: String!
+    executions: [Execution]
 }
 
 # type Execution {
@@ -55,116 +55,116 @@ type Repository {
 # }
 
 type ExperimentInput {
-  test: Int
+    test: Int
 }
 
 type Component {
-  name: String
-  config: JSON @json
-  flags: JSON @json
+    name: String
+    config: JSON @json
+    flags: JSON @json
 }
 
 type Record {
-  scope: String
-  created_at: DateTime
-  updated_at: DateTime
-  count: Int
-  rows: [JSON]
+    scope: String
+    created_at: DateTime
+    updated_at: DateTime
+    count: Int
+    rows: [JSON]
 }
 
 type Host {
-  network_name: String
-  hostname: String
-  machine: String
-  python_version: String
-  user: String
-  environ: JSON @json
-  argv: [String]
-  machinable_version: String
-  # project_directory:
+    network_name: String
+    hostname: String
+    machine: String
+    python_version: String
+    user: String
+    environ: JSON @json
+    argv: [String]
+    machinable_version: String
+    # project_directory:
 }
 
 type Experiment {
-  experiment_id: String!
-  component: Component!
-  components: [Component]!
-  host: Host
-  log: String
-  output: String
-  started_at: DateTime
-  heartbeat_at: DateTime
-  finished_at: DateTime
-  data: [String] # todo
-  records: [Record]
+    experiment_id: String!
+    component: Component!
+    components: [Component]!
+    host: Host
+    log: String
+    output: String
+    started_at: DateTime
+    heartbeat_at: DateTime
+    finished_at: DateTime
+    data: [String] # todo
+    records: [Record]
 }
 
 type BackupConfiguration {
-  enabled: Boolean
-  exclude: [String]
+    enabled: Boolean
+    exclude: [String]
 }
 
 type GitInfo {
-  path: String
-  commit: String
-  is_dirty: Boolean
-  branch: String
+    path: String
+    commit: String
+    is_dirty: Boolean
+    branch: String
 }
 
 type GitInfoMap {
-  key: String
-  value: GitInfo
+    key: String
+    value: GitInfo
 }
 
 type CodeVersion {
-  id: String
-  project: GitInfo
-  vendor: [GitInfoMap]
+    id: String
+    project: GitInfo
+    vendor: [GitInfoMap]
 }
 
 type Project {
-  directory: String
-  config_file: String
-  name: String
+    directory: String
+    config_file: String
+    name: String
 }
 
 type Engine {
-  type: String
-  config: JSON
+    type: String
+    config: JSON
 }
 
 type Execution {
-  code_diff: String
-  code_backup: BackupConfiguration
-  code_version: CodeVersion
-  code: String # url
-  engine: Engine
-  project: Project
-  host: Host
-  experiments: [Experiment]
+    code_diff: String
+    code_backup: BackupConfiguration
+    code_version: CodeVersion
+    code: String # url
+    engine: Engine
+    project: Project
+    host: Host
+    experiments: [Experiment]
 }
 
 type Submission {
-  url: String!
-  experiment_id: String!
-  seed: Int
-  config: JSON @json
-  flags: JSON @json
-  tuning: Boolean
-  host: JSON @json
-  state: JSON @json
-  started_at: DateTime
-  heartbeat_at: DateTime
-  finished_at: DateTime
-  is_finished: Boolean @method
-  is_started: Boolean @method
-  is_active: Boolean @method
-  is_incomplete: Boolean @method
-  execution: Execution!
-  related: [Repository] # /related
-  ancestor: Experiment
+    url: String!
+    experiment_id: String!
+    seed: Int
+    config: JSON @json
+    flags: JSON @json
+    tuning: Boolean
+    host: JSON @json
+    state: JSON @json
+    started_at: DateTime
+    heartbeat_at: DateTime
+    finished_at: DateTime
+    is_finished: Boolean @method
+    is_started: Boolean @method
+    is_active: Boolean @method
+    is_incomplete: Boolean @method
+    execution: Execution!
+    related: [Repository] # /related
+    ancestor: Experiment
 }
 
 type IndexSubscriptionDelta {
-  experiments: [Experiment]
-  updates: [Experiment]
+    experiments: [Experiment]
+    updates: [Experiment]
 }

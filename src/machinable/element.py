@@ -1,12 +1,14 @@
-from typing import Any, Callable, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any, Callable, List, Optional, Tuple, Union
 
 from functools import wraps
-from multiprocessing import Value
 
 import arrow
 from machinable import schema
 from machinable.collection import Collection
 from machinable.utils import Jsonable
+
+if TYPE_CHECKING:
+    from machinable.view import View
 
 
 def belongs_to(f: Callable) -> Any:
@@ -112,6 +114,18 @@ class Element(Jsonable):
         from machinable.project import Project
 
         return Project
+
+    def __getitem__(self, view: str) -> "View":
+        from machinable.view import View
+
+        if view.startswith("!") or view.endswith("!"):
+            # force reconstruction
+            return View.make(view.replace("!", ""), self)
+
+        if f"views:{view}" not in self._cache:
+            self._cache[f"views:{view}"] = View.make(view, self)
+
+        return self._cache[f"views:{view}"]
 
     @classmethod
     def from_model(cls, model: schema.Model) -> "Element":

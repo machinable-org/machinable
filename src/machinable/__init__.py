@@ -8,3 +8,4 @@ from machinable.project import Project
 from machinable.provider import Provider
 from machinable.record import Record
 from machinable.storage import Storage
+from machinable.view import View
