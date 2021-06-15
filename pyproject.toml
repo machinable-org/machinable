@@ -35,7 +35,7 @@ arrow = "^1.0.3"
 importlib-metadata = "^4.0.1"
 PyYAML = "^5.4.1"
 commandlib = "^0.3.5"
-omegaconf = {version = "2.1.0.rc1", allow-prereleases = true}
+omegaconf = {version = "2.1.0", allow-prereleases = true}
 
 # optional dependencies
 setproctitle = {version = "^1.1", optional = true}
