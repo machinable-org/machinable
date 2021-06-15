@@ -1,16 +1,15 @@
-from time import time
 from typing import Any, List, Optional
 
+import json
 import os
+from time import time
 
 import arrow
+import requests
 from machinable import component, schema
 from machinable.storage.storage import Storage
-from machinable.types import DatetimeType, JsonableType
+from machinable.types import DatetimeType, JsonableType, VersionType
 from machinable.utils import load_file, save_file, update_dict
-import requests
-from machinable.types import VersionType
-import json
 
 
 class DirectusStorage(Storage):

@@ -1,7 +1,8 @@
+import os
+
+import pytest
 from machinable import Storage
 from machinable.testing import storage_tests
-import os
-import pytest
 
 
 def test_filesystem_storage(tmpdir):
