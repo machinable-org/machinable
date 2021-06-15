@@ -4,7 +4,6 @@ from functools import partial
 
 from machinable import errors
 from machinable.component import Component
-from machinable.storage.storage import Storage
 from machinable.types import VersionType
 from machinable.utils import Events, apply_seed
 
@@ -18,44 +17,32 @@ class Interface(Component):  # pylint: disable=too-many-public-methods
 
     def __init__(self, config: dict, version: VersionType = None):
         super().__init__(config, version)
-        self._storage: Optional[Storage] = None
-        self._events: Events = Events()
-        self._experiment: Optional["Experiment"] = None
+        self.__events: Events = Events()
+        self.__experiment: Optional["Experiment"] = None
 
     @property
     def experiment(self) -> Optional["Experiment"]:
-        return self._experiment
+        return self.__experiment
 
     def default_resources(self, engine: "Engine") -> Optional[dict]:
         """Default resources"""
 
-    def dispatch(
-        self, experiment: "Experiment", storage: Optional[Storage] = None
-    ):
+    def dispatch(self, experiment: "Experiment"):
         """Execute the interface lifecycle"""
-        if storage is None and experiment.is_mounted():
-            storage = experiment.__model__._storage_instance
-
-        self._experiment = experiment
-        self._storage = storage
+        self.__experiment = experiment
 
         try:
+            if self.experiment.is_mounted():
+                experiment.mark_started()
+                self.__events.on("heartbeat", experiment.update_heartbeat)
+                self.__events.heartbeats(seconds=15)
+
             self.on_dispatch()
 
             self.on_init(**experiment.components())
 
             if self.on_seeding() is not False:
                 self.set_seed()
-
-            if self._storage is not None:
-                self._events.on(
-                    "heartbeat",
-                    partial(
-                        self._storage.update_heartbeat,
-                        storage_id=self.experiment.__model__._storage_id,
-                    ),
-                )
-                self._events.heartbeats(seconds=15)
 
             # create
             self.on_before_create()
@@ -69,15 +56,15 @@ class Interface(Component):  # pylint: disable=too-many-public-methods
 
             # destroy
             self.on_before_destroy()
-            self._events.heartbeats(None)
+            self.__events.heartbeats(None)
             for component in experiment.components().values():
                 on_destroy = getattr(component, "on_destroy", None)
                 if callable(on_destroy):
                     on_destroy()
 
             self.on_destroy()
-            if self._storage is not None:
-                self._storage.update_heartbeat(mark_finished=True)
+            if self.experiment.is_mounted():
+                self.experiment.update_heartbeat(mark_finished=True)
 
             self.on_after_destroy()
 
@@ -101,7 +88,7 @@ class Interface(Component):  # pylint: disable=too-many-public-methods
 
         return status
 
-    def set_seed(self, seed=None) -> bool:
+    def set_seed(self, seed: Optional[int] = None) -> bool:
         """Applies a random seed
 
         # Arguments
@@ -131,7 +118,7 @@ class Interface(Component):  # pylint: disable=too-many-public-methods
             timestep: int = -1  # TODO
 
         if path is None:
-            if self._storage is None:
+            if not self.experiment.is_mounted():
                 raise ValueError("You need to specify a checkpoint path")
 
             # checkpoint_path = self.storage.get_path("checkpoints", create=True)

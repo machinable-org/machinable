@@ -71,5 +71,6 @@ components:components:
       flat:
         nested: False
       flat.version: 2
+  interface_check:
 interfaces:
   execution.basics:

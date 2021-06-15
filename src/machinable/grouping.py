@@ -1,4 +1,4 @@
-from typing import Optional, Tuple, Union
+from typing import Any, Optional, Tuple, Union
 
 from datetime import datetime
 
