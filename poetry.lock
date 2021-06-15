@@ -634,7 +634,7 @@ python-versions = "*"
 
 [[package]]
 name = "omegaconf"
-version = "2.1.0rc1"
+version = "2.1.0"
 description = "A flexible configuration library"
 category = "main"
 optional = false
@@ -1207,7 +1207,7 @@ server = ["ariadne", "uvicorn"]
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.6.1"
-content-hash = "5bfa1c3e1a3790d342880a5b13470fa088d6470079b5c4c542446e5a7e79c34d"
+content-hash = "c49a6704bbd4cfd14d04dc409c511d2356ae913d8ccf3846ebad46e98fa44422"
 
 [metadata.files]
 aiohttp = [
@@ -1728,8 +1728,8 @@ observable = [
     {file = "observable-1.0.3.tar.gz", hash = "sha256:97fe8e9d8c2a6185cee3661fa5fba9ce38c7ba388894132940cd6a81633626d9"},
 ]
 omegaconf = [
-    {file = "omegaconf-2.1.0rc1-py3-none-any.whl", hash = "sha256:0fa2b020a2bd830f78210dd4bc1a719e4e64030705cf172770da3deafa565d49"},
-    {file = "omegaconf-2.1.0rc1.tar.gz", hash = "sha256:54dd856dc75c0bba2d4154651491f7f1d527892c321dd1c7c7205fd3fcd0508f"},
+    {file = "omegaconf-2.1.0-py3-none-any.whl", hash = "sha256:a9c576639f66793c874e32d17138ecce7a57e132a4537d2b6dff899d6958f956"},
+    {file = "omegaconf-2.1.0.tar.gz", hash = "sha256:a08aec03a63c66449b550b85d70238f4dee9c6c4a0541d6a98845dcfeb12439d"},
 ]
 opencensus = [
     {file = "opencensus-0.7.13-py2.py3-none-any.whl", hash = "sha256:2d84b36d06aff4f0f00c7c5adee7c621d8a87d2813247724d96aa997c67dcfbc"},
