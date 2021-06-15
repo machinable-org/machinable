@@ -1,15 +1,19 @@
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
 
+import os
+from time import time
+
 import arrow
 from machinable import schema
 from machinable.collection.record import RecordCollection
 from machinable.component import compact
 from machinable.element import Element, belongs_to
 from machinable.errors import StorageError
+from machinable.grouping import resolve_grouping
 from machinable.interface import Interface
 from machinable.project import Project
 from machinable.settings import get_settings
-from machinable.types import DatetimeType, VersionType
+from machinable.types import DatetimeType, TimestampType, VersionType
 from omegaconf import OmegaConf
 from omegaconf.dictconfig import DictConfig
 
@@ -48,6 +52,17 @@ class Experiment(Element):
 
     def __reduce__(self) -> Union[str, Tuple[Any, ...]]:
         return (self.__class__, ("",), self.serialize())
+
+    def _assert_mounted(self):
+        if not self.is_mounted():
+            raise StorageError(
+                "Experiment has not been written to a storage yet."
+            )
+
+    def _assert_writable(self):
+        self._assert_mounted()
+        if self.is_finished():
+            raise StorageError("Experiment is finished and thus read-only")
 
     @property
     def seed(self) -> Optional[int]:
@@ -144,9 +159,7 @@ class Experiment(Element):
         if not self.is_mounted():
             return None
 
-        return self.__model__._storage_instance.local_directory(
-            self.__model__._storage_id, **append
-        )
+        return self.__model__._storage_instance.local_directory(self, *append)
 
     def records(self, scope="default") -> RecordCollection:
         if not self.is_mounted():
@@ -180,21 +193,41 @@ class Experiment(Element):
 
         return data if data is not None else default
 
-    def create_file(self, filepath: str, data: Any) -> str:
-        if not self.is_mounted():
-            raise StorageError(
-                "Experiment has not been written to a storage yet."
-            )
-
-        if self.is_finished():
-            raise StorageError("Experiment is finished and thus read-only")
+    def save_file(self, filepath: str, data: Any) -> str:
+        if os.path.isabs(filepath):
+            raise ValueError("Filepath must be relative")
+        self._assert_writable()
 
         return self.__model__._storage_instance.create_file(
             self, filepath, data
         )
 
+    def save_data(self, filepath: str, data: Any) -> str:
+        return self.save_file(os.path.join("data", filepath), data)
+
+    def load_data(self, filepath: str, default=None) -> Optional[Any]:
+        return self.load_file(os.path.join("data", filepath), default)
+
+    def mark_started(
+        self, timestamp: Optional[TimestampType] = None
+    ) -> DatetimeType:
+        self._assert_writable()
+        self.__model__._storage_instance.mark_started(self, timestamp)
+
+    def update_heartbeat(
+        self,
+        timestamp: Union[float, int, DatetimeType, None] = None,
+        mark_finished=False,
+    ) -> DatetimeType:
+        self._assert_writable()
+        self.__model__._storage_instance.update_heartbeat(
+            self, timestamp, mark_finished
+        )
+
     def output(self) -> Optional[str]:
         """Returns the output log"""
+        self._assert_mounted()
+
         if "output" in self._cache:
             return self._cache["output"]
 
@@ -207,16 +240,22 @@ class Experiment(Element):
 
     def started_at(self) -> Optional[DatetimeType]:
         """Returns the starting time"""
+        if not self.is_mounted():
+            return None
         return self.__model__._storage_instance.retrieve_status(self, "started")
 
     def heartbeat_at(self):
         """Returns the last heartbeat time"""
+        if not self.is_mounted():
+            return None
         return self.__model__._storage_instance.retrieve_status(
             self, "heartbeat"
         )
 
     def finished_at(self):
         """Returns the finishing time"""
+        if not self.is_mounted():
+            return None
         return self.__model__._storage_instance.retrieve_status(
             self, "finished"
         )

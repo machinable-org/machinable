@@ -75,7 +75,7 @@ class FilesystemStorage(Storage):
 
         storage_id = self.path(
             path,
-            f"{prefix}-{experiment.experiment_id}-{arrow.get(timestamp)}",
+            f"{prefix}{'-' if prefix else ''}{experiment.experiment_id}-{arrow.get(timestamp)}",
         )
 
         save_file(
@@ -103,20 +103,29 @@ class FilesystemStorage(Storage):
             mode="a",
         )
 
-    def _mark_started(self, storage_id: str, timestamp: DatetimeType) -> None:
-        save_file(os.path.join(storage_id, "started_at"), str(timestamp))
+    def _mark_started(
+        self, experiment: schema.Experiment, timestamp: DatetimeType
+    ) -> None:
+        save_file(
+            os.path.join(experiment._storage_id, "started_at"), str(timestamp)
+        )
 
     def _update_heartbeat(
         self,
-        storage_id: str,
+        experiment: schema.Experiment,
         timestamp: DatetimeType,
         mark_finished=False,
     ) -> None:
         save_file(
-            os.path.join(storage_id, "heartbeat_at"), str(timestamp), mode="w"
+            os.path.join(experiment._storage_id, "heartbeat_at"),
+            str(timestamp),
+            mode="w",
         )
         if mark_finished:
-            save_file(os.path.join(storage_id, "finished_at"), str(timestamp))
+            save_file(
+                os.path.join(experiment._storage_id, "finished_at"),
+                str(timestamp),
+            )
 
     def _retrieve_status(
         self, experiment_storage_id: str, field: str
@@ -125,7 +134,7 @@ class FilesystemStorage(Storage):
             os.path.join(experiment_storage_id, f"{field}_at"), default=None
         )
 
-    def find_experiment(
+    def _find_experiment(
         self, experiment_id: str, timestamp: float = None
     ) -> Optional[str]:
         return None
@@ -159,16 +168,17 @@ class FilesystemStorage(Storage):
     ) -> Optional[str]:
         return os.path.join(experiment_storage_id, *append)
 
-    def find_related(self, storage_id: str, relation: str) -> Optional[str]:
+    def _find_related(self, storage_id: str, relation: str) -> Optional[str]:
         if relation == "experiment.execution":
             return os.path.join(storage_id, "execution")
-        elif relation == "execution.experiments":
+        if relation == "execution.experiments":
             return [
                 os.path.normpath(os.path.join(storage_id, p))
                 for p in load_file(os.path.join(storage_id, "execution.json"))[
                     "_related_experiments"
                 ]
             ]
+        return None
 
     def _create_file(
         self, experiment_storage_id: str, filepath: str, data: Any

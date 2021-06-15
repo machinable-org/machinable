@@ -3,9 +3,14 @@ from typing import TYPE_CHECKING, Any, List, Optional, Union
 import arrow
 from machinable import schema
 from machinable.component import Component
-from machinable.grouping import Grouping
+from machinable.grouping import Grouping, resolve_grouping
 from machinable.project import Project
-from machinable.types import DatetimeType, JsonableType, TimestampType
+from machinable.types import (
+    DatetimeType,
+    JsonableType,
+    TimestampType,
+    VersionType,
+)
 from machinable.utils import Jsonable
 
 if TYPE_CHECKING:
@@ -17,13 +22,21 @@ class Storage(Component):
     """Storage base class"""
 
     @classmethod
-    def multiple(cls, *storages) -> "Storage":
-        if len(storages) == 1:
-            return Storage.make(storages[0])
+    def make(
+        cls,
+        name: Optional[str] = None,
+        version: VersionType = None,
+    ) -> "Storage":
+        return super().make(name, version)
+
+    @classmethod
+    def multiple(cls, primary: "Storage", *secondary: "Storage") -> "Storage":
+        if len(secondary) == 0:
+            return primary
 
         from machinable.storage.multiple_storage import MultipleStorage
 
-        return MultipleStorage(storages)
+        return MultipleStorage(primary, *secondary)
 
     def create_execution(
         self,
@@ -41,6 +54,8 @@ class Storage(Component):
             Experiment.model(experiment) for experiment in experiments
         ]
         grouping = Grouping.model(grouping)
+        if grouping.resolved_group is None:
+            _, grouping.resolved_group = resolve_grouping(grouping.group)
 
         storage_id = self._create_execution(
             execution=execution,
@@ -48,6 +63,7 @@ class Storage(Component):
             grouping=grouping,
             project=project,
         )
+        assert storage_id is not None
 
         execution._storage_id = storage_id
         execution._storage_instance = self
@@ -73,6 +89,7 @@ class Storage(Component):
         storage_id = self._create_experiment(
             experiment, execution, grouping, project
         )
+        assert storage_id is not None
 
         experiment._storage_id = storage_id
         experiment._storage_instance = self
@@ -94,6 +111,7 @@ class Storage(Component):
         grouping = Grouping.model(grouping)
 
         storage_id = self._create_grouping(grouping)
+        assert storage_id is not None
 
         grouping._storage_id = storage_id
         grouping._storage_instance = self
@@ -118,12 +136,6 @@ class Storage(Component):
             timestamp = arrow.get(timestamp)
 
         experiment = Experiment.model(experiment)
-
-        if experiment._storage_instance is not self:
-            experiment._storage_instance = self
-            experiment._storage_id = self.find_experiment(
-                experiment.experiment_id
-            )
 
         if experiment._storage_id is None:
             raise ValueError(
@@ -259,11 +271,13 @@ class Storage(Component):
             timestamp = arrow.now()
         if isinstance(timestamp, arrow.Arrow):
             timestamp = arrow.get(timestamp)
-        self._mark_started(experiment._storage_id, timestamp)
+        self._mark_started(experiment, timestamp)
 
         return timestamp
 
-    def _mark_started(self, storage_id: str, timestamp: DatetimeType) -> None:
+    def _mark_started(
+        self, experiment: schema.Experiment, timestamp: DatetimeType
+    ) -> None:
         raise NotImplementedError
 
     def update_heartbeat(
@@ -271,7 +285,7 @@ class Storage(Component):
         experiment: Union["Experiment", schema.Experiment],
         timestamp: Union[float, int, DatetimeType, None] = None,
         mark_finished=False,
-    ) -> arrow.Arrow:
+    ) -> DatetimeType:
         from machinable.experiment import Experiment
 
         experiment = Experiment.model(experiment)
@@ -279,12 +293,12 @@ class Storage(Component):
             timestamp = arrow.now()
         if isinstance(timestamp, arrow.Arrow):
             timestamp = arrow.get(timestamp)
-        self._update_heartbeat(experiment._storage_id, timestamp, mark_finished)
+        self._update_heartbeat(experiment, timestamp, mark_finished)
         return timestamp
 
     def _update_heartbeat(
         self,
-        storage_id: str,
+        experiment: schema.Experiment,
         timestamp: DatetimeType,
         mark_finished=False,
     ) -> None:
@@ -337,6 +351,9 @@ class Storage(Component):
         return getattr(self, "retrieve_" + relation.split(".")[-1])(related)
 
     def find_related(self, storage_id: str, relation: str) -> Optional[str]:
+        return self._find_related(storage_id, relation)
+
+    def _find_related(self, storage_id: str, relation: str) -> Optional[str]:
         raise NotImplementedError
 
     def _retrieve_file(

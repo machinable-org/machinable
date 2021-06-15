@@ -21,6 +21,18 @@ class Record(Element):
     def experiment() -> Experiment:
         return Experiment
 
+    @property
+    def scope(self) -> str:
+        return self.__model__.scope
+
+    @property
+    def last(self) -> Optional[dict]:
+        return self.__model__.last
+
+    @property
+    def current(self) -> dict:
+        return self.__model__.current
+
     def write(self, key: str, value: Any) -> None:
         """Writes a cell value
 
@@ -74,7 +86,7 @@ class Record(Element):
         if len(data) == 0 and not force:
             return {}
 
-        return self.experiment.__model__.storage_instance.create_record(
+        return self.experiment.__model__._storage_instance.create_record(
             experiment=self.experiment.__model__,
             data=data,
             scope=self.__model__.scope,

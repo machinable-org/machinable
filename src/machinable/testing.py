@@ -22,21 +22,26 @@ def storage_tests(storage: Storage) -> None:
     )
 
     execution_ = storage.retrieve_execution(execution._storage_id)
-    assert execution_ == execution
+    assert int(execution_.timestamp) == int(execution.timestamp)
 
     for experiment in experiments:
         experiment_ = storage.retrieve_experiment(experiment._storage_id)
-        assert experiment_ == experiment
+        assert experiment_.experiment_id == experiment.experiment_id
 
     # relationships
     related = storage.retrieve_related(
         experiments[0]._storage_id, "experiment.execution"
     )
-    assert related == execution
+    assert int(related.timestamp) == int(execution.timestamp)
     inverse = storage.retrieve_related(
         related._storage_id, "execution.experiments"
     )
-    assert all([experiments[i] == inverse[i] for i in range(len(experiments))])
+    assert all(
+        [
+            experiments[i].experiment_id == inverse[i].experiment_id
+            for i in range(len(experiments))
+        ]
+    )
 
     # status managment
     now = arrow.now()

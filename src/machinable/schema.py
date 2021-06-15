@@ -43,7 +43,7 @@ class Experiment(Model):
     )
     resources: Optional[dict] = None
     seed: Optional[int] = None
-    config: Optional[str] = None
+    config: Optional[dict] = None
 
 
 class Repository(Model):
