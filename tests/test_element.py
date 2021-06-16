@@ -1,4 +1,7 @@
+import machinable as ml
+from machinable import grouping
 from machinable.element import Connectable, Element
+from machinable.repository import Repository
 
 
 def test_element_views():
@@ -43,3 +46,31 @@ def test_connectable():
             assert Dummy.get() is dummy_2
         assert Dummy.get() is dummy_1
     assert Dummy.get() is not dummy_1
+
+
+def test_element_relations(tmp_path):
+    ml.Repository(
+        "machinable.storage.filesystem_storage", {"directory": str(tmp_path)}
+    ).connect()
+    ml.Project("./tests/samples/project").connect()
+
+    experiment = ml.Experiment("basic")
+    execution = ml.Execution().add(experiment)
+    execution.dispatch(grouping="test/grouping")
+
+    # experiment <-> execution
+    assert int(execution.timestamp) == int(experiment.execution.timestamp)
+    assert experiment.experiment_id == execution.experiments[0].experiment_id
+    # grouping <-> execution
+    assert execution.grouping.group == "test/grouping"
+    assert execution.grouping.executions[0].nickname == execution.nickname
+
+    # invalidate cache and reconstruct
+    experiment.__related__ = {}
+    execution.__related__ = {}
+    # experiment <-> execution
+    assert int(execution.timestamp) == int(experiment.execution.timestamp)
+    assert experiment.experiment_id == execution.experiments[0].experiment_id
+    # grouping <-> execution
+    assert execution.grouping.group == "test/grouping"
+    assert execution.grouping.executions[0].nickname == execution.nickname

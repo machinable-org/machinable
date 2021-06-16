@@ -11,7 +11,7 @@ def storage_tests(storage: Storage) -> None:
         schema.Experiment(interface=["c"]),
     ]
     project = schema.Project(directory=".")
-    grouping = schema.Grouping(group="test/me", resolved_group="test/me")
+    grouping = schema.Grouping(pattern="test/me", group="test/me")
 
     # create execution and experiments
     storage.create_execution(
@@ -42,6 +42,29 @@ def storage_tests(storage: Storage) -> None:
             for i in range(len(experiments))
         ]
     )
+    assert (
+        storage.retrieve_related(
+            execution._storage_id, "execution.grouping"
+        ).group
+        == "test/me"
+    )
+    assert (
+        storage.retrieve_related("test/me", "grouping.executions")[0].nickname
+        == execution.nickname
+    )
+
+    # search
+    assert (
+        storage.find_experiment(experiments[0].experiment_id)
+        == experiments[0]._storage_id
+    )
+    assert (
+        storage.find_experiment(
+            experiments[0].experiment_id, execution.timestamp
+        )
+        == experiments[0]._storage_id
+    )
+    assert storage.find_experiment("not-existing") is None
 
     # status managment
     now = arrow.now()

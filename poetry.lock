@@ -1207,7 +1207,7 @@ server = ["ariadne", "uvicorn"]
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.6.1"
-content-hash = "c49a6704bbd4cfd14d04dc409c511d2356ae913d8ccf3846ebad46e98fa44422"
+content-hash = "e4344719a1918aa312d74b28494a94df4d2461a4ff643e723cd30ef7e6092441"
 
 [metadata.files]
 aiohttp = [

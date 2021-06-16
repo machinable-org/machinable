@@ -104,7 +104,7 @@ class Experiment(Element):
 
         Execution(engine=engine, version=version).add(
             experiment=self, resources=resources, seed=seed
-        ).submit(grouping=grouping)
+        ).dispatch(grouping=grouping)
 
         return self
 
