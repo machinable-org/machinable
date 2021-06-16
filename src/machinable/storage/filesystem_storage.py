@@ -1,13 +1,14 @@
-from typing import Any, List, Optional
+from typing import Any, List, Optional, Union
 
+import json
 import os
+import sqlite3
 
 import arrow
 from machinable import schema
 from machinable.storage.storage import Storage
-from machinable.types import DatetimeType, JsonableType
+from machinable.types import DatetimeType, JsonableType, VersionType
 from machinable.utils import load_file, save_file
-from pydantic.types import Json
 
 
 class FilesystemStorage(Storage):
@@ -15,6 +16,59 @@ class FilesystemStorage(Storage):
         """Config annotation"""
 
         directory: str
+
+    def __init__(self, config: dict, version: VersionType):
+        super().__init__(config, version=version)
+        os.makedirs(self.config.directory, exist_ok=True)
+        self._db_file = os.path.join(self.config.directory, "storage.sqlite")
+        self._db = sqlite3.connect(self._db_file)
+        self._migrate(self._db)
+
+    def _migrate(self, database):
+        cur = database.cursor()
+        version = cur.execute("PRAGMA user_version;").fetchone()[0]
+        if version == 0:
+            # initial migration
+            cur.execute(
+                """CREATE TABLE executions (
+                    id integer PRIMARY KEY,
+                    storage_id text NOT NULL,
+                    engine json,
+                    nickname text,
+                    timestamp real,
+                    seed integer,
+                    'grouping_id' integer,
+                    FOREIGN KEY (grouping_id) REFERENCES groupings (id)
+                )"""
+            )
+            cur.execute(
+                """CREATE TABLE experiments (
+                    id integer PRIMARY KEY,
+                    storage_id text NOT NULL,
+                    interface json,
+                    components json,
+                    experiment_id text,
+                    resources json,
+                    seed integer,
+                    config json,
+                    execution_id integer,
+                    timestamp real,
+                    FOREIGN KEY (execution_id) REFERENCES executions (id)
+                )"""
+            )
+            cur.execute(
+                """CREATE TABLE groupings (
+                    id integer PRIMARY KEY,
+                    'group' text,
+                    pattern text
+                )"""
+            )
+            cur.execute("PRAGMA user_version = 1;")
+            database.commit()
+            version += 1
+        if version == 1:
+            # future migrations
+            pass
 
     def _create_execution(
         self,
@@ -57,7 +111,69 @@ class FilesystemStorage(Storage):
             },
         )
 
-        # TODO: commit to database
+        cur = self._db.cursor()
+
+        row = cur.execute(
+            """SELECT id FROM groupings WHERE 'group'=?""",
+            (grouping.group,),
+        ).fetchone()
+        if row is None:
+            cur.execute(
+                """INSERT INTO groupings ('pattern', 'group') VALUES (?,?)""",
+                (grouping.pattern, grouping.group),
+            )
+            self._db.commit()
+            grouping_id = cur.lastrowid
+        else:
+            grouping_id = row["id"]
+
+        cur.execute(
+            """INSERT INTO executions (
+                storage_id,
+                engine,
+                nickname,
+                timestamp,
+                seed,
+                'grouping_id'
+                ) VALUES (?,?,?,?,?,?)""",
+            (
+                primary_directory,
+                json.dumps(execution.engine),
+                execution.nickname,
+                execution.timestamp,
+                execution.seed,
+                grouping_id,
+            ),
+        )
+        self._db.commit()
+        execution_id = cur.lastrowid
+        for experiment in experiments:
+            cur.execute(
+                """INSERT INTO experiments(
+                    storage_id,
+                    interface,
+                    components,
+                    experiment_id,
+                    resources,
+                    seed,
+                    config,
+                    execution_id,
+                    timestamp
+                    ) VALUES (?,?,?,?,?,?,?,?,?)""",
+                (
+                    experiment._storage_id,
+                    json.dumps(experiment.interface),
+                    json.dumps(experiment.components),
+                    experiment.experiment_id,
+                    json.dumps(experiment.resources),
+                    experiment.seed,
+                    json.dumps(experiment.config),
+                    execution_id,
+                    execution.timestamp,
+                ),
+            )
+        self._db.commit()
+
         return primary_directory
 
     def _create_experiment(
@@ -89,7 +205,7 @@ class FilesystemStorage(Storage):
     def _create_grouping(self, grouping: schema.Grouping) -> str:
         # directory is created implicitly during experiment creation
         # so we just return the resolved group
-        return grouping.resolved_group
+        return grouping.group
 
     def _create_record(
         self,
@@ -137,6 +253,21 @@ class FilesystemStorage(Storage):
     def _find_experiment(
         self, experiment_id: str, timestamp: float = None
     ) -> Optional[str]:
+        cur = self._db.cursor()
+        if timestamp is not None:
+            query = cur.execute(
+                """SELECT storage_id FROM experiments WHERE experiment_id=? AND timestamp=?""",
+                (experiment_id, timestamp),
+            )
+        else:
+            query = cur.execute(
+                """SELECT storage_id FROM experiments WHERE experiment_id=?""",
+                (experiment_id,),
+            )
+        result = query.fetchone()
+        if result:
+            return result[0]
+
         return None
 
     def _retrieve_execution(self, storage_id: str) -> schema.Execution:
@@ -148,6 +279,14 @@ class FilesystemStorage(Storage):
         return schema.Experiment(
             **load_file(os.path.join(storage_id, "experiment.json")),
         )
+
+    def _retrieve_grouping(self, storage_id: str) -> schema.Grouping:
+        cur = self._db.cursor()
+        row = cur.execute(
+            """SELECT `group`, `pattern` FROM groupings WHERE `group`=?""",
+            (storage_id,),
+        ).fetchone()
+        return schema.Grouping(group=row[0], pattern=row[1])
 
     def _retrieve_records(
         self, experiment_storage_id: str, scope: str
@@ -168,7 +307,9 @@ class FilesystemStorage(Storage):
     ) -> Optional[str]:
         return os.path.join(experiment_storage_id, *append)
 
-    def _find_related(self, storage_id: str, relation: str) -> Optional[str]:
+    def _find_related(
+        self, storage_id: str, relation: str
+    ) -> Optional[Union[str, List[str]]]:
         if relation == "experiment.execution":
             return os.path.join(storage_id, "execution")
         if relation == "execution.experiments":
@@ -178,6 +319,25 @@ class FilesystemStorage(Storage):
                     "_related_experiments"
                 ]
             ]
+        if relation == "grouping.executions":
+            cur = self._db.cursor()
+            return [
+                row[0]
+                for row in cur.execute(
+                    """SELECT executions.storage_id FROM executions
+                LEFT JOIN groupings ON executions.grouping_id = groupings.id
+                WHERE groupings.`group`=?""",
+                    (storage_id,),
+                ).fetchall()
+            ]
+        if relation == "execution.grouping":
+            cur = self._db.cursor()
+            return cur.execute(
+                """SELECT groupings.`group` FROM executions
+                LEFT JOIN groupings ON executions.grouping_id = groupings.id
+                WHERE executions.storage_id=?""",
+                (storage_id,),
+            ).fetchone()[0]
         return None
 
     def _create_file(

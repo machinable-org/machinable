@@ -54,8 +54,8 @@ class Storage(Component):
             Experiment.model(experiment) for experiment in experiments
         ]
         grouping = Grouping.model(grouping)
-        if grouping.resolved_group is None:
-            _, grouping.resolved_group = resolve_grouping(grouping.group)
+        if grouping.group is None:
+            _, grouping.group = resolve_grouping(grouping.pattern)
 
         storage_id = self._create_execution(
             execution=execution,
@@ -206,6 +206,16 @@ class Storage(Component):
     def _retrieve_experiment(self, storage_id: str) -> schema.Experiment:
         raise NotImplementedError
 
+    def retrieve_grouping(self, storage_id: str) -> schema.Grouping:
+        grouping = self._retrieve_grouping(storage_id)
+        grouping._storage_id = storage_id
+        grouping._storage_instance = self
+
+        return grouping
+
+    def _retrieve_grouping(self, storage_id: str) -> schema.Grouping:
+        raise NotImplementedError
+
     def retrieve_records(
         self,
         experiment: Union["Experiment", schema.Experiment],
@@ -337,7 +347,12 @@ class Storage(Component):
     def retrieve_related(
         self, storage_id: str, relation: str
     ) -> Optional[schema.Model]:
-        relations = ["experiment.execution", "execution.experiments"]
+        relations = [
+            "experiment.execution",
+            "execution.experiments",
+            "grouping.executions",
+            "execution.grouping",
+        ]
 
         if relation not in relations:
             raise ValueError(
@@ -350,10 +365,14 @@ class Storage(Component):
 
         return getattr(self, "retrieve_" + relation.split(".")[-1])(related)
 
-    def find_related(self, storage_id: str, relation: str) -> Optional[str]:
+    def find_related(
+        self, storage_id: str, relation: str
+    ) -> Optional[Union[str, List[str]]]:
         return self._find_related(storage_id, relation)
 
-    def _find_related(self, storage_id: str, relation: str) -> Optional[str]:
+    def _find_related(
+        self, storage_id: str, relation: str
+    ) -> Optional[Union[str, List[str]]]:
         raise NotImplementedError
 
     def _retrieve_file(

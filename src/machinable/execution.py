@@ -127,8 +127,8 @@ class Execution(Element):
 
         return self
 
-    def submit(self, grouping: Optional[str] = None) -> "Execution":
-        """Submit the execution
+    def dispatch(self, grouping: Optional[str] = None) -> "Execution":
+        """Dispatch the execution
 
         grouping: See repository.commit()
         """
@@ -146,6 +146,18 @@ class Execution(Element):
     ) -> "Execution":
         """Derives a related execution."""
         # user can specify overrides, otherwise it copies all objects over
+
+    @property
+    def timestamp(self) -> float:
+        return self.__model__.timestamp
+
+    @property
+    def seed(self) -> int:
+        return self.__model__.seed
+
+    @property
+    def nickname(self) -> str:
+        return self.__model__.nickname
 
     def __repr__(self):
         return "Execution"

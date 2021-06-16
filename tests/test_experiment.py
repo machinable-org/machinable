@@ -32,7 +32,7 @@ def test_experiment(tmp_path):
     model = storage.create_experiment(
         experiment=schema.Experiment(interface=["t"], config={"test": True}),
         execution=schema.Execution(engine=["t"]),
-        grouping=schema.Grouping(group="", resolved_group=""),
+        grouping=schema.Grouping(pattern="", group=""),
         project=schema.Project(directory="."),
     )
 

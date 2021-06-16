@@ -1,4 +1,4 @@
-from typing import Any, List, Optional
+from typing import Any, List, Optional, Union
 
 import json
 import os
@@ -106,7 +106,7 @@ class DirectusStorage(Storage):
     def _create_grouping(self, grouping: schema.Grouping) -> str:
         search = self._directus_retrieve(
             "groupings",
-            filter={"resolved_group": {"_eq": grouping.resolved_group}},
+            filter={"group": {"_eq": grouping.group}},
         )
         if len(search) > 0:
             return str(search[0]["id"])
@@ -180,12 +180,18 @@ class DirectusStorage(Storage):
             config=data["config"] or {},
         )
 
+    def _retrieve_grouping(self, storage_id: str) -> schema.Grouping:
+        data = self._directus_retrieve("groupings", int(storage_id))
+        return schema.Grouping(group=data["group"], pattern=data["pattern"])
+
     def _find_experiment(
         self, experiment_id: str, timestamp: float = None
     ) -> Optional[str]:
         raise NotImplementedError
 
-    def _find_related(self, storage_id: str, relation: str) -> Optional[str]:
+    def _find_related(
+        self, storage_id: str, relation: str
+    ) -> Optional[Union[str, List[str]]]:
         if relation == "experiment.execution":
             return str(
                 self._directus_retrieve("experiments", int(storage_id))[
@@ -200,6 +206,12 @@ class DirectusStorage(Storage):
                     filter={"execution_id": {"_eq": int(storage_id)}},
                 )
             ]
+        if relation == "grouping.executions":
+            # TODO:
+            raise NotImplementedError
+        if relation == "execution.grouping":
+            # TODO:
+            raise NotImplementedError
         return None
 
     def _retrieve_records(

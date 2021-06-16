@@ -26,7 +26,7 @@ class Grouping(Element):
 
     def __init__(self, group: Optional[str] = None):
         super().__init__()
-        self.__model__ = schema.Grouping(group=normgrouping(group))
+        self.__model__ = schema.Grouping(pattern=normgrouping(group))
 
     @property
     def group(self) -> str:
@@ -34,15 +34,13 @@ class Grouping(Element):
 
     def resolved(self, reload: Union[str, bool] = False) -> str:
         if isinstance(reload, str):
-            self.__model__.resolved_group = reload
+            self.__model__.group = reload
             reload = False
 
-        if self.__model__.resolved_group is None or reload:
-            _, self.__model__.resolved_group = resolve_grouping(
-                self.__model__.group
-            )
+        if self.__model__.group is None or reload:
+            _, self.__model__.group = resolve_grouping(self.__model__.pattern)
 
-        return self.__model__.resolved_group
+        return self.__model__.group
 
     @has_many
     def executions() -> ExecutionCollection:

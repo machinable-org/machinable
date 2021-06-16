@@ -18,8 +18,9 @@ def belongs_to(f: Callable) -> Any:
         related_class = f()
         name = f.__name__
         if self.__related__.get(name, None) is None and self.is_mounted():
-            related = self.__model__._storage[name].retrive_related(
-                self.__model__, name
+            related = self.__model__._storage_instance.retrieve_related(
+                self.__model__._storage_id,
+                f"{self.__class__.__name__.lower()}.{name}",
             )
             self.__related__[name] = related_class.from_model(related)
 
@@ -47,8 +48,9 @@ def has_many(f: Callable) -> Any:
             return None
         name = f.__name__
         if self.__related__.get(name, None) is None and self.is_mounted():
-            related = self.__model__._storage[name].retrieve_related(
-                name, self.__model__
+            related = self.__model__._storage_instance.retrieve_related(
+                self.__model__._storage_id,
+                f"{self.__class__.__name__.lower()}.{name}",
             )
             self.__related__[name] = collection(
                 [related_class.from_model(r) for r in related]

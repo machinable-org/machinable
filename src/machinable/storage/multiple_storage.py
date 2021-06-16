@@ -1,4 +1,4 @@
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 from machinable import schema
 from machinable.storage.storage import Storage
@@ -143,6 +143,9 @@ class MultipleStorage(Storage):
     def _retrieve_experiment(self, storage_id: str) -> schema.Experiment:
         return self._read("_retrieve_experiment", storage_id)
 
+    def _retrieve_grouping(self, storage_id: str) -> schema.Grouping:
+        return self._read("_retrieve_grouping", storage_id)
+
     def _retrieve_records(
         self, experiment_storage_id: str, scope: str
     ) -> List[JsonableType]:
@@ -171,7 +174,9 @@ class MultipleStorage(Storage):
     ) -> Optional[str]:
         return self._read("_find_experiment", experiment_id, timestamp)
 
-    def _find_related(self, storage_id: str, relation: str) -> Optional[str]:
+    def _find_related(
+        self, storage_id: str, relation: str
+    ) -> Optional[Union[str, List[str]]]:
         return self._read("_find_related", storage_id, relation)
 
     def _retrieve_file(

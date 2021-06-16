@@ -52,8 +52,8 @@ class Repository(Model):
 
 
 class Grouping(Model):
-    group: str
-    resolved_group: Optional[str] = None
+    pattern: str
+    group: Optional[str] = None
 
 
 class Execution(Model):
