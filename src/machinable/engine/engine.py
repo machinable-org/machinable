@@ -51,7 +51,7 @@ class Engine(Component):
         execution: machinable.Execution object
         """
 
-    def _dispatch(self, execution: "Execution"):
+    def _dispatch(self, execution: "Execution") -> List[Any]:
         return [
             self._dispatch_experiment(experiment)
             for experiment in execution.experiments

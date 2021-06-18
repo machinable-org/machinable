@@ -76,3 +76,4 @@ interfaces:
   execution.basics:
 interfaces::
   basic:
+  interfaces.interrupted_lifecycle:

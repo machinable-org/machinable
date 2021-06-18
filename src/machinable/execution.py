@@ -80,6 +80,10 @@ class Execution(Element):
         if not isinstance(experiment, Experiment):
             raise ValueError(f"Invalid experiment: {experiment}")
 
+        if experiment.is_mounted():
+            # TODO: auto-derive from experiment with same configuration; if seed is not given use existing seed
+            raise NotImplementedError("Experiment has already been executed")
+
         # parse resources
         if callable(resources):
             resources = resources(engine=self.engine(), experiment=experiment)

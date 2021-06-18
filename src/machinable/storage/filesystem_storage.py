@@ -332,7 +332,10 @@ class FilesystemStorage(Storage):
         self, storage_id: str, relation: str
     ) -> Optional[Union[str, List[str]]]:
         if relation == "experiment.execution":
-            return os.path.join(storage_id, "execution")
+            directory = os.path.join(storage_id, "execution")
+            if not os.path.isdir(directory):
+                return None
+            return directory
         if relation == "execution.experiments":
             return [
                 os.path.normpath(os.path.join(storage_id, p))

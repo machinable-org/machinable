@@ -9,7 +9,7 @@ from machinable.collection.experiment import ExperimentCollection
 from machinable.collection.record import RecordCollection
 from machinable.component import compact
 from machinable.element import Element, belongs_to, has_many
-from machinable.errors import StorageError
+from machinable.errors import MachinableError, StorageError
 from machinable.grouping import resolve_grouping
 from machinable.interface import Interface
 from machinable.project import Project
@@ -118,6 +118,9 @@ class Experiment(Element):
         seed: Optional[int] = None,
     ) -> "Experiment":
         """Executes the experiment"""
+        if self.is_mounted() and self.execution is not None:
+            raise MachinableError("Experiment has already been executed.")
+
         from machinable.execution import Execution
 
         Execution(engine=engine, version=version).add(

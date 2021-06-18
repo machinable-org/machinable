@@ -75,16 +75,30 @@ class Interface(Component):  # pylint: disable=too-many-public-methods
                 message="The components execution has been interrupted by the user or system.",
             )
             status.__cause__ = _interrupt
-            self.on_failure(exception=status)
-            self.on_finish(success=False, result=status)
+            try:
+                self.on_failure(exception=status)
+                self.on_finish(success=False, result=status)
+            except BaseException as _gex:  # pylint: disable=broad-except
+                status = errors.ExecutionFailed(
+                    reason="exception",
+                    message="Execution failed",
+                )
+                status.__cause__ = _gex
         except BaseException as _ex:  # pylint: disable=broad-except
             status = errors.ExecutionFailed(
                 reason="exception",
-                message=f"Execution failed",
+                message="Execution failed",
             )
             status.__cause__ = _ex
-            self.on_failure(exception=status)
-            self.on_finish(success=False, result=status)
+            try:
+                self.on_failure(exception=status)
+                self.on_finish(success=False, result=status)
+            except BaseException as _gex:  # pylint: disable=broad-except
+                status = errors.ExecutionFailed(
+                    reason="exception",
+                    message="Execution failed",
+                )
+                status.__cause__ = _gex
 
         return status
 
