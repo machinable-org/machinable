@@ -53,6 +53,9 @@ class Storage(Component):
         experiments = [
             Experiment.model(experiment) for experiment in experiments
         ]
+        # write created_at timestamp
+        for experiment in experiments:
+            experiment.timestamp = execution.timestamp
         grouping = Grouping.model(grouping)
         if grouping.group is None:
             _, grouping.group = resolve_grouping(grouping.pattern)
@@ -347,23 +350,25 @@ class Storage(Component):
     def retrieve_related(
         self, storage_id: str, relation: str
     ) -> Optional[schema.Model]:
-        relations = [
-            "experiment.execution",
-            "execution.experiments",
-            "grouping.executions",
-            "execution.grouping",
-        ]
+        relations = {
+            "experiment.execution": "execution",
+            "execution.experiments": "experiments",
+            "grouping.executions": "executions",
+            "execution.grouping": "grouping",
+            "experiment.ancestor": "experiment",
+            "experiment.derived": "experiments",
+        }
 
         if relation not in relations:
             raise ValueError(
-                f"Invalid relation: {relation}. Must be one of {relations}"
+                f"Invalid relation: {relation}. Must be one of {list(relations.keys())}"
             )
 
         related = self.find_related(storage_id, relation)
         if related is None:
             return None
 
-        return getattr(self, "retrieve_" + relation.split(".")[-1])(related)
+        return getattr(self, "retrieve_" + relations[relation])(related)
 
     def find_related(
         self, storage_id: str, relation: str

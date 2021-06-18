@@ -52,6 +52,18 @@ def storage_tests(storage: Storage) -> None:
         storage.retrieve_related("test/me", "grouping.executions")[0].nickname
         == execution.nickname
     )
+    assert (
+        storage.retrieve_related(
+            experiments[0]._storage_id, "experiment.derived"
+        )
+        == []
+    )
+    assert (
+        storage.retrieve_related(
+            experiments[0]._storage_id, "experiment.ancestor"
+        )
+        is None
+    )
 
     # search
     assert (

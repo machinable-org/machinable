@@ -53,7 +53,9 @@ class FilesystemStorage(Storage):
                     config json,
                     execution_id integer,
                     timestamp real,
+                    ancestor_id integer,
                     FOREIGN KEY (execution_id) REFERENCES executions (id)
+                    FOREIGN KEY (ancestor_id) REFERENCES experiments (id)
                 )"""
             )
             cur.execute(
@@ -148,6 +150,12 @@ class FilesystemStorage(Storage):
         self._db.commit()
         execution_id = cur.lastrowid
         for experiment in experiments:
+            ancestor_id = cur.execute(
+                """SELECT id FROM experiments WHERE experiment_id=? AND timestamp=?""",
+                (experiment.derived_from_id, experiment.derived_from_timestamp),
+            ).fetchone()
+            if ancestor_id:
+                ancestor_id = ancestor_id[0]
             cur.execute(
                 """INSERT INTO experiments(
                     storage_id,
@@ -158,8 +166,9 @@ class FilesystemStorage(Storage):
                     seed,
                     config,
                     execution_id,
-                    timestamp
-                    ) VALUES (?,?,?,?,?,?,?,?,?)""",
+                    timestamp,
+                    ancestor_id
+                    ) VALUES (?,?,?,?,?,?,?,?,?,?)""",
                 (
                     experiment._storage_id,
                     json.dumps(experiment.interface),
@@ -169,7 +178,8 @@ class FilesystemStorage(Storage):
                     experiment.seed,
                     json.dumps(experiment.config),
                     execution_id,
-                    execution.timestamp,
+                    experiment.timestamp,
+                    ancestor_id,
                 ),
             )
         self._db.commit()
@@ -189,10 +199,21 @@ class FilesystemStorage(Storage):
 
         timestamp = int(execution.timestamp)
 
-        storage_id = self.path(
+        derived_from = None
+        if experiment.derived_from_id is not None:
+            derived_from = self.find_experiment(
+                experiment.derived_from_id, experiment.derived_from_timestamp
+            )
+
+        directory = os.path.join(
             path,
             f"{prefix}{'-' if prefix else ''}{experiment.experiment_id}-{arrow.get(timestamp)}",
         )
+
+        if derived_from is not None:
+            storage_id = os.path.join(derived_from, "derived", directory)
+        else:
+            storage_id = self.path(directory)
 
         save_file(
             os.path.join(storage_id, "experiment.json"),
@@ -332,12 +353,31 @@ class FilesystemStorage(Storage):
             ]
         if relation == "execution.grouping":
             cur = self._db.cursor()
-            return cur.execute(
+            row = cur.execute(
                 """SELECT groupings.`group` FROM executions
                 LEFT JOIN groupings ON executions.grouping_id = groupings.id
                 WHERE executions.storage_id=?""",
                 (storage_id,),
-            ).fetchone()[0]
+            ).fetchone()
+            if row:
+                return row[0]
+        if relation == "experiment.derived":
+            cur = self._db.cursor()
+            return [
+                row[0]
+                for row in cur.execute(
+                    """SELECT storage_id FROM experiments WHERE ancestor_id=(SELECT id FROM experiments WHERE storage_id=?)""",
+                    (storage_id,),
+                ).fetchall()
+            ]
+        if relation == "experiment.ancestor":
+            cur = self._db.cursor()
+            row = cur.execute(
+                """SELECT e.storage_id FROM experiments e INNER JOIN experiments m ON m.ancestor_id=e.id WHERE m.storage_id=?""",
+                (storage_id,),
+            ).fetchone()
+            if row:
+                return row[0]
         return None
 
     def _create_file(

@@ -5,9 +5,10 @@ from time import time
 
 import arrow
 from machinable import schema
+from machinable.collection.experiment import ExperimentCollection
 from machinable.collection.record import RecordCollection
 from machinable.component import compact
-from machinable.element import Element, belongs_to
+from machinable.element import Element, belongs_to, has_many
 from machinable.errors import StorageError
 from machinable.grouping import resolve_grouping
 from machinable.interface import Interface
@@ -25,14 +26,17 @@ if TYPE_CHECKING:
 
 class Experiment(Element):
     def __init__(
-        self, interface: Optional[str] = None, version: VersionType = None
+        self,
+        interface: Optional[str] = None,
+        version: VersionType = None,
+        derive_from: Optional["Experiment"] = None,
     ):
         """Experiment
 
         # Arguments
         interface: The name of the interface as defined in the machinable.yaml
-        config: Configuration to override the default config
-        seed: Optional seed.
+        version: Configuration to override the default config
+        derive_from: Optional ancestor experiment
         """
         super().__init__()
         if interface is None:
@@ -43,6 +47,8 @@ class Experiment(Element):
         self._resolved_interface: Optional[Interface] = None
         self._resolved_components: Dict[str, "Component"] = {}
         self._resolved_config: Optional[DictConfig] = None
+        if derive_from is not None:
+            self.derive_from(derive_from)
 
     @classmethod
     def from_model(cls, model: schema.Experiment) -> "Experiment":
@@ -64,9 +70,21 @@ class Experiment(Element):
         if self.is_finished():
             raise StorageError("Experiment is finished and thus read-only")
 
-    @property
-    def seed(self) -> Optional[int]:
-        return self.__model__.seed
+    def derive_from(self, ancestor: "Experiment") -> "Experiment":
+        if not ancestor.is_mounted():
+            raise StorageError(
+                "The ancestor experiment has not been written to a storage yet."
+            )
+        if ancestor.timestamp is None:
+            raise ValueError(
+                "The ancestor experiment has not been executed yet."
+            )
+
+        self.__model__.derived_from_id = ancestor.experiment_id
+        self.__model__.derived_from_timestamp = ancestor.timestamp
+        self.__related__["ancestor"] = ancestor
+
+        return self
 
     def components(self, reload: bool = False) -> Dict[str, "Component"]:
         if reload:
@@ -131,6 +149,16 @@ class Experiment(Element):
             self.__model__.components[slot] = compact(component, version)
 
         return self
+
+    @has_many
+    def derived() -> ExperimentCollection:
+        """Returns a collection of derived experiments"""
+        return Experiment, ExperimentCollection, False
+
+    @belongs_to
+    def ancestor() -> Optional["Experiment"]:
+        """Returns parent experiment or None if experiment is independent"""
+        return Experiment
 
     @belongs_to
     def execution() -> "Execution":
@@ -238,6 +266,20 @@ class Experiment(Element):
 
         return output
 
+    @property
+    def seed(self) -> Optional[int]:
+        return self.__model__.seed
+
+    @property
+    def timestamp(self) -> Optional[float]:
+        return self.__model__.timestamp
+
+    def created_at(self) -> Optional[DatetimeType]:
+        if self.timestamp is None:
+            return None
+
+        return arrow.get(self.timestamp)
+
     def started_at(self) -> Optional[DatetimeType]:
         """Returns the starting time"""
         if not self.is_mounted():
@@ -282,14 +324,6 @@ class Experiment(Element):
         return self.is_started() and not (
             self.is_active() or self.is_finished()
         )
-
-    def derived(self):
-        """Returns a collection of derived experiments"""
-        raise NotImplementedError
-
-    def ancestor(self):
-        """Returns parent experiment or None if experiment is independent"""
-        raise NotImplementedError
 
     def __str__(self):
         return f"Experiment() [{self.__model__.experiment_id}]"
