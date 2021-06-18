@@ -1,7 +1,15 @@
 from os import error
 
 import pytest
-from machinable import Experiment, Project, Storage, errors, schema
+from machinable import (
+    Execution,
+    Experiment,
+    Project,
+    Repository,
+    Storage,
+    errors,
+    schema,
+)
 
 
 def test_experiment(tmp_path):
@@ -29,9 +37,10 @@ def test_experiment(tmp_path):
         {"directory": str(tmp_path)},
     )
 
+    execution = schema.Execution(engine=["t"])
     model = storage.create_experiment(
         experiment=schema.Experiment(interface=["t"], config={"test": True}),
-        execution=schema.Execution(engine=["t"]),
+        execution=execution,
         grouping=schema.Grouping(pattern="", group=""),
         project=schema.Project(directory="."),
     )
@@ -68,3 +77,31 @@ def test_experiment(tmp_path):
     with pytest.raises(errors.StorageError):
         experiment._assert_writable()
     assert not experiment.is_incomplete()
+
+
+def test_experiment_relations(tmp_path):
+    Repository(
+        "machinable.storage.filesystem_storage", {"directory": str(tmp_path)}
+    ).connect()
+    Project("./tests/samples/project").connect()
+
+    experiment = Experiment("basic")
+    execution = Execution().add(experiment)
+    execution.dispatch(grouping="test/grouping")
+
+    derived = Experiment("basic", derive_from=experiment)
+    assert derived.ancestor is experiment
+    derived_execution = Execution().add(derived).dispatch()
+
+    # invalidate cache and reconstruct
+    experiment.__related__ = {}
+    execution.__related__ = {}
+    derived.__related__ = {}
+    derived_execution.__related__ = {}
+
+    assert derived.ancestor.experiment_id == experiment.experiment_id
+    assert experiment.derived[0].experiment_id == derived.experiment_id
+
+    derived2 = Experiment("basic", derive_from=experiment)
+    Execution().add(derived2).dispatch()
+    assert len(experiment.derived) == 2

@@ -99,6 +99,7 @@ class DirectusStorage(Storage):
                 {
                     **experiment.dict(),
                     "execution_id": int(execution._storage_id),
+                    "timestamp": str(arrow.get(experiment.timestamp)),
                 },
             )["id"]
         )
@@ -210,6 +211,12 @@ class DirectusStorage(Storage):
             # TODO:
             raise NotImplementedError
         if relation == "execution.grouping":
+            # TODO:
+            raise NotImplementedError
+        if relation == "experiment.related":
+            # TODO:
+            raise NotImplementedError
+        if relation == "experiment.ancestor":
             # TODO:
             raise NotImplementedError
         return None

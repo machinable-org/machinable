@@ -44,17 +44,20 @@ def has_many(f: Callable) -> Any:
             related_class, collection, use_cache = args
         else:
             assert False, "Invalid number of relation arguments"
-        if not self.is_mounted() and use_cache is False:
-            return None
         name = f.__name__
         if self.__related__.get(name, None) is None and self.is_mounted():
             related = self.__model__._storage_instance.retrieve_related(
                 self.__model__._storage_id,
                 f"{self.__class__.__name__.lower()}.{name}",
             )
-            self.__related__[name] = collection(
+            if related is None:
+                return None
+            collected = collection(
                 [related_class.from_model(r) for r in related]
             )
+            if not use_cache:
+                return collected
+            self.__related__[name] = collected
 
         return self.__related__.get(name, None)
 

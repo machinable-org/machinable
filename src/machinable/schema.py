@@ -44,6 +44,9 @@ class Experiment(Model):
     resources: Optional[dict] = None
     seed: Optional[int] = None
     config: Optional[dict] = None
+    timestamp: Optional[float] = None
+    derived_from_id: Optional[str] = None
+    derived_from_timestamp: Optional[float] = None
 
 
 class Repository(Model):

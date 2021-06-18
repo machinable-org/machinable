@@ -124,6 +124,7 @@ class Execution(Element):
             seed = generate_seed(self.__model__.seed + len(self.experiments))
 
         experiment.__model__.seed = seed
+        experiment.__model__.timestamp = self.timestamp
 
         return self
 
@@ -137,15 +138,6 @@ class Execution(Element):
         self.engine().dispatch(self)
 
         return self
-
-    def derive(
-        self,
-        engine: Union[str, None] = None,
-        version: VersionType = None,
-        seed: Union[int, None] = None,
-    ) -> "Execution":
-        """Derives a related execution."""
-        # user can specify overrides, otherwise it copies all objects over
 
     @property
     def timestamp(self) -> float:
