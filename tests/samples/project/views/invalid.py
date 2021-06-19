@@ -1,6 +1,6 @@
-from machinable import View
+from machinable import Experiment
 
 
-class Invalid(View):
+class Invalid(Experiment):
     def __init__(self) -> None:
         pass

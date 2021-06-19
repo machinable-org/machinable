@@ -1,17 +1,19 @@
 import machinable as ml
-from machinable import grouping
-from machinable.element import Connectable, Element
-from machinable.repository import Repository
+from machinable import Experiment
+from machinable.element import Connectable
 
 
 def test_element_views():
-    element = Element()
+    element = Experiment("")
     view = "tests.samples.project.views.basic"
     assert element[view].hello() == "there"
+    instance = element[view]
+    instance.get_state() is None
+    instance.set_state("test")
     assert element[view].get_state() is None
-    element[view].set_state("test")
-    assert element[view].get_state() == "test"
-    assert element["!" + view].get_state() is None
+    instance.get_state() == "test"
+
+    assert Experiment[view]("dummy").hello() == "there"
 
 
 def test_connectable():

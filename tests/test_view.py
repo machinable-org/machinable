@@ -1,15 +1,20 @@
 import pytest
-from machinable import Project, View
+from machinable import Experiment, Project
 from machinable.errors import ConfigurationError, MachinableError
+from machinable.view import from_element, get
 
 
 def test_view():
     Project("./tests/samples/project").connect()
     with pytest.raises(ModuleNotFoundError):
-        View.make("non.existing", None)
+        get("non.existing", Experiment)
     with pytest.raises(ConfigurationError):
-        View.make("views.empty", None)
+        get("views.empty", Experiment)
+
+    experiment = Experiment("dummy")
     with pytest.raises(MachinableError):
-        View.make("views.invalid", None)
-    view = View.make("views.basic", 1)
-    assert view.element == 1
+        from_element("views.invalid", experiment)
+
+    view = from_element("views.basic", experiment)
+    assert view.experiment_id == experiment.experiment_id
+    assert view.hello() == "there"

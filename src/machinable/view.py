@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Type
 
 import importlib
 
@@ -10,24 +10,29 @@ if TYPE_CHECKING:
     from machinable.element import Element
 
 
-class View:
-    def __init__(self, element: "Element") -> None:
-        self.element = element
+def get(name: str, element: Type["Element"]) -> "Element":
+    module = import_from_directory(name, Project.get().path())
+    if module is None:
+        module = importlib.import_module(name)
+    view_class = find_subclass_in_module(module, element)
+    if view_class is None:
+        raise ConfigurationError(
+            f"Could not find a view inheriting from {element.__name__}"
+            f"Is it correctly defined in '{module.__name__}'?"
+        )
 
-    @classmethod
-    def make(cls, name: str, element: "Element") -> "View":
-        module = import_from_directory(name, Project.get().path())
-        if module is None:
-            module = importlib.import_module(name)
-        view_class = find_subclass_in_module(module, View)
-        if view_class is None:
-            raise ConfigurationError(
-                f"Could not find a view inheriting from the View base class. "
-                f"Is it correctly defined in '{module.__name__}'?"
-            )
-        try:
-            return view_class(element)
-        except TypeError as _e:
-            raise MachinableError(
-                f"Could instantiate view {view_class.__module__}.{view_class.__name__}"
-            ) from _e
+    return view_class
+
+
+def from_element(name: str, element: "Element") -> "Element":
+    view_class = get(name, element.__class__)
+    try:
+        view = view_class("")
+    except TypeError as _e:
+        raise MachinableError(
+            f"Could instantiate view {view_class.__module__}.{view_class.__name__}"
+        ) from _e
+
+    view.__model__ = element.__model__
+
+    return view
