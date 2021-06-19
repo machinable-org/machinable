@@ -11,6 +11,8 @@ if TYPE_CHECKING:
 
 
 def get(name: str, element: Type["Element"]) -> "Element":
+    if name.startswith("@"):
+        name = name.replace("@", f"_machinable.{element.__name__.lower()}s.")
     module = import_from_directory(name, Project.get().path())
     if module is None:
         module = importlib.import_module(name)

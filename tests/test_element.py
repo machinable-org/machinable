@@ -1,5 +1,5 @@
 import machinable as ml
-from machinable import Experiment
+from machinable import Execution, Experiment, Project
 from machinable.element import Connectable
 
 
@@ -14,6 +14,10 @@ def test_element_views():
     instance.get_state() == "test"
 
     assert Experiment[view]("dummy").hello() == "there"
+
+    # @-alias notation
+    with Project("./tests/samples/project"):
+        assert Execution["@example"]().is_extended
 
 
 def test_connectable():
