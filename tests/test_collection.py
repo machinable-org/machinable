@@ -4,8 +4,7 @@
 
 from unittest import TestCase
 
-import pytest
-from machinable.collection.collection import Collection, collect
+from machinable.collection import Collection, collect
 
 
 def test_collect():

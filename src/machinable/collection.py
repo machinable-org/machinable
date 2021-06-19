@@ -1277,7 +1277,7 @@ class Collection:
             return selection
 
         try:
-            rows = min([len(e) for e in selection])
+            rows = min(len(e) for e in selection)
         except TypeError:
             return selection
 
@@ -1361,3 +1361,59 @@ class Collection:
 
 def collect(elements):
     return Collection(elements)
+
+
+class ExperimentCollection(Collection):
+    def __str__(self):
+        if len(self.items) > 15:
+            items = ", ".join([repr(item) for item in self.items[:5]])
+            items += " ... "
+            items += ", ".join([repr(item) for item in self.items[-5:]])
+        else:
+            items = ", ".join([repr(item) for item in self.items])
+        return f"Experiments ({len(self.items)}) <{items}>"
+
+
+class ExecutionCollection(Collection):
+    def status(self, status="started"):
+        """Filters the collection by a status attribute
+
+        # Arguments
+        status: String, status field: 'started', 'finished', 'alive'
+        """
+        try:
+            return self.filter(lambda item: getattr(item, "is_" + status)())
+        except AttributeError:
+            raise ValueError(f"Invalid status field: {status}")
+
+    def as_dataframe(self):
+        """Returns collection as Pandas dataframe"""
+        data = {k: [] for k in self._items[0].serialize().keys()}
+        for item in self._items:
+            for k, v in item.serialize().items():
+                data[k].append(v)
+        import pandas
+
+        return pandas.DataFrame.from_dict(data)
+
+
+class RecordCollection(Collection):
+    def as_dataframe(self):
+        """Returns collection as Pandas dataframe"""
+        import pandas
+
+        data = (
+            {k: [row[k] for row in self._items] for k in self._items[0].keys()}
+            if len(self._items) > 0
+            else {}
+        )
+        return pandas.DataFrame.from_dict(data)
+
+    def __str__(self):
+        if len(self.items) > 15:
+            items = ", ".join([repr(item) for item in self.items[:5]])
+            items += " ... "
+            items += ", ".join([repr(item) for item in self.items[-5:]])
+        else:
+            items = ", ".join([repr(item) for item in self.items])
+        return f"Records ({len(self.items)}) <{items}>"

@@ -5,8 +5,7 @@ from time import time
 
 import arrow
 from machinable import schema
-from machinable.collection.experiment import ExperimentCollection
-from machinable.collection.record import RecordCollection
+from machinable.collection import ExperimentCollection, RecordCollection
 from machinable.component import compact
 from machinable.element import Element, belongs_to, has_many
 from machinable.errors import MachinableError, StorageError

@@ -3,7 +3,7 @@ from typing import Any, Optional, Tuple, Union
 from datetime import datetime
 
 from machinable import schema
-from machinable.collection.execution import ExecutionCollection
+from machinable.collection import ExecutionCollection
 from machinable.element import Element, has_many
 
 

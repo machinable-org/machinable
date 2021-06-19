@@ -4,7 +4,7 @@ import copy
 from datetime import datetime as dt
 
 from machinable import schema
-from machinable.collection.experiment import ExperimentCollection
+from machinable.collection import ExperimentCollection
 from machinable.component import compact
 from machinable.element import Element, belongs_to, has_many
 from machinable.engine import Engine
