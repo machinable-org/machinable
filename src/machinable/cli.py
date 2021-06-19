@@ -12,7 +12,6 @@ class Cli:
             usage="""machinable <command> [<args>]
 
                 version    Displays the machinable version
-                server     Launch a machinable server
                 vendor     Manage vendor dependencies
             """,
         )
@@ -29,29 +28,6 @@ class Cli:
         from machinable.utils import get_machinable_version
 
         print(get_machinable_version())
-
-    def server(self):
-        import uvicorn
-        from machinable.server.server import server
-
-        parser = argparse.ArgumentParser(
-            description="Launch a machinable server"
-        )
-
-        parser.add_argument("--host", default="127.0.0.1", help="Host")
-        parser.add_argument("--port", default=5000, help="Port")
-        parser.add_argument("--log-level", default="info", help="Log level")
-        parser.add_argument("--app", action="store_true")
-        args = parser.parse_args(self.argv[2:])
-
-        if args.app:
-            import webbrowser
-
-            webbrowser.open("http://app.machinable.org/", new=0, autoraise=True)
-
-        uvicorn.run(
-            server, host=args.host, port=args.port, log_level=args.log_level
-        )
 
     def vendor(self):
         parser = argparse.ArgumentParser(
