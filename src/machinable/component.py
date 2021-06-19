@@ -2,10 +2,8 @@ from typing import Any, List, Optional, Tuple, Union
 
 import copy
 import re
-from dataclasses import asdict
 
-import pydantic
-from attr import Attribute
+import omegaconf
 from machinable.errors import ConfigurationError
 from machinable.types import ComponentType, VersionType
 from machinable.utils import Jsonable, unflatten_dict, update_dict
@@ -69,7 +67,7 @@ def compact(
     component: Union[str, List[Union[str, dict, None]]],
     version: VersionType = None,
 ) -> ComponentType:
-    if isinstance(component, (list, tuple)):
+    if isinstance(component, (list, tuple, omegaconf.listconfig.ListConfig)):
         component, *default_version = component
         if not isinstance(version, (list, tuple)):
             version = [version]
@@ -77,7 +75,7 @@ def compact(
 
     if not isinstance(component, str):
         raise ValueError(
-            f"Invalid component, expected str but found {component}"
+            f"Invalid component, expected str but found <{type(component)}>: {component}"
         )
 
     return [component] + normversion(version)

@@ -1,5 +1,6 @@
 from typing import TYPE_CHECKING, Any, Dict, Optional, Union
 
+import sys
 from functools import partial
 
 from machinable import errors
@@ -39,7 +40,11 @@ class Interface(Component):  # pylint: disable=too-many-public-methods
 
             self.on_dispatch()
 
-            self.on_init(**experiment.components())
+            self.on_init(
+                **experiment.components(
+                    defaults=self.config.get("_uses_", None)
+                )
+            )
 
             if self.on_seeding() is not False:
                 self.set_seed()
@@ -72,7 +77,8 @@ class Interface(Component):  # pylint: disable=too-many-public-methods
             self.on_finish(success=True)
         except (KeyboardInterrupt, SystemExit) as _interrupt:
             status = errors.ExecutionInterrupt(
-                message="The components execution has been interrupted by the user or system.",
+                "The components execution has been interrupted by the user or system.",
+                *sys.exc_info(),
             )
             status.__cause__ = _interrupt
             try:
@@ -80,14 +86,14 @@ class Interface(Component):  # pylint: disable=too-many-public-methods
                 self.on_finish(success=False, result=status)
             except BaseException as _gex:  # pylint: disable=broad-except
                 status = errors.ExecutionFailed(
-                    reason="exception",
-                    message="Execution failed",
+                    "Unhandled exception in on_failure or on_finish",
+                    *sys.exc_info(),
                 )
                 status.__cause__ = _gex
         except BaseException as _ex:  # pylint: disable=broad-except
             status = errors.ExecutionFailed(
-                reason="exception",
-                message="Execution failed",
+                "Execution failed",
+                *sys.exc_info(),
             )
             status.__cause__ = _ex
             try:
@@ -95,8 +101,8 @@ class Interface(Component):  # pylint: disable=too-many-public-methods
                 self.on_finish(success=False, result=status)
             except BaseException as _gex:  # pylint: disable=broad-except
                 status = errors.ExecutionFailed(
-                    reason="exception",
-                    message="Execution failed",
+                    "Unhandled exception in on_failure or on_finish",
+                    *sys.exc_info(),
                 )
                 status.__cause__ = _gex
 

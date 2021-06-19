@@ -25,15 +25,17 @@ class ExecutionFailed(MachinableError):
 
     Bases: MachinableError"""
 
-    def __init__(self, message, reason=None):
+    def __init__(self, message, kind=None, cause=None, traceback=None):
         super().__init__(message)
-        self.reason = reason
+        self.kind = kind
+        self.cause = cause
+        self.traceback = traceback
+
+    def reraise(self):
+        raise self.cause
 
 
 class ExecutionInterrupt(ExecutionFailed):
     """Execution was interrupted
 
     Bases: ExecutionFailed"""
-
-    def __init__(self, message):
-        super().__init__(message, reason="interrupt")

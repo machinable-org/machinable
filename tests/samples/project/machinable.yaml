@@ -72,8 +72,14 @@ components:components:
         nested: False
       flat.version: 2
   interface_check:
+  invalid_uses:
+    _uses_: "invalid"
 interfaces:
   execution.basics:
 interfaces::
   basic:
   interfaces.interrupted_lifecycle:
+  interfaces.uses_components:
+    _uses_:
+      test: basic
+      dummy: ["dummy", "~one"]
