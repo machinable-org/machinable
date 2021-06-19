@@ -1,2 +1,2 @@
-class NotAView:
+class NotAnElement:
     pass

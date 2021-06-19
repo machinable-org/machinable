@@ -9,4 +9,3 @@ from machinable.provider import Provider
 from machinable.record import Record
 from machinable.repository import Repository
 from machinable.storage import Storage
-from machinable.view import View

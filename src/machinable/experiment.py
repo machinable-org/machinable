@@ -10,7 +10,6 @@ from machinable.collection.record import RecordCollection
 from machinable.component import compact
 from machinable.element import Element, belongs_to, has_many
 from machinable.errors import MachinableError, StorageError
-from machinable.grouping import resolve_grouping
 from machinable.interface import Interface
 from machinable.project import Project
 from machinable.settings import get_settings

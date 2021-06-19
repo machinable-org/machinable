@@ -96,7 +96,14 @@ class Connectable:
             self.__class__.__connection__ = self._outer_connection
 
 
-class Element(Jsonable):
+class MetaElement(type):
+    def __getitem__(cls, view: str) -> "Element":
+        from machinable.view import get
+
+        return get(view, cls)
+
+
+class Element(Jsonable, metaclass=MetaElement):
     """Element baseclass"""
 
     def __init__(self):
@@ -120,17 +127,10 @@ class Element(Jsonable):
 
         return Project
 
-    def __getitem__(self, view: str) -> "View":
-        from machinable.view import View
+    def __getitem__(self, view: str) -> "Element":
+        from machinable.view import from_element
 
-        if view.startswith("!") or view.endswith("!"):
-            # force reconstruction
-            return View.make(view.replace("!", ""), self)
-
-        if f"views:{view}" not in self._cache:
-            self._cache[f"views:{view}"] = View.make(view, self)
-
-        return self._cache[f"views:{view}"]
+        return from_element(view, self)
 
     @classmethod
     def from_model(cls, model: schema.Model) -> "Element":
