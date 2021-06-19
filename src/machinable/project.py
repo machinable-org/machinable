@@ -6,7 +6,7 @@ import sys
 
 from commandlib import Command
 from machinable import schema
-from machinable.component import Component, normversion
+from machinable.component import Component, compact, normversion
 from machinable.config import parse as parse_config
 from machinable.config import prefix as prefix_config
 from machinable.element import Connectable, Element
@@ -264,6 +264,17 @@ class Project(Connectable, Element):
             module = import_from_directory(
                 component["module"], self.__model__.directory, or_fail=True
             )
+
+            if "_uses_" in component["config_data"]:
+                if not isinstance(component["config_data"]["_uses_"], dict):
+                    raise ConfigurationError(
+                        f"{component['name']}._uses_ must be a mapping, found {component['config_data']['_uses_']}"
+                    )
+                component["config_data"]["_uses_"] = {
+                    k: compact(v)
+                    for k, v in component["config_data"]["_uses_"].items()
+                }
+
             config = {
                 **component["config_data"],
                 "__lineage": component["lineage"],

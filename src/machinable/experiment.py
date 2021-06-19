@@ -85,7 +85,14 @@ class Experiment(Element):
 
         return self
 
-    def components(self, reload: bool = False) -> Dict[str, "Component"]:
+    def components(
+        self, reload: bool = False, defaults: Optional[dict] = None
+    ) -> Dict[str, "Component"]:
+        if defaults is not None:
+            for k, v in defaults.items():
+                if k not in self.__model__.components:
+                    self.__model__.components[k] = compact(v)
+
         if reload:
             self._resolved_components = {}
         if len(self.__model__.components) == len(self._resolved_components):
