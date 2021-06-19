@@ -261,9 +261,15 @@ class Project(Connectable, Element):
         kind = "components"
         if name in self.parsed_config():
             component = self.parsed_config()[name]
-            module = import_from_directory(
-                component["module"], self.__model__.directory, or_fail=True
+            module = self.provider().on_component_import(
+                component["module"], self
             )
+            if module is None or isinstance(module, str):
+                module = import_from_directory(
+                    module if isinstance(module, str) else component["module"],
+                    self.__model__.directory,
+                    or_fail=True,
+                )
 
             if "_uses_" in component["config_data"]:
                 if not isinstance(component["config_data"]["_uses_"], dict):

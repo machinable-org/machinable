@@ -1,4 +1,5 @@
-from typing import Any, List, Optional, Union
+import types
+from typing import TYPE_CHECKING, Any, Optional, Union
 
 import getpass
 import os
@@ -11,6 +12,9 @@ from machinable.component import Component
 from machinable.config import from_file as load_config_from_file
 from machinable.types import VersionType
 from machinable.utils import get_machinable_version
+
+if TYPE_CHECKING:
+    from machinable.project import Project
 
 
 class Provider(Component):
@@ -25,6 +29,7 @@ class Provider(Component):
         return getattr(machinable, kind[:-1].capitalize(), None)
 
     def get_host_info(self) -> dict:
+        """Returned dictionary will be recorded as host information"""
         return {
             "network_name": platform.node(),
             "hostname": socket.gethostname(),
@@ -59,4 +64,17 @@ class Provider(Component):
         target: The target directory (may or may not exists yet)
 
         Return False to prevent the default automatic resolution
+        """
+
+    def on_component_import(
+        self, module: str, project: "Project"
+    ) -> Union[None, str, types.ModuleType]:
+        """Event triggered before a component is imported from a module
+
+        You can prevent the import and return a component or an alternative module import path
+        from this method to be used instead.
+
+        # Arguments
+        module: The module that is about to be imported
+        project: The machinable project
         """
