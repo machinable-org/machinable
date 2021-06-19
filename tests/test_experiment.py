@@ -105,3 +105,6 @@ def test_experiment_relations(tmp_path):
     derived2 = Experiment("basic", derive_from=experiment)
     Execution().add(derived2).dispatch()
     assert len(experiment.derived) == 2
+
+    assert experiment.reset().experiment_id == experiment.experiment_id
+    assert experiment.reset("other").__model__.interface == ["other"]

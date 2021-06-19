@@ -1,5 +1,6 @@
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
 
+import copy
 import os
 from time import time
 
@@ -13,6 +14,7 @@ from machinable.interface import Interface
 from machinable.project import Project
 from machinable.settings import get_settings
 from machinable.types import DatetimeType, TimestampType, VersionType
+from machinable.utils import sentinel
 from omegaconf import OmegaConf
 from omegaconf.dictconfig import DictConfig
 
@@ -68,21 +70,45 @@ class Experiment(Element):
         if self.is_finished():
             raise StorageError("Experiment is finished and thus read-only")
 
-    def derive_from(self, ancestor: "Experiment") -> "Experiment":
-        if not ancestor.is_mounted():
+    def derive_from(self, experiment: "Experiment") -> "Experiment":
+        if not experiment.is_mounted():
             raise StorageError(
-                "The ancestor experiment has not been written to a storage yet."
+                "The experiment has not been written to a storage yet."
             )
-        if ancestor.timestamp is None:
-            raise ValueError(
-                "The ancestor experiment has not been executed yet."
-            )
+        if experiment.timestamp is None:
+            raise ValueError("The experiment has not been executed yet.")
 
-        self.__model__.derived_from_id = ancestor.experiment_id
-        self.__model__.derived_from_timestamp = ancestor.timestamp
-        self.__related__["ancestor"] = ancestor
+        self.__model__.derived_from_id = experiment.experiment_id
+        self.__model__.derived_from_timestamp = experiment.timestamp
+        self.__related__["ancestor"] = experiment
 
         return self
+
+    def reset(
+        self,
+        interface: Optional[str] = sentinel,
+        version: VersionType = sentinel,
+        uses: Optional[dict] = sentinel,
+        seed: Optional[int] = sentinel,
+        experiment_id: Optional[str] = sentinel,
+    ) -> "Experiment":
+        if interface is sentinel:
+            interface = self.__model__.interface[0]
+        if version is sentinel:
+            version = self.__model__.interface[1:]
+        if uses is sentinel:
+            uses = copy.deepcopy(self.__model__.components)
+        if experiment_id is sentinel:
+            experiment_id = self.__model__.experiment_id
+        if seed is sentinel:
+            seed = self.__model__.seed
+        experiment = Experiment(interface, version, derive_from=self)
+        experiment.use(**uses)
+        if experiment_id is not None:
+            experiment.__model__.experiment_id = experiment_id
+        experiment.__model__.seed = seed
+
+        return experiment
 
     def components(
         self, reload: bool = False, defaults: Optional[dict] = None
