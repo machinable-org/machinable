@@ -7,9 +7,9 @@ from time import time
 import arrow
 from machinable import schema
 from machinable.collection import ExperimentCollection, RecordCollection
-from machinable.component import compact
+from machinable.component import compact, normversion
 from machinable.element import Element, belongs_to, has_many
-from machinable.errors import MachinableError, StorageError
+from machinable.errors import ConfigurationError, MachinableError, StorageError
 from machinable.interface import Interface
 from machinable.project import Project
 from machinable.settings import get_settings
@@ -65,6 +65,11 @@ class Experiment(Element):
                 "Experiment has not been written to a storage yet."
             )
 
+    def _clear_caches(self):
+        self._resolved_interface = None
+        self._resolved_components = {}
+        self._resolved_config = None
+
     def _assert_writable(self):
         self._assert_mounted()
         if self.is_finished():
@@ -109,6 +114,28 @@ class Experiment(Element):
         experiment.__model__.seed = seed
 
         return experiment
+
+    def version(
+        self, version: VersionType = sentinel, overwrite: bool = False
+    ) -> List[Union[str, dict]]:
+        if version is sentinel:
+            return self.__model__.interface[1:]
+
+        if self.__model__.timestamp is not None:
+            raise ConfigurationError(
+                "Version can not be modified since the experiment has already been executed. Use .reset() to derive a modified experiment."
+            )
+
+        if overwrite:
+            self.__model__.interface = compact(
+                self.__model__.interface[0], version
+            )
+        else:
+            self.__model__.interface.extend(normversion(version))
+
+        self._clear_caches()
+
+        return self.__model__.interface[1:]
 
     def components(
         self, reload: bool = False, defaults: Optional[dict] = None

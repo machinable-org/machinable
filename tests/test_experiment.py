@@ -1,5 +1,3 @@
-from os import error
-
 import pytest
 from machinable import (
     Execution,
@@ -23,6 +21,10 @@ def test_experiment(tmp_path):
     experiment.use("test", "dummy")
     experiment.use(test="dummy")
     assert len(experiment.components()) == 1
+    assert experiment.version() == []
+    assert experiment.version("test") == ["test"]
+    assert experiment.version() == ["test"]
+    assert experiment.version("replace", overwrite=True) == ["replace"]
 
     experiment = Experiment.from_model(Experiment.model(experiment))
     serialized = experiment.serialize()
@@ -88,6 +90,9 @@ def test_experiment_relations(tmp_path):
     experiment = Experiment("basic")
     execution = Execution().add(experiment)
     execution.dispatch(grouping="test/grouping")
+
+    with pytest.raises(errors.ConfigurationError):
+        experiment.version("attempt_overwrite")
 
     derived = Experiment("basic", derive_from=experiment)
     assert derived.ancestor is experiment
