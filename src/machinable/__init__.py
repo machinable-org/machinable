@@ -9,3 +9,9 @@ from machinable.provider import Provider
 from machinable.record import Record
 from machinable.repository import Repository
 from machinable.storage import Storage
+
+
+def cli():
+    from omegaconf import OmegaConf
+
+    return OmegaConf.to_container(OmegaConf.from_cli())
