@@ -103,3 +103,9 @@ class Record(Element):
 
     def __setitem__(self, key, value):
         self.__model__.current[key] = value
+
+    def __repr__(self):
+        return f"Record <{len(self)}> [{self.__model__.scope}]"
+
+    def __str__(self):
+        return self.__repr__()

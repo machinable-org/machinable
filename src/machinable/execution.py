@@ -3,6 +3,7 @@ from typing import Callable, List, Optional, Union
 import copy
 from datetime import datetime as dt
 
+import arrow
 from machinable import schema
 from machinable.collection import ExperimentCollection
 from machinable.component import compact
@@ -156,7 +157,7 @@ class Execution(Element):
         return self.__model__.nickname
 
     def __repr__(self):
-        return "Execution"
+        return f"Execution <{self.nickname}> [{arrow.get(self.timestamp)}]"
 
     def __str__(self):
         return self.__repr__()

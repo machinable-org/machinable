@@ -61,3 +61,9 @@ class Repository(Connectable, Element):
         execution.__related__["grouping"] = grouping
 
         return True
+
+    def __repr__(self):
+        return f"Repository <{self.__model__.default_grouping}>"
+
+    def __str__(self):
+        return self.__repr__()

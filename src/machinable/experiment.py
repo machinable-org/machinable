@@ -386,8 +386,8 @@ class Experiment(Element):
             self.is_active() or self.is_finished()
         )
 
-    def __str__(self):
-        return f"Experiment() [{self.__model__.experiment_id}]"
-
     def __repr__(self):
-        return f"Experiment() [{self.__model__.experiment_id}]"
+        return f"Experiment [{self.__model__.experiment_id}]"
+
+    def __str__(self):
+        return self.__repr__()
