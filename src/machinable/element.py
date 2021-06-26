@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Any, Callable, List, Optional, Tuple, Union
+from typing import Any, Callable, List, Optional, Tuple, Union
 
 from functools import wraps
 
@@ -6,9 +6,6 @@ import arrow
 from machinable import schema
 from machinable.collection import Collection
 from machinable.utils import Jsonable
-
-if TYPE_CHECKING:
-    from machinable.view import View
 
 
 def belongs_to(f: Callable) -> Any:
@@ -139,10 +136,21 @@ class Element(Jsonable, metaclass=MetaElement):
         return instance
 
     @classmethod
-    def find(cls, element_id: str) -> "Element":
+    def find(cls, element_id: str, *args, **kwargs) -> Optional["Element"]:
         from machinable.repository import Repository
 
-        return Repository.get().storage().find(cls.__name__, element_id)
+        storage = Repository.get().storage()
+
+        storage_id = getattr(storage, f"find_{cls.__name__.lower()}")(
+            element_id, *args, **kwargs
+        )
+
+        if storage_id is None:
+            return None
+
+        return cls.from_model(
+            getattr(storage, f"retrieve_{cls.__name__.lower()}")(storage_id)
+        )
 
     @classmethod
     def find_many(cls, elements: List[str]) -> "Collection":
