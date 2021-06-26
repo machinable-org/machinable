@@ -1,5 +1,8 @@
+from dataclasses import dataclass
+
+import pydantic
 import pytest
-from machinable import Project
+from machinable import Component, Project
 from machinable.component import compact, extract, normversion
 from machinable.errors import ConfigurationError
 
@@ -76,6 +79,44 @@ def test_component_version():
     assert c.method == "test"
     assert c.argmethod == "world"
     assert c.nested.method == "test"
+
+
+def test_component_config_schema():
+    class Basic(Component):
+        class Config:
+            hello: str
+            world: float
+
+    # detect missing values
+    with pytest.raises(pydantic.error_wrappers.ValidationError):
+        schema = Basic({}).config
+
+    # casting
+    schema = Basic({"hello": 1, "world": "0.1"})
+    assert schema.config.hello == "1"
+    assert schema.config.world == 0.1
+
+    with pytest.raises(pydantic.error_wrappers.ValidationError):
+        schema = Basic({"hello": 1, "world": "0.1"}, {"typo": 1}).config
+
+    class Dataclass(Component):
+        @dataclass
+        class Config:
+            test: str
+
+    assert Dataclass({"test": 1}, {"test": 0.1}).config.test == "0.1"
+
+    class Vector(pydantic.BaseModel):
+        a: str
+        b: float
+
+    class Nesting(Component):
+        class Config:
+            value: Vector
+
+    schema = Nesting({"value": {"a": 1, "b": 1}})
+    assert schema.config.value.a == "1"
+    assert schema.config.value.b == 1.0
 
 
 def test_normversion():

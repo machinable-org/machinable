@@ -239,13 +239,26 @@ class Component(Jsonable):
 
             # parse config if config class is available
             if hasattr(self.__class__, "Config"):
-                schema = dataclass(
+                config["__schematized"] = True
+
+                class SchemaConf:
+                    extra = "forbid"
+
+                schema = dataclass(config=SchemaConf)(
                     getattr(self.__class__, "Config")
                 ).__pydantic_model__
-                parsed = schema(**OmegaConf.to_container(config))
+
+                parsed = schema(
+                    **{
+                        k: v
+                        for k, v in OmegaConf.to_container(config).items()
+                        if not k.startswith("__")
+                    }
+                )
+
                 config = OmegaConf.create(parsed.dict())
-                # todo: verify that config model has not added any values
-                # that are not defined in the machinable.yaml
+            else:
+                config["__schematized"] = False
 
             # add introspection data
             config["__raw"] = __config
