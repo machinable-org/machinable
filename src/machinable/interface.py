@@ -1,7 +1,6 @@
 from typing import TYPE_CHECKING, Any, Dict, Optional, Union
 
 import sys
-from functools import partial
 
 from machinable import errors
 from machinable.component import Component
@@ -9,6 +8,7 @@ from machinable.types import VersionType
 from machinable.utils import Events, apply_seed
 
 if TYPE_CHECKING:
+    from machinable.element import Element
     from machinable.engine.engine import Engine
     from machinable.experiment import Experiment
 
@@ -16,35 +16,36 @@ if TYPE_CHECKING:
 class Interface(Component):  # pylint: disable=too-many-public-methods
     """Interface base class"""
 
-    def __init__(self, config: dict, version: VersionType = None):
-        super().__init__(config, version)
+    def __init__(
+        self,
+        config: dict,
+        version: VersionType = None,
+        parent: Union["Element", "Component", None] = None,
+    ):
+        self.__use_config = config.get("_uses_", None)
+        super().__init__(config, version, parent)
         self.__events: Events = Events()
-        self.__experiment: Optional["Experiment"] = None
 
     @property
     def experiment(self) -> Optional["Experiment"]:
-        return self.__experiment
+        return self.element
+
+    @property
+    def components(self) -> Dict[str, "Component"]:
+        return self.experiment.components(defaults=self.__use_config)
 
     def default_resources(self, engine: "Engine") -> Optional[dict]:
         """Default resources"""
 
-    def dispatch(self, experiment: "Experiment"):
+    def dispatch(self):
         """Execute the interface lifecycle"""
-        self.__experiment = experiment
-
         try:
-            if self.experiment.is_mounted():
-                experiment.mark_started()
-                self.__events.on("heartbeat", experiment.update_heartbeat)
-                self.__events.heartbeats(seconds=15)
-
             self.on_dispatch()
 
-            self.on_init(
-                **experiment.components(
-                    defaults=self.config.get("_uses_", None)
-                )
-            )
+            if self.experiment.is_mounted():
+                self.experiment.mark_started()
+                self.__events.on("heartbeat", self.experiment.update_heartbeat)
+                self.__events.heartbeats(seconds=15)
 
             if self.on_seeding() is not False:
                 self.set_seed()
@@ -62,7 +63,7 @@ class Interface(Component):  # pylint: disable=too-many-public-methods
             # destroy
             self.on_before_destroy()
             self.__events.heartbeats(None)
-            for component in experiment.components().values():
+            for component in self.experiment.components().values():
                 on_destroy = getattr(component, "on_destroy", None)
                 if callable(on_destroy):
                     on_destroy()
@@ -158,27 +159,11 @@ class Interface(Component):  # pylint: disable=too-many-public-methods
 
     # life cycle
 
+    def on_init(self):
+        """Event when interface is initialised."""
+
     def on_dispatch(self):
         """Lifecycle event triggered at the very beginning of the component dispatch"""
-
-    def on_init(self):
-        """Event when interface is initialised
-
-        The method can declare arguments to handle components explicitly. For example, the signature
-        ``on_create(self, node, alias_of_child_1, alias_of_child_2=None)`` declares that components
-        accepts two sub components with alias ``alias_of_child_1`` and ``alias_of_child_2`` where
-        the latter is declared optional. If the alias starts with an underscore ``_`` the components lifecycle
-        will not be triggered automatically.
-
-        The function signature may also be used to annotate expected types, for example:
-
-        ```python
-        on_create(self, node: DistributedExperiment, model: DistributedModel = None):
-            self.experiment = node
-            self.model = model
-        ```
-        Note, however, that the type annotation will not be enforced.
-        """
 
     def on_seeding(self):
         """Lifecycle event to implement custom seeding

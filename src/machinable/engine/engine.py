@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Any, List, Union
+from typing import TYPE_CHECKING, Any, List, Optional
 
 from machinable.component import Component
 
@@ -7,33 +7,27 @@ if TYPE_CHECKING:
 
 
 class Engine(Component):
+    @property
+    def execution(self) -> Optional["Execution"]:
+        return self.element
+
     def canonicalize_resources(self, resources):
         return resources
 
-    def dispatch(self, execution: "Execution"):
-        from machinable.execution import Execution
-
-        if self.on_before_dispatch(execution) is False:
+    def dispatch(self):
+        if self.on_before_dispatch() is False:
             return False
 
-        results = self._dispatch(execution)
+        results = self._dispatch()
 
         if not isinstance(results, (list, tuple)):
             results = [results]
 
-        executions = [
-            result
-            for result in results
-            if isinstance(result, Execution) and result is not execution
-        ]
+        self.on_after_dispatch(results)
 
-        self.on_after_dispatch(results, executions)
+        return results
 
-        # derived execution
-        for derived_execution in executions:
-            self.dispatch(derived_execution)
-
-    def on_before_dispatch(self, execution: "Execution"):
+    def on_before_dispatch(self):
         """Event triggered before engine dispatch of an execution
 
         Return False to prevent the dispatch
@@ -42,23 +36,17 @@ class Engine(Component):
         execution: machinable.Execution object
         """
 
-    def on_after_dispatch(
-        self, results: List[Any], executions: List["Execution"]
-    ):
-        """Event triggered after the dispatch of an execution
+    def on_after_dispatch(self, results: List[Any]):
+        """Event triggered after the dispatch of an execution"""
 
-        # Arguments
-        execution: machinable.Execution object
-        """
-
-    def _dispatch(self, execution: "Execution") -> List[Any]:
+    def _dispatch(self) -> List[Any]:
         return [
             self._dispatch_experiment(experiment)
-            for experiment in execution.experiments
+            for experiment in self.execution.experiments
         ]
 
     def _dispatch_experiment(self, experiment):
-        return experiment.interface().dispatch(experiment)
+        return experiment.interface().dispatch()
 
     def __str__(self):
         return self.__repr__()

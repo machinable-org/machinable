@@ -1,4 +1,4 @@
-from typing import Any, List, Optional, Union
+from typing import TYPE_CHECKING, Any, List, Optional, Union
 
 import json
 import os
@@ -10,6 +10,10 @@ from machinable.storage.storage import Storage
 from machinable.types import DatetimeType, JsonableType, VersionType
 from machinable.utils import load_file, save_file
 
+if TYPE_CHECKING:
+    from machinable.component import Component
+    from machinable.element import Element
+
 
 class FilesystemStorage(Storage):
     class Config:
@@ -17,8 +21,13 @@ class FilesystemStorage(Storage):
 
         directory: str
 
-    def __init__(self, config: dict, version: VersionType):
-        super().__init__(config, version=version)
+    def __init__(
+        self,
+        config: dict,
+        version: VersionType,
+        parent: Union["Element", "Component", None] = None,
+    ):
+        super().__init__(config, version=version, parent=parent)
         os.makedirs(self.config.directory, exist_ok=True)
         self._db_file = os.path.join(self.config.directory, "storage.sqlite")
         self._db = sqlite3.connect(self._db_file)

@@ -1,4 +1,4 @@
-from typing import Any, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any, List, Optional, Tuple, Union
 
 import copy
 import re
@@ -9,6 +9,9 @@ from machinable.types import ComponentType, VersionType
 from machinable.utils import Jsonable, unflatten_dict, update_dict
 from omegaconf import DictConfig, OmegaConf
 from pydantic.dataclasses import dataclass
+
+if TYPE_CHECKING:
+    from machinable.element import Element
 
 
 def _resolve_config_methods(
@@ -118,10 +121,27 @@ class Component(Jsonable):
 
     default: Optional["Component"] = None
 
-    def __init__(self, config: dict, version: VersionType = None):
+    def __init__(
+        self,
+        config: dict,
+        version: VersionType = None,
+        parent: Union["Element", "Component", None] = None,
+    ):
         self.__config = config
         self.__version = normversion(version)
+        self.__parent = parent
         self._config: Optional[DictConfig] = None
+
+    @property
+    def element(self) -> "Element":
+        if isinstance(self.__parent, Component):
+            return self.__parent.element
+
+        return self.__parent
+
+    @property
+    def parent(self) -> Optional["Component"]:
+        return self.__parent if isinstance(self.__parent, Component) else None
 
     def serialize(self) -> dict:
         return {
@@ -138,6 +158,7 @@ class Component(Jsonable):
         cls,
         name: Optional[str] = None,
         version: VersionType = None,
+        parent: Union["Element", "Component", None] = None,
     ) -> "Component":
         if name is None:
             if (
@@ -150,7 +171,7 @@ class Component(Jsonable):
 
         from machinable.project import Project
 
-        return Project.get().get_component(name, version)
+        return Project.get().get_component(name, version, parent)
 
     @classmethod
     def set_default(
@@ -178,6 +199,8 @@ class Component(Jsonable):
 
             # we assign the raw resolved config to allow config_methods to access it
             self._config = OmegaConf.create(__config)
+
+            self.on_before_configure(self._config)
 
             # resolve config and version
             OmegaConf.resolve(self._config)
@@ -272,6 +295,15 @@ class Component(Jsonable):
             self._config = config
 
         return self._config
+
+    def on_before_configure(self, config: DictConfig) -> None:
+        """Configuration event operating on the raw configuration
+
+        This may be used to apply computed configuration updates
+
+        Do not use to validate the configuration but use validators in the config schema
+        that are applied at a later stage.
+        """
 
     def on_configure(self, config: DictConfig) -> None:
         """Configuration event

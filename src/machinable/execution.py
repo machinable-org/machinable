@@ -46,7 +46,7 @@ class Execution(Element):
         """Resolves and returns the engine instance"""
         if self._resolved_engine is None or reload:
             self._resolved_engine = Engine.make(
-                self.__model__.engine[0], self.__model__.engine[1:]
+                self.__model__.engine[0], self.__model__.engine[1:], parent=self
             )
 
         return self._resolved_engine
@@ -140,7 +140,7 @@ class Execution(Element):
         """
         Repository.get().commit(self, grouping=grouping)
 
-        self.engine().dispatch(self)
+        self.engine().dispatch()
 
         return self
 

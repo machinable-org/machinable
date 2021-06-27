@@ -16,10 +16,10 @@ def test_end_to_end_execution(tmp_path):
     assert len(experiment.records()) == 3
 
     # resume
-    experiment.execution.engine().dispatch(experiment.execution)
+    experiment.execution.engine().dispatch()
     assert len(experiment.records()) == 7
 
-    experiment.execution.engine().dispatch(experiment.execution)
+    experiment.execution.engine().dispatch()
     assert len(experiment.records()) == 10
     assert experiment.is_finished()
 

@@ -4,12 +4,12 @@ from ray.exceptions import RayActorError
 
 
 class RayEngine(Engine):
-    def _dispatch(self, execution):
+    def _dispatch(self):
         if not ray.is_initialized():
             ray.init()
 
         results = [
-            self._actor(experiment) for experiment in execution.experiments
+            self._actor(experiment) for experiment in self.execution.experiments
         ]
 
         done = []

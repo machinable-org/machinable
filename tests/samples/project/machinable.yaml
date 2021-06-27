@@ -74,6 +74,7 @@ components:components:
   interface_check:
   invalid_uses:
     _uses_: "invalid"
+  nested_use:
 interfaces:
   execution.basics:
 interfaces::
@@ -83,3 +84,10 @@ interfaces::
     _uses_:
       test: basic
       dummy: ["dummy", "~one"]
+    top_level:
+      var: 'default'
+      const: 1
+    ~top:
+      top_level:
+        var: 'changed'
+    

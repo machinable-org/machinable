@@ -9,7 +9,7 @@ from machinable.utils import (
     generate_nickname,
     generate_seed,
 )
-from pydantic import BaseModel, Field, PrivateAttr, validator, root_validator
+from pydantic import BaseModel, Field, PrivateAttr, root_validator, validator
 
 if TYPE_CHECKING:
     from machinable.storage.storage import Storage

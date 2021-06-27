@@ -4,11 +4,12 @@ from machinable import Interface, errors
 
 
 class InterfaceCheck(Interface):
-    def on_dispatch(self):
-        self.events = ["on_dispatch"]
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.events = ["on_init"]
 
-    def on_init(self):
-        self.events.append("on_init")
+    def on_dispatch(self):
+        self.events.append("on_dispatch")
 
     def on_seeding(self):
         self.events.append("on_seeding")
