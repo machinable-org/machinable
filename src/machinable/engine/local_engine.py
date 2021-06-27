@@ -13,10 +13,10 @@ class LocalEngine(Engine):
     class Config:
         processes: Optional[int] = None
 
-    def _dispatch(self, execution: "Execution") -> List[Any]:
+    def _dispatch(self) -> List[Any]:
         if self.config.processes is None:
             # standard execution
-            return super()._dispatch(execution)
+            return super()._dispatch()
 
         results = []
         pool = Pool(processes=self.config.processes, maxtasksperchild=1)
@@ -24,7 +24,7 @@ class LocalEngine(Engine):
 
             for result in pool.imap_unordered(
                 self._dispatch_experiment,
-                execution.experiments,
+                self.execution.experiments,
             ):
                 if isinstance(result, ExecutionFailed):
                     print(result)

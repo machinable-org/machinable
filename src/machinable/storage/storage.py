@@ -14,6 +14,7 @@ from machinable.types import (
 from machinable.utils import Jsonable
 
 if TYPE_CHECKING:
+    from machinable.element import Element
     from machinable.execution import Execution
     from machinable.experiment import Experiment
 
@@ -26,8 +27,9 @@ class Storage(Component):
         cls,
         name: Optional[str] = None,
         version: VersionType = None,
+        parent: Union["Element", "Component", None] = None,
     ) -> "Storage":
-        return super().make(name, version)
+        return super().make(name, version, parent)
 
     @classmethod
     def multiple(cls, primary: "Storage", *secondary: "Storage") -> "Storage":
@@ -50,10 +52,11 @@ class Storage(Component):
 
         project = Project.model(project)
         execution = Execution.model(execution)
+
         experiments = [
             Experiment.model(experiment) for experiment in experiments
         ]
-        # write created_at timestamp
+        # commit experiemnt timestamp
         for experiment in experiments:
             experiment.timestamp = execution.timestamp
         grouping = Grouping.model(grouping)

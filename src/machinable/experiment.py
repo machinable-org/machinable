@@ -65,6 +65,13 @@ class Experiment(Element):
                 "Experiment has not been written to a storage yet."
             )
 
+    def _assert_executable(self):
+        if self.__model__.timestamp is not None:
+            raise ConfigurationError(
+                "Experiment can not be modified as it has already been executed. "
+                "Use .reset() to derive a modified experiment."
+            )
+
     def _clear_caches(self):
         self._resolved_interface = None
         self._resolved_components = {}
@@ -118,13 +125,10 @@ class Experiment(Element):
     def version(
         self, version: VersionType = sentinel, overwrite: bool = False
     ) -> List[Union[str, dict]]:
+        self._assert_executable()
+
         if version is sentinel:
             return self.__model__.interface[1:]
-
-        if self.__model__.timestamp is not None:
-            raise ConfigurationError(
-                "Version can not be modified since the experiment has already been executed. Use .reset() to derive a modified experiment."
-            )
 
         if overwrite:
             self.__model__.interface = compact(
@@ -138,12 +142,14 @@ class Experiment(Element):
         return self.__model__.interface[1:]
 
     def components(
-        self, reload: bool = False, defaults: Optional[dict] = None
+        self,
+        reload: bool = False,
+        defaults: Optional[Dict[str, VersionType]] = None,
     ) -> Dict[str, "Component"]:
         if defaults is not None:
-            for k, v in defaults.items():
+            for k, default in defaults.items():
                 if k not in self.__model__.components:
-                    self.__model__.components[k] = compact(v)
+                    self.__model__.components[k] = compact(default)
 
         if reload:
             self._resolved_components = {}
@@ -153,7 +159,7 @@ class Experiment(Element):
         for slot, component in self.__model__.components.items():
             if slot not in self._resolved_components:
                 self._resolved_components[slot] = Project.get().get_component(
-                    component[0], component[1:]
+                    component[0], component[1:], parent=self.interface()
                 )
 
         return self._resolved_components
@@ -162,7 +168,9 @@ class Experiment(Element):
         """Resolves and returns the interface instance"""
         if self._resolved_interface is None or reload:
             self._resolved_interface = Interface.make(
-                self.__model__.interface[0], self.__model__.interface[1:]
+                self.__model__.interface[0],
+                self.__model__.interface[1:],
+                parent=self,
             )
 
         return self._resolved_interface
@@ -192,6 +200,7 @@ class Experiment(Element):
         slot: Optional[str] = None,
         component: Optional[str] = None,
         version: VersionType = None,
+        overwrite: bool = False,
         **uses,
     ) -> "Experiment":
         """Adds a component
@@ -200,12 +209,15 @@ class Experiment(Element):
         slot: The slot name
         component: The name of the component as defined in the machinable.yaml
         version: Configuration to override the default config
+        overwrite: If True, will overwrite existing uses
         """
+        self._assert_executable()
+
+        if overwrite:
+            self.__model__.components = {}
         for key, payload in uses.items():
             self.use(key, payload)
 
-        # TODO: if mounted has to derive automatically or error
-        # TODO: inspect on_init signature of the interface to detect non existing slots early
         if slot is not None:
             self.__model__.components[slot] = compact(component, version)
 
@@ -334,6 +346,15 @@ class Experiment(Element):
     @property
     def timestamp(self) -> Optional[float]:
         return self.__model__.timestamp
+
+    @timestamp.setter
+    def timestamp(self, value: float):
+        # self._assert_executable()
+        if not isinstance(value, (int, float)):
+            raise ValueError(
+                f"Invalid timestamp. Expected float, found: {value}"
+            )
+        self.__model__.timestamp = float(value)
 
     def created_at(self) -> Optional[DatetimeType]:
         if self.timestamp is None:

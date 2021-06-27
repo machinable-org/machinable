@@ -50,6 +50,11 @@ class Repository(Connectable, Element):
 
         grouping = Grouping(grouping)
 
+        # finalize computed experiment field
+        for experiment in execution.experiments:
+            experiment.timestamp = execution.timestamp
+            assert experiment.config is not None
+
         self.storage().create_execution(
             project=Project.get(),
             execution=execution,

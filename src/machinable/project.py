@@ -255,7 +255,10 @@ class Project(Connectable, Element):
         return name in self.parsed_config()
 
     def get_component(
-        self, name: str, version: VersionType = None
+        self,
+        name: str,
+        version: VersionType = None,
+        parent: Union["Element", "Component", None] = None,
     ) -> Component:
         config = {}
         kind = "components"
@@ -307,12 +310,11 @@ class Project(Connectable, Element):
             )
         try:
             return component_class(
-                config=config,
-                version=version,
+                config=config, version=version, parent=parent
             )
         except TypeError as _e:
             raise MachinableError(
-                f"Could instantiate component {component_class.__module__}.{component_class.__name__}"
+                f"Could not instantiate component {component_class.__module__}.{component_class.__name__}"
             ) from _e
 
     def serialize(self) -> dict:

@@ -20,11 +20,11 @@ class SlurmEngine(Engine):
         python: str = "python"
         shebang: str = "#!/usr/bin/env bash"
 
-    def _dispatch(self, execution: Execution):
+    def _dispatch(self):
         sbatch = commandlib.Command("sbatch")
 
         results = []
-        for experiment in execution.experiments:
+        for experiment in self.execution.experiments:
             script = f"{self.config.shebang}\n"
 
             canonical_resources = self.canonicalize_resources(
@@ -89,7 +89,7 @@ class SlurmEngine(Engine):
         return f"""
         from machinable import Experiment
         experiment = Experiment.from_json('{experiment.as_json()}')
-        experiment.interface().dispatch(experiment)
+        experiment.interface().dispatch()
         """.replace(
             "\n        ", ";"
         )[
