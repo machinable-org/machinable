@@ -258,10 +258,18 @@ class Project(Connectable, Element):
         self,
         name: str,
         version: VersionType = None,
+        uses: Optional[dict] = None,
         parent: Union["Element", "Component", None] = None,
     ) -> Component:
         config = {}
         kind = "components"
+
+        if uses is None:
+            uses = {}
+        if not isinstance(uses, dict):
+            raise ValueError(f"Uses must be a mapping, found {uses}")
+        uses = {k: compact(v) for k, v in uses.items()}
+
         if name in self.parsed_config():
             component = self.parsed_config()[name]
             module = self.provider().on_component_import(
@@ -274,16 +282,6 @@ class Project(Connectable, Element):
                     or_fail=True,
                 )
 
-            if "_uses_" in component["config_data"]:
-                if not isinstance(component["config_data"]["_uses_"], dict):
-                    raise ConfigurationError(
-                        f"{component['name']}._uses_ must be a mapping, found {component['config_data']['_uses_']}"
-                    )
-                component["config_data"]["_uses_"] = {
-                    k: compact(v)
-                    for k, v in component["config_data"]["_uses_"].items()
-                }
-
             config = {
                 **component["config_data"],
                 "__lineage": component["lineage"],
@@ -291,7 +289,6 @@ class Project(Connectable, Element):
             kind = component["kind"]
         else:
             try:
-                # todo: check entry-points
                 module = importlib.import_module(name)
             except ModuleNotFoundError as _e:
                 raise ValueError(f"Could not find component '{name}'") from _e
@@ -308,9 +305,12 @@ class Project(Connectable, Element):
                 f"Could not find a component inheriting from the {base_class.__name__} base class. "
                 f"Is it correctly defined in {module.__name__}?"
             )
+
         try:
             return component_class(
-                config=config, version=version, parent=parent
+                config={**config, "__uses": uses},
+                version=version,
+                parent=parent,
             )
         except TypeError as _e:
             raise MachinableError(

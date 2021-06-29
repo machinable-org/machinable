@@ -81,13 +81,19 @@ interfaces::
   basic:
   interfaces.interrupted_lifecycle:
   interfaces.uses_components:
+    <ipu>:
+      ipu:
+        test: 1
+      ~test:
+        bla:
+    <trait>:
+
     _uses_:
       test: basic
       dummy: ["dummy", "~one"]
     top_level:
-      var: 'default'
+      var: "default"
       const: 1
     ~top:
       top_level:
-        var: 'changed'
-    
+        var: "changed"

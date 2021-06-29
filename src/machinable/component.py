@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Any, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
 
 import copy
 import re
@@ -131,6 +131,24 @@ class Component(Jsonable):
         self.__version = normversion(version)
         self.__parent = parent
         self._config: Optional[DictConfig] = None
+        self._resolved_components: Dict[str, "Component"] = {}
+
+    def components(
+        self,
+        reload: bool = False,
+    ) -> Dict[str, "Component"]:
+        if reload:
+            self._resolved_components = {}
+        if len(self.__model__.components) == len(self._resolved_components):
+            return self._resolved_components
+
+        for slot, component in self.__model__.components.items():
+            if slot not in self._resolved_components:
+                self._resolved_components[slot] = Project.get().get_component(
+                    component[0], component[1:], parent=self.interface()
+                )
+
+        return self._resolved_components
 
     @property
     def element(self) -> "Element":
@@ -158,6 +176,7 @@ class Component(Jsonable):
         cls,
         name: Optional[str] = None,
         version: VersionType = None,
+        slots: Optional[dict] = None,
         parent: Union["Element", "Component", None] = None,
     ) -> "Component":
         if name is None:
@@ -171,7 +190,7 @@ class Component(Jsonable):
 
         from machinable.project import Project
 
-        return Project.get().get_component(name, version, parent)
+        return Project.get().get_component(name, version, slots, parent)
 
     @classmethod
     def set_default(
@@ -207,6 +226,19 @@ class Component(Jsonable):
             resolved_config = _resolve_config_methods(
                 self, OmegaConf.to_container(self._config)
             )
+
+            # parse slots
+            used_slots = resolved_config["__uses"]
+            available_slots = {
+                key[1:-1]: value
+                for key, value in resolved_config.items()
+                if key.startswith("<") and key.endswith(">")
+            }
+            # apply default slots
+            for slot, slot_config in available_slots.items():
+                if slot not in used_slots:
+                    # default available?
+                    pass
 
             resolved_version = []
             for ver in __version:

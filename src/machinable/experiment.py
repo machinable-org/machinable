@@ -45,7 +45,6 @@ class Experiment(Element):
             interface=compact(interface, version)
         )
         self._resolved_interface: Optional[Interface] = None
-        self._resolved_components: Dict[str, "Component"] = {}
         self._resolved_config: Optional[DictConfig] = None
         if derive_from is not None:
             self.derive_from(derive_from)
@@ -74,7 +73,6 @@ class Experiment(Element):
 
     def _clear_caches(self):
         self._resolved_interface = None
-        self._resolved_components = {}
         self._resolved_config = None
 
     def _assert_writable(self):
@@ -141,29 +139,6 @@ class Experiment(Element):
 
         return self.__model__.interface[1:]
 
-    def components(
-        self,
-        reload: bool = False,
-        defaults: Optional[Dict[str, VersionType]] = None,
-    ) -> Dict[str, "Component"]:
-        if defaults is not None:
-            for k, default in defaults.items():
-                if k not in self.__model__.components:
-                    self.__model__.components[k] = compact(default)
-
-        if reload:
-            self._resolved_components = {}
-        if len(self.__model__.components) == len(self._resolved_components):
-            return self._resolved_components
-
-        for slot, component in self.__model__.components.items():
-            if slot not in self._resolved_components:
-                self._resolved_components[slot] = Project.get().get_component(
-                    component[0], component[1:], parent=self.interface()
-                )
-
-        return self._resolved_components
-
     def interface(self, reload: bool = False) -> Interface:
         """Resolves and returns the interface instance"""
         if self._resolved_interface is None or reload:
@@ -220,6 +195,8 @@ class Experiment(Element):
 
         if slot is not None:
             self.__model__.components[slot] = compact(component, version)
+
+        self._clear_caches()
 
         return self
 
