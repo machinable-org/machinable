@@ -20,7 +20,7 @@ def test_experiment(tmp_path):
     # uses
     experiment.use("test", "dummy")
     experiment.use(test="dummy")
-    assert len(experiment.components()) == 1
+    assert len(experiment.__model__.components) == 1
     assert experiment.version() == []
     assert experiment.version("test") == ["test"]
     assert experiment.version() == ["test"]

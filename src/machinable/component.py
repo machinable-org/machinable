@@ -137,15 +137,14 @@ class Component(Jsonable):
         self,
         reload: bool = False,
     ) -> Dict[str, "Component"]:
+        from machinable.project import Project
+
         if reload:
             self._resolved_components = {}
-        if len(self.__model__.components) == len(self._resolved_components):
-            return self._resolved_components
-
-        for slot, component in self.__model__.components.items():
+        for slot, component in self.config.get("__uses", {}).items():
             if slot not in self._resolved_components:
                 self._resolved_components[slot] = Project.get().get_component(
-                    component[0], component[1:], parent=self.interface()
+                    component[0], component[1:], parent=self
                 )
 
         return self._resolved_components
@@ -227,19 +226,6 @@ class Component(Jsonable):
                 self, OmegaConf.to_container(self._config)
             )
 
-            # parse slots
-            used_slots = resolved_config["__uses"]
-            available_slots = {
-                key[1:-1]: value
-                for key, value in resolved_config.items()
-                if key.startswith("<") and key.endswith(">")
-            }
-            # apply default slots
-            for slot, slot_config in available_slots.items():
-                if slot not in used_slots:
-                    # default available?
-                    pass
-
             resolved_version = []
             for ver in __version:
                 if isinstance(ver, dict):
@@ -252,6 +238,24 @@ class Component(Jsonable):
                     )
 
                 resolved_version.append(ver)
+
+            # parse slots
+            available_slots = {
+                key[1:-1]: value
+                for key, value in resolved_config.items()
+                if key.startswith("<") and key.endswith(">")
+            }
+            slot_update = {}
+            for slot, slot_config in available_slots.items():
+                if slot not in resolved_config["__uses"]:
+                    # default available?
+                    default = slot_config.pop("_default_", None)
+                    if default is not None:
+                        resolved_config["__uses"][slot] = normversion(default)
+                if slot in resolved_config["__uses"]:
+                    slot_update = update_dict(slot_update, slot_config)
+
+            resolved_config = OmegaConf.merge(resolved_config, slot_update)
 
             # compose configuration update
             config_update = {}
@@ -279,11 +283,13 @@ class Component(Jsonable):
 
                 config_update = update_dict(config_update, version)
 
-            # remove versions
+            # remove versions and slots
             config = {
                 k: v
                 for k, v in resolved_config.items()
-                if not k.startswith("~")
+                if not (
+                    k.startswith("~") or (k.startswith("<") and k.endswith(">"))
+                )
             }
 
             # apply update
@@ -319,12 +325,17 @@ class Component(Jsonable):
             config["__raw"] = __config
             config["__version"] = __version
             config["__resolved_version"] = resolved_version
+            config["__slots"] = slot_update
             config["__update"] = config_update
+
+            self._config = config
+
+            # resolve slot components
+            for name, component in self.components().items():
+                config[name] = component.config
 
             # disallow further transformation
             OmegaConf.set_readonly(config, True)
-
-            self._config = config
 
         return self._config
 

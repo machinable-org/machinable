@@ -30,10 +30,6 @@ class Interface(Component):  # pylint: disable=too-many-public-methods
     def experiment(self) -> Optional["Experiment"]:
         return self.element
 
-    @property
-    def components(self) -> Dict[str, "Component"]:
-        return self.experiment.components(defaults=self.__use_config)
-
     def default_resources(self, engine: "Engine") -> Optional[dict]:
         """Default resources"""
 
