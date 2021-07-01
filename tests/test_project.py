@@ -9,6 +9,3 @@ def test_project():
     assert project.__model__.directory == os.getcwd()
     project = Project("tests/samples/project")
     project.connect()
-
-    with pytest.raises(errors.ConfigurationError):
-        project.get_component("components.invalid_uses")

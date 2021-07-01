@@ -55,7 +55,7 @@ class FilesystemStorage(Storage):
                     id integer PRIMARY KEY,
                     storage_id text NOT NULL,
                     interface json,
-                    components json,
+                    uses json,
                     experiment_id text,
                     resources json,
                     seed integer,
@@ -169,7 +169,7 @@ class FilesystemStorage(Storage):
                 """INSERT INTO experiments(
                     storage_id,
                     interface,
-                    components,
+                    uses,
                     experiment_id,
                     resources,
                     seed,
@@ -181,7 +181,7 @@ class FilesystemStorage(Storage):
                 (
                     experiment._storage_id,
                     json.dumps(experiment.interface),
-                    json.dumps(experiment.components),
+                    json.dumps(experiment.uses),
                     experiment.experiment_id,
                     json.dumps(experiment.resources),
                     experiment.seed,

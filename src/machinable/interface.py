@@ -30,10 +30,6 @@ class Interface(Component):  # pylint: disable=too-many-public-methods
     def experiment(self) -> Optional["Experiment"]:
         return self.element
 
-    @property
-    def components(self) -> Dict[str, "Component"]:
-        return self.experiment.components(defaults=self.__use_config)
-
     def default_resources(self, engine: "Engine") -> Optional[dict]:
         """Default resources"""
 
@@ -63,7 +59,7 @@ class Interface(Component):  # pylint: disable=too-many-public-methods
             # destroy
             self.on_before_destroy()
             self.__events.heartbeats(None)
-            for component in self.experiment.components().values():
+            for component in self.components.values():
                 on_destroy = getattr(component, "on_destroy", None)
                 if callable(on_destroy):
                     on_destroy()
