@@ -119,6 +119,50 @@ def test_component_config_schema():
     assert schema.config.value.b == 1.0
 
 
+def test_component_slots():
+    project = Project("./tests/samples/project").connect()
+
+    with pytest.raises(ConfigurationError):
+        c = project.get_component(
+            "components.slots", uses={"invalid": "dummy"}
+        ).config
+
+    assert (
+        project.get_component(
+            "components.slots", uses={"test": "dummy"}
+        ).config.a
+        == 1
+    )
+    c = project.get_component(
+        "components.slots",
+        version="~test",
+        uses={"with_version": "components.slot_use"},
+    ).config
+    assert c.a == 0
+    assert c.with_version.nested == "version"
+    assert c.c == 4
+    c = project.get_component(
+        "components.slots",
+        version="~ver",
+        uses={"with_version": "components.slot_use"},
+    ).config
+    assert c.a == 2
+    assert c.b == 3
+    assert c.c == 1
+    assert c.with_version.manipulate is False
+    assert c.with_version.nested == "override"
+    c = project.get_component(
+        "components.slots",
+        version="~ver",
+        uses={"with_version": ["components.slot_use", {"manipulate": True}]},
+    ).config
+    assert c.a == 2
+    assert c.b == 3
+    assert c.c == 1
+    assert c.with_version.manipulate is True
+    assert c.with_version.nested == "manipulated"
+
+
 def test_normversion():
     assert normversion([]) == []
     assert normversion("test") == ["test"]

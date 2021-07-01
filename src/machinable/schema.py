@@ -31,7 +31,7 @@ class Project(Model):
 
 class Experiment(Model):
     interface: ComponentType
-    components: Dict[str, ComponentType] = {}
+    uses: Dict[str, ComponentType] = {}
     experiment_id: str = Field(
         default_factory=lambda: encode_experiment_id(generate_experiment_id())
     )

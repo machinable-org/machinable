@@ -1,5 +1,6 @@
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
 
+import collections
 import copy
 import re
 
@@ -56,7 +57,7 @@ def normversion(version: VersionType = None) -> List[Union[str, dict]]:
             # skip
             return False
 
-        if not isinstance(item, (dict, str)):
+        if not isinstance(item, (collections.Mapping, str)):
             raise ValueError(
                 f"Invalid version. Expected str or dict but found {item}"
             )
@@ -78,7 +79,7 @@ def compact(
 
     if not isinstance(component, str):
         raise ValueError(
-            f"Invalid component, expected str but found <{type(component)}>: {component}"
+            f"Invalid component, expected str but found <{type(component).__name__}>: {component}"
         )
 
     return [component] + normversion(version)
@@ -133,14 +134,10 @@ class Component(Jsonable):
         self._config: Optional[DictConfig] = None
         self._resolved_components: Dict[str, "Component"] = {}
 
-    def components(
-        self,
-        reload: bool = False,
-    ) -> Dict[str, "Component"]:
+    @property
+    def components(self) -> Dict[str, "Component"]:
         from machinable.project import Project
 
-        if reload:
-            self._resolved_components = {}
         for slot, component in self.config.get("__uses", {}).items():
             if slot not in self._resolved_components:
                 self._resolved_components[slot] = Project.get().get_component(
@@ -245,14 +242,29 @@ class Component(Jsonable):
                 for key, value in resolved_config.items()
                 if key.startswith("<") and key.endswith(">")
             }
+
+            # validate uses
+            if not resolved_config.get("_dynamic_slots_", False):
+                for use in resolved_config.get("__uses", {}):
+                    if use not in available_slots:
+                        raise ConfigurationError(
+                            f"'{self.__module__}' has no slot '{use}'"
+                        )
+
             slot_update = {}
             for slot, slot_config in available_slots.items():
-                if slot not in resolved_config["__uses"]:
+                if slot_config is None:
+                    continue
+                if isinstance(slot_config, (list, str)):
+                    slot_config = {"_default_": slot_config}
+                if slot not in resolved_config.get("__uses", {}):
                     # default available?
                     default = slot_config.pop("_default_", None)
                     if default is not None:
+                        if "__uses" not in resolved_config:
+                            resolved_config["__uses"] = {}
                         resolved_config["__uses"][slot] = normversion(default)
-                if slot in resolved_config["__uses"]:
+                if slot in resolved_config.get("__uses", {}):
                     slot_update = update_dict(slot_update, slot_config)
 
             resolved_config = OmegaConf.merge(resolved_config, slot_update)
@@ -298,6 +310,11 @@ class Component(Jsonable):
             # computed configuration transform
             self.on_configure(config)
 
+            slot_version = {
+                name: copy.deepcopy(config.get(name, {}))
+                for name in resolved_config.get("__uses", {})
+            }
+
             # parse config if config class is available
             if hasattr(self.__class__, "Config"):
                 config["__schematized"] = True
@@ -313,7 +330,10 @@ class Component(Jsonable):
                     **{
                         k: v
                         for k, v in OmegaConf.to_container(config).items()
-                        if not k.startswith("__")
+                        if not (
+                            k.startswith("__")
+                            or k in resolved_config.get("__uses", {})
+                        )
                     }
                 )
 
@@ -322,16 +342,21 @@ class Component(Jsonable):
                 config["__schematized"] = False
 
             # add introspection data
+            config["__uses"] = resolved_config.get("__uses", {})
             config["__raw"] = __config
             config["__version"] = __version
             config["__resolved_version"] = resolved_version
-            config["__slots"] = slot_update
+            config["__slot_update"] = slot_update
             config["__update"] = config_update
 
+            # make config property accessible for slot components
             self._config = config
 
             # resolve slot components
-            for name, component in self.components().items():
+            self._resolved_components = {}
+            for name, component in self.components.items():
+                # we prepend the version to allow for slot component overrides
+                component.__version = [slot_version[name]] + component.__version
                 config[name] = component.config
 
             # disallow further transformation

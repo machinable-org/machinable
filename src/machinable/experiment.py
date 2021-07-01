@@ -107,7 +107,7 @@ class Experiment(Element):
         if version is sentinel:
             version = self.__model__.interface[1:]
         if uses is sentinel:
-            uses = copy.deepcopy(self.__model__.components)
+            uses = copy.deepcopy(self.__model__.uses)
         if experiment_id is sentinel:
             experiment_id = self.__model__.experiment_id
         if seed is sentinel:
@@ -145,6 +145,7 @@ class Experiment(Element):
             self._resolved_interface = Interface.make(
                 self.__model__.interface[0],
                 self.__model__.interface[1:],
+                slots=self.__model__.uses,
                 parent=self,
             )
 
@@ -189,12 +190,12 @@ class Experiment(Element):
         self._assert_executable()
 
         if overwrite:
-            self.__model__.components = {}
+            self.__model__.uses = {}
         for key, payload in uses.items():
             self.use(key, payload)
 
         if slot is not None:
-            self.__model__.components[slot] = compact(component, version)
+            self.__model__.uses[slot] = compact(component, version)
 
         self._clear_caches()
 

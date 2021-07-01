@@ -72,25 +72,38 @@ components:components:
         nested: False
       flat.version: 2
   interface_check:
-  invalid_uses:
-    _uses_: "invalid"
   nested_use:
+  slots:
+    a: 1
+    b: 2
+    c: 3
+    ~ver:
+      a: 0
+      c: 1
+    <test>:
+    <with_version>:
+      with_version:
+        nested: version
+      c: 4
+      ~ver:
+        a: 2
+        b: 3
+        with_version:
+          nested: override
+      ~test:
+        a: 0
+  slot_use:
+    nested: default
+    manipulate: False
 interfaces:
   execution.basics:
 interfaces::
   basic:
   interfaces.interrupted_lifecycle:
   interfaces.uses_components:
-    <ipu>:
-      ipu:
-        test: 1
-      ~test:
-        bla:
-    <trait>:
-
-    _uses_:
-      test: basic
-      dummy: ["dummy", "~one"]
+    <test>: basic
+    <dummy>: ["dummy", "~one"]
+    _dynamic_slots_: True
     top_level:
       var: "default"
       const: 1
