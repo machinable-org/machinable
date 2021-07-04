@@ -79,6 +79,7 @@ def test_component_version():
     c = project.get_component("components.configmethods").config
     assert c.method == "test"
     assert c.argmethod == "world"
+    assert c.recursive == "testtest"
     assert c.nested.method == "test"
 
     # test config introspection

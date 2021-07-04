@@ -55,7 +55,7 @@ components:components:
     argmethod: arghello('world')
     nested:
       method: hello()
-    resursive: recursive_call('test')
+    recursive: recursive_call('test')
   inherited_flatness:
     flat.can.be.useful: False
     inherited.flat: value
@@ -103,7 +103,7 @@ interfaces::
   interfaces.uses_components:
     <test>: basic
     <dummy>: ["dummy", "~one"]
-    _dynamic_slots_: True
+    _dynamic_uses_: True
     top_level:
       var: "default"
       const: 1

@@ -5,6 +5,7 @@ import copy
 import re
 
 import omegaconf
+from machinable.collection import collect
 from machinable.errors import ConfigurationError
 from machinable.types import ComponentType, VersionType
 from machinable.utils import Jsonable, unflatten_dict, update_dict
@@ -15,41 +16,62 @@ if TYPE_CHECKING:
     from machinable.element import Element
 
 
-def _resolve_config_methods(
-    obj: Any, config: Union[str, dict, list, tuple]
+def _rewrite_config_methods(
+    config: Union[collections.Mapping, str, list, tuple]
 ) -> Any:
     if isinstance(config, list):
-        return [_resolve_config_methods(obj, v) for v in config]
+        return [_rewrite_config_methods(v) for v in config]
 
     if isinstance(config, tuple):
-        return (_resolve_config_methods(obj, v) for v in config)
+        return (_rewrite_config_methods(v) for v in config)
 
-    if isinstance(config, dict):
-        return {k: _resolve_config_methods(obj, v) for k, v in config.items()}
+    if isinstance(config, collections.Mapping):
+        return {k: _rewrite_config_methods(v) for k, v in config.items()}
 
     if isinstance(config, str):
         fn_match = re.match(r"(?P<method>\w+)\s?\((?P<args>.*)\)", config)
         if fn_match is not None:
-            definition = config
-            method = "config_" + fn_match.groupdict()["method"]
+            function = fn_match.groupdict()["method"]
             args = fn_match.groupdict()["args"]
-
-            if not hasattr(obj, method):
-                raise AttributeError(
-                    f"Config method {definition} specified but {type(obj).__name__}.{method}() does not exist."
-                )
-
-            # Using eval is evil, but in this case there is probably not enough at stake
-            # to justify the implementation of a proper parser
-            return eval(  # pylint: disable=eval-used
-                "obj." + method + "(" + args + ")"
-            )
+            return '${config_method:"' + function + '","' + args + '"}'
 
     return config
 
 
+class ConfigMethod:
+    def __init__(self, component: "Component") -> None:
+        self.component = component
+
+    def __call__(self, function, args) -> Any:
+        definition = f"{function}({args})"
+        method = f"config_{function}"
+
+        if not hasattr(self.component, method):
+            raise AttributeError(
+                f"Config method {definition} specified but {type(self.component).__name__}.{method}() does not exist."
+            )
+
+        # Using eval is evil, but in this case there is probably not enough at stake
+        # to justify the implementation of a proper parser
+        try:
+            return eval(  # pylint: disable=eval-used
+                "self.component." + method + "(" + args + ")"
+            )
+        except Exception as _ex:
+            raise ConfigurationError(
+                f"{_ex} in config method {type(self.component).__name__}.{method}()"
+            ) from _ex
+
+
 def normversion(version: VersionType = None) -> List[Union[str, dict]]:
-    if not isinstance(version, (list, tuple)):
+    if not isinstance(
+        version,
+        (
+            list,
+            tuple,
+            omegaconf.listconfig.ListConfig,
+        ),
+    ):
         version = [version]
 
     def _valid(item):
@@ -59,7 +81,7 @@ def normversion(version: VersionType = None) -> List[Union[str, dict]]:
 
         if not isinstance(item, (collections.Mapping, str)):
             raise ValueError(
-                f"Invalid version. Expected str or dict but found {item}"
+                f"Invalid version. Expected str or dict but found {type(item).__name__}: {item}"
             )
 
         return True
@@ -213,65 +235,69 @@ class Component(Jsonable):
                             name=name[9:], resolver=method, replace=True
                         )
 
+            # config method resolver
+            OmegaConf.register_new_resolver(
+                name="config_method", resolver=ConfigMethod(self), replace=True
+            )
+
             __config = copy.deepcopy(self.__config)
             __version = copy.deepcopy(self.__version)
 
-            # we assign the raw resolved config to allow config_methods to access it
-            self._config = OmegaConf.create(__config)
-
-            self.on_before_configure(self._config)
-
-            # resolve config and version
-            OmegaConf.resolve(self._config)
-            resolved_config = _resolve_config_methods(
-                self, OmegaConf.to_container(self._config)
-            )
-
-            resolved_version = []
-            for ver in __version:
-                if isinstance(ver, dict):
-                    ver = OmegaConf.create(ver)
-                    ver = OmegaConf.to_container(ver, resolve=True)
-                    ver = unflatten_dict(ver)
-                    ver = _resolve_config_methods(
-                        self,
-                        ver,
-                    )
-
-                resolved_version.append(ver)
-
+            lineage = copy.deepcopy(self.__config.get("_lineage_", []))
+            uses = copy.deepcopy(self.__config.get("_uses_", {}))
             # parse slots
             available_slots = {
                 key[1:-1]: value
-                for key, value in resolved_config.items()
+                for key, value in __config.items()
                 if key.startswith("<") and key.endswith(">")
             }
 
+            dynamic_uses = False
+            if "_dynamic_uses_" in __config:
+                dynamic_uses = __config.pop("_dynamic_uses_")
             # validate uses
-            if not resolved_config.pop("_dynamic_slots_", False):
-                for use in resolved_config.get("_uses_", {}):
+            if not dynamic_uses:
+                for use in uses:
                     if use not in available_slots:
                         raise ConfigurationError(
                             f"'{self.__module__}' has no slot '{use}'"
                         )
 
+            # we assign the raw config
+            self._config = OmegaConf.create(_rewrite_config_methods(__config))
+
+            self.on_before_configure(self._config)
+
+            resolved_version = []
+            for ver in __version:
+                if isinstance(ver, collections.Mapping):
+                    try:
+                        ver = OmegaConf.create(_rewrite_config_methods(ver))
+                        ver = OmegaConf.to_container(ver, resolve=True)
+                    except omegaconf.errors.InterpolationResolutionError:
+                        # it might not be possible to resolve the config methods
+                        #  independendly if call out to other values that are yet
+                        #  to be modified
+                        pass
+                    ver = unflatten_dict(ver)
+
+                resolved_version.append(ver)
+
             slot_update = {}
             for slot, slot_config in available_slots.items():
                 if slot_config is None:
                     continue
-                if isinstance(slot_config, (list, str)):
+                if not isinstance(slot_config, collections.Mapping):
                     slot_config = {"_default_": slot_config}
-                if slot not in resolved_config.get("_uses_", {}):
+                if slot not in uses:
                     # default available?
-                    default = slot_config.pop("_default_", None)
+                    default = slot_config.get("_default_", None)
                     if default is not None:
-                        if "_uses_" not in resolved_config:
-                            resolved_config["_uses_"] = {}
-                        resolved_config["_uses_"][slot] = normversion(default)
-                if slot in resolved_config.get("_uses_", {}):
+                        uses[slot] = normversion(default)
+                if slot in uses:
                     slot_update = update_dict(slot_update, slot_config)
 
-            resolved_config = OmegaConf.merge(resolved_config, slot_update)
+            self._config = OmegaConf.merge(self._config, slot_update)
 
             # compose configuration update
             config_update = {}
@@ -281,7 +307,7 @@ class Component(Jsonable):
                     name = version[1:]
                     path = name.split(":")
                     version = {}
-                    level = resolved_config
+                    level = self._config
                     try:
                         for key in path:
                             level = level["~" + key]
@@ -299,7 +325,16 @@ class Component(Jsonable):
 
                 config_update = update_dict(config_update, version)
 
-            # remove versions and slots
+            # apply update
+            self._config = OmegaConf.merge(self._config, config_update)
+
+            # computed configuration transform
+            self.on_configure(self._config)
+
+            # resolve config and version
+            resolved_config = OmegaConf.to_container(self._config, resolve=True)
+
+            # remove versions and uses
             config = {
                 k: v
                 for k, v in resolved_config.items()
@@ -308,15 +343,8 @@ class Component(Jsonable):
                 )
             }
 
-            # apply update
-            config = OmegaConf.merge(config, config_update)
-
-            # computed configuration transform
-            self.on_configure(config)
-
             slot_version = {
-                name: copy.deepcopy(config.get(name, {}))
-                for name in resolved_config.get("_uses_", {})
+                name: copy.deepcopy(config.get(name, {})) for name in uses
             }
 
             # parse config if config class is available
@@ -333,40 +361,37 @@ class Component(Jsonable):
                 parsed = schema(
                     **{
                         k: v
-                        for k, v in OmegaConf.to_container(config).items()
-                        if not (
-                            _internal_key(k)
-                            or k in resolved_config.get("_uses_", {})
-                        )
+                        for k, v in config.items()
+                        if not (_internal_key(k) or k in uses)
                     }
                 )
 
-                config = OmegaConf.create(parsed.dict())
+                config = parsed.dict()
             else:
                 config["_schematized_"] = False
 
             # add introspection data
-            config["_lineage_"] = resolved_config.get("_lineage_", [])
-            config["_uses_"] = resolved_config.get("_uses_", {})
-            config["_raw_"] = __config
+            config["_lineage_"] = lineage
+            config["_uses_"] = uses
+            config["_raw_"] = self.__config
             config["_component_"] = self.__class__.__module__
-            config["_version_"] = __version
+            config["_version_"] = self.__version
             config["_resolved_version_"] = resolved_version
             config["_slot_update_"] = slot_update
             config["_update_"] = config_update
 
             # make config property accessible for slot components
-            self._config = config
+            self._config = OmegaConf.create(config)
 
             # resolve slot components
             self._resolved_components = {}
             for name, component in self.components.items():
                 # we prepend the version to allow for slot component overrides
                 component.__version = [slot_version[name]] + component.__version
-                config[name] = component.config
+                self._config[name] = component.config
 
             # disallow further transformation
-            OmegaConf.set_readonly(config, True)
+            OmegaConf.set_readonly(self._config, True)
 
         return self._config
 
