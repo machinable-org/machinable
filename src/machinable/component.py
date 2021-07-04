@@ -244,7 +244,7 @@ class Component(Jsonable):
             }
 
             # validate uses
-            if not resolved_config.get("_dynamic_slots_", False):
+            if not resolved_config.pop("_dynamic_slots_", False):
                 for use in resolved_config.get("__uses", {}):
                     if use not in available_slots:
                         raise ConfigurationError(
@@ -344,6 +344,7 @@ class Component(Jsonable):
             # add introspection data
             config["__uses"] = resolved_config.get("__uses", {})
             config["__raw"] = __config
+            config["__component"] = self.__class__.__module__
             config["__version"] = __version
             config["__resolved_version"] = resolved_version
             config["__slot_update"] = slot_update
