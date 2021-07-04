@@ -22,7 +22,6 @@ class Interface(Component):  # pylint: disable=too-many-public-methods
         version: VersionType = None,
         parent: Union["Element", "Component", None] = None,
     ):
-        self.__use_config = config.get("_uses_", None)
         super().__init__(config, version, parent)
         self.__events: Events = Events()
 

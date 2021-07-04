@@ -115,6 +115,10 @@ def extract(
     return compact_component[0], normversion(compact_component[1:])
 
 
+def _internal_key(key):
+    return key.startswith("_") and key.endswith("_")
+
+
 class Component(Jsonable):
     """
     Component base class. All machinable components inherit from this class.
@@ -138,7 +142,7 @@ class Component(Jsonable):
     def components(self) -> Dict[str, "Component"]:
         from machinable.project import Project
 
-        for slot, component in self.config.get("__uses", {}).items():
+        for slot, component in self.config.get("_uses_", {}).items():
             if slot not in self._resolved_components:
                 self._resolved_components[slot] = Project.get().get_component(
                     component[0], component[1:], parent=self
@@ -245,7 +249,7 @@ class Component(Jsonable):
 
             # validate uses
             if not resolved_config.pop("_dynamic_slots_", False):
-                for use in resolved_config.get("__uses", {}):
+                for use in resolved_config.get("_uses_", {}):
                     if use not in available_slots:
                         raise ConfigurationError(
                             f"'{self.__module__}' has no slot '{use}'"
@@ -257,14 +261,14 @@ class Component(Jsonable):
                     continue
                 if isinstance(slot_config, (list, str)):
                     slot_config = {"_default_": slot_config}
-                if slot not in resolved_config.get("__uses", {}):
+                if slot not in resolved_config.get("_uses_", {}):
                     # default available?
                     default = slot_config.pop("_default_", None)
                     if default is not None:
-                        if "__uses" not in resolved_config:
-                            resolved_config["__uses"] = {}
-                        resolved_config["__uses"][slot] = normversion(default)
-                if slot in resolved_config.get("__uses", {}):
+                        if "_uses_" not in resolved_config:
+                            resolved_config["_uses_"] = {}
+                        resolved_config["_uses_"][slot] = normversion(default)
+                if slot in resolved_config.get("_uses_", {}):
                     slot_update = update_dict(slot_update, slot_config)
 
             resolved_config = OmegaConf.merge(resolved_config, slot_update)
@@ -312,12 +316,12 @@ class Component(Jsonable):
 
             slot_version = {
                 name: copy.deepcopy(config.get(name, {}))
-                for name in resolved_config.get("__uses", {})
+                for name in resolved_config.get("_uses_", {})
             }
 
             # parse config if config class is available
             if hasattr(self.__class__, "Config"):
-                config["__schematized"] = True
+                config["_schematized_"] = True
 
                 class SchemaConf:
                     extra = "forbid"
@@ -331,24 +335,25 @@ class Component(Jsonable):
                         k: v
                         for k, v in OmegaConf.to_container(config).items()
                         if not (
-                            k.startswith("__")
-                            or k in resolved_config.get("__uses", {})
+                            _internal_key(k)
+                            or k in resolved_config.get("_uses_", {})
                         )
                     }
                 )
 
                 config = OmegaConf.create(parsed.dict())
             else:
-                config["__schematized"] = False
+                config["_schematized_"] = False
 
             # add introspection data
-            config["__uses"] = resolved_config.get("__uses", {})
-            config["__raw"] = __config
-            config["__component"] = self.__class__.__module__
-            config["__version"] = __version
-            config["__resolved_version"] = resolved_version
-            config["__slot_update"] = slot_update
-            config["__update"] = config_update
+            config["_lineage_"] = resolved_config.get("_lineage_", [])
+            config["_uses_"] = resolved_config.get("_uses_", {})
+            config["_raw_"] = __config
+            config["_component_"] = self.__class__.__module__
+            config["_version_"] = __version
+            config["_resolved_version_"] = resolved_version
+            config["_slot_update_"] = slot_update
+            config["_update_"] = config_update
 
             # make config property accessible for slot components
             self._config = config

@@ -284,7 +284,7 @@ class Project(Connectable, Element):
 
             config = {
                 **component["config_data"],
-                "__lineage": component["lineage"],
+                "_lineage_": component["lineage"],
             }
             kind = component["kind"]
         else:
@@ -308,7 +308,7 @@ class Project(Connectable, Element):
 
         try:
             return component_class(
-                config={**config, "__uses": uses},
+                config={**config, "_uses_": uses},
                 version=version,
                 parent=parent,
             )

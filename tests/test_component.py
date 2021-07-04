@@ -5,6 +5,7 @@ import pytest
 from machinable import Component, Project
 from machinable.component import compact, extract, normversion
 from machinable.errors import ConfigurationError
+from machinable.types import ComponentType
 
 
 def test_component_version():
@@ -79,6 +80,24 @@ def test_component_version():
     assert c.method == "test"
     assert c.argmethod == "world"
     assert c.nested.method == "test"
+
+    # test config introspection
+    c = project.get_component(
+        "components.flattened_notation", "~flat_version"
+    ).config
+    assert c._schematized_ is False
+    assert c._lineage_ == ["components.inherited_flatness"]
+    assert c._uses_ == {}
+    assert c._component_ == "components.flattened_notation"
+    assert c._version_ == ["~flat_version"]
+    assert c._resolved_version_ == ["~flat_version"]
+    assert c._slot_update_ == {}
+
+    class IntrospectiveComponent(Component):
+        def test(self):
+            return self.config._version_
+
+    assert IntrospectiveComponent({}).test() == []
 
 
 def test_component_config_schema():
