@@ -234,11 +234,15 @@ class Experiment(Element):
     def experiment_id(self) -> str:
         return self.__model__.experiment_id
 
-    def local_directory(self, *append: str) -> Optional[str]:
+    def local_directory(
+        self, *append: str, create: bool = False
+    ) -> Optional[str]:
         if not self.is_mounted():
             return None
 
-        return self.__model__._storage_instance.local_directory(self, *append)
+        return self.__model__._storage_instance.local_directory(
+            self, *append, create=create
+        )
 
     def records(self, scope="default") -> RecordCollection:
         if not self.is_mounted():

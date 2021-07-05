@@ -1,3 +1,5 @@
+import os
+
 import pytest
 from machinable import (
     Execution,
@@ -54,6 +56,9 @@ def test_experiment(tmp_path):
     assert experiment.config.test is True
     assert experiment.experiment_id == model.experiment_id
     assert experiment.local_directory().startswith(str(tmp_path))
+    assert os.path.isdir(
+        experiment.local_directory("non-existing/dir", create=True)
+    )
     # records
     assert len(experiment.records()) == 0
     record = experiment.record("testing")

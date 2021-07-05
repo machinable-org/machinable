@@ -1,5 +1,7 @@
 from typing import TYPE_CHECKING, Any, List, Optional, Union
 
+import os
+
 import arrow
 from machinable import schema
 from machinable.component import Component
@@ -263,12 +265,21 @@ class Storage(Component):
         raise NotImplementedError
 
     def local_directory(
-        self, experiment: Union["Experiment", schema.Experiment], *append: str
+        self,
+        experiment: Union["Experiment", schema.Experiment],
+        *append: str,
+        create: bool = False,
     ) -> Optional[str]:
         from machinable.experiment import Experiment
 
         experiment = Experiment.model(experiment)
-        return self._local_directory(experiment._storage_id, *append)
+
+        local_directory = self._local_directory(experiment._storage_id, *append)
+
+        if create:
+            os.makedirs(local_directory, exist_ok=True)
+
+        return local_directory
 
     def _local_directory(
         self, experiment_storage_id: str, *append: str
