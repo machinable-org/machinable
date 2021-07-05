@@ -489,7 +489,7 @@ test = ["flake8 (>=3.8.4,<3.9.0)", "pycodestyle (>=2.6.0,<2.7.0)"]
 
 [[package]]
 name = "importlib-metadata"
-version = "4.6.0"
+version = "4.6.1"
 description = "Read metadata from Python packages"
 category = "main"
 optional = false
@@ -1217,7 +1217,7 @@ server = ["ariadne", "uvicorn"]
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.6.1"
-content-hash = "f33d7372d404f3791e9bd53e96a33d4002a2b5b76d779d5f15b959ac6be36532"
+content-hash = "6b079c70c597e55d8342413fa532a4fd1ab4d6e10a46a28b544069c9b9fe0b19"
 
 [metadata.files]
 aiohttp = [
@@ -1566,8 +1566,8 @@ immutables = [
     {file = "immutables-0.15.tar.gz", hash = "sha256:3713ab1ebbb6946b7ce1387bb9d1d7f5e09c45add58c2a2ee65f963c171e746b"},
 ]
 importlib-metadata = [
-    {file = "importlib_metadata-4.6.0-py3-none-any.whl", hash = "sha256:c6513572926a96458f8c8f725bf0e00108fba0c9583ade9bd15b869c9d726e33"},
-    {file = "importlib_metadata-4.6.0.tar.gz", hash = "sha256:4a5611fea3768d3d967c447ab4e93f567d95db92225b43b7b238dbfb855d70bb"},
+    {file = "importlib_metadata-4.6.1-py3-none-any.whl", hash = "sha256:9f55f560e116f8643ecf2922d9cd3e1c7e8d52e683178fecd9d08f6aa357e11e"},
+    {file = "importlib_metadata-4.6.1.tar.gz", hash = "sha256:079ada16b7fc30dfbb5d13399a5113110dab1aa7c2bc62f66af75f0b717c8cac"},
 ]
 importlib-resources = [
     {file = "importlib_resources-5.2.0-py3-none-any.whl", hash = "sha256:a0143290bef3cbc99de9e40176e4987780939a955b8632f02ce6c935f42e9bfc"},
