@@ -1,4 +1,4 @@
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Optional, Union
 
 import copy
 
@@ -11,6 +11,8 @@ from machinable.types import JsonableType
 
 class Record(Element):
     """Tabular record writer"""
+
+    _kind = "records"
 
     def __init__(self, experiment: Experiment, scope: str = "default"):
         super().__init__()

@@ -5,7 +5,12 @@ from functools import wraps
 import arrow
 from machinable import schema
 from machinable.collection import Collection
-from machinable.utils import Jsonable
+from machinable.utils import (
+    Jsonable,
+    find_subclass_in_module,
+    import_from_directory,
+    resolve_at_alias,
+)
 
 
 def belongs_to(f: Callable) -> Any:
@@ -97,16 +102,33 @@ class MetaElement(type):
     def __getitem__(cls, view: str) -> "Element":
         from machinable.view import get
 
-        return get(view, cls)
+        return get(resolve_at_alias(view, cls._kind), cls)
 
 
 class Element(Jsonable, metaclass=MetaElement):
     """Element baseclass"""
 
-    def __init__(self):
+    _kind = None
+
+    def __new__(cls, *args, **kwargs):
+        view = kwargs.pop("view", cls.__name__ in ["Experiment", "Execution"])
+        if view is True:
+            view = args[0] if len(args) > 0 else False
+        if getattr(cls, "_active_view", None) is None and isinstance(view, str):
+            from machinable.project import Project
+
+            module = import_from_directory(view, Project.get().path())
+            view_class = find_subclass_in_module(module, cls)
+            if view_class is not None:
+                return super().__new__(view_class)
+
+        return super().__new__(cls)
+
+    def __init__(self, view: Union[bool, None, str] = True):
         super().__init__()
         self.__model__: schema.Model = None
         self.__related__ = {}
+        self._active_view: Optional[str] = None
         self._cache = {}
 
     def is_mounted(self) -> bool:
@@ -127,7 +149,7 @@ class Element(Jsonable, metaclass=MetaElement):
     def __getitem__(self, view: str) -> "Element":
         from machinable.view import from_element
 
-        return from_element(view, self)
+        return from_element(resolve_at_alias(view, self._kind), self)
 
     @classmethod
     def from_model(cls, model: schema.Model) -> "Element":

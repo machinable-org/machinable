@@ -11,8 +11,6 @@ if TYPE_CHECKING:
 
 
 def get(name: str, element: Type["Element"]) -> "Element":
-    if name.startswith("@"):
-        name = name.replace("@", f"_machinable.{element.__name__.lower()}s.")
     module = import_from_directory(name, Project.get().path())
     if module is None:
         module = importlib.import_module(name)
@@ -36,5 +34,6 @@ def from_element(name: str, element: "Element") -> "Element":
         ) from _e
 
     view.__model__ = element.__model__
+    view._active_view = view_class.__module__
 
     return view

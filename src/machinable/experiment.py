@@ -11,7 +11,6 @@ from machinable.component import compact, normversion
 from machinable.element import Element, belongs_to, has_many
 from machinable.errors import ConfigurationError, MachinableError, StorageError
 from machinable.interface import Interface
-from machinable.project import Project
 from machinable.settings import get_settings
 from machinable.types import DatetimeType, TimestampType, VersionType
 from machinable.utils import sentinel
@@ -25,11 +24,15 @@ if TYPE_CHECKING:
 
 
 class Experiment(Element):
+    _kind = "experiments"
+
     def __init__(
         self,
         interface: Optional[str] = None,
         version: VersionType = None,
         derive_from: Optional["Experiment"] = None,
+        *,
+        view: Union[bool, None, str] = True,
     ):
         """Experiment
 
@@ -38,7 +41,7 @@ class Experiment(Element):
         version: Configuration to override the default config
         derive_from: Optional ancestor experiment
         """
-        super().__init__()
+        super().__init__(view=view)
         if interface is None:
             interface = Interface.default or get_settings().default_interface
         self.__model__ = schema.Experiment(
@@ -51,7 +54,7 @@ class Experiment(Element):
 
     @classmethod
     def from_model(cls, model: schema.Experiment) -> "Experiment":
-        instance = cls("")
+        instance = cls(model.interface[0])
         instance.__model__ = model
         return instance
 

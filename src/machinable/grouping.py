@@ -24,6 +24,8 @@ def resolve_grouping(grouping: str) -> Tuple[str, str]:
 class Grouping(Element):
     """Grouping element"""
 
+    _kind = "groupings"
+
     def __init__(self, group: Optional[str] = None):
         super().__init__()
         self.__model__ = schema.Grouping(pattern=normgrouping(group))

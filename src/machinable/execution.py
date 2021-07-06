@@ -1,7 +1,6 @@
 from typing import Callable, List, Optional, Union
 
 import copy
-from datetime import datetime as dt
 
 import arrow
 from machinable import schema
@@ -11,7 +10,6 @@ from machinable.element import Element, belongs_to, has_many
 from machinable.engine import Engine
 from machinable.experiment import Experiment
 from machinable.grouping import Grouping
-from machinable.project import Project
 from machinable.repository import Repository
 from machinable.settings import get_settings
 from machinable.types import VersionType
@@ -19,13 +17,17 @@ from machinable.utils import generate_seed, update_dict
 
 
 class Execution(Element):
+    _kind = "executions"
+
     def __init__(
         self,
         engine: Union[str, None] = None,
         version: VersionType = None,
         seed: Union[int, None] = None,
+        *,
+        view: Union[bool, None, str] = True,
     ):
-        super().__init__()
+        super().__init__(view=view)
         if engine is None:
             engine = Engine.default or get_settings().default_engine
         self.__model__ = schema.Execution(
@@ -41,6 +43,12 @@ class Execution(Element):
     @belongs_to
     def grouping():
         return Grouping
+
+    @classmethod
+    def from_model(cls, model: schema.Execution) -> "Execution":
+        instance = cls(model.engine[0])
+        instance.__model__ = model
+        return instance
 
     def engine(self, reload: bool = False) -> "Engine":
         """Resolves and returns the engine instance"""

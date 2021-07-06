@@ -127,9 +127,12 @@ def fetch_vendors(project: "Project", config: Optional[dict] = None):
 
 class Project(Connectable, Element):
     def __init__(
-        self, directory: Optional[str] = None, version: VersionType = None
+        self,
+        directory: Optional[str] = None,
+        version: VersionType = None,
+        view: Union[bool, None, str] = True,
     ):
-        super().__init__()
+        super().__init__(view=view)
         if directory is None:
             directory = os.getcwd()
         directory = os.path.abspath(directory)

@@ -1,4 +1,5 @@
 import machinable as ml
+import pytest
 from machinable import Execution, Experiment, Project
 from machinable.element import Connectable
 
@@ -7,6 +8,7 @@ def test_element_views():
     element = Experiment("")
     view = "tests.samples.project.views.basic"
     assert element[view].hello() == "there"
+    assert element[view]._active_view == view
     instance = element[view]
     instance.get_state() is None
     instance.set_state("test")
@@ -18,6 +20,22 @@ def test_element_views():
     # @-alias notation
     with Project("./tests/samples/project"):
         assert Execution["@example"]().is_extended
+
+        # automatic loading
+        assert Execution(
+            "non-existing", view="_machinable.executions.example"
+        ).is_extended
+        assert not hasattr(
+            Execution("_machinable.executions.example", view=False),
+            "is_extended",
+        )
+
+        execution = Execution("_machinable.executions.example")
+        assert execution.is_extended
+        assert execution.engine().is_dummy
+
+        # already instantiated views override automatic view
+        assert Execution["@example"]("_machinable.executions.dummy").is_extended
 
 
 def test_connectable():

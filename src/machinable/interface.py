@@ -23,7 +23,7 @@ class Interface(Component):  # pylint: disable=too-many-public-methods
         parent: Union["Element", "Component", None] = None,
     ):
         super().__init__(config, version, parent)
-        self.__events: Events = Events()
+        self._events: Events = Events()
         self._experiment: Optional["Experiment"] = parent
 
     @property
@@ -44,8 +44,8 @@ class Interface(Component):  # pylint: disable=too-many-public-methods
 
             if self.experiment.is_mounted():
                 self.experiment.mark_started()
-                self.__events.on("heartbeat", self.experiment.update_heartbeat)
-                self.__events.heartbeats(seconds=15)
+                self._events.on("heartbeat", self.experiment.update_heartbeat)
+                self._events.heartbeats(seconds=15)
 
             if self.on_seeding() is not False:
                 self.set_seed()
@@ -65,7 +65,7 @@ class Interface(Component):  # pylint: disable=too-many-public-methods
 
             # destroy
             self.on_before_destroy()
-            self.__events.heartbeats(None)
+            self._events.heartbeats(None)
             for component in self.components.values():
                 on_destroy = getattr(component, "on_destroy", None)
                 if callable(on_destroy):

@@ -301,26 +301,15 @@ def random_str(length, random_state=None):
     )
 
 
-def call_with_context(function, **injections):
-    signature = inspect.signature(function)
-    payload = OrderedDict()
+def resolve_at_alias(module: str, scope: Optional[str] = None) -> str:
+    if module.startswith("@"):
+        module = module.replace(
+            "@", f"_machinable.{(scope + '.') if scope is not None else ''}"
+        )
+        if module.endswith("."):
+            module = module[:-1]
 
-    for _, (key, parameter) in enumerate(signature.parameters.items()):
-        if parameter.kind is not parameter.POSITIONAL_OR_KEYWORD:
-            # disallow *args and **kwargs
-            raise TypeError(
-                f"{function.__name__} only allows simple positional or keyword arguments"
-            )
-
-        if key in injections:
-            payload[key] = injections[key]
-        else:
-            raise ValueError(
-                f"Unrecognized argument: '{key}'. "
-                f"{function.__name__} takes the following arguments: {str(tuple(injections.keys()))}"
-            )
-
-    return function(**payload)
+    return module
 
 
 # These words are picked under two objectives:
