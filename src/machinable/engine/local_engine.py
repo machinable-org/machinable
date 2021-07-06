@@ -26,8 +26,6 @@ class LocalEngine(Engine):
                 self._dispatch_experiment,
                 self.execution.experiments,
             ):
-                if isinstance(result, ExecutionFailed):
-                    print(result)
                 results.append(result)
 
             pool.close()

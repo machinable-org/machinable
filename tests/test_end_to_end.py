@@ -1,4 +1,6 @@
 import machinable as ml
+from machinable import errors
+from machinable.schema import Execution
 from pydantic.errors import ExtraError
 
 
@@ -9,14 +11,20 @@ def test_end_to_end_execution(tmp_path):
     ml.Project("./tests/samples/project").connect()
 
     experiment = ml.Experiment("interfaces.interrupted_lifecycle")
-    experiment.execute(version={"processes": None}, grouping="a/b/c")
+    try:
+        experiment.execute(version={"processes": None}, grouping="a/b/c")
+    except errors.ExecutionFailed:
+        pass
 
     assert experiment.is_started()
     assert not experiment.is_finished()
     assert len(experiment.records()) == 3
 
     # resume
-    experiment.execution.engine().dispatch()
+    try:
+        experiment.execution.engine().dispatch()
+    except errors.ExecutionFailed:
+        pass
     assert len(experiment.records()) == 7
 
     experiment.execution.engine().dispatch()

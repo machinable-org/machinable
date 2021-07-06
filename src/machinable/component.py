@@ -329,7 +329,7 @@ class Component(Jsonable):
             self._config = OmegaConf.merge(self._config, config_update)
 
             # computed configuration transform
-            self.on_configure(self._config)
+            self.on_configure()
 
             # resolve config and version
             resolved_config = OmegaConf.to_container(self._config, resolve=True)
@@ -404,7 +404,7 @@ class Component(Jsonable):
         that are applied at a later stage.
         """
 
-    def on_configure(self, config: DictConfig) -> None:
+    def on_configure(self) -> None:
         """Configuration event
 
         This may be used to apply computed configuration updates

@@ -2,7 +2,7 @@ from typing import TYPE_CHECKING, Any, Dict, Optional, Union
 
 import sys
 
-from machinable import errors
+from machinable import errors, experiment
 from machinable.component import Component
 from machinable.types import VersionType
 from machinable.utils import Events, apply_seed
@@ -24,10 +24,15 @@ class Interface(Component):  # pylint: disable=too-many-public-methods
     ):
         super().__init__(config, version, parent)
         self.__events: Events = Events()
+        self._experiment: Optional["Experiment"] = parent
 
     @property
     def experiment(self) -> Optional["Experiment"]:
-        return self.element
+        return self._experiment
+
+    @experiment.setter
+    def experiment(self, element: "Experiment") -> None:
+        self._experiment = element
 
     def default_resources(self, engine: "Engine") -> Optional[dict]:
         """Default resources"""
@@ -52,8 +57,11 @@ class Interface(Component):  # pylint: disable=too-many-public-methods
 
             # execute
             self.on_before_execute()
-            status = self.on_execute()
+            result = self.on_execute()
             self.on_after_execute()
+
+            self.on_success(result=result)
+            self.on_finish(success=True, result=result)
 
             # destroy
             self.on_before_destroy()
@@ -69,40 +77,14 @@ class Interface(Component):  # pylint: disable=too-many-public-methods
 
             self.on_after_destroy()
 
-            self.on_success(result=status)
-            self.on_finish(success=True)
-        except (KeyboardInterrupt, SystemExit) as _interrupt:
-            status = errors.ExecutionInterrupt(
-                "The components execution has been interrupted by the user or system.",
-                *sys.exc_info(),
-            )
-            status.__cause__ = _interrupt
-            try:
-                self.on_failure(exception=status)
-                self.on_finish(success=False, result=status)
-            except BaseException as _gex:  # pylint: disable=broad-except
-                status = errors.ExecutionFailed(
-                    "Unhandled exception in on_failure or on_finish",
-                    *sys.exc_info(),
-                )
-                status.__cause__ = _gex
+            return result
         except BaseException as _ex:  # pylint: disable=broad-except
-            status = errors.ExecutionFailed(
-                "Execution failed",
-                *sys.exc_info(),
-            )
-            status.__cause__ = _ex
-            try:
-                self.on_failure(exception=status)
-                self.on_finish(success=False, result=status)
-            except BaseException as _gex:  # pylint: disable=broad-except
-                status = errors.ExecutionFailed(
-                    "Unhandled exception in on_failure or on_finish",
-                    *sys.exc_info(),
-                )
-                status.__cause__ = _gex
+            self.on_failure(exception=_ex)
+            self.on_finish(success=False, result=_ex)
 
-        return status
+            raise errors.ExecutionFailed(
+                f"{self.__class__.__name__} dispatch failed: {_ex}"
+            ) from _ex
 
     def set_seed(self, seed: Optional[int] = None) -> bool:
         """Applies a random seed
@@ -118,40 +100,6 @@ class Interface(Component):  # pylint: disable=too-many-public-methods
 
         return apply_seed(seed)
 
-    def save_checkpoint(
-        self, path: str = None, timestep=None
-    ) -> Union[bool, str]:
-        """Saves components to a checkpoint
-
-        # Arguments
-        path: Path where checkpoints should be saved
-        timestep: Optional timestep of checkpoint. If None, timestep will count up automatically
-
-        # Returns
-        Filepath of the saved checkpoint or False if checkpoint has not been saved
-        """
-        if timestep is None:
-            timestep: int = -1  # TODO
-
-        if path is None:
-            if not self.experiment.is_mounted():
-                raise ValueError("You need to specify a checkpoint path")
-
-            # checkpoint_path = self.storage.get_path("checkpoints", create=True)
-            # path = os.path.join(os.path.expanduser(basepath), checkpoint_path)
-
-        checkpoint = self.on_save(path, timestep)
-
-        return checkpoint
-
-    def restore_checkpoint(self, checkpoint):
-        """Restores a checkpoint
-
-        # Arguments
-        filepath: Checkpoint filepath
-        """
-        return self.on_restore(checkpoint)
-
     # life cycle
 
     def on_init(self):
@@ -165,37 +113,12 @@ class Interface(Component):  # pylint: disable=too-many-public-methods
 
         Return False to prevent the default seeding procedure
         """
-        pass
 
     def on_before_create(self):
         """Lifecycle event triggered before components creation"""
-        pass
 
     def on_create(self):
         """Lifecycle event triggered during components creation"""
-
-    def on_save(self, checkpoint_path: str, timestep: int) -> Union[bool, str]:
-        """Implements the checkpoint functionality of the components
-
-        # Arguments
-        checkpoint_path: String, target directory
-        timestep: Integer, counting number of checkpoint
-
-        # Returns
-        Returns the name of the checkpoint file or path. Return False to indicate that checkpoint has not been saved.
-        """
-        return False
-
-    def on_restore(self, checkpoint):
-        """Implements the restore checkpoint functionality of the components
-
-        # Arguments
-        checkpoint: Checkpoint specification
-        timestep: Integer, counting number of checkpoint
-
-        # Returns
-        Return False to indicate that checkpoint has not been restored.
-        """
 
     def on_after_create(self):
         """Lifecycle event triggered after components creation"""
@@ -227,6 +150,7 @@ class Interface(Component):  # pylint: disable=too-many-public-methods
 
         # Arguments
         success: Whether the execution finished sucessfully
+        result: Return value of on_execute event
         """
 
     def on_success(self, result: Optional[Any] = None):
@@ -237,7 +161,7 @@ class Interface(Component):  # pylint: disable=too-many-public-methods
         """
 
     def on_failure(self, exception: errors.MachinableError):
-        """Lifecycle event triggered iff execution finished with an exception
+        """Lifecycle event triggered iff the execution finished with an exception
 
         # Arguments
         exception: Execution exception
