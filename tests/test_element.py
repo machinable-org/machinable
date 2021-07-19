@@ -82,6 +82,9 @@ def test_element_relations(tmp_path):
     execution = ml.Execution().add(experiment)
     execution.dispatch(grouping="test/grouping")
 
+    experiment_clone = ml.Experiment.from_storage(experiment.storage_id)
+    assert experiment.experiment_id == experiment_clone.experiment_id
+
     # experiment <-> execution
     assert int(execution.timestamp) == int(experiment.execution.timestamp)
     assert experiment.experiment_id == execution.experiments[0].experiment_id

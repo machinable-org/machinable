@@ -1,4 +1,4 @@
-from typing import Any, Callable, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any, Callable, List, Optional, Tuple, Union
 
 from functools import wraps
 
@@ -11,6 +11,9 @@ from machinable.utils import (
     import_from_directory,
     resolve_at_alias,
 )
+
+if TYPE_CHECKING:
+    from machinable.storage import Storage
 
 
 def belongs_to(f: Callable) -> Any:
@@ -169,6 +172,29 @@ class Element(Jsonable, metaclass=MetaElement):
 
         if storage_id is None:
             return None
+
+        return cls.from_storage(storage_id, storage)
+
+    @property
+    def storage_id(self) -> Optional[str]:
+        if not self.is_mounted():
+            return None
+
+        return self.__model__._storage_id
+
+    @property
+    def storage_instance(self) -> Optional["Storage"]:
+        if not self.is_mounted():
+            return None
+
+        return self.__model__._storage_instance
+
+    @classmethod
+    def from_storage(cls, storage_id, storage=None) -> "Element":
+        if storage is None:
+            from machinable.repository import Repository
+
+            storage = Repository.get().storage()
 
         return cls.from_model(
             getattr(storage, f"retrieve_{cls.__name__.lower()}")(storage_id)
