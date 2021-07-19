@@ -30,6 +30,18 @@ class Repository(Connectable, Element):
         )
         self._resolved_storage: Optional[Storage] = None
 
+    @classmethod
+    def filesystem(
+        cls,
+        directory: str,
+        default_grouping: Optional[str] = "%y_%U_%a",
+    ) -> "Repository":
+        return cls(
+            storage="machinable.storage.filesystem_storage",
+            version={"directory": directory},
+            default_grouping=default_grouping,
+        )
+
     def storage(self, reload: bool = False) -> Storage:
         """Resolves and returns the storage instance"""
         if self._resolved_storage is None or reload:
