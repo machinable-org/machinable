@@ -46,7 +46,11 @@ class ConfigMethod:
         definition = f"{function}({args})"
         method = f"config_{function}"
 
-        if not hasattr(self.component, method):
+        if hasattr(self.component, method):
+            prefix = "self.component."
+        elif hasattr(self.component.parent, method):
+            prefix = "self.component.parent."
+        else:
             raise AttributeError(
                 f"Config method {definition} specified but {type(self.component).__name__}.{method}() does not exist."
             )
@@ -55,7 +59,7 @@ class ConfigMethod:
         # to justify the implementation of a proper parser
         try:
             return eval(  # pylint: disable=eval-used
-                "self.component." + method + "(" + args + ")"
+                prefix + method + "(" + args + ")"
             )
         except Exception as _ex:
             raise ConfigurationError(

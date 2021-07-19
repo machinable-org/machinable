@@ -9,7 +9,7 @@ from machinable.types import ComponentType
 
 
 def test_component_version():
-    project = Project("./tests/samples/project")
+    project = Project("./tests/samples/project").connect()
 
     assert project.get_component("dummy", {"alpha": -1}).config.alpha == -1
 
@@ -76,11 +76,17 @@ def test_component_version():
     assert c["flat"]["version"] == 2
 
     # config methods
-    c = project.get_component("components.configmethods").config
+    co = project.get_component(
+        "components.configmethods",
+        uses={"comp": ["components.configmethods_nested"]},
+    )
+    c = co.config
     assert c.method == "test"
     assert c.argmethod == "world"
     assert c.recursive == "testtest"
     assert c.nested.method == "test"
+    assert c.comp.from_parent == "test"
+    assert co.components["comp"].config.nested == "method"
 
     # test config introspection
     c = project.get_component(

@@ -1,12 +1,12 @@
 from typing import TYPE_CHECKING, Any, Dict, Optional, Union
 
 import sys
+import traceback
 
 from machinable import errors
 from machinable.component import Component
 from machinable.types import VersionType
 from machinable.utils import Events, apply_seed
-import traceback
 
 if TYPE_CHECKING:
     from machinable.element import Element

@@ -56,6 +56,10 @@ components:components:
     nested:
       method: hello()
     recursive: recursive_call('test')
+    <comp>:
+  configmethods_nested:
+    from_parent: hello()
+    nested: nested('method')
   inherited_flatness:
     flat.can.be.useful: False
     inherited.flat: value
