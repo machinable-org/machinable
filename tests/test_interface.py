@@ -34,7 +34,8 @@ def test_interface(tmp_path):
 
     # test that default uses are being overwritten
     experiment = Experiment("interfaces.uses_components")
-    experiment.use(dummy="dummy", optional="basic")
+    experiment.use("dummy", "dummy")
+    experiment.use("optional", "basic")
     interface = experiment.interface()
     interface.dispatch()
     assert interface.test.__module__ == "basic"
@@ -47,6 +48,6 @@ def test_interface(tmp_path):
 
     # test nested use
     experiment = Experiment("interfaces.uses_components")
-    experiment.use(nested="components.nested_use", overwrite=True)
+    experiment.use("nested", "components.nested_use", overwrite=True)
     interface = experiment.interface()
     interface.dispatch()

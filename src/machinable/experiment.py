@@ -180,7 +180,6 @@ class Experiment(Element):
         component: Optional[str] = None,
         version: VersionType = None,
         overwrite: bool = False,
-        **uses,
     ) -> "Experiment":
         """Adds a component
 
@@ -194,8 +193,6 @@ class Experiment(Element):
 
         if overwrite:
             self.__model__.uses = {}
-        for key, payload in uses.items():
-            self.use(key, payload)
 
         if slot is not None:
             self.__model__.uses[slot] = compact(component, version)

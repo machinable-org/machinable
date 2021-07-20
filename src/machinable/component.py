@@ -268,7 +268,7 @@ class Component(Jsonable):
                         )
 
             # we assign the raw config
-            self._config = OmegaConf.create(_rewrite_config_methods(__config))
+            self._config = OmegaConf.create(__config)
 
             self.on_before_configure(self._config)
 
@@ -331,6 +331,11 @@ class Component(Jsonable):
 
             # apply update
             self._config = OmegaConf.merge(self._config, config_update)
+
+            # enable config methods
+            self._config = OmegaConf.create(
+                _rewrite_config_methods(OmegaConf.to_container(self._config))
+            )
 
             # computed configuration transform
             self.on_configure()

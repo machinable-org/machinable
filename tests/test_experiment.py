@@ -21,7 +21,6 @@ def test_experiment(tmp_path):
 
     # uses
     experiment.use("test", "dummy")
-    experiment.use(test="dummy")
     assert len(experiment.__model__.uses) == 1
     assert experiment.version() == []
     assert experiment.version("test") == ["test"]
