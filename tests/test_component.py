@@ -97,7 +97,6 @@ def test_component_version():
     assert c._uses_ == {}
     assert c._component_ == "components.flattened_notation"
     assert c._version_ == ["~flat_version"]
-    assert c._resolved_version_ == ["~flat_version"]
     assert c._slot_update_ == {}
 
     class IntrospectiveComponent(Component):

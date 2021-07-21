@@ -84,13 +84,6 @@ class Experiment(Element):
             raise StorageError("Experiment is finished and thus read-only")
 
     def derive_from(self, experiment: "Experiment") -> "Experiment":
-        if not experiment.is_mounted():
-            raise StorageError(
-                "The experiment has not been written to a storage yet."
-            )
-        if experiment.timestamp is None:
-            raise ValueError("The experiment has not been executed yet.")
-
         self.__model__.derived_from_id = experiment.experiment_id
         self.__model__.derived_from_timestamp = experiment.timestamp
         self.__related__["ancestor"] = experiment

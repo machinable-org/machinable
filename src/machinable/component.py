@@ -272,21 +272,6 @@ class Component(Jsonable):
 
             self.on_before_configure(self._config)
 
-            resolved_version = []
-            for ver in __version:
-                if isinstance(ver, collections.Mapping):
-                    try:
-                        ver = OmegaConf.create(_rewrite_config_methods(ver))
-                        ver = OmegaConf.to_container(ver, resolve=True)
-                    except omegaconf.errors.InterpolationResolutionError:
-                        # it might not be possible to resolve the config methods
-                        #  independendly if call out to other values that are yet
-                        #  to be modified
-                        pass
-                    ver = unflatten_dict(ver)
-
-                resolved_version.append(ver)
-
             slot_update = {}
             for slot, slot_config in available_slots.items():
                 if slot_config is None:
@@ -305,8 +290,10 @@ class Component(Jsonable):
 
             # compose configuration update
             config_update = {}
-            for version in resolved_version:
-                if isinstance(version, str) and version.startswith("~"):
+            for version in __version:
+                if isinstance(version, collections.Mapping):
+                    version = unflatten_dict(version)
+                elif isinstance(version, str) and version.startswith("~"):
                     # from local version
                     name = version[1:]
                     path = name.split(":")
@@ -332,25 +319,23 @@ class Component(Jsonable):
             # apply update
             self._config = OmegaConf.merge(self._config, config_update)
 
-            # enable config methods
-            self._config = OmegaConf.create(
-                _rewrite_config_methods(OmegaConf.to_container(self._config))
-            )
-
-            # computed configuration transform
-            self.on_configure()
-
-            # resolve config and version
-            resolved_config = OmegaConf.to_container(self._config, resolve=True)
-
             # remove versions and uses
             config = {
                 k: v
-                for k, v in resolved_config.items()
+                for k, v in OmegaConf.to_container(self._config).items()
                 if not (
                     k.startswith("~") or (k.startswith("<") and k.endswith(">"))
                 )
             }
+
+            # enable config methods
+            self._config = OmegaConf.create(_rewrite_config_methods(config))
+
+            # computed configuration transform
+            self.on_configure()
+
+            # resolve config
+            config = OmegaConf.to_container(self._config, resolve=True)
 
             slot_version = {
                 name: copy.deepcopy(config.get(name, {})) for name in uses
@@ -385,7 +370,6 @@ class Component(Jsonable):
             config["_raw_"] = self.__config
             config["_component_"] = self.__class__.__module__
             config["_version_"] = self.__version
-            config["_resolved_version_"] = resolved_version
             config["_slot_update_"] = slot_update
             config["_update_"] = config_update
 
