@@ -295,9 +295,23 @@ class Experiment(Element):
             self, timestamp, mark_finished
         )
 
-    def output(self) -> Optional[str]:
+    def output(self, incremental: bool = False) -> Optional[str]:
         """Returns the output log"""
         self._assert_mounted()
+
+        if incremental:
+            read_length = self._cache.get("output_read_length", 0)
+            if read_length == -1:
+                return ""
+            output = self.__model__._storage_instance.retrieve_output(self)
+            if output is None:
+                return None
+
+            if self.is_finished():
+                self._cache["output_read_length"] = -1
+            else:
+                self._cache["output_read_length"] = len(output)
+            return output[read_length:]
 
         if "output" in self._cache:
             return self._cache["output"]

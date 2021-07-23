@@ -70,9 +70,17 @@ def test_experiment(tmp_path):
     experiment.save_data("floaty", 1.0)
     assert experiment.load_data("floaty") == "1.0"
 
+    # output
     assert experiment.output() is None
     experiment.save_file("output.log", "test")
     assert experiment.output() == "test"
+
+    assert experiment.output(incremental=True) == "test"
+    experiment.save_file("output.log", "testt")
+    assert experiment.output(incremental=True) == "t"
+    assert experiment.output(incremental=True) == ""
+    experiment.save_file("output.log", "testt more")
+    assert experiment.output(incremental=True) == " more"
 
     experiment.mark_started()
     assert experiment.is_started()
