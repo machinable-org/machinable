@@ -45,6 +45,18 @@ class Execution(Element):
         return Grouping
 
     @classmethod
+    def local(
+        cls,
+        processes: Optional[int] = None,
+        seed: Union[int, None] = None,
+    ) -> "Execution":
+        return cls(
+            engine="machinable.engine.local_engine",
+            version={"processes": processes},
+            seed=seed,
+        )
+
+    @classmethod
     def from_model(cls, model: schema.Execution) -> "Execution":
         instance = cls(model.engine[0])
         instance.__model__ = model
