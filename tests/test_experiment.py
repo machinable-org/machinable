@@ -111,9 +111,12 @@ def test_experiment_relations(tmp_path):
     assert derived.ancestor.experiment_id == experiment.experiment_id
     assert experiment.derived[0].experiment_id == derived.experiment_id
 
-    derived2 = Experiment("basic", derive_from=experiment)
-    Execution().add(derived2).dispatch()
+    derived = Experiment("basic", derive_from=experiment)
+    Execution().add(derived).dispatch()
     assert len(experiment.derived) == 2
 
-    assert experiment.reset().experiment_id == experiment.experiment_id
-    assert experiment.reset("other").__model__.interface == ["other"]
+    assert experiment.derive().experiment_id == experiment.experiment_id
+    assert experiment.derive("other").__model__.interface == ["other"]
+
+    derived = experiment.derive(version=experiment.config)
+    Execution().add(derived).dispatch()

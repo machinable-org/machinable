@@ -50,7 +50,9 @@ class Experiment(Element):
         self._resolved_interface: Optional[Interface] = None
         self._resolved_config: Optional[DictConfig] = None
         if derive_from is not None:
-            self.derive_from(derive_from)
+            self.__model__.derived_from_id = derive_from.experiment_id
+            self.__model__.derived_from_timestamp = derive_from.timestamp
+            self.__related__["ancestor"] = derive_from
 
     @classmethod
     def from_model(cls, model: schema.Experiment) -> "Experiment":
@@ -71,7 +73,7 @@ class Experiment(Element):
         if self.__model__.timestamp is not None:
             raise ConfigurationError(
                 "Experiment can not be modified as it has already been executed. "
-                "Use .reset() to derive a modified experiment."
+                "Use .derive() to derive a modified experiment."
             )
 
     def _clear_caches(self):
@@ -83,14 +85,7 @@ class Experiment(Element):
         if self.is_finished():
             raise StorageError("Experiment is finished and thus read-only")
 
-    def derive_from(self, experiment: "Experiment") -> "Experiment":
-        self.__model__.derived_from_id = experiment.experiment_id
-        self.__model__.derived_from_timestamp = experiment.timestamp
-        self.__related__["ancestor"] = experiment
-
-        return self
-
-    def reset(
+    def derive(
         self,
         interface: Optional[str] = sentinel,
         version: VersionType = sentinel,
