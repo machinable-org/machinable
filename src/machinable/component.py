@@ -90,7 +90,13 @@ def normversion(version: VersionType = None) -> List[Union[str, dict]]:
 
         return True
 
-    return [v for v in version if _valid(v)]
+    def _norm(item):
+        if isinstance(item, collections.Mapping):
+            # convert to dict
+            return OmegaConf.to_container(OmegaConf.create(item))
+        return item
+
+    return [_norm(v) for v in version if _valid(v)]
 
 
 def compact(

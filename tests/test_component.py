@@ -6,6 +6,7 @@ from machinable import Component, Project
 from machinable.component import compact, extract, normversion
 from machinable.errors import ConfigurationError
 from machinable.types import ComponentType
+from omegaconf.omegaconf import OmegaConf
 
 
 def test_component_version():
@@ -196,6 +197,11 @@ def test_normversion():
     assert normversion(None) == []
     assert normversion([None, {}]) == []
     assert normversion(("test", {})) == ["test"]
+    assert isinstance(normversion(OmegaConf.create({"test": 1}))[0], dict)
+    assert isinstance(
+        normversion({"nested": OmegaConf.create({"test": 1})})[0]["nested"],
+        dict,
+    )
     with pytest.raises(ValueError):
         normversion({"invalid"})
     with pytest.raises(ValueError):
