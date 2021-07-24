@@ -12,6 +12,7 @@ from machinable.element import Element, belongs_to, has_many
 from machinable.errors import ConfigurationError, MachinableError, StorageError
 from machinable.interface import Interface
 from machinable.settings import get_settings
+from machinable.storage import Storage
 from machinable.types import (
     ComponentType,
     DatetimeType,
@@ -64,6 +65,10 @@ class Experiment(Element):
         instance = cls(model.interface[0])
         instance.__model__ = model
         return instance
+
+    def set_filesystem(self, directory: str):
+        self.__model__._storage_instance = Storage.filesystem()
+        self.__model__._storage_id = directory
 
     def __reduce__(self) -> Union[str, Tuple[Any, ...]]:
         return (self.__class__, ("",), self.serialize())

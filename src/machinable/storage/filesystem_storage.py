@@ -6,6 +6,7 @@ import sqlite3
 
 import arrow
 from machinable import schema
+from machinable.errors import StorageError
 from machinable.storage.storage import Storage
 from machinable.types import DatetimeType, JsonableType, VersionType
 from machinable.utils import load_file, save_file
@@ -19,7 +20,7 @@ class FilesystemStorage(Storage):
     class Config:
         """Config annotation"""
 
-        directory: str
+        directory: Optional[str]
 
     def __init__(
         self,
@@ -28,6 +29,8 @@ class FilesystemStorage(Storage):
         parent: Union["Element", "Component", None] = None,
     ):
         super().__init__(config, version=version, parent=parent)
+        if self.config.directory is None:
+            return
         os.makedirs(self.config.directory, exist_ok=True)
         self._db_file = os.path.join(self.config.directory, "storage.sqlite")
         self._db = sqlite3.connect(self._db_file)
@@ -222,7 +225,16 @@ class FilesystemStorage(Storage):
         if derived_from is not None:
             storage_id = os.path.join(derived_from, "derived", directory)
         else:
-            storage_id = self.path(directory)
+            if self.config.directory is not None:
+                storage_id = os.path.join(
+                    os.path.abspath(self.config.directory), directory
+                )
+            else:
+                if not isinstance(experiment._storage_id, str):
+                    raise StorageError(
+                        "Can not write the experiment as no storage directory was provided. Set a storage directory or use Experiment.set_filesystem()."
+                    )
+                storage_id = experiment._storage_id
 
         save_file(
             os.path.join(storage_id, "experiment.json"),
@@ -328,9 +340,6 @@ class FilesystemStorage(Storage):
 
     def _retrieve_output(self, experiment_storage_id: str) -> str:
         return self._retrieve_file(experiment_storage_id, "output.log")
-
-    def path(self, *append: str) -> str:
-        return os.path.join(os.path.abspath(self.config.directory), *append)
 
     def _local_directory(
         self, experiment_storage_id: str, *append: str

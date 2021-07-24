@@ -34,7 +34,7 @@ class Storage(Component):
         return super().make(name, version, parent)
 
     @classmethod
-    def filesystem(cls, directory: str) -> "Storage":
+    def filesystem(cls, directory: Optional[str] = None) -> "Storage":
         return cls.make(
             "machinable.storage.filesystem_storage",
             version={"directory": directory},
