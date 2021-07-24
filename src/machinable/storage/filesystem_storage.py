@@ -219,7 +219,7 @@ class FilesystemStorage(Storage):
 
         directory = os.path.join(
             path,
-            f"{prefix}{'-' if prefix else ''}{experiment.experiment_id}-{arrow.get(timestamp)}",
+            f"{prefix}{'-' if prefix else ''}{experiment.experiment_id}",
         )
 
         if derived_from is not None:
