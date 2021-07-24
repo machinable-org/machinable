@@ -14,6 +14,10 @@ def test_repository(tmpdir):
         == repository_b.storage().config.directory
     )
 
+    # serialization
+    restored = Repository.from_json(repository.as_json())
+    assert restored.storage().config.directory == str(tmpdir)
+
     # deferred data
     experiment = Experiment("dummy")
     experiment.save_data("test.txt", "deferral")

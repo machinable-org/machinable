@@ -5,6 +5,7 @@ from machinable import errors
 from machinable.engine.engine import Engine
 from machinable.experiment import Experiment
 from machinable.project import Project
+from machinable.repository import Repository
 
 
 def _wrap(line):
@@ -70,6 +71,8 @@ class SlurmEngine(Engine):
                         "cmd": sbatch_arguments,
                         "script": script,
                         "resources": canonical_resources,
+                        "project_directory": self.project_directory(experiment),
+                        "project_source": self.project_source(experiment),
                     },
                 )
                 results.append(job_id)
@@ -84,11 +87,11 @@ class SlurmEngine(Engine):
 
         return results
 
-    def project_directory(self, experiment: Experiment) -> str:
+    def project_source(self, experiment: Experiment) -> str:
         return Project.get().path()
 
-    def experiment_directory(self, experiment: Experiment) -> str:
-        return experiment.local_directory()
+    def project_directory(self, experiment: Experiment) -> str:
+        return Project.get().path()
 
     def before_script(self, experiment: Experiment) -> Optional[str]:
         """Returns script to be executed before the component dispatch"""
@@ -97,10 +100,12 @@ class SlurmEngine(Engine):
         return f'{self.config.python} -c "{self.code(experiment)}"'
 
     def code(self, experiment: Experiment) -> Optional[str]:
+        repository = Repository.get().as_json().replace('"', '\\"')
         return f"""
-        from machinable import Project, Experiment
+        from machinable import Project, Repository, Experiment
         Project('{self.project_directory(experiment)}').connect()
-        experiment = Experiment.from_storage(storage=ml.Storage.filesystem(), storage_id='{self.experiment_directory(experiment)}')
+        Repository.from_json('{repository}').connect()
+        experiment = Experiment.find('{experiment.experiment_id}', timestamp={experiment.execution.timestamp})
         experiment.interface().dispatch()
         """.replace(
             "\n        ", ";"

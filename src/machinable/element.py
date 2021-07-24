@@ -236,7 +236,7 @@ class Element(Jsonable, metaclass=MetaElement):
 
     @classmethod
     def unserialize(cls, serialized):
-        return cls.from_model(cls.model(**serialized))
+        return cls.from_model(cls.model()(**serialized))
 
     def __reduce__(self) -> Union[str, Tuple[Any, ...]]:
         return (self.__class__, (), self.serialize())
