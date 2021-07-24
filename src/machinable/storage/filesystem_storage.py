@@ -105,7 +105,7 @@ class FilesystemStorage(Storage):
             if i == 0:
                 # create primary directory
                 primary_directory = execution_directory
-                os.makedirs(primary_directory)
+                os.makedirs(primary_directory, exist_ok=True)
             else:
                 # symlink to primary directory
                 os.symlink(

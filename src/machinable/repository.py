@@ -74,8 +74,13 @@ class Repository(Connectable, Element):
             grouping=grouping,
         )
 
-        # set relations
+        # write deferred experiment data
+        for experiment in execution.experiments:
+            for filepath, data in experiment._deferred_data.items():
+                experiment.save_file(filepath, data)
+            experiment._deferred_data = {}
 
+        # set relations
         execution.__related__["grouping"] = grouping
 
         return True

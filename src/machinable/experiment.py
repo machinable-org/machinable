@@ -55,6 +55,7 @@ class Experiment(Element):
         )
         self._resolved_interface: Optional[Interface] = None
         self._resolved_config: Optional[DictConfig] = None
+        self._deferred_data = {}
         if derive_from is not None:
             self.__model__.derived_from_id = derive_from.experiment_id
             self.__model__.derived_from_timestamp = derive_from.timestamp
@@ -281,7 +282,11 @@ class Experiment(Element):
     def save_file(self, filepath: str, data: Any) -> str:
         if os.path.isabs(filepath):
             raise ValueError("Filepath must be relative")
-        self._assert_writable()
+
+        if not self.is_mounted():
+            # defer writes until experiment creation
+            self._deferred_data[filepath] = data
+            return "$deferred"
 
         return self.__model__._storage_instance.create_file(
             self, filepath, data
