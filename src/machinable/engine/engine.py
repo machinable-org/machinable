@@ -7,6 +7,13 @@ if TYPE_CHECKING:
 
 
 class Engine(Component):
+    @classmethod
+    def local(cls, processes: Optional[int] = None) -> "Engine":
+        return cls.make(
+            "machinable.engine.local_engine",
+            version={"processes": processes},
+        )
+
     @property
     def execution(self) -> Optional["Execution"]:
         return self.element

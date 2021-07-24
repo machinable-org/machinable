@@ -34,6 +34,13 @@ class Storage(Component):
         return super().make(name, version, parent)
 
     @classmethod
+    def filesystem(cls, directory: str) -> "Storage":
+        return cls.make(
+            "machinable.storage.filesystem_storage",
+            version={"directory": directory},
+        )
+
+    @classmethod
     def multiple(cls, primary: "Storage", *secondary: "Storage") -> "Storage":
         if len(secondary) == 0:
             return primary

@@ -1,11 +1,12 @@
 import shutil
 
 import pytest
-from machinable import Execution, Experiment, Project, errors
+from machinable import Engine, Execution, Experiment, Project, errors
 from machinable.execution import Execution
 
 
 def test_local_engine():
+    assert Engine.local(1).config.processes == 1
     Project("./tests/samples/project").connect()
     Execution("machinable.engine.local_engine").add(
         Experiment("execution.basics")

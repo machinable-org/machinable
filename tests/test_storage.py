@@ -5,6 +5,10 @@ from machinable import Storage
 from machinable.testing import storage_tests
 
 
+def test_storage(tmpdir):
+    assert Storage.filesystem(str(tmpdir)).config.directory == str(tmpdir)
+
+
 def test_filesystem_storage(tmpdir):
     storage = Storage.make(
         "machinable.storage.filesystem_storage",
