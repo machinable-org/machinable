@@ -20,7 +20,7 @@ class Repository(Connectable, Element):
         self,
         storage: Union[str, None] = None,
         version: VersionType = None,
-        default_grouping: Optional[str] = "%y_%U_%a",
+        default_grouping: Optional[str] = get_settings().default_grouping,
     ):
         super().__init__()
         if storage is None:
@@ -34,7 +34,7 @@ class Repository(Connectable, Element):
     def filesystem(
         cls,
         directory: str,
-        default_grouping: Optional[str] = "%y_%U_%a",
+        default_grouping: Optional[str] = get_settings().default_grouping,
     ) -> "Repository":
         return cls(
             storage="machinable.storage.filesystem_storage",

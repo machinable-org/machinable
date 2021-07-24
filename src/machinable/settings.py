@@ -14,6 +14,7 @@ class Settings(BaseModel):
         {"directory": "./storage"},
     ]
     default_interface: Optional[str] = None
+    default_grouping: Optional[str] = "%Y_%U_%a/"
 
 
 def get_settings():
