@@ -124,7 +124,7 @@ def test_experiment_relations(tmp_path):
     Execution().add(derived).dispatch()
     assert len(experiment.derived) == 2
 
-    assert experiment.derive().experiment_id == experiment.experiment_id
+    assert experiment.derive().experiment_id != experiment.experiment_id
     assert experiment.derive("other").__model__.interface == ["other"]
 
     derived = experiment.derive(version=experiment.config)

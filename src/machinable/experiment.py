@@ -101,8 +101,6 @@ class Experiment(Element):
         interface: Optional[str] = sentinel,
         version: VersionType = sentinel,
         uses: Optional[dict] = sentinel,
-        seed: Optional[int] = sentinel,
-        experiment_id: Optional[str] = sentinel,
     ) -> "Experiment":
         if interface is sentinel:
             interface = self.__model__.interface[0]
@@ -110,15 +108,8 @@ class Experiment(Element):
             version = self.__model__.interface[1:]
         if uses is sentinel:
             uses = copy.deepcopy(self.__model__.uses)
-        if experiment_id is sentinel:
-            experiment_id = self.__model__.experiment_id
-        if seed is sentinel:
-            seed = self.__model__.seed
         experiment = Experiment(interface, version, derive_from=self)
         experiment.use(**uses)
-        if experiment_id is not None:
-            experiment.__model__.experiment_id = experiment_id
-        experiment.__model__.seed = seed
 
         return experiment
 
