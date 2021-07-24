@@ -3,8 +3,8 @@ from typing import Optional
 import commandlib
 from machinable import errors
 from machinable.engine.engine import Engine
-from machinable.execution import Execution
 from machinable.experiment import Experiment
+from machinable.project import Project
 
 
 def _wrap(line):
@@ -62,14 +62,17 @@ class SlurmEngine(Engine):
                     job_id = int(output.rsplit(" ", maxsplit=1)[-1])
                 except ValueError:
                     job_id = False
-                info = {
-                    "job_id": job_id,
-                    "cmd": sbatch_arguments,
-                    "script": script,
-                    "resources": canonical_resources,
-                }
-                experiment.save_file(f"slurm.json", info)
                 print(output)
+                experiment.save_file(
+                    f"execution/engine/slurm-{job_id}.json",
+                    {
+                        "job_id": job_id,
+                        "cmd": sbatch_arguments,
+                        "script": script,
+                        "resources": canonical_resources,
+                    },
+                )
+                results.append(job_id)
             except FileNotFoundError as _exception:
                 raise errors.ExecutionFailed(
                     "Slurm sbatch not found."
@@ -79,16 +82,25 @@ class SlurmEngine(Engine):
                     "Could not submit job to Slurm"
                 ) from _exception
 
+        return results
+
+    def project_directory(self, experiment: Experiment) -> str:
+        return Project.get().path()
+
+    def experiment_directory(self, experiment: Experiment) -> str:
+        return experiment.local_directory()
+
     def before_script(self, experiment: Experiment) -> Optional[str]:
-        """"""
+        """Returns script to be executed before the component dispatch"""
 
     def script(self, experiment: Experiment) -> Optional[str]:
         return f'{self.config.python} -c "{self.code(experiment)}"'
 
     def code(self, experiment: Experiment) -> Optional[str]:
         return f"""
-        from machinable import Experiment
-        experiment = Experiment.from_json('{experiment.as_json()}')
+        from machinable import Project, Experiment
+        Project('{self.project_directory(experiment)}').connect()
+        experiment = Experiment.from_storage(storage=ml.Storage.filesystem(), storage_id='{self.experiment_directory(experiment)}')
         experiment.interface().dispatch()
         """.replace(
             "\n        ", ";"
@@ -97,7 +109,7 @@ class SlurmEngine(Engine):
         ]
 
     def after_script(self, experiment: Experiment) -> Optional[str]:
-        """"""
+        """Returns script to be executed after the component dispatch"""
 
     def canonicalize_resources(self, resources):
         if resources is None:
@@ -156,15 +168,15 @@ class SlurmEngine(Engine):
                         raise KeyError("Invalid length")
                     canonicalized[prefix + "--" + shorthands[k[1]]] = v
                     continue
-                except KeyError:
-                    raise ValueError(f"Invalid short option: {k}")
+                except KeyError as _ex:
+                    raise ValueError(f"Invalid short option: {k}") from _ex
             if len(k) == 1:
                 # p => --partition
                 try:
                     canonicalized[prefix + "--" + shorthands[k]] = v
                     continue
-                except KeyError:
-                    raise ValueError(f"Invalid short option: -{k}")
+                except KeyError as _ex:
+                    raise ValueError(f"Invalid short option: -{k}") from _ex
             else:
                 # option => --option
                 canonicalized[prefix + "--" + k] = v
@@ -172,4 +184,4 @@ class SlurmEngine(Engine):
         return canonicalized
 
     def __repr__(self):
-        return f"Engine <slurm>"
+        return "Engine <slurm>"
