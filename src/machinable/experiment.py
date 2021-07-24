@@ -12,7 +12,12 @@ from machinable.element import Element, belongs_to, has_many
 from machinable.errors import ConfigurationError, MachinableError, StorageError
 from machinable.interface import Interface
 from machinable.settings import get_settings
-from machinable.types import DatetimeType, TimestampType, VersionType
+from machinable.types import (
+    ComponentType,
+    DatetimeType,
+    TimestampType,
+    VersionType,
+)
 from machinable.utils import sentinel
 from omegaconf import OmegaConf
 from omegaconf.dictconfig import DictConfig
@@ -188,6 +193,10 @@ class Experiment(Element):
         self._clear_caches()
 
         return self
+
+    @property
+    def uses(self) -> Dict[str, ComponentType]:
+        return self.__model__.uses
 
     @has_many
     def derived() -> ExperimentCollection:

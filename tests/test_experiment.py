@@ -58,6 +58,7 @@ def test_experiment(tmp_path):
     assert os.path.isdir(
         experiment.local_directory("non-existing/dir", create=True)
     )
+    assert len(experiment.uses) == 0
     # records
     assert len(experiment.records()) == 0
     record = experiment.record("testing")
