@@ -1,6 +1,7 @@
 import arrow
 from machinable import schema
 from machinable.storage.storage import Storage
+from machinable.utils import random_str
 
 
 def storage_tests(storage: Storage) -> None:
@@ -83,9 +84,19 @@ def storage_tests(storage: Storage) -> None:
     assert storage.retrieve_status(experiments[0], "started") is None
     storage.mark_started(experiments[0], now)
     assert storage.retrieve_status(experiments[0], "started") == now
+    # starting event can occur multiple times
+    old_now = now
+    now = arrow.now()
+    storage.mark_started(experiments[0], now)
+    now = arrow.now()
+    storage.mark_started(experiments[0], now)
+    assert storage.retrieve_status(experiments[0], "started") != old_now
+    assert storage.retrieve_status(experiments[0], "started") == now
+
     assert storage.retrieve_status(experiments[0], "heartbeat") is None
     storage.update_heartbeat(experiments[0], now)
     assert storage.retrieve_status(experiments[0], "heartbeat") == now
+
     assert storage.retrieve_status(experiments[0], "finished") is None
     storage.update_heartbeat(experiments[0], now, mark_finished=True)
     assert storage.retrieve_status(experiments[0], "finished") == now

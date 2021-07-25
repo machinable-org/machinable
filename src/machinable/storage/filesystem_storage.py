@@ -265,7 +265,10 @@ class FilesystemStorage(Storage):
         self, experiment: schema.Experiment, timestamp: DatetimeType
     ) -> None:
         save_file(
-            os.path.join(experiment._storage_id, "started_at"), str(timestamp)
+            os.path.join(experiment._storage_id, "started_at"),
+            str(timestamp) + "\n",
+            # starting event can occur multiple times
+            mode="a",
         )
 
     def _update_heartbeat(
@@ -288,9 +291,15 @@ class FilesystemStorage(Storage):
     def _retrieve_status(
         self, experiment_storage_id: str, field: str
     ) -> Optional[str]:
-        return load_file(
+        status = load_file(
             os.path.join(experiment_storage_id, f"{field}_at"), default=None
         )
+        if status is None:
+            return None
+        if field == "started":
+            # can have multiple rows, return latest
+            return status.strip("\n").split("\n")[-1]
+        return status
 
     def _find_experiment(
         self, experiment_id: str, timestamp: float = None
