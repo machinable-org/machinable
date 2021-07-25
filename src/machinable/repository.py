@@ -16,6 +16,8 @@ if TYPE_CHECKING:
 class Repository(Connectable, Element):
     """Repository base class"""
 
+    _kind = "Repository"
+
     def __init__(
         self,
         storage: Union[str, None] = None,

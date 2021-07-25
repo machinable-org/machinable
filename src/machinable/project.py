@@ -126,6 +126,8 @@ def fetch_vendors(project: "Project", config: Optional[dict] = None):
 
 
 class Project(Connectable, Element):
+    _kind = "Project"
+
     def __init__(
         self,
         directory: Optional[str] = None,

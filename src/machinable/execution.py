@@ -17,7 +17,7 @@ from machinable.utils import generate_seed, update_dict
 
 
 class Execution(Element):
-    _kind = "executions"
+    _kind = "Execution"
 
     def __init__(
         self,

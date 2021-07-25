@@ -24,7 +24,7 @@ def resolve_grouping(grouping: str) -> Tuple[str, str]:
 class Grouping(Element):
     """Grouping element"""
 
-    _kind = "groupings"
+    _kind = "Grouping"
 
     def __init__(self, group: Optional[str] = None):
         super().__init__()

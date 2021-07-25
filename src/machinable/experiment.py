@@ -30,7 +30,7 @@ if TYPE_CHECKING:
 
 
 class Experiment(Element):
-    _kind = "experiments"
+    _kind = "Experiment"
 
     def __init__(
         self,
@@ -153,8 +153,9 @@ class Experiment(Element):
         seed: Optional[int] = None,
     ) -> "Experiment":
         """Executes the experiment"""
-        if self.is_mounted() and self.execution is not None:
-            raise MachinableError("Experiment has already been executed.")
+        if self.execution is not None:
+            self.execution.dispatch()
+            return self
 
         from machinable.execution import Execution
 

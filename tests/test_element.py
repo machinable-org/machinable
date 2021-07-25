@@ -1,7 +1,9 @@
-import machinable as ml
-import pytest
-from machinable import Execution, Experiment, Project
-from machinable.element import Connectable
+from machinable import Execution, Experiment, Project, Repository, schema
+from machinable.element import Connectable, Element
+
+
+def test_element():
+    assert Element.model() == schema.Model
 
 
 def test_element_views():
@@ -73,16 +75,16 @@ def test_connectable():
 
 
 def test_element_relations(tmp_path):
-    ml.Repository(
+    Repository(
         "machinable.storage.filesystem_storage", {"directory": str(tmp_path)}
     ).connect()
-    ml.Project("./tests/samples/project").connect()
+    Project("./tests/samples/project").connect()
 
-    experiment = ml.Experiment("basic")
-    execution = ml.Execution().add(experiment)
+    experiment = Experiment("basic")
+    execution = Execution().add(experiment)
     execution.dispatch(grouping="test/grouping")
 
-    experiment_clone = ml.Experiment.from_storage(experiment.storage_id)
+    experiment_clone = Experiment.from_storage(experiment.storage_id)
     assert experiment.experiment_id == experiment_clone.experiment_id
 
     # experiment <-> execution
@@ -101,3 +103,20 @@ def test_element_relations(tmp_path):
     # grouping <-> execution
     assert execution.grouping.group == "test/grouping"
     assert execution.grouping.executions[0].nickname == execution.nickname
+
+    # sub-class relations
+    class CustomExperiment(Experiment):
+        pass
+
+    class CustomExecution(Execution):
+        pass
+
+    experiment = CustomExperiment("basic")
+    execution = CustomExecution().add(experiment)
+    execution.dispatch()
+    experiment.__related__ = {}
+    execution.__related__ = {}
+    experiment.execution == execution
+    experiment.__related__ = {}
+    execution.__related__ = {}
+    execution.experiments[0] == experiment

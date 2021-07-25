@@ -25,7 +25,7 @@ def belongs_to(f: Callable) -> Any:
         if self.__related__.get(name, None) is None and self.is_mounted():
             related = self.__model__._storage_instance.retrieve_related(
                 self.__model__._storage_id,
-                f"{self.__class__.__name__.lower()}.{name}",
+                f"{self._kind.lower()}.{name}",
             )
             self.__related__[name] = related_class.from_model(related)
 
@@ -53,7 +53,7 @@ def has_many(f: Callable) -> Any:
         if self.__related__.get(name, None) is None and self.is_mounted():
             related = self.__model__._storage_instance.retrieve_related(
                 self.__model__._storage_id,
-                f"{self.__class__.__name__.lower()}.{name}",
+                f"{self._kind.lower()}.{name}",
             )
             if related is None:
                 return None
@@ -105,7 +105,7 @@ class MetaElement(type):
     def __getitem__(cls, view: str) -> "Element":
         from machinable.view import get
 
-        return get(resolve_at_alias(view, cls._kind), cls)
+        return get(resolve_at_alias(view, f"{cls._kind.lower()}s"), cls)
 
 
 class Element(Jsonable, metaclass=MetaElement):
@@ -114,7 +114,7 @@ class Element(Jsonable, metaclass=MetaElement):
     _kind = None
 
     def __new__(cls, *args, **kwargs):
-        view = kwargs.pop("view", cls.__name__ in ["Experiment", "Execution"])
+        view = kwargs.pop("view", cls._kind in ["Experiment", "Execution"])
         if view is True:
             view = args[0] if len(args) > 0 else False
         if getattr(cls, "_active_view", None) is None and isinstance(view, str):
@@ -152,7 +152,9 @@ class Element(Jsonable, metaclass=MetaElement):
     def __getitem__(self, view: str) -> "Element":
         from machinable.view import from_element
 
-        return from_element(resolve_at_alias(view, self._kind), self)
+        return from_element(
+            resolve_at_alias(view, f"{self._kind.lower()}s"), self
+        )
 
     @classmethod
     def from_model(cls, model: schema.Model) -> "Element":
@@ -166,7 +168,7 @@ class Element(Jsonable, metaclass=MetaElement):
 
         storage = Repository.get().storage()
 
-        storage_id = getattr(storage, f"find_{cls.__name__.lower()}")(
+        storage_id = getattr(storage, f"find_{cls._kind.lower()}")(
             element_id, *args, **kwargs
         )
 
@@ -197,7 +199,7 @@ class Element(Jsonable, metaclass=MetaElement):
             storage = Repository.get().storage()
 
         return cls.from_model(
-            getattr(storage, f"retrieve_{cls.__name__.lower()}")(storage_id)
+            getattr(storage, f"retrieve_{cls._kind.lower()}")(storage_id)
         )
 
     @classmethod
@@ -225,11 +227,12 @@ class Element(Jsonable, metaclass=MetaElement):
             if isinstance(element, cls.model()):
                 return element
 
-            raise ValueError(
-                f"Invalid {cls.__name__.lower()} model: {element}."
-            )
+            raise ValueError(f"Invalid {cls._kind.lower()} model: {element}.")
 
-        return getattr(schema, cls.__name__)
+        if cls._kind is None:
+            return schema.Model
+
+        return getattr(schema, cls._kind)
 
     def serialize(self) -> dict:
         return self.__model__.dict()
