@@ -10,7 +10,7 @@ Install the latest stable version via [pip](http://www.pip-installer.org/):
 pip install machinable
 ```
 
-machinable integrates with a number of optional packages. [Ray](http://pythonhosted.org/ray/) enables seamless and efficient distributed execution. Results analysis may use [pandas](https://pypi.python.org/pypi/pandas), [numpy](https://pypi.python.org/pypi/numpy) and [tabulate](https://pypi.python.org/pypi/tabulate). To install machinable with all optional dependencies type:
+machinable integrates with a number of optional packages. To install machinable with all optional dependencies type:
 
 ```bash
 pip install machinable[all]
