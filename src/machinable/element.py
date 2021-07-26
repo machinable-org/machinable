@@ -27,6 +27,8 @@ def belongs_to(f: Callable) -> Any:
                 self.__model__._storage_id,
                 f"{self._kind.lower()}.{name}",
             )
+            if related is None:
+                return None
             self.__related__[name] = related_class.from_model(related)
 
         return self.__related__.get(name, None)

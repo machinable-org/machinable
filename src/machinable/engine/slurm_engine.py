@@ -6,6 +6,7 @@ from machinable.engine.engine import Engine
 from machinable.experiment import Experiment
 from machinable.project import Project
 from machinable.repository import Repository
+from pydantic.errors import ExtraError
 
 
 def _wrap(line):
@@ -58,15 +59,17 @@ class SlurmEngine(Engine):
                 except ValueError:
                     job_id = False
                 print(output)
-                experiment.save_file(
-                    f"execution/engine/slurm-{job_id}.json",
-                    {
+                self.execution.save_data(
+                    filepath="slurm.json",
+                    data={
                         "job_id": job_id,
                         "cmd": sbatch_arguments,
                         "script": script,
+                        "resources": resources,
                         "project_directory": self.project_directory(experiment),
                         "project_source": self.project_source(experiment),
                     },
+                    experiment=experiment,
                 )
                 results.append(job_id)
             except FileNotFoundError as _exception:

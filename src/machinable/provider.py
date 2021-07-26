@@ -25,7 +25,6 @@ class Provider(Component):
 
     def get_component_class(self, kind: str) -> Optional[Any]:
         """Returns the component base class for the component kind"""
-        # todo: make extendable
         return getattr(machinable, kind[:-1].capitalize(), None)
 
     def get_host_info(self) -> dict:

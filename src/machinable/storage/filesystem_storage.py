@@ -9,17 +9,11 @@ from machinable import schema
 from machinable.errors import StorageError
 from machinable.storage.storage import Storage
 from machinable.types import DatetimeType, JsonableType, VersionType
-from machinable.utils import load_file, save_file
+from machinable.utils import load_file, save_file, timestamp_to_directory
 
 if TYPE_CHECKING:
     from machinable.component import Component
     from machinable.element import Element
-
-
-def _timestamp_str(timestamp):
-    return (
-        arrow.get(timestamp).strftime("%Y-%m-%dT%H%M%S_%f%z").replace("+", "_")
-    )
 
 
 class FilesystemStorage(Storage):
@@ -94,10 +88,10 @@ class FilesystemStorage(Storage):
         execution: schema.Execution,
         experiments: List[schema.Experiment],
     ) -> str:
-        stamp = _timestamp_str(execution.timestamp)
+        suffix = timestamp_to_directory(execution.timestamp)
         for experiment in experiments:
             execution_directory = os.path.join(
-                experiment._storage_id, f"execution-{stamp}"
+                experiment._storage_id, f"execution-{suffix}"
             )
             save_file(
                 os.path.join(execution_directory, "execution.json"),

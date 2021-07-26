@@ -1,6 +1,8 @@
-from typing import List, Optional, Union
+from typing import Any, List, Optional, Union
 
-from machinable import repository, schema
+import os
+
+from machinable import schema
 from machinable.collection import ExperimentCollection
 from machinable.component import compact
 from machinable.element import Element, has_many
@@ -9,6 +11,8 @@ from machinable.experiment import Experiment
 from machinable.repository import Repository
 from machinable.settings import get_settings
 from machinable.types import VersionType
+from machinable.project import Project
+from machinable.utils import timestamp_to_directory
 
 
 class Execution(Element):
@@ -26,6 +30,7 @@ class Execution(Element):
             engine = Engine.default or get_settings().default_engine
         self.__model__ = schema.Execution(
             engine=compact(engine, version),
+            host=Project.get().provider().get_host_info(),
         )
         self._resolved_engine: Optional[Engine] = None
 
@@ -39,6 +44,52 @@ class Execution(Element):
             engine="machinable.engine.local_engine",
             version={"processes": processes},
         )
+
+    def save_data(
+        self,
+        filepath: str,
+        data: Any,
+        experiment: Union["Experiment", None] = None,
+    ) -> Union[str, List[str]]:
+        if experiment is None:
+            return [
+                self.save_data(filepath, data, experiment=experiment)
+                for experiment in self.experiments
+            ]
+        return experiment.save_file(
+            os.path.join(
+                f"execution-{timestamp_to_directory(self.timestamp)}/data",
+                filepath,
+            ),
+            data,
+        )
+
+    def load_data(
+        self,
+        filepath: str,
+        default=None,
+        experiment: Union["Experiment", None] = None,
+    ) -> Union[Optional[Any], List[Optional[Any]]]:
+        if experiment is None:
+            return [
+                self.load_data(filepath, default, experiment=experiment)
+                for experiment in self.experiments
+            ]
+        return experiment.load_file(
+            os.path.join(
+                f"execution-{timestamp_to_directory(self.timestamp)}/data",
+                filepath,
+            ),
+            default,
+        )
+
+    @property
+    def version(self) -> VersionType:
+        return self.__model__.engine[1:]
+
+    @property
+    def component(self) -> str:
+        return self.__model__.engine[0]
 
     @classmethod
     def from_model(cls, model: schema.Execution) -> "Execution":

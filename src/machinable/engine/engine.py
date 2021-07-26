@@ -1,9 +1,10 @@
 from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
 import copy
+import os
 
 from machinable.component import Component
-from machinable.utils import update_dict
+from machinable.utils import timestamp_to_directory, update_dict
 
 if TYPE_CHECKING:
     from machinable.execution import Execution
@@ -33,16 +34,16 @@ class Engine(Component):
         except AttributeError:
             default_resources = None
 
-        if experiment.resources is None and default_resources is not None:
+        if experiment.resources() is None and default_resources is not None:
             return self.canonicalize_resources(default_resources)
 
-        if experiment.resources is not None and default_resources is None:
-            resources = copy.deepcopy(experiment.resources)
+        if experiment.resources() is not None and default_resources is None:
+            resources = copy.deepcopy(experiment.resources())
             resources.pop("_inherit_defaults", None)
             return self.canonicalize_resources(resources)
 
-        if experiment.resources is not None and default_resources is not None:
-            resources = copy.deepcopy(experiment.resources)
+        if experiment.resources() is not None and default_resources is not None:
+            resources = copy.deepcopy(experiment.resources())
             if resources.pop("_inherit_defaults", True) is False:
                 return self.canonicalize_resources(resources)
 

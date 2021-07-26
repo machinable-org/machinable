@@ -13,13 +13,12 @@ from machinable.collection import (
 )
 from machinable.component import compact, normversion
 from machinable.element import Element, belongs_to, has_many
-from machinable.engine import Engine
+from machinable.project import Project
 from machinable.errors import ConfigurationError, StorageError
 from machinable.group import Group
 from machinable.interface import Interface
 from machinable.repository import Repository
 from machinable.settings import get_settings
-from machinable.storage import Storage
 from machinable.types import (
     ComponentType,
     DatetimeType,
@@ -62,16 +61,14 @@ class Experiment(Element):
             interface = Interface.default or get_settings().default_interface
         if seed is None:
             seed = generate_seed()
-        if resources is not None:
-            resources = OmegaConf.to_container(OmegaConf.create(resources))
         self.__model__ = schema.Experiment(
-            interface=compact(interface, version),
-            seed=seed,
-            resources=resources,
+            interface=compact(interface, version), seed=seed
         )
         self._resolved_interface: Optional[Interface] = None
         self._resolved_config: Optional[DictConfig] = None
         self._deferred_data = {}
+        if resources is not None:
+            self.resources(resources)
         if group is not None:
             self.group_as(group)
         if uses is not None:
@@ -175,6 +172,10 @@ class Experiment(Element):
 
         return experiment
 
+    @property
+    def component(self) -> str:
+        return self.__model__.interface[0]
+
     def version(
         self, version: VersionType = sentinel, overwrite: bool = False
     ) -> List[Union[str, dict]]:
@@ -217,6 +218,21 @@ class Experiment(Element):
         ).dispatch()
 
         return self
+
+    def save_host_info(self) -> bool:
+        if not self.is_mounted():
+            return False
+
+        if self.execution is None:
+            return False
+
+        self.execution.save_data(
+            "host.json",
+            data=Project.get().provider().get_host_info(),
+            experiment=self,
+        )
+
+        return True
 
     def commit(self) -> "Experiment":
         Repository.get().commit(self)
@@ -378,8 +394,16 @@ class Experiment(Element):
 
         return output
 
-    @property
-    def resources(self) -> Dict:
+    def resources(self, resources: Dict = sentinel) -> Optional[Dict]:
+        if resources is sentinel:
+            return self.__model__.resources
+
+        self._assert_editable()
+
+        self.__model__.resources = OmegaConf.to_container(
+            OmegaConf.create(copy.deepcopy(resources))
+        )
+
         return self.__model__.resources
 
     @property
