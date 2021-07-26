@@ -544,7 +544,7 @@ python-versions = "*"
 
 [[package]]
 name = "pyupgrade"
-version = "2.22.0"
+version = "2.23.0"
 description = "A tool to automatically upgrade syntax for newer versions."
 category = "dev"
 optional = false
@@ -675,7 +675,7 @@ all = ["setproctitle", "numpy", "pandas"]
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.6.1"
-content-hash = "71575f5ec308af6091b2ddfb8a5fc2b92f917449ae28b21cfab438d06c67451d"
+content-hash = "473fdbbfc36a7a25eda505182a9d8a5d46ede32420a772d2a80893841e3e4435"
 
 [metadata.files]
 antlr4-python3-runtime = [
@@ -1007,8 +1007,8 @@ pytz = [
     {file = "pytz-2021.1.tar.gz", hash = "sha256:83a4a90894bf38e243cf052c8b58f381bfe9a7a483f6a9cab140bc7f702ac4da"},
 ]
 pyupgrade = [
-    {file = "pyupgrade-2.22.0-py2.py3-none-any.whl", hash = "sha256:b7896c03dbfd843aef61b538fe8dd3bdaf27e65984b51656acac721a53544621"},
-    {file = "pyupgrade-2.22.0.tar.gz", hash = "sha256:c8a5ad72bd6dc6393ac192707a8ae6e58061a382b0008f5ad35040262506fa2f"},
+    {file = "pyupgrade-2.23.0-py2.py3-none-any.whl", hash = "sha256:24535b6c3efc86b0a72b1cac627a852ad394a514823cd9e96c3442364e96e152"},
+    {file = "pyupgrade-2.23.0.tar.gz", hash = "sha256:c22beaf4d4fe5d1cd3b57028ee3de7393e537eeb41a9ba70d2cc531db9fdc244"},
 ]
 pyyaml = [
     {file = "PyYAML-5.4.1-cp27-cp27m-macosx_10_9_x86_64.whl", hash = "sha256:3b2b1824fe7112845700f815ff6a489360226a5609b96ec2190a45e62a9fc922"},
