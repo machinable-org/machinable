@@ -21,6 +21,9 @@ def belongs_to(f: Callable) -> Any:
     @wraps(f)
     def _wrapper(self: "Element"):
         related_class = f()
+        use_cache = True
+        if isinstance(related_class, tuple):
+            related_class, use_cache = related_class
         name = f.__name__
         if self.__related__.get(name, None) is None and self.is_mounted():
             related = self.__model__._storage_instance.retrieve_related(
@@ -29,7 +32,10 @@ def belongs_to(f: Callable) -> Any:
             )
             if related is None:
                 return None
-            self.__related__[name] = related_class.from_model(related)
+            element = related_class.from_model(related)
+            if not use_cache:
+                return element
+            self.__related__[name] = element
 
         return self.__related__.get(name, None)
 

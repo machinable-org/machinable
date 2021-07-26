@@ -38,7 +38,6 @@ class Experiment(Model):
     timestamp: int = Field(
         default_factory=lambda: int(datetime.now().timestamp())
     )
-    resources: Optional[Dict] = None
     seed: int = Field(default_factory=generate_seed)
     config: Optional[dict] = None
     nickname: str = Field(default_factory=generate_nickname)

@@ -56,7 +56,6 @@ class FilesystemStorage(Storage):
                     interface json,
                     uses json,
                     experiment_id text,
-                    resources json,
                     nickname text,
                     seed integer,
                     config json,
@@ -114,7 +113,6 @@ class FilesystemStorage(Storage):
         )
         self._db.commit()
         execution_id = cur.lastrowid
-
         for experiment in experiments:
             cur.execute(
                 """UPDATE experiments SET
@@ -122,6 +120,7 @@ class FilesystemStorage(Storage):
                  WHERE experiment_id=? AND timestamp=?""",
                 (execution_id, experiment.experiment_id, experiment.timestamp),
             )
+        self._db.commit()
 
         return execution_directory
 
@@ -188,7 +187,6 @@ class FilesystemStorage(Storage):
                 interface,
                 uses,
                 experiment_id,
-                resources,
                 seed,
                 config,
                 nickname,
@@ -196,13 +194,12 @@ class FilesystemStorage(Storage):
                 timestamp,
                 'group_id',
                 ancestor_id
-                ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)""",
+                ) VALUES (?,?,?,?,?,?,?,?,?,?,?)""",
             (
                 storage_id,
                 json.dumps(experiment.interface),
                 json.dumps(experiment.uses),
                 experiment.experiment_id,
-                json.dumps(experiment.resources),
                 experiment.seed,
                 json.dumps(experiment.config),
                 experiment.nickname,

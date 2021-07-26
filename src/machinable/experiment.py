@@ -13,10 +13,10 @@ from machinable.collection import (
 )
 from machinable.component import compact, normversion
 from machinable.element import Element, belongs_to, has_many
-from machinable.project import Project
 from machinable.errors import ConfigurationError, StorageError
 from machinable.group import Group
 from machinable.interface import Interface
+from machinable.project import Project
 from machinable.repository import Repository
 from machinable.settings import get_settings
 from machinable.types import (
@@ -104,7 +104,7 @@ class Experiment(Element):
     def execution() -> "Execution":
         from machinable.execution import Execution
 
-        return Execution
+        return Execution, False
 
     @classmethod
     def from_model(cls, model: schema.Experiment) -> "Experiment":
@@ -154,7 +154,7 @@ class Experiment(Element):
         if group is sentinel:
             group = self.group.clone() if self.group is not None else None
         if resources is sentinel:
-            resources = copy.deepcopy(self.__model__.resources)
+            resources = copy.deepcopy(self.resources())
         if uses is sentinel:
             uses = copy.deepcopy(self.__model__.uses)
         if seed is sentinel:
@@ -418,15 +418,17 @@ class Experiment(Element):
 
     def resources(self, resources: Dict = sentinel) -> Optional[Dict]:
         if resources is sentinel:
-            return self.__model__.resources
+            return self.load_file("resources.json", default=None)
 
-        self._assert_editable()
-
-        self.__model__.resources = OmegaConf.to_container(
+        resources = OmegaConf.to_container(
             OmegaConf.create(copy.deepcopy(resources))
         )
+        self.save_file(
+            "resources.json",
+            resources,
+        )
 
-        return self.__model__.resources
+        return resources
 
     @property
     def nickname(self) -> str:

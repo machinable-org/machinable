@@ -5,7 +5,7 @@ from machinable.utils import random_str
 
 
 def storage_tests(storage: Storage) -> None:
-    execution = schema.Execution(engine=["example"])
+    pre_execution = schema.Execution(engine=["example"])
     experiments = [
         schema.Experiment(interface=["a"]),
         schema.Experiment(interface=["b"]),
@@ -17,6 +17,9 @@ def storage_tests(storage: Storage) -> None:
     for experiment in experiments:
         storage.create_experiment(experiment, group, project)
 
+    storage.create_execution(execution=pre_execution, experiments=experiments)
+
+    execution = schema.Execution(engine=["example"])
     storage.create_execution(execution=execution, experiments=experiments)
 
     execution_ = storage.retrieve_execution(execution._storage_id)

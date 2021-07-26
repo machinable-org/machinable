@@ -59,7 +59,7 @@ class SlurmEngine(Engine):
                 except ValueError:
                     job_id = False
                 print(output)
-                self.execution.save_data(
+                experiment.save_execution_data(
                     filepath="slurm.json",
                     data={
                         "job_id": job_id,
@@ -69,7 +69,6 @@ class SlurmEngine(Engine):
                         "project_directory": self.project_directory(experiment),
                         "project_source": self.project_source(experiment),
                     },
-                    experiment=experiment,
                 )
                 results.append(job_id)
             except FileNotFoundError as _exception:
@@ -101,7 +100,7 @@ class SlurmEngine(Engine):
         from machinable import Project, Repository, Experiment
         Project('{self.project_directory(experiment)}').connect()
         Repository.from_json('{repository}').connect()
-        experiment = Experiment.find('{experiment.experiment_id}', timestamp={experiment.execution.timestamp})
+        experiment = Experiment.find('{experiment.experiment_id}', timestamp={experiment.timestamp})
         experiment.interface().dispatch()
         """.replace(
             "\n        ", ";"

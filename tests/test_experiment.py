@@ -87,6 +87,15 @@ def test_experiment(tmp_path):
         experiment._assert_editable()
     assert not experiment.is_incomplete()
 
+    # execution data
+    experiment = Experiment("basic")
+    with pytest.raises(ValueError):
+        experiment.save_execution_data("test", "data")
+    execution = Execution().add(experiment)
+    execution.dispatch()
+    experiment.save_execution_data("test", "data")
+    assert experiment.load_execution_data("test") == "data"
+
 
 def test_experiment_relations(tmp_path):
     Repository(

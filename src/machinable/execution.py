@@ -8,10 +8,10 @@ from machinable.component import compact
 from machinable.element import Element, has_many
 from machinable.engine import Engine
 from machinable.experiment import Experiment
+from machinable.project import Project
 from machinable.repository import Repository
 from machinable.settings import get_settings
 from machinable.types import VersionType
-from machinable.project import Project
 
 
 class Execution(Element):
