@@ -24,7 +24,8 @@ def test_repository(tmpdir):
     experiment.save_file("test.json", "deferral")
     assert len(experiment._deferred_data) == 2
 
-    repository.commit(Execution().add(experiment))
+    execution = Execution().add(experiment)
+    repository.commit(experiment, execution)
 
     assert os.path.isfile(experiment.local_directory("data/test.txt"))
     assert os.path.isfile(experiment.local_directory("test.json"))

@@ -80,9 +80,9 @@ def test_element_relations(tmp_path):
     ).connect()
     Project("./tests/samples/project").connect()
 
-    experiment = Experiment("basic")
+    experiment = Experiment("basic", group="test/group")
     execution = Execution().add(experiment)
-    execution.dispatch(grouping="test/grouping")
+    execution.dispatch()
 
     experiment_clone = Experiment.from_storage(experiment.storage_id)
     assert experiment.experiment_id == experiment_clone.experiment_id
@@ -90,9 +90,9 @@ def test_element_relations(tmp_path):
     # experiment <-> execution
     assert int(execution.timestamp) == int(experiment.execution.timestamp)
     assert experiment.experiment_id == execution.experiments[0].experiment_id
-    # grouping <-> execution
-    assert execution.grouping.group == "test/grouping"
-    assert execution.grouping.executions[0].nickname == execution.nickname
+    # group <-> execution
+    assert experiment.group.path == "test/group"
+    assert experiment.group.experiments[0].nickname == experiment.nickname
 
     # invalidate cache and reconstruct
     experiment.__related__ = {}
@@ -100,9 +100,9 @@ def test_element_relations(tmp_path):
     # experiment <-> execution
     assert int(execution.timestamp) == int(experiment.execution.timestamp)
     assert experiment.experiment_id == execution.experiments[0].experiment_id
-    # grouping <-> execution
-    assert execution.grouping.group == "test/grouping"
-    assert execution.grouping.executions[0].nickname == execution.nickname
+    # group <-> execution
+    assert experiment.group.path == "test/group"
+    assert experiment.group.experiments[0].nickname == experiment.nickname
 
     # sub-class relations
     class CustomExperiment(Experiment):

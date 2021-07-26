@@ -28,22 +28,16 @@ class SlurmEngine(Engine):
         for experiment in self.execution.experiments:
             script = f"{self.config.shebang}\n"
 
-            canonical_resources = self.canonicalize_resources(
-                experiment._resources
-            )
-            if "--job-name" not in canonical_resources:
-                canonical_resources[
-                    "--job-name"
-                ] = f"{experiment.experiment_id}"
-            if "--output" not in canonical_resources:
-                canonical_resources["--output"] = experiment.local_directory(
-                    "output.log"
-                )
-            if "--open-mode" not in canonical_resources:
-                canonical_resources["--open-mode"] = "append"
+            resources = self.resources(experiment)
+            if "--job-name" not in resources:
+                resources["--job-name"] = f"{experiment.experiment_id}"
+            if "--output" not in resources:
+                resources["--output"] = experiment.local_directory("output.log")
+            if "--open-mode" not in resources:
+                resources["--open-mode"] = "append"
 
             sbatch_arguments = []
-            for k, v in canonical_resources.items():
+            for k, v in resources.items():
                 line = "#SBATCH " + k
                 if v not in [None, True]:
                     line += f"={v}"
@@ -70,7 +64,6 @@ class SlurmEngine(Engine):
                         "job_id": job_id,
                         "cmd": sbatch_arguments,
                         "script": script,
-                        "resources": canonical_resources,
                         "project_directory": self.project_directory(experiment),
                         "project_source": self.project_source(experiment),
                     },

@@ -16,6 +16,12 @@ if TYPE_CHECKING:
     from machinable.element import Element
 
 
+def _timestamp_str(timestamp):
+    return (
+        arrow.get(timestamp).strftime("%Y-%m-%dT%H%M%S_%f%z").replace("+", "_")
+    )
+
+
 class FilesystemStorage(Storage):
     class Config:
         """Config annotation"""
@@ -46,11 +52,7 @@ class FilesystemStorage(Storage):
                     id integer PRIMARY KEY,
                     storage_id text NOT NULL,
                     engine json,
-                    nickname text,
-                    timestamp real,
-                    seed integer,
-                    'grouping_id' integer,
-                    FOREIGN KEY (grouping_id) REFERENCES groupings (id)
+                    timestamp real
                 )"""
             )
             cur.execute(
@@ -61,19 +63,22 @@ class FilesystemStorage(Storage):
                     uses json,
                     experiment_id text,
                     resources json,
+                    nickname text,
                     seed integer,
                     config json,
                     execution_id integer,
-                    timestamp real,
+                    timestamp integer,
                     ancestor_id integer,
+                    'group_id' integer,
+                    FOREIGN KEY (group_id) REFERENCES groups (id)
                     FOREIGN KEY (execution_id) REFERENCES executions (id)
                     FOREIGN KEY (ancestor_id) REFERENCES experiments (id)
                 )"""
             )
             cur.execute(
-                """CREATE TABLE groupings (
+                """CREATE TABLE groups (
                     id integer PRIMARY KEY,
-                    'group' text,
+                    path text,
                     pattern text
                 )"""
             )
@@ -88,139 +93,61 @@ class FilesystemStorage(Storage):
         self,
         execution: schema.Execution,
         experiments: List[schema.Experiment],
-        grouping: Optional[schema.Grouping],
-        project: schema.Project,
     ) -> str:
-        primary_directory = None
-        for i, experiment in enumerate(experiments):
-            self.create_experiment(
-                experiment=experiment,
-                execution=execution,
-                grouping=grouping,
-                project=project,
-            )
+        stamp = _timestamp_str(execution.timestamp)
+        for experiment in experiments:
             execution_directory = os.path.join(
-                experiment._storage_id, "execution"
+                experiment._storage_id, f"execution-{stamp}"
             )
-            if i == 0:
-                # create primary directory
-                primary_directory = execution_directory
-                os.makedirs(primary_directory, exist_ok=True)
-            else:
-                # symlink to primary directory
-                os.symlink(
-                    primary_directory,
-                    execution_directory,
-                    target_is_directory=True,
-                )
-        # write execution data
-        save_file(
-            os.path.join(execution_directory, "execution.json"),
-            {
-                **execution.dict(),
-                "_related_experiments": [
-                    f"../../{os.path.basename(experiment._storage_id)}"
-                    for experiment in experiments
-                ],
-            },
-        )
+            save_file(
+                os.path.join(execution_directory, "execution.json"),
+                execution.dict(),
+                makedirs=True,
+            )
 
         cur = self._db.cursor()
-
-        row = cur.execute(
-            """SELECT id FROM groupings WHERE 'group'=?""",
-            (grouping.group,),
-        ).fetchone()
-        if row is None:
-            cur.execute(
-                """INSERT INTO groupings ('pattern', 'group') VALUES (?,?)""",
-                (grouping.pattern, grouping.group),
-            )
-            self._db.commit()
-            grouping_id = cur.lastrowid
-        else:
-            grouping_id = row["id"]
-
         cur.execute(
             """INSERT INTO executions (
                 storage_id,
                 engine,
-                nickname,
-                timestamp,
-                seed,
-                'grouping_id'
-                ) VALUES (?,?,?,?,?,?)""",
+                timestamp
+                ) VALUES (?,?,?)""",
             (
-                primary_directory,
+                execution_directory,
                 json.dumps(execution.engine),
-                execution.nickname,
                 execution.timestamp,
-                execution.seed,
-                grouping_id,
             ),
         )
         self._db.commit()
         execution_id = cur.lastrowid
-        for experiment in experiments:
-            ancestor_id = cur.execute(
-                """SELECT id FROM experiments WHERE experiment_id=? AND timestamp=?""",
-                (experiment.derived_from_id, experiment.derived_from_timestamp),
-            ).fetchone()
-            if ancestor_id:
-                ancestor_id = ancestor_id[0]
-            cur.execute(
-                """INSERT INTO experiments(
-                    storage_id,
-                    interface,
-                    uses,
-                    experiment_id,
-                    resources,
-                    seed,
-                    config,
-                    execution_id,
-                    timestamp,
-                    ancestor_id
-                    ) VALUES (?,?,?,?,?,?,?,?,?,?)""",
-                (
-                    experiment._storage_id,
-                    json.dumps(experiment.interface),
-                    json.dumps(experiment.uses),
-                    experiment.experiment_id,
-                    json.dumps(experiment.resources),
-                    experiment.seed,
-                    json.dumps(experiment.config),
-                    execution_id,
-                    experiment.timestamp,
-                    ancestor_id,
-                ),
-            )
-        self._db.commit()
 
-        return primary_directory
+        for experiment in experiments:
+            cur.execute(
+                """UPDATE experiments SET
+                    execution_id=?
+                 WHERE experiment_id=? AND timestamp=?""",
+                (execution_id, experiment.experiment_id, experiment.timestamp),
+            )
+
+        return execution_directory
 
     def _create_experiment(
         self,
         experiment: schema.Experiment,
-        execution: schema.Execution,
-        grouping: schema.Grouping,
+        group: schema.Group,
         project: schema.Project,
     ) -> str:
-        grouping = self.create_grouping(grouping)
-
-        path, prefix = os.path.split(grouping._storage_id)
-
-        timestamp = int(execution.timestamp)
-
+        group = self.create_group(group)
+        head, tail = os.path.split(group.path)
+        directory = os.path.join(
+            head,
+            f"{tail}{'-' if tail else ''}{experiment.experiment_id}",
+        )
         derived_from = None
         if experiment.derived_from_id is not None:
             derived_from = self.find_experiment(
                 experiment.derived_from_id, experiment.derived_from_timestamp
             )
-
-        directory = os.path.join(
-            path,
-            f"{prefix}{'-' if prefix else ''}{experiment.experiment_id}",
-        )
 
         if derived_from is not None:
             storage_id = os.path.join(derived_from, "derived", directory)
@@ -232,7 +159,7 @@ class FilesystemStorage(Storage):
             else:
                 if not isinstance(experiment._storage_id, str):
                     raise StorageError(
-                        "Can not write the experiment as no storage directory was provided. Set a storage directory or use Experiment.set_filesystem()."
+                        "Can not write the experiment as no storage directory was provided."
                     )
                 storage_id = experiment._storage_id
 
@@ -242,12 +169,74 @@ class FilesystemStorage(Storage):
             makedirs=True,
         )
 
+        save_file(
+            os.path.join(storage_id, "project.json"),
+            project.dict(),
+            makedirs=True,
+        )
+
+        cur = self._db.cursor()
+        ancestor_id = cur.execute(
+            """SELECT id FROM experiments WHERE experiment_id=? AND timestamp=?""",
+            (experiment.derived_from_id, experiment.derived_from_timestamp),
+        ).fetchone()
+        if ancestor_id:
+            ancestor_id = ancestor_id[0]
+        group_id = cur.execute(
+            """SELECT id FROM groups WHERE path=?""",
+            (group.path,),
+        ).fetchone()
+        if group_id:
+            group_id = group_id[0]
+        cur.execute(
+            """INSERT INTO experiments(
+                storage_id,
+                interface,
+                uses,
+                experiment_id,
+                resources,
+                seed,
+                config,
+                nickname,
+                seed,
+                timestamp,
+                'group_id',
+                ancestor_id
+                ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)""",
+            (
+                storage_id,
+                json.dumps(experiment.interface),
+                json.dumps(experiment.uses),
+                experiment.experiment_id,
+                json.dumps(experiment.resources),
+                experiment.seed,
+                json.dumps(experiment.config),
+                experiment.nickname,
+                experiment.seed,
+                experiment.timestamp,
+                group_id,
+                ancestor_id,
+            ),
+        )
+        self._db.commit()
+
         return storage_id
 
-    def _create_grouping(self, grouping: schema.Grouping) -> str:
-        # directory is created implicitly during experiment creation
-        # so we just return the resolved group
-        return grouping.group
+    def _create_group(self, group: schema.Group) -> str:
+        cur = self._db.cursor()
+
+        row = cur.execute(
+            """SELECT id FROM groups WHERE path=?""",
+            (group.path,),
+        ).fetchone()
+        if row is None:
+            cur.execute(
+                """INSERT INTO groups ('pattern', 'path') VALUES (?,?)""",
+                (group.pattern, group.path),
+            )
+            self._db.commit()
+
+        return group.path
 
     def _create_record(
         self,
@@ -302,7 +291,7 @@ class FilesystemStorage(Storage):
         return status
 
     def _find_experiment(
-        self, experiment_id: str, timestamp: float = None
+        self, experiment_id: str, timestamp: int = None
     ) -> Optional[str]:
         cur = self._db.cursor()
         if timestamp is not None:
@@ -331,13 +320,13 @@ class FilesystemStorage(Storage):
             **load_file(os.path.join(storage_id, "experiment.json")),
         )
 
-    def _retrieve_grouping(self, storage_id: str) -> schema.Grouping:
+    def _retrieve_group(self, storage_id: str) -> schema.Group:
         cur = self._db.cursor()
         row = cur.execute(
-            """SELECT `group`, `pattern` FROM groupings WHERE `group`=?""",
+            """SELECT `path`, `pattern` FROM groups WHERE `path`=?""",
             (storage_id,),
         ).fetchone()
-        return schema.Grouping(group=row[0], pattern=row[1])
+        return schema.Group(path=row[0], pattern=row[1])
 
     def _retrieve_records(
         self, experiment_storage_id: str, scope: str
@@ -359,34 +348,44 @@ class FilesystemStorage(Storage):
         self, storage_id: str, relation: str
     ) -> Optional[Union[str, List[str]]]:
         if relation == "experiment.execution":
-            directory = os.path.join(storage_id, "execution")
-            if not os.path.isdir(directory):
-                return None
-            return directory
+            cur = self._db.cursor()
+            row = cur.execute(
+                """SELECT executions.storage_id FROM executions
+                LEFT JOIN experiments ON experiments.execution_id = executions.id
+                WHERE experiments.storage_id=?""",
+                (storage_id,),
+            ).fetchone()
+            if row:
+                return row[0]
+            return None
         if relation == "execution.experiments":
-            return [
-                os.path.normpath(os.path.join(storage_id, p))
-                for p in load_file(os.path.join(storage_id, "execution.json"))[
-                    "_related_experiments"
-                ]
-            ]
-        if relation == "grouping.executions":
             cur = self._db.cursor()
             return [
                 row[0]
                 for row in cur.execute(
-                    """SELECT executions.storage_id FROM executions
-                LEFT JOIN groupings ON executions.grouping_id = groupings.id
-                WHERE groupings.`group`=?""",
+                    """SELECT experiments.storage_id FROM experiments
+                LEFT JOIN executions ON experiments.execution_id = executions.id
+                WHERE executions.storage_id=?""",
                     (storage_id,),
                 ).fetchall()
             ]
-        if relation == "execution.grouping":
+        if relation == "group.experiments":
+            cur = self._db.cursor()
+            return [
+                row[0]
+                for row in cur.execute(
+                    """SELECT experiments.storage_id FROM experiments
+                LEFT JOIN groups ON experiments.group_id = groups.id
+                WHERE groups.path=?""",
+                    (storage_id,),
+                ).fetchall()
+            ]
+        if relation == "experiment.group":
             cur = self._db.cursor()
             row = cur.execute(
-                """SELECT groupings.`group` FROM executions
-                LEFT JOIN groupings ON executions.grouping_id = groupings.id
-                WHERE executions.storage_id=?""",
+                """SELECT groups.path FROM experiments
+                LEFT JOIN groups ON experiments.group_id = groups.id
+                WHERE experiments.storage_id=?""",
                 (storage_id,),
             ).fetchone()
             if row:

@@ -84,26 +84,19 @@ class MultipleStorage(Storage):
         self,
         execution: schema.Execution,
         experiments: List[schema.Experiment],
-        grouping: Optional[schema.Grouping],
-        project: schema.Project,
     ) -> str:
-        return self._write(
-            "_create_execution", execution, experiments, grouping, project
-        )
+        return self._write("_create_execution", execution, experiments)
 
     def _create_experiment(
         self,
         experiment: schema.Experiment,
-        execution: schema.Execution,
-        grouping: schema.Grouping,
+        group: schema.Group,
         project: schema.Project,
     ) -> str:
-        return self._write(
-            "_create_experiment", experiment, execution, grouping, project
-        )
+        return self._write("_create_experiment", experiment, group, project)
 
-    def _create_grouping(self, grouping: schema.Grouping) -> str:
-        return self._write("_create_grouping", grouping)
+    def _create_group(self, group: schema.Group) -> str:
+        return self._write("_create_group", group)
 
     def _create_record(
         self,
@@ -143,8 +136,8 @@ class MultipleStorage(Storage):
     def _retrieve_experiment(self, storage_id: str) -> schema.Experiment:
         return self._read("_retrieve_experiment", storage_id)
 
-    def _retrieve_grouping(self, storage_id: str) -> schema.Grouping:
-        return self._read("_retrieve_grouping", storage_id)
+    def _retrieve_group(self, storage_id: str) -> schema.Group:
+        return self._read("_retrieve_group", storage_id)
 
     def _retrieve_records(
         self, experiment_storage_id: str, scope: str

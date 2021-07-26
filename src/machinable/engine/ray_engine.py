@@ -25,7 +25,7 @@ class RayEngine(Engine):
 
     def _actor(self, experiment):
         interface = experiment.interface()
-        actor = ray.remote(resources=(experiment._resources or {}))(
+        actor = ray.remote(resources=self.resources(experiment))(
             interface.__class__
         ).remote(**interface.serialize())
 

@@ -1,7 +1,7 @@
 from os import replace
 
 from machinable import Execution, Experiment, Project, Storage
-from machinable.grouping import Grouping
+from machinable.group import Group
 from pydantic.errors import IntEnumError
 
 

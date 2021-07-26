@@ -31,9 +31,6 @@ def test_experiment(tmp_path):
     serialized = experiment.serialize()
     assert serialized["config"]["a"] == 1
 
-    with pytest.raises(errors.StorageError):
-        experiment._assert_mounted()
-
     # storage
     storage = Storage.make(
         "machinable.storage.filesystem_storage",
@@ -43,14 +40,11 @@ def test_experiment(tmp_path):
     execution = schema.Execution(engine=["t"])
     model = storage.create_experiment(
         experiment=schema.Experiment(interface=["t"], config={"test": True}),
-        execution=execution,
-        grouping=schema.Grouping(pattern="", group=""),
+        group=schema.Group(pattern="", path=""),
         project=schema.Project(directory="."),
     )
 
     experiment = Experiment.from_model(model)
-
-    experiment._assert_writable()
 
     assert experiment.config.test is True
     assert experiment.experiment_id == model.experiment_id
@@ -89,8 +83,8 @@ def test_experiment(tmp_path):
     assert experiment.is_active()
     experiment.update_heartbeat(mark_finished=True)
     assert experiment.is_finished()
-    with pytest.raises(errors.StorageError):
-        experiment._assert_writable()
+    with pytest.raises(errors.ConfigurationError):
+        experiment._assert_editable()
     assert not experiment.is_incomplete()
 
 
@@ -100,14 +94,14 @@ def test_experiment_relations(tmp_path):
     ).connect()
     Project("./tests/samples/project").connect()
 
-    experiment = Experiment("basic")
+    experiment = Experiment("basic", group="test/group")
     execution = Execution().add(experiment)
-    execution.dispatch(grouping="test/grouping")
+    execution.dispatch()
 
     with pytest.raises(errors.ConfigurationError):
         experiment.version("attempt_overwrite")
 
-    derived = Experiment("basic", derive_from=experiment)
+    derived = Experiment("basic", derived_from=experiment)
     assert derived.ancestor is experiment
     derived_execution = Execution().add(derived).dispatch()
 
@@ -120,7 +114,7 @@ def test_experiment_relations(tmp_path):
     assert derived.ancestor.experiment_id == experiment.experiment_id
     assert experiment.derived[0].experiment_id == derived.experiment_id
 
-    derived = Experiment("basic", derive_from=experiment)
+    derived = Experiment("basic", derived_from=experiment)
     Execution().add(derived).dispatch()
     assert len(experiment.derived) == 2
 

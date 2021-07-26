@@ -134,6 +134,15 @@ class Element(Jsonable, metaclass=MetaElement):
         self._active_view: Optional[str] = None
         self._cache = {}
 
+    def mount(self, storage: "Storage", storage_id: Any) -> bool:
+        if self.__model__ is None:
+            return False
+
+        self.__model__._storage_instance = storage
+        self.__model__._storage_id = storage_id
+
+        return True
+
     def is_mounted(self) -> bool:
         if self.__model__ is None:
             return False

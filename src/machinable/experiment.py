@@ -6,11 +6,18 @@ from time import time
 
 import arrow
 from machinable import schema
-from machinable.collection import ExperimentCollection, RecordCollection
+from machinable.collection import (
+    ExecutionCollection,
+    ExperimentCollection,
+    RecordCollection,
+)
 from machinable.component import compact, normversion
 from machinable.element import Element, belongs_to, has_many
-from machinable.errors import ConfigurationError, MachinableError, StorageError
+from machinable.engine import Engine
+from machinable.errors import ConfigurationError, StorageError
+from machinable.group import Group
 from machinable.interface import Interface
+from machinable.repository import Repository
 from machinable.settings import get_settings
 from machinable.storage import Storage
 from machinable.types import (
@@ -19,12 +26,11 @@ from machinable.types import (
     TimestampType,
     VersionType,
 )
-from machinable.utils import sentinel
+from machinable.utils import generate_seed, sentinel
 from omegaconf import OmegaConf
 from omegaconf.dictconfig import DictConfig
 
 if TYPE_CHECKING:
-    from machinable.component import Component
     from machinable.execution import Execution
     from machinable.record import Record
 
@@ -36,7 +42,11 @@ class Experiment(Element):
         self,
         interface: Optional[str] = None,
         version: VersionType = None,
-        derive_from: Optional["Experiment"] = None,
+        group: Union[Group, str, None] = None,
+        resources: Optional[Dict] = None,
+        seed: Union[int, None] = None,
+        uses: Optional[dict] = None,
+        derived_from: Optional["Experiment"] = None,
         *,
         view: Union[bool, None, str] = True,
     ):
@@ -45,21 +55,59 @@ class Experiment(Element):
         # Arguments
         interface: The name of the interface as defined in the machinable.yaml
         version: Configuration to override the default config
-        derive_from: Optional ancestor experiment
+        derived_from: Optional ancestor experiment
         """
         super().__init__(view=view)
         if interface is None:
             interface = Interface.default or get_settings().default_interface
+        if seed is None:
+            seed = generate_seed()
+        if resources is not None:
+            resources = OmegaConf.to_container(OmegaConf.create(resources))
         self.__model__ = schema.Experiment(
-            interface=compact(interface, version)
+            interface=compact(interface, version),
+            seed=seed,
+            resources=resources,
         )
         self._resolved_interface: Optional[Interface] = None
         self._resolved_config: Optional[DictConfig] = None
         self._deferred_data = {}
-        if derive_from is not None:
-            self.__model__.derived_from_id = derive_from.experiment_id
-            self.__model__.derived_from_timestamp = derive_from.timestamp
-            self.__related__["ancestor"] = derive_from
+        if group is not None:
+            self.group_as(group)
+        if uses is not None:
+            for slot, args in uses.items():
+                component, *version = compact(args)
+                self.use(slot, component, version)
+        if derived_from is not None:
+            self.__model__.derived_from_id = derived_from.experiment_id
+            self.__model__.derived_from_timestamp = derived_from.timestamp
+            self.__related__["ancestor"] = derived_from
+
+    @belongs_to
+    def group():
+        return Group
+
+    @has_many
+    def derived() -> ExperimentCollection:
+        """Returns a collection of derived experiments"""
+        return Experiment, ExperimentCollection, False
+
+    @belongs_to
+    def ancestor() -> Optional["Experiment"]:
+        """Returns parent experiment or None if experiment is independent"""
+        return Experiment
+
+    @has_many
+    def executions() -> "ExecutionCollection":
+        from machinable.execution import Execution
+
+        return Execution, ExecutionCollection
+
+    @belongs_to
+    def execution() -> "Execution":
+        from machinable.execution import Execution
+
+        return Execution
 
     @classmethod
     def from_model(cls, model: schema.Experiment) -> "Experiment":
@@ -67,56 +115,70 @@ class Experiment(Element):
         instance.__model__ = model
         return instance
 
-    def set_filesystem(self, directory: str):
-        self.__model__._storage_instance = Storage.filesystem()
-        self.__model__._storage_id = directory
-
     def __reduce__(self) -> Union[str, Tuple[Any, ...]]:
         return (self.__class__, ("",), self.serialize())
 
-    def _assert_mounted(self):
-        if not self.is_mounted():
-            raise StorageError(
-                "Experiment has not been written to a storage yet."
-            )
-
-    def _assert_executable(self):
-        if self.__model__.timestamp is not None:
+    def _assert_editable(self):
+        if self.is_mounted():
             raise ConfigurationError(
                 "Experiment can not be modified as it has already been executed. "
                 "Use .derive() to derive a modified experiment."
             )
 
-    def _clear_caches(self):
+    def _clear_caches(self) -> None:
         self._resolved_interface = None
         self._resolved_config = None
 
-    def _assert_writable(self):
-        self._assert_mounted()
-        if self.is_finished():
-            raise StorageError("Experiment is finished and thus read-only")
+    def group_as(self, group: Union[Group, str]) -> "Experiment":
+        # todo: allow group modifications after execution
+        self._assert_editable()
+
+        if isinstance(group, str):
+            group = Group(group)
+        group.__related__.setdefault("experiments", ExperimentCollection())
+        group.__related__["experiments"].append(self)
+        self.__related__["group"] = group
+
+        return self
 
     def derive(
         self,
         interface: Optional[str] = sentinel,
         version: VersionType = sentinel,
-        uses: Optional[dict] = sentinel,
+        group: Union[Group, str, None] = sentinel,
+        resources: Optional[Dict] = sentinel,
+        uses: Optional[Dict] = sentinel,
+        seed: Union[int, None] = sentinel,
     ) -> "Experiment":
         if interface is sentinel:
             interface = self.__model__.interface[0]
         if version is sentinel:
             version = self.__model__.interface[1:]
+        if group is sentinel:
+            group = self.group.clone() if self.group is not None else None
+        if resources is sentinel:
+            resources = copy.deepcopy(self.__model__.resources)
         if uses is sentinel:
             uses = copy.deepcopy(self.__model__.uses)
-        experiment = Experiment(interface, version, derive_from=self)
-        experiment.use(**uses)
+        if seed is sentinel:
+            seed = None
+
+        experiment = Experiment(
+            interface,
+            version,
+            group=group,
+            resources=resources,
+            uses=uses,
+            seed=seed,
+            derived_from=self,
+        )
 
         return experiment
 
     def version(
         self, version: VersionType = sentinel, overwrite: bool = False
     ) -> List[Union[str, dict]]:
-        self._assert_executable()
+        self._assert_editable()
 
         if version is sentinel:
             return self.__model__.interface[1:]
@@ -145,23 +207,19 @@ class Experiment(Element):
         return self._resolved_interface
 
     def execute(
-        self,
-        engine: Union[str, None] = None,
-        version: VersionType = None,
-        grouping: Optional[str] = None,
-        resources: Optional[dict] = None,
-        seed: Optional[int] = None,
+        self, engine: Union[str, None] = None, version: VersionType = None
     ) -> "Experiment":
         """Executes the experiment"""
-        if self.execution is not None:
-            self.execution.dispatch()
-            return self
-
         from machinable.execution import Execution
 
         Execution(engine=engine, version=version).add(
-            experiment=self, resources=resources, seed=seed
-        ).dispatch(grouping=grouping)
+            experiment=self
+        ).dispatch()
+
+        return self
+
+    def commit(self) -> "Experiment":
+        Repository.get().commit(self)
 
         return self
 
@@ -180,7 +238,7 @@ class Experiment(Element):
         version: Configuration to override the default config
         overwrite: If True, will overwrite existing uses
         """
-        self._assert_executable()
+        self._assert_editable()
 
         if overwrite:
             self.__model__.uses = {}
@@ -195,22 +253,6 @@ class Experiment(Element):
     @property
     def uses(self) -> Dict[str, ComponentType]:
         return self.__model__.uses
-
-    @has_many
-    def derived() -> ExperimentCollection:
-        """Returns a collection of derived experiments"""
-        return Experiment, ExperimentCollection, False
-
-    @belongs_to
-    def ancestor() -> Optional["Experiment"]:
-        """Returns parent experiment or None if experiment is independent"""
-        return Experiment
-
-    @belongs_to
-    def execution() -> "Execution":
-        from machinable.execution import Execution
-
-        return Execution
 
     @property
     def config(self) -> DictConfig:
@@ -292,24 +334,26 @@ class Experiment(Element):
 
     def mark_started(
         self, timestamp: Optional[TimestampType] = None
-    ) -> DatetimeType:
-        self._assert_writable()
-        self.__model__._storage_instance.mark_started(self, timestamp)
+    ) -> Optional[DatetimeType]:
+        if self.is_finished():
+            return None
+        return self.__model__._storage_instance.mark_started(self, timestamp)
 
     def update_heartbeat(
         self,
         timestamp: Union[float, int, DatetimeType, None] = None,
         mark_finished=False,
-    ) -> DatetimeType:
-        self._assert_writable()
+    ) -> Optional[DatetimeType]:
+        if self.is_finished():
+            return None
         self.__model__._storage_instance.update_heartbeat(
             self, timestamp, mark_finished
         )
 
     def output(self, incremental: bool = False) -> Optional[str]:
         """Returns the output log"""
-        self._assert_mounted()
-
+        if not self.is_mounted():
+            return None
         if incremental:
             read_length = self._cache.get("output_read_length", 0)
             if read_length == -1:
@@ -335,21 +379,20 @@ class Experiment(Element):
         return output
 
     @property
-    def seed(self) -> Optional[int]:
+    def resources(self) -> Dict:
+        return self.__model__.resources
+
+    @property
+    def nickname(self) -> str:
+        return self.__model__.nickname
+
+    @property
+    def seed(self) -> int:
         return self.__model__.seed
 
     @property
-    def timestamp(self) -> Optional[float]:
+    def timestamp(self) -> int:
         return self.__model__.timestamp
-
-    @timestamp.setter
-    def timestamp(self, value: float):
-        # self._assert_executable()
-        if not isinstance(value, (int, float)):
-            raise ValueError(
-                f"Invalid timestamp. Expected float, found: {value}"
-            )
-        self.__model__.timestamp = float(value)
 
     def created_at(self) -> Optional[DatetimeType]:
         if self.timestamp is None:
