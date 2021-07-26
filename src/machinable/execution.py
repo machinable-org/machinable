@@ -12,7 +12,6 @@ from machinable.repository import Repository
 from machinable.settings import get_settings
 from machinable.types import VersionType
 from machinable.project import Project
-from machinable.utils import timestamp_to_directory
 
 
 class Execution(Element):
@@ -43,44 +42,6 @@ class Execution(Element):
         return cls(
             engine="machinable.engine.local_engine",
             version={"processes": processes},
-        )
-
-    def save_data(
-        self,
-        filepath: str,
-        data: Any,
-        experiment: Union["Experiment", None] = None,
-    ) -> Union[str, List[str]]:
-        if experiment is None:
-            return [
-                self.save_data(filepath, data, experiment=experiment)
-                for experiment in self.experiments
-            ]
-        return experiment.save_file(
-            os.path.join(
-                f"execution-{timestamp_to_directory(self.timestamp)}/data",
-                filepath,
-            ),
-            data,
-        )
-
-    def load_data(
-        self,
-        filepath: str,
-        default=None,
-        experiment: Union["Experiment", None] = None,
-    ) -> Union[Optional[Any], List[Optional[Any]]]:
-        if experiment is None:
-            return [
-                self.load_data(filepath, default, experiment=experiment)
-                for experiment in self.experiments
-            ]
-        return experiment.load_file(
-            os.path.join(
-                f"execution-{timestamp_to_directory(self.timestamp)}/data",
-                filepath,
-            ),
-            default,
         )
 
     @property

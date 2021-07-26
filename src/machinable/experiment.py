@@ -25,7 +25,7 @@ from machinable.types import (
     TimestampType,
     VersionType,
 )
-from machinable.utils import generate_seed, sentinel
+from machinable.utils import generate_seed, sentinel, timestamp_to_directory
 from omegaconf import OmegaConf
 from omegaconf.dictconfig import DictConfig
 
@@ -226,10 +226,8 @@ class Experiment(Element):
         if self.execution is None:
             return False
 
-        self.execution.save_data(
-            "host.json",
-            data=Project.get().provider().get_host_info(),
-            experiment=self,
+        self.save_execution_data(
+            "host.json", data=Project.get().provider().get_host_info()
         )
 
         return True
@@ -347,6 +345,30 @@ class Experiment(Element):
 
     def load_data(self, filepath: str, default=None) -> Optional[Any]:
         return self.load_file(os.path.join("data", filepath), default)
+
+    def save_execution_data(self, filepath: str, data: Any) -> str:
+        if self.execution is None:
+            raise ValueError(
+                "Experiment is not linked to any execution"
+            )  # todo: support deferred writes
+        return self.save_file(
+            os.path.join(
+                f"execution-{timestamp_to_directory(self.execution.timestamp)}/data",
+                filepath,
+            ),
+            data,
+        )
+
+    def load_execution_data(self, filepath: str, default=None) -> Optional[Any]:
+        if self.execution is None:
+            return default
+        return self.load_file(
+            os.path.join(
+                f"execution-{timestamp_to_directory(self.execution.timestamp)}/data",
+                filepath,
+            ),
+            default,
+        )
 
     def mark_started(
         self, timestamp: Optional[TimestampType] = None
