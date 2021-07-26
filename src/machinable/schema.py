@@ -35,29 +35,31 @@ class Experiment(Model):
     experiment_id: str = Field(
         default_factory=lambda: encode_experiment_id(generate_experiment_id())
     )
-    resources: Optional[dict] = None
-    seed: Optional[int] = None
+    timestamp: int = Field(
+        default_factory=lambda: int(datetime.now().timestamp())
+    )
+    seed: int = Field(default_factory=generate_seed)
     config: Optional[dict] = None
-    timestamp: Optional[float] = None
+    nickname: str = Field(default_factory=generate_nickname)
     derived_from_id: Optional[str] = None
-    derived_from_timestamp: Optional[float] = None
+    derived_from_timestamp: Optional[int] = None
 
 
 class Repository(Model):
     storage: ComponentType
-    default_grouping: Optional[str] = None
+    default_group: Optional[str] = None
 
 
-class Grouping(Model):
+class Group(Model):
     pattern: str
-    group: Optional[str] = None
+    path: Optional[str] = None
 
 
 class Execution(Model):
     engine: ComponentType
+    resources: Optional[dict] = None
+    host: Optional[dict] = None
     timestamp: float = Field(default_factory=lambda: datetime.now().timestamp())
-    nickname: str = Field(default_factory=generate_nickname)
-    seed: Optional[int] = Field(default_factory=generate_seed)
 
 
 class Record(Model):

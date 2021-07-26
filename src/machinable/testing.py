@@ -5,22 +5,22 @@ from machinable.utils import random_str
 
 
 def storage_tests(storage: Storage) -> None:
-    execution = schema.Execution(engine=["example"])
+    pre_execution = schema.Execution(engine=["example"])
     experiments = [
         schema.Experiment(interface=["a"]),
         schema.Experiment(interface=["b"]),
         schema.Experiment(interface=["c"]),
     ]
     project = schema.Project(directory=".")
-    grouping = schema.Grouping(pattern="test/me", group="test/me")
+    group = schema.Group(pattern="test/me", path="test/me")
 
-    # create execution and experiments
-    storage.create_execution(
-        project=project,
-        execution=execution,
-        experiments=experiments,
-        grouping=grouping,
-    )
+    for experiment in experiments:
+        storage.create_experiment(experiment, group, project)
+
+    storage.create_execution(execution=pre_execution, experiments=experiments)
+
+    execution = schema.Execution(engine=["example"])
+    storage.create_execution(execution=execution, experiments=experiments)
 
     execution_ = storage.retrieve_execution(execution._storage_id)
     assert int(execution_.timestamp) == int(execution.timestamp)
@@ -45,13 +45,13 @@ def storage_tests(storage: Storage) -> None:
     )
     assert (
         storage.retrieve_related(
-            execution._storage_id, "execution.grouping"
-        ).group
+            experiment._storage_id, "experiment.group"
+        ).path
         == "test/me"
     )
     assert (
-        storage.retrieve_related("test/me", "grouping.executions")[0].nickname
-        == execution.nickname
+        storage.retrieve_related("test/me", "group.experiments")[0].nickname
+        == experiments[0].nickname
     )
     assert (
         storage.retrieve_related(
@@ -73,7 +73,7 @@ def storage_tests(storage: Storage) -> None:
     )
     assert (
         storage.find_experiment(
-            experiments[0].experiment_id, execution.timestamp
+            experiments[0].experiment_id, experiments[0].timestamp
         )
         == experiments[0]._storage_id
     )

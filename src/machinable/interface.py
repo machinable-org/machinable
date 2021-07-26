@@ -47,6 +47,7 @@ class Interface(Component):  # pylint: disable=too-many-public-methods
                 self.experiment.mark_started()
                 self._events.on("heartbeat", self.experiment.update_heartbeat)
                 self._events.heartbeats(seconds=15)
+                self.experiment.save_host_info()
 
             if self.on_seeding() is not False:
                 self.set_seed()

@@ -9,10 +9,10 @@ class TestView(Experiment):
         self,
         interface: Optional[str] = None,
         version: VersionType = None,
-        derive_from: Optional["Experiment"] = None,
+        derived_from: Optional["Experiment"] = None,
     ):
         super().__init__(
-            interface=interface, version=version, derive_from=derive_from
+            interface=interface, version=version, derived_from=derived_from
         )
         self._state = None
 

@@ -6,8 +6,7 @@ def test_execution():
         execution = ml.Execution().add(ml.Experiment("dummy"))
         assert len(execution.experiments) == 1
         assert isinstance(execution.timestamp, float)
-        assert isinstance(execution.nickname, str)
-        assert isinstance(execution.seed, int)
 
-        execution = ml.Execution.local().add(ml.Experiment("dummy"))
+        experiment = ml.Experiment("dummy")
+        execution = ml.Execution.local().add(experiment)
         assert len(execution.experiments) == 1

@@ -1,9 +1,11 @@
 from typing import TYPE_CHECKING, List, Optional, Tuple, Union
 
+from re import L
+
 from machinable import schema
 from machinable.component import compact
 from machinable.element import Connectable, Element
-from machinable.grouping import Grouping
+from machinable.group import Group
 from machinable.project import Project
 from machinable.settings import get_settings
 from machinable.storage.storage import Storage
@@ -11,6 +13,7 @@ from machinable.types import VersionType
 
 if TYPE_CHECKING:
     from machinable.execution import Execution
+    from machinable.experiment import Experiment
 
 
 class Repository(Connectable, Element):
@@ -22,13 +25,13 @@ class Repository(Connectable, Element):
         self,
         storage: Union[str, None] = None,
         version: VersionType = None,
-        default_grouping: Optional[str] = get_settings().default_grouping,
+        default_group: Optional[str] = get_settings().default_group,
     ):
         super().__init__()
         if storage is None:
             storage = Storage.default or get_settings().default_storage
         self.__model__ = schema.Repository(
-            storage=compact(storage, version), default_grouping=default_grouping
+            storage=compact(storage, version), default_group=default_group
         )
         self._resolved_storage: Optional[Storage] = None
 
@@ -36,12 +39,12 @@ class Repository(Connectable, Element):
     def filesystem(
         cls,
         directory: str,
-        default_grouping: Optional[str] = get_settings().default_grouping,
+        default_group: Optional[str] = get_settings().default_group,
     ) -> "Repository":
         return cls(
             storage="machinable.storage.filesystem_storage",
             version={"directory": directory},
-            default_grouping=default_grouping,
+            default_group=default_group,
         )
 
     def storage(self, reload: bool = False) -> Storage:
@@ -54,41 +57,47 @@ class Repository(Connectable, Element):
         return self._resolved_storage
 
     def commit(
-        self, execution: "Execution", grouping: Optional[str] = None
-    ) -> bool:
-        if execution.is_mounted():
-            return False
+        self,
+        experiments: Union["Experiment", List["Experiment"]],
+        execution: Optional["Execution"] = None,
+    ) -> None:
+        from machinable.experiment import Experiment
 
-        if grouping is None:
-            grouping = self.__model__.default_grouping
-
-        grouping = Grouping(grouping)
-
-        # finalize computed experiment field
-        for experiment in execution.experiments:
-            experiment.timestamp = execution.timestamp
+        if isinstance(experiments, Experiment):
+            experiments = [experiments]
+        for experiment in experiments:
+            if not isinstance(experiment, Experiment):
+                raise ValueError(
+                    f"Expected experiment, found: {type(experiment)} {experiment}"
+                )
+            if experiment.is_mounted():
+                continue
+            # ensure that configuration has been parsed
             assert experiment.config is not None
 
-        self.storage().create_execution(
-            project=Project.get(),
-            execution=execution,
-            experiments=[experiment for experiment in execution.experiments],
-            grouping=grouping,
-        )
+            group = experiment.group
+            if group is None:
+                group = Group(self.__model__.default_group)
+                experiment.__related__["group"] = group
 
-        # write deferred experiment data
-        for experiment in execution.experiments:
+            self.storage().create_experiment(
+                experiment=experiment,
+                group=group,
+                project=Project.get(),
+            )
+
+            # write deferred experiment data
             for filepath, data in experiment._deferred_data.items():
                 experiment.save_file(filepath, data)
             experiment._deferred_data = {}
 
-        # set relations
-        execution.__related__["grouping"] = grouping
+        if execution is None or execution.is_mounted():
+            return
 
-        return True
+        self.storage().create_execution(execution, experiments)
 
     def __repr__(self):
-        return f"Repository <{self.__model__.default_grouping}>"
+        return f"Repository <{self.__model__.default_group}>"
 
     def __str__(self):
         return self.__repr__()

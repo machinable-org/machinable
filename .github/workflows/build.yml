@@ -31,7 +31,7 @@ jobs:
           path: .venv
           key: venv-${{ runner.os }}-${{ hashFiles('**/poetry.lock') }}
       - name: Install dependencies
-        run: poetry install --extras "integrations server"
+        run: poetry install --extras "all"
         if: steps.cached-poetry-dependencies.outputs.cache-hit != 'true'
       - name: black formatting check
         run: |

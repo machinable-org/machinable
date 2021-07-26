@@ -4,8 +4,9 @@ import os
 
 import arrow
 from machinable import schema
+from machinable.collection import ExperimentCollection
 from machinable.component import Component
-from machinable.grouping import Grouping, resolve_grouping
+from machinable.group import Group, resolve_group
 from machinable.project import Project
 from machinable.types import (
     DatetimeType,
@@ -53,30 +54,22 @@ class Storage(Component):
         self,
         execution: Union["Execution", schema.Execution],
         experiments: List[Union["Experiment", schema.Experiment]],
-        grouping: Union[Grouping, schema.Grouping],
-        project: Union[Project, schema.Project],
     ) -> schema.Execution:
         from machinable.execution import Execution
         from machinable.experiment import Experiment
 
-        project = Project.model(project)
         execution = Execution.model(execution)
 
-        experiments = [
-            Experiment.model(experiment) for experiment in experiments
-        ]
-        # commit experiemnt timestamp
+        target_experiments = []
         for experiment in experiments:
-            experiment.timestamp = execution.timestamp
-        grouping = Grouping.model(grouping)
-        if grouping.group is None:
-            _, grouping.group = resolve_grouping(grouping.pattern)
+            experiment = Experiment.model(experiment)
+            if self.find_experiment(
+                experiment.experiment_id, experiment.timestamp
+            ):
+                target_experiments.append(experiment)
 
         storage_id = self._create_execution(
-            execution=execution,
-            experiments=experiments,
-            grouping=grouping,
-            project=project,
+            execution=execution, experiments=target_experiments
         )
         assert storage_id is not None
 
@@ -89,21 +82,22 @@ class Storage(Component):
         self,
         execution: schema.Execution,
         experiments: List[schema.Experiment],
-        grouping: Optional[schema.Grouping],
-        project: schema.Project,
     ) -> str:
         raise NotImplementedError
 
     def create_experiment(
         self,
         experiment: schema.Experiment,
-        execution: schema.Execution,
-        grouping: schema.Grouping,
+        group: schema.Group,
         project: schema.Project,
     ) -> schema.Experiment:
-        storage_id = self._create_experiment(
-            experiment, execution, grouping, project
-        )
+        from machinable.experiment import Experiment
+
+        experiment = Experiment.model(experiment)
+        group = Group.model(group)
+        project = Project.model(project)
+
+        storage_id = self._create_experiment(experiment, group, project)
         assert storage_id is not None
 
         experiment._storage_id = storage_id
@@ -114,26 +108,25 @@ class Storage(Component):
     def _create_experiment(
         self,
         experiment: schema.Experiment,
-        execution: schema.Execution,
-        grouping: schema.Grouping,
+        group: schema.Group,
         project: schema.Project,
     ) -> str:
         raise NotImplementedError
 
-    def create_grouping(
-        self, grouping: Union[Grouping, schema.Grouping]
-    ) -> schema.Grouping:
-        grouping = Grouping.model(grouping)
+    def create_group(self, group: Union[Group, schema.Group]) -> schema.Group:
+        group = Group.model(group)
+        if group.path is None:
+            _, group.path = resolve_group(group.pattern)
 
-        storage_id = self._create_grouping(grouping)
+        storage_id = self._create_group(group)
         assert storage_id is not None
 
-        grouping._storage_id = storage_id
-        grouping._storage_instance = self
+        group._storage_id = storage_id
+        group._storage_instance = self
 
-        return grouping
+        return group
 
-    def _create_grouping(self, grouping: schema.Grouping) -> str:
+    def _create_group(self, group: schema.Group) -> str:
         raise NotImplementedError
 
     def create_record(
@@ -221,14 +214,14 @@ class Storage(Component):
     def _retrieve_experiment(self, storage_id: str) -> schema.Experiment:
         raise NotImplementedError
 
-    def retrieve_grouping(self, storage_id: str) -> schema.Grouping:
-        grouping = self._retrieve_grouping(storage_id)
-        grouping._storage_id = storage_id
-        grouping._storage_instance = self
+    def retrieve_group(self, storage_id: str) -> schema.Group:
+        group = self._retrieve_group(storage_id)
+        group._storage_id = storage_id
+        group._storage_instance = self
 
-        return grouping
+        return group
 
-    def _retrieve_grouping(self, storage_id: str) -> schema.Grouping:
+    def _retrieve_group(self, storage_id: str) -> schema.Group:
         raise NotImplementedError
 
     def retrieve_records(
@@ -359,12 +352,12 @@ class Storage(Component):
         raise NotImplementedError
 
     def find_experiment(
-        self, experiment_id: str, timestamp: float = None
+        self, experiment_id: str, timestamp: int = None
     ) -> Optional[str]:
         return self._find_experiment(experiment_id, timestamp)
 
     def _find_experiment(
-        self, experiment_id: str, timestamp: float = None
+        self, experiment_id: str, timestamp: int = None
     ) -> Optional[str]:
         raise NotImplementedError
 
@@ -374,8 +367,8 @@ class Storage(Component):
         relations = {
             "experiment.execution": "execution",
             "execution.experiments": "experiments",
-            "grouping.executions": "executions",
-            "execution.grouping": "grouping",
+            "group.experiments": "experiments",
+            "experiment.group": "group",
             "experiment.ancestor": "experiment",
             "experiment.derived": "experiments",
         }

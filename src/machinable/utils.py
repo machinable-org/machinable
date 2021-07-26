@@ -14,6 +14,7 @@ import sys
 from keyword import iskeyword
 from pathlib import Path
 
+import arrow
 import commandlib
 import jsonlines
 import omegaconf
@@ -223,6 +224,12 @@ def as_color(experiment_id: str):
     return "".join(
         encode_experiment_id(decode_experiment_id(i) % 16)
         for i in experiment_id
+    )
+
+
+def timestamp_to_directory(timestamp: float) -> str:
+    return (
+        arrow.get(timestamp).strftime("%Y-%m-%dT%H%M%S_%f%z").replace("+", "_")
     )
 
 

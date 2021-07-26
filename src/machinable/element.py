@@ -21,13 +21,21 @@ def belongs_to(f: Callable) -> Any:
     @wraps(f)
     def _wrapper(self: "Element"):
         related_class = f()
+        use_cache = True
+        if isinstance(related_class, tuple):
+            related_class, use_cache = related_class
         name = f.__name__
         if self.__related__.get(name, None) is None and self.is_mounted():
             related = self.__model__._storage_instance.retrieve_related(
                 self.__model__._storage_id,
                 f"{self._kind.lower()}.{name}",
             )
-            self.__related__[name] = related_class.from_model(related)
+            if related is None:
+                return None
+            element = related_class.from_model(related)
+            if not use_cache:
+                return element
+            self.__related__[name] = element
 
         return self.__related__.get(name, None)
 
@@ -133,6 +141,15 @@ class Element(Jsonable, metaclass=MetaElement):
         self.__related__ = {}
         self._active_view: Optional[str] = None
         self._cache = {}
+
+    def mount(self, storage: "Storage", storage_id: Any) -> bool:
+        if self.__model__ is None:
+            return False
+
+        self.__model__._storage_instance = storage
+        self.__model__._storage_id = storage_id
+
+        return True
 
     def is_mounted(self) -> bool:
         if self.__model__ is None:
