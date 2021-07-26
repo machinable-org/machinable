@@ -101,10 +101,10 @@ class FilesystemStorage(Storage):
         cur = self._db.cursor()
         cur.execute(
             """INSERT INTO executions (
-                storage_id,
-                engine,
-                timestamp
-                ) VALUES (?,?,?)""",
+            storage_id,
+            engine,
+            timestamp
+            ) VALUES (?,?,?)""",
             (
                 execution_directory,
                 json.dumps(execution.engine),
@@ -116,8 +116,8 @@ class FilesystemStorage(Storage):
         for experiment in experiments:
             cur.execute(
                 """UPDATE experiments SET
-                    execution_id=?
-                 WHERE experiment_id=? AND timestamp=?""",
+                execution_id=?
+                WHERE experiment_id=? AND timestamp=?""",
                 (execution_id, experiment.experiment_id, experiment.timestamp),
             )
         self._db.commit()
