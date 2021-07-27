@@ -2,11 +2,13 @@
 # https://github.com/sdispater/backpack/blob/master/backpack/collections/base_collection.py.
 # The copyright and license agreement can be found in the ThirdPartyNotices.txt file at the root of this repository.
 
+from typing import Dict, Optional, Union
+
 import copy
 from functools import reduce
 from json import dumps
 from pprint import pprint
-from typing import Optional, Union, Dict
+
 from machinable.types import VersionType
 
 long = int

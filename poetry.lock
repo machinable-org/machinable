@@ -195,7 +195,7 @@ six = ">=1.12,<2.0"
 
 [[package]]
 name = "hypothesis"
-version = "6.14.4"
+version = "6.14.5"
 description = "A library for property-based testing"
 category = "dev"
 optional = false
@@ -802,8 +802,8 @@ flatten-dict = [
     {file = "flatten_dict-0.4.1-py2.py3-none-any.whl", hash = "sha256:59aac40e07bbf08647a023193f227d2794696a1701f96f342a4ecf220bdb7a4b"},
 ]
 hypothesis = [
-    {file = "hypothesis-6.14.4-py3-none-any.whl", hash = "sha256:8ffb719d65f591782fee1b50899e52b291b3bcc2e4a0ffc9b783c86dc3dc6a03"},
-    {file = "hypothesis-6.14.4.tar.gz", hash = "sha256:629decf31b54f8223a53fc4566057b62bf73ac43b87c4b7f3d71a34e71876998"},
+    {file = "hypothesis-6.14.5-py3-none-any.whl", hash = "sha256:cc4efbce2446fa6f04ce55bb20d53dcfef9cf2187ec51332aac2c30306f537e2"},
+    {file = "hypothesis-6.14.5.tar.gz", hash = "sha256:0563b9711fd9bf478cb591580a575c369d2c396f283efa85d0f9a75b26db65b5"},
 ]
 identify = [
     {file = "identify-2.2.11-py2.py3-none-any.whl", hash = "sha256:7abaecbb414e385752e8ce02d8c494f4fbc780c975074b46172598a28f1ab839"},

@@ -4,7 +4,7 @@
 
 from unittest import TestCase
 
-from machinable.collection import Collection, collect, ExperimentCollection
+from machinable.collection import Collection, ExperimentCollection, collect
 from machinable.experiment import Experiment, Project
 from machinable.repository import Repository
 
