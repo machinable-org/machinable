@@ -4,11 +4,24 @@
 
 from unittest import TestCase
 
-from machinable.collection import Collection, collect
+from machinable.collection import Collection, collect, ExperimentCollection
+from machinable.experiment import Experiment, Project
+from machinable.repository import Repository
 
 
 def test_collect():
     assert isinstance(collect([1, 2]), Collection)
+
+
+def test_experiment_collection(tmp_path):
+    Project("./tests/samples/project").connect()
+    Repository.filesystem(str(tmp_path)).connect()
+    collection = Experiment.collect([Experiment("basic") for _ in range(5)])
+    assert isinstance(collection, ExperimentCollection)
+    collection.as_dataframe()
+    collection.execute()
+    assert all(collection.map(lambda x: x.is_finished()))
+    collection.execute()
 
 
 class CollectionTestCase(TestCase):

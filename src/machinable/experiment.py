@@ -107,6 +107,11 @@ class Experiment(Element):
         return Execution, False
 
     @classmethod
+    def collect(cls, experiments) -> ExperimentCollection:
+        """Returns a collection of experiments"""
+        return ExperimentCollection(experiments)
+
+    @classmethod
     def from_model(cls, model: schema.Experiment) -> "Experiment":
         instance = cls(model.interface[0])
         instance.__model__ = model

@@ -6,6 +6,8 @@ import copy
 from functools import reduce
 from json import dumps
 from pprint import pprint
+from typing import Optional, Union, Dict
+from machinable.types import VersionType
 
 long = int
 unicode = str
@@ -1373,6 +1375,31 @@ class ExperimentCollection(Collection):
             items = ", ".join([repr(item) for item in self.items])
         return f"Experiments ({len(self.items)}) <{items}>"
 
+    def as_dataframe(self):
+        """Returns collection as Pandas dataframe"""
+        data = {k: [] for k in self._items[0].serialize().keys()}
+        for item in self._items:
+            for k, v in item.serialize().items():
+                data[k].append(v)
+        import pandas
+
+        return pandas.DataFrame.from_dict(data)
+
+    def execute(
+        self, engine: Union[str, None] = None, version: VersionType = None
+    ) -> "ExperimentCollection":
+        """Executes all experiments in the collection"""
+        from machinable.execution import Execution
+
+        execution = Execution(engine=engine, version=version)
+
+        for experiment in self:
+            execution.add(experiment=experiment)
+
+        execution.dispatch()
+
+        return self
+
 
 class ExecutionCollection(Collection):
     def status(self, status="started"):
@@ -1383,8 +1410,8 @@ class ExecutionCollection(Collection):
         """
         try:
             return self.filter(lambda item: getattr(item, "is_" + status)())
-        except AttributeError:
-            raise ValueError(f"Invalid status field: {status}")
+        except AttributeError as _ex:
+            raise ValueError(f"Invalid status field: {status}") from _ex
 
     def as_dataframe(self):
         """Returns collection as Pandas dataframe"""
