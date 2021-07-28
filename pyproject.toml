@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "machinable"
-version = "3.0b2"
+version = "3.0"
 description = "A modular configuration system for machine learning projects"
 license = "MIT"
 authors = [
