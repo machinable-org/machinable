@@ -137,6 +137,10 @@ class Experiment(Element):
 
         if isinstance(group, str):
             group = Group(group)
+        if not isinstance(group, Group):
+            raise ValueError(
+                f"Expected group, but found: {type(group)} {group}"
+            )
         group.__related__.setdefault("experiments", ExperimentCollection())
         group.__related__["experiments"].append(self)
         self.__related__["group"] = group
