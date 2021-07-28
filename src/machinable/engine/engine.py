@@ -27,12 +27,11 @@ class Engine(Component):
         return resources
 
     def resources(self, experiment: "Experiment") -> Dict:
-        try:
+        default_resources = None
+        if hasattr(experiment.interface(), "default_resources"):
             default_resources = experiment.interface().default_resources(
                 engine=self
             )
-        except AttributeError:
-            default_resources = None
 
         if experiment.resources() is None and default_resources is not None:
             return self.canonicalize_resources(default_resources)

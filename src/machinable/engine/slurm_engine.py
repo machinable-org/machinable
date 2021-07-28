@@ -58,7 +58,7 @@ class SlurmEngine(Engine):
                     job_id = int(output.rsplit(" ", maxsplit=1)[-1])
                 except ValueError:
                     job_id = False
-                print(output)
+                print(f"{output} for experiment {experiment.experiment_id}")
                 experiment.save_execution_data(
                     filepath="slurm.json",
                     data={
