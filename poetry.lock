@@ -165,14 +165,11 @@ python-versions = "*"
 
 [[package]]
 name = "editorconfig-checker"
-version = "2.3.51"
-description = "A tool to verify that your files are in harmony with your .editorconfig"
+version = "2.3.52"
+description = "Python wrapper around invoking editorconfig-checker (https://github.com/editorconfig-checker/editorconfig-checker)"
 category = "dev"
 optional = false
 python-versions = ">=2.7"
-
-[package.extras]
-dev = ["flake8"]
 
 [[package]]
 name = "filelock"
@@ -679,7 +676,7 @@ all = ["setproctitle", "numpy", "pandas"]
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.6.1"
-content-hash = "85a6ed8e4bcf074451d7d67ce77fef05535ff5d8f941317c98997287cccdc509"
+content-hash = "209af2114d7da05eda0f34b5a1a7e5b9dd6ea8f38fe81ea47c3820e6dba45135"
 
 [metadata.files]
 antlr4-python3-runtime = [
@@ -790,8 +787,7 @@ distlib = [
     {file = "distlib-0.3.2.zip", hash = "sha256:106fef6dc37dd8c0e2c0a60d3fca3e77460a48907f335fa28420463a6f799736"},
 ]
 editorconfig-checker = [
-    {file = "editorconfig-checker-2.3.51.tar.gz", hash = "sha256:cdd9eadaf4fa41be6a2aad5aedc52abd75bed6f8df8e0231ec1407f74d73d372"},
-    {file = "editorconfig_checker-2.3.51-py3-none-any.whl", hash = "sha256:af01be55c751eefa0e59847e35152d7a7cb9f8b62922a5cdedba9cf81845a074"},
+    {file = "editorconfig-checker-2.3.52.tar.gz", hash = "sha256:f151620831771ee5be94cf702c5222ea130a8942f958acf979bf1c8c5ad69e16"},
 ]
 filelock = [
     {file = "filelock-3.0.12-py3-none-any.whl", hash = "sha256:929b7d63ec5b7d6b71b0fa5ac14e030b3f70b75747cef1b10da9b879fef15836"},
