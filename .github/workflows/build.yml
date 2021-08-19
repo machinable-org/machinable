@@ -48,7 +48,7 @@ jobs:
       - name: editorconfig check
         run: |
           source .venv/bin/activate
-          editorconfig-checker
+          ec
       - name: Run tests
         run: |
           source .venv/bin/activate

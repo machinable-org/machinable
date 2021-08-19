@@ -26,6 +26,6 @@ repos:
     hooks:
       - id: editorconfig
         name: editorconfig
-        entry: editorconfig-checker
+        entry: ec
         types: [python]
         language: system
