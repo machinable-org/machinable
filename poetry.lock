@@ -193,7 +193,7 @@ six = ">=1.12,<2.0"
 
 [[package]]
 name = "hypothesis"
-version = "6.14.5"
+version = "6.14.8"
 description = "A library for property-based testing"
 category = "dev"
 optional = false
@@ -677,7 +677,7 @@ all = ["setproctitle", "numpy", "pandas"]
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.6.1"
-content-hash = "50e581a973b6dd9cde89134d9228eab3b213c66a8f496b1362f2027edfbdc728"
+content-hash = "1a97667d54678e5a2679672c5ba660eb4d96b4e677e3a1776470a275cd757872"
 
 [metadata.files]
 antlr4-python3-runtime = [
@@ -799,8 +799,8 @@ flatten-dict = [
     {file = "flatten_dict-0.4.2-py2.py3-none-any.whl", hash = "sha256:7e245b20c4c718981212210eec4284a330c9f713e632e98765560e05421e48ad"},
 ]
 hypothesis = [
-    {file = "hypothesis-6.14.5-py3-none-any.whl", hash = "sha256:cc4efbce2446fa6f04ce55bb20d53dcfef9cf2187ec51332aac2c30306f537e2"},
-    {file = "hypothesis-6.14.5.tar.gz", hash = "sha256:0563b9711fd9bf478cb591580a575c369d2c396f283efa85d0f9a75b26db65b5"},
+    {file = "hypothesis-6.14.8-py3-none-any.whl", hash = "sha256:f86ded26e49c810f8b34f39112d819a06af4bae94e08a71f07285f0e376f6471"},
+    {file = "hypothesis-6.14.8.tar.gz", hash = "sha256:cb80e06ca44992b08d2889734b740e67c8b41337315bbd6dba2ef43ca816cfe3"},
 ]
 identify = [
     {file = "identify-2.2.11-py2.py3-none-any.whl", hash = "sha256:7abaecbb414e385752e8ce02d8c494f4fbc780c975074b46172598a28f1ab839"},
