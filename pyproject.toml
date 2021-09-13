@@ -44,7 +44,7 @@ pandas = {version = "^1.1.5", optional = true}
 
 [tool.poetry.dev-dependencies]
 isort = "^5.9"
-pyupgrade = "^2.24.0"
+pyupgrade = "^2.26.0"
 black = "^20.8b1"
 pytest = "^6.2"
 pylint = "^2.10"
