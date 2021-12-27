@@ -3,7 +3,6 @@ import os
 import numpy as np
 import pytest
 from commandlib import Command
-from hypothesis import given, strategies
 from machinable import Component, utils
 
 
@@ -67,15 +66,6 @@ def test_filesystem_utils(tmpdir):
     with pytest.raises(ValueError):
         utils.save_file("invalid.extension", [])
 
-
-@given(strategies.text())
-def test_sanitize_path(path):
-    cleaned = utils.sanitize_path(path)
-    assert "//" not in cleaned
-    assert not cleaned.startswith("/")
-    assert not cleaned.endswith("/")
-    ok = "-_abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ/0123456789"
-    assert len([c for c in cleaned if (c not in ok)]) == 0
 
 
 def test_import_from_directory():

@@ -21,10 +21,8 @@ class Execution(Element):
         self,
         engine: Union[str, None] = None,
         version: VersionType = None,
-        *,
-        view: Union[bool, None, str] = True,
     ):
-        super().__init__(view=view)
+        super().__init__()
         if engine is None:
             engine = Engine.default or get_settings().default_engine
         self.__model__ = schema.Execution(

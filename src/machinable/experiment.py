@@ -46,8 +46,6 @@ class Experiment(Element):
         seed: Union[int, None] = None,
         uses: Optional[dict] = None,
         derived_from: Optional["Experiment"] = None,
-        *,
-        view: Union[bool, None, str] = True,
     ):
         """Experiment
 
@@ -56,7 +54,7 @@ class Experiment(Element):
         version: Configuration to override the default config
         derived_from: Optional ancestor experiment
         """
-        super().__init__(view=view)
+        super().__init__()
         if interface is None:
             interface = Interface.default or get_settings().default_interface
         if seed is None:
@@ -204,17 +202,17 @@ class Experiment(Element):
 
         return self.__model__.interface[1:]
 
-    def interface(self, reload: bool = False) -> Interface:
-        """Resolves and returns the interface instance"""
-        if self._resolved_interface is None or reload:
-            self._resolved_interface = Interface.make(
-                self.__model__.interface[0],
-                self.__model__.interface[1:],
-                slots=self.__model__.uses,
-                parent=self,
-            )
+    # def interface(self, reload: bool = False) -> Interface:
+    #     """Resolves and returns the interface instance"""
+    #     if self._resolved_interface is None or reload:
+    #         self._resolved_interface = Interface.make(
+    #             self.__model__.interface[0],
+    #             self.__model__.interface[1:],
+    #             slots=self.__model__.uses,
+    #             parent=self,
+    #         )
 
-        return self._resolved_interface
+    #     return self._resolved_interface
 
     def execute(
         self, engine: Union[str, None] = None, version: VersionType = None

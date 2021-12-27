@@ -132,9 +132,8 @@ class Project(Connectable, Element):
         self,
         directory: Optional[str] = None,
         version: VersionType = None,
-        view: Union[bool, None, str] = True,
     ):
-        super().__init__(view=view)
+        super().__init__()
         if directory is None:
             directory = os.getcwd()
         directory = os.path.abspath(directory)

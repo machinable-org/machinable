@@ -17,7 +17,7 @@ if TYPE_CHECKING:
 
 
 def _rewrite_config_methods(
-    config: Union[collections.Mapping, str, list, tuple]
+    config: Union[collections.abc.Mapping, str, list, tuple]
 ) -> Any:
     if isinstance(config, list):
         return [_rewrite_config_methods(v) for v in config]
@@ -25,7 +25,7 @@ def _rewrite_config_methods(
     if isinstance(config, tuple):
         return (_rewrite_config_methods(v) for v in config)
 
-    if isinstance(config, collections.Mapping):
+    if isinstance(config, collections.abc.Mapping):
         return {k: _rewrite_config_methods(v) for k, v in config.items()}
 
     if isinstance(config, str):
@@ -83,7 +83,7 @@ def normversion(version: VersionType = None) -> List[Union[str, dict]]:
             # skip
             return False
 
-        if not isinstance(item, (collections.Mapping, str)):
+        if not isinstance(item, (collections.abc.Mapping, str)):
             raise ValueError(
                 f"Invalid version. Expected str or dict but found {type(item).__name__}: {item}"
             )
@@ -91,7 +91,7 @@ def normversion(version: VersionType = None) -> List[Union[str, dict]]:
         return True
 
     def _norm(item):
-        if isinstance(item, collections.Mapping):
+        if isinstance(item, collections.abc.Mapping):
             # convert to dict
             return OmegaConf.to_container(OmegaConf.create(item))
         return item
@@ -282,7 +282,7 @@ class Component(Jsonable):
             for slot, slot_config in available_slots.items():
                 if slot_config is None:
                     continue
-                if not isinstance(slot_config, collections.Mapping):
+                if not isinstance(slot_config, collections.abc.Mapping):
                     slot_config = {"_default_": slot_config}
                 if slot not in uses:
                     # default available?
@@ -297,7 +297,7 @@ class Component(Jsonable):
             # compose configuration update
             config_update = {}
             for version in __version:
-                if isinstance(version, collections.Mapping):
+                if isinstance(version, collections.abc.Mapping):
                     version = unflatten_dict(version)
                 elif isinstance(version, str) and version.startswith("~"):
                     # from local version
