@@ -530,15 +530,6 @@ def save_file(
     return os.path.abspath(filepath)
 
 
-def sanitize_path(path: str) -> str:
-    """Strips special characters from a path (any other than 0-9, a-z, A-Z, -, and _)
-
-    # Arguments
-    path: The path
-    """
-    return re.sub(r"[^0-9a-zA-Z/\-\_]+", "", path).replace("//", "/").strip("/")
-
-
 def import_from_directory(
     module_name: str, directory: str, or_fail: bool = False
 ) -> Optional[ModuleType]:
@@ -676,21 +667,6 @@ def unflatten_dict(
 
 def get_machinable_version() -> str:
     return version("machinable")
-
-
-def set_process_title(title):
-    try:
-        import setproctitle
-
-        setproctitle.setproctitle(title)
-    except ImportError:
-        pass
-    # tmux
-    if (
-        os.environ.get("TERM", None) == "screen"
-        and os.environ.get("TMUX", None) is not None
-    ):
-        os.system(f"printf '\033]2;%s\033\\' '{title}'")
 
 
 def get_diff(repository: str) -> Optional[str]:
