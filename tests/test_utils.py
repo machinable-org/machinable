@@ -1,9 +1,7 @@
 import os
 
-import numpy as np
 import pytest
 from commandlib import Command
-from hypothesis import given, strategies
 from machinable import Component, utils
 
 
@@ -59,23 +57,13 @@ def test_filesystem_utils(tmpdir):
     assert utils.load_file(filepath) == ["test"]
 
     # numpy
-    filepath = str(tmpdir / "number.npy")
-    utils.save_file(filepath, np.array([1, 2, 3]))
-    assert utils.load_file(filepath).sum() == 6
+    # filepath = str(tmpdir / "number.npy")
+    # utils.save_file(filepath, np.array([1, 2, 3]))
+    # assert utils.load_file(filepath).sum() == 6
 
     assert utils.load_file("not_existing.txt", default="default") == "default"
     with pytest.raises(ValueError):
         utils.save_file("invalid.extension", [])
-
-
-@given(strategies.text())
-def test_sanitize_path(path):
-    cleaned = utils.sanitize_path(path)
-    assert "//" not in cleaned
-    assert not cleaned.startswith("/")
-    assert not cleaned.endswith("/")
-    ok = "-_abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ/0123456789"
-    assert len([c for c in cleaned if (c not in ok)]) == 0
 
 
 def test_import_from_directory():
@@ -137,10 +125,6 @@ def test_unflatten_dict():
 
 def test_machinable_version():
     assert isinstance(utils.get_machinable_version(), str)
-
-
-def test_set_process_title():
-    utils.set_process_title("test")
 
 
 def test_git_utils(tmp_path):

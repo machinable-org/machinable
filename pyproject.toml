@@ -24,39 +24,31 @@ classifiers = [
 include = ["CHANGELOG.md"]
 
 [tool.poetry.dependencies]
-python = "^3.6.1"
+python = "^3.7"
 python-baseconv = "^1.2"
 observable = "^1.0"
 flatten-dict = "^0.4"
-jsonlines = "^2.0"
+jsonlines = "^3.0"
 pydantic = "^1.8.1"
 arrow = "^1.1.1"
-importlib-metadata = "^4.6.1"
-PyYAML = "^5.4.1"
+importlib-metadata = "^4.10.0"
+PyYAML = "^6.0"
 commandlib = "^0.3.5"
 omegaconf = "^2.1.0"
-
-# optional dependencies
-setproctitle = {version = "^1.1", optional = true}
-numpy = {version = "^1.19.4", optional = true}
-pandas = {version = "^1.1.5", optional = true}
 
 
 [tool.poetry.dev-dependencies]
 isort = "^5.9"
 pyupgrade = "^2.24.0"
-black = "^20.8b1"
+black = "^21.12b0"
 pytest = "^6.2"
 pylint = "^2.10"
 pre-commit = "^2.14"
 editorconfig-checker = "^2.3.54"
-pytest-cov = "^2.10.1"
-numpy = "^1.19.4"
-hypothesis = "^6.15.0"
+pytest-cov = "^3.0.0"
 
 [tool.poetry.extras]
 all = [
-  "setproctitle",
   "numpy",
   "pandas",
 ]

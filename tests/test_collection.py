@@ -18,7 +18,7 @@ def test_experiment_collection(tmp_path):
     Repository.filesystem(str(tmp_path)).connect()
     collection = Experiment.collect([Experiment("basic") for _ in range(5)])
     assert isinstance(collection, ExperimentCollection)
-    collection.as_dataframe()
+    # collection.as_dataframe()
     collection.execute()
     assert all(collection.map(lambda x: x.is_finished()))
     collection.execute()
