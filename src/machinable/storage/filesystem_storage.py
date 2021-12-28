@@ -12,7 +12,6 @@ from machinable.types import DatetimeType, JsonableType, VersionType
 from machinable.utils import load_file, save_file, timestamp_to_directory
 
 if TYPE_CHECKING:
-    from machinable.component import Component
     from machinable.element import Element
 
 
@@ -26,7 +25,7 @@ class FilesystemStorage(Storage):
         self,
         config: dict,
         version: VersionType,
-        parent: Union["Element", "Component", None] = None,
+        parent: Union["Element", None] = None,
     ):
         super().__init__(config, version=version, parent=parent)
         if self.config.directory is None:

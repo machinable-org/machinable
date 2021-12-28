@@ -2,7 +2,7 @@ from typing import TYPE_CHECKING, Dict, Optional
 
 from datetime import datetime
 
-from machinable.types import ComponentType, VersionType
+from machinable.types import ElementType, VersionType
 from machinable.utils import (
     encode_experiment_id,
     generate_experiment_id,
@@ -30,8 +30,8 @@ class Project(Model):
 
 
 class Experiment(Model):
-    interface: ComponentType
-    uses: Dict[str, ComponentType] = {}
+    interface: ElementType
+    uses: Dict[str, ElementType] = {}
     experiment_id: str = Field(
         default_factory=lambda: encode_experiment_id(generate_experiment_id())
     )
@@ -45,8 +45,8 @@ class Experiment(Model):
     derived_from_timestamp: Optional[int] = None
 
 
-class Repository(Model):
-    storage: ComponentType
+class Storage(Model):
+    storage: ElementType
     default_group: Optional[str] = None
 
 
@@ -56,7 +56,7 @@ class Group(Model):
 
 
 class Execution(Model):
-    engine: ComponentType
+    engine: ElementType
     resources: Optional[dict] = None
     host: Optional[dict] = None
     timestamp: float = Field(default_factory=lambda: datetime.now().timestamp())

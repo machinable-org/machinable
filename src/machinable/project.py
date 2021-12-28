@@ -1,25 +1,33 @@
-from typing import List, Optional, Union
+import types
+from typing import TYPE_CHECKING, Any, List, Optional, Union
 
+import getpass
 import importlib
 import os
+import platform
+import socket
 import sys
 
+import machinable
 from commandlib import Command
 from machinable import schema
-from machinable.component import Component, compact, normversion
+from machinable.config import from_file as load_config_from_file
 from machinable.config import parse as parse_config
 from machinable.config import prefix as prefix_config
-from machinable.element import Connectable, Element
+from machinable.element import Connectable, Element, compact, normversion
 from machinable.errors import ConfigurationError, MachinableError
-from machinable.provider import Provider
 from machinable.types import VersionType
 from machinable.utils import (
     find_subclass_in_module,
     get_commit,
     get_diff,
+    get_machinable_version,
     get_root_commit,
     import_from_directory,
 )
+
+if TYPE_CHECKING:
+    from machinable.project import Project
 
 
 def fetch_link(source, target):
@@ -205,27 +213,6 @@ class Project(Connectable, Element):
     def exists(self) -> bool:
         return os.path.exists(self.__model__.directory)
 
-    def provider(self, reload: Union[str, bool] = False) -> Provider:
-        """Resolves and returns the provider instance"""
-        if isinstance(reload, str):
-            self._provider = reload
-            self._resolved_provider = None
-        if self._resolved_provider is None or reload:
-            if isinstance(self._provider, str):
-                self._resolved_provider = find_subclass_in_module(
-                    module=import_from_directory(
-                        self._provider, self.__model__.directory
-                    ),
-                    base_class=Provider,
-                    default=Provider,
-                )(version=self.__model__.version)
-            else:
-                self._resolved_provider = Provider(
-                    version=self.__model__.version
-                )
-
-        return self._resolved_provider
-
     def config(self, reload: bool = False) -> dict:
         if self._config is None or reload:
             self._config = self.provider().load_config(self.__model__.directory)
@@ -264,7 +251,7 @@ class Project(Connectable, Element):
         version: VersionType = None,
         uses: Optional[dict] = None,
         parent: Union["Element", "Component", None] = None,
-    ) -> Component:
+    ) -> Element:
         config = {}
         kind = "components"
 
@@ -337,6 +324,61 @@ class Project(Connectable, Element):
             return None
 
         return self.config()["name"]
+
+    def get_component_class(self, kind: str) -> Optional[Any]:
+        """Returns the component base class for the component kind"""
+        return getattr(machinable, kind[:-1].capitalize(), None)
+
+    def get_host_info(self) -> dict:
+        """Returned dictionary will be recorded as host information"""
+        return {
+            "network_name": platform.node(),
+            "hostname": socket.gethostname(),
+            "machine": platform.machine(),
+            "python_version": platform.python_version(),
+            "user": getpass.getuser(),
+            "environ": os.environ.copy(),
+            "argv": sys.argv,
+            "machinable_version": get_machinable_version(),
+        }
+
+    def load_config(self, directory: str) -> dict:
+        """Returns the configuration of the given project directory
+
+        By default this will load a machinable.yaml file. You may
+        overwrite this method to support other configuration formats
+        in your project. Note that this method should return the raw
+        configuration that will be parsed at a later stage
+        """
+        return load_config_from_file(
+            os.path.join(directory, "machinable.yaml"), default={}
+        )
+
+    def on_resolve_vendor(
+        self, name: str, source: str, target: str
+    ) -> Optional[bool]:
+        """Event triggered when vendor is resolved
+
+        # Arguments
+        name: The name of the vendor
+        source: The source configuration
+        target: The target directory (may or may not exists yet)
+
+        Return False to prevent the default automatic resolution
+        """
+
+    def on_component_import(
+        self, module: str, project: "Project"
+    ) -> Union[None, str, types.ModuleType]:
+        """Event triggered before a component is imported from a module
+
+        You can prevent the import and return a component or an alternative module import path
+        from this method to be used instead.
+
+        # Arguments
+        module: The module that is about to be imported
+        project: The machinable project
+        """
 
     def __repr__(self) -> str:
         return f"Project({self.__model__.directory})"

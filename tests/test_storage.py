@@ -1,8 +1,37 @@
 import os
 
 import pytest
-from machinable import Storage
+from machinable import Execution, Experiment, Project, Storage
 from machinable.testing import storage_tests
+
+
+def test_storage_interface(tmpdir):
+    Project("./tests/samples/project").connect()
+    repository = Storage(
+        "machinable.storage.filesystem_storage", {"directory": str(tmpdir)}
+    )
+    repository_b = Storage.filesystem(str(tmpdir))
+    assert (
+        repository.storage().config.directory
+        == repository_b.storage().config.directory
+    )
+
+    # serialization
+    restored = Storage.from_json(repository.as_json())
+    assert restored.storage().config.directory == str(tmpdir)
+
+    # deferred data
+    experiment = Experiment("dummy")
+    experiment.save_data("test.txt", "deferral")
+    experiment.save_file("test.json", "deferral")
+    assert len(experiment._deferred_data) == 2
+
+    execution = Execution().add(experiment)
+    repository.commit(experiment, execution)
+
+    assert os.path.isfile(experiment.local_directory("data/test.txt"))
+    assert os.path.isfile(experiment.local_directory("test.json"))
+    assert len(experiment._deferred_data) == 0
 
 
 def test_storage(tmpdir):

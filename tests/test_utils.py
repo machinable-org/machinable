@@ -2,7 +2,7 @@ import os
 
 import pytest
 from commandlib import Command
-from machinable import Component, utils
+from machinable import utils
 
 
 def test_experiment_id_encoding():

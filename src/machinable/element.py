@@ -1,26 +1,33 @@
-from typing import TYPE_CHECKING, Any, Callable, List, Optional, Tuple, Union, Dict
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Callable,
+    Dict,
+    List,
+    Optional,
+    Tuple,
+    Union,
+)
 
+import collections
+import copy
+import re
 from functools import wraps
 
 import arrow
+import omegaconf
 from machinable import schema
-from machinable.types import ComponentType, VersionType
 from machinable.collection import Collection
+from machinable.errors import ConfigurationError
+from machinable.types import ElementType, VersionType
 from machinable.utils import (
     Jsonable,
     find_subclass_in_module,
     import_from_directory,
     resolve_at_alias,
+    unflatten_dict,
+    update_dict,
 )
-
-
-import collections
-import copy
-import re
-
-import omegaconf
-from machinable.errors import ConfigurationError
-from machinable.utils import Jsonable, unflatten_dict, update_dict
 from omegaconf import DictConfig, OmegaConf
 from pydantic.dataclasses import dataclass
 
@@ -121,7 +128,6 @@ class Connectable:
             self.__class__.__connection__ = self._outer_connection
 
 
-
 def _rewrite_config_methods(
     config: Union[collections.abc.Mapping, str, list, tuple]
 ) -> Any:
@@ -208,7 +214,7 @@ def normversion(version: VersionType = None) -> List[Union[str, dict]]:
 def compact(
     component: Union[str, List[Union[str, dict, None]]],
     version: VersionType = None,
-) -> ComponentType:
+) -> ElementType:
     if isinstance(component, (list, tuple, omegaconf.listconfig.ListConfig)):
         component, *default_version = component
         if not isinstance(version, (list, tuple)):
@@ -257,7 +263,6 @@ def _internal_key(key):
     return key.startswith("_") and key.endswith("_")
 
 
-
 class Element(Jsonable):
     """Element baseclass"""
 
@@ -278,9 +283,11 @@ class Element(Jsonable):
 
         return super().__new__(cls)
 
-    def __init__(self, version: VersionType = None, parent: Union["Element", None] = None):
+    def __init__(
+        self, version: VersionType = None, parent: Union["Element", None] = None
+    ):
         super().__init__()
-        
+
         self.__model__: schema.Model = None
         self.__related__ = {}
         self._cache = {}
@@ -329,9 +336,9 @@ class Element(Jsonable):
 
     @classmethod
     def find(cls, element_id: str, *args, **kwargs) -> Optional["Element"]:
-        from machinable.repository import Repository
+        from machinable.storage import Storage
 
-        storage = Repository.get().storage()
+        storage = Storage.get()
 
         storage_id = getattr(storage, f"find_{cls._kind.lower()}")(
             element_id, *args, **kwargs
@@ -359,9 +366,9 @@ class Element(Jsonable):
     @classmethod
     def from_storage(cls, storage_id, storage=None) -> "Element":
         if storage is None:
-            from machinable.repository import Repository
+            from machinable.storage import Storage
 
-            storage = Repository.get().storage()
+            storage = Storage.get()
 
         return cls.from_model(
             getattr(storage, f"retrieve_{cls._kind.lower()}")(storage_id)
@@ -398,7 +405,7 @@ class Element(Jsonable):
             return schema.Model
 
         return getattr(schema, cls._kind)
-    
+
     @classmethod
     def make(
         cls,

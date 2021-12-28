@@ -1,11 +1,20 @@
 from typing import TYPE_CHECKING, Any, List, Optional, Union
 
+from machinable import schema
+from machinable.element import Connectable, Element, compact
+from machinable.group import Group
+from machinable.project import Project
+from machinable.settings import get_settings
+from machinable.types import VersionType
+
+if TYPE_CHECKING:
+    from machinable.execution import Execution
+    from machinable.experiment import Experiment
 import os
 
 import arrow
 from machinable import schema
 from machinable.collection import ExperimentCollection
-from machinable.component import Component
 from machinable.group import Group, resolve_group
 from machinable.project import Project
 from machinable.types import (
@@ -22,8 +31,76 @@ if TYPE_CHECKING:
     from machinable.experiment import Experiment
 
 
-class Storage(Component):
+class Storage(Connectable, Element):
     """Storage base class"""
+
+    _kind = "Storage"
+
+    def __init__(
+        self,
+        storage: Union[str, None] = None,
+        version: VersionType = None,
+        default_group: Optional[str] = get_settings().default_group,
+    ):
+        super().__init__()
+        if storage is None:
+            storage = Storage.default or get_settings().default_storage
+        self.__model__ = schema.Storage(
+            storage=compact(storage, version), default_group=default_group
+        )
+        self._resolved_storage: Optional[Storage] = None
+
+    @classmethod
+    def filesystem(
+        cls,
+        directory: str,
+        default_group: Optional[str] = get_settings().default_group,
+    ) -> "Storage":
+        return cls(
+            storage="machinable.storage.filesystem_storage",
+            version={"directory": directory},
+            default_group=default_group,
+        )
+
+    def commit(
+        self,
+        experiments: Union["Experiment", List["Experiment"]],
+        execution: Optional["Execution"] = None,
+    ) -> None:
+        from machinable.experiment import Experiment
+
+        if isinstance(experiments, Experiment):
+            experiments = [experiments]
+        for experiment in experiments:
+            if not isinstance(experiment, Experiment):
+                raise ValueError(
+                    f"Expected experiment, found: {type(experiment)} {experiment}"
+                )
+            if experiment.is_mounted():
+                continue
+            # ensure that configuration has been parsed
+            assert experiment.config is not None
+
+            group = experiment.group
+            if group is None:
+                group = Group(self.__model__.default_group)
+                experiment.__related__["group"] = group
+
+            self.storage().create_experiment(
+                experiment=experiment,
+                group=group,
+                project=Project.get(),
+            )
+
+            # write deferred experiment data
+            for filepath, data in experiment._deferred_data.items():
+                experiment.save_file(filepath, data)
+            experiment._deferred_data = {}
+
+        if execution is None or execution.is_mounted():
+            return
+
+        self.storage().create_execution(execution, experiments)
 
     @classmethod
     def make(
@@ -398,3 +475,9 @@ class Storage(Component):
         self, experiment_storage_id: str, filepath: str
     ) -> Optional[Any]:
         raise NotImplementedError
+
+    def __repr__(self):
+        return f"Storage <{self.__model__.default_group}>"
+
+    def __str__(self):
+        return self.__repr__()

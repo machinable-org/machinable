@@ -1,17 +1,16 @@
-from typing import Any, List, Optional, Union
+from typing import Any, Dict, List, Optional, Union
 
+import copy
 import os
 
 from machinable import schema
 from machinable.collection import ExperimentCollection
-from machinable.component import compact
-from machinable.element import Element, has_many
-from machinable.engine import Engine
+from machinable.element import Element, compact, has_many
 from machinable.experiment import Experiment
 from machinable.project import Project
-from machinable.repository import Repository
 from machinable.settings import get_settings
 from machinable.types import VersionType
+from machinable.utils import update_dict
 
 
 class Execution(Element):
@@ -90,7 +89,7 @@ class Execution(Element):
         return self
 
     def commit(self) -> "Execution":
-        Repository.get().commit(experiments=self.experiments, execution=self)
+        Storage.get().commit(experiments=self.experiments, execution=self)
         return self
 
     def dispatch(self) -> "Execution":
@@ -103,6 +102,83 @@ class Execution(Element):
     @property
     def timestamp(self) -> float:
         return self.__model__.timestamp
+
+    def canonicalize_resources(self, resources: Dict) -> Dict:
+        return resources
+
+    def resources(self, experiment: "Experiment") -> Dict:
+        default_resources = None
+        if hasattr(experiment.interface(), "default_resources"):
+            default_resources = experiment.interface().default_resources(
+                engine=self
+            )
+
+        if experiment.resources() is None and default_resources is not None:
+            return self.canonicalize_resources(default_resources)
+
+        if experiment.resources() is not None and default_resources is None:
+            resources = copy.deepcopy(experiment.resources())
+            resources.pop("_inherit_defaults", None)
+            return self.canonicalize_resources(resources)
+
+        if experiment.resources() is not None and default_resources is not None:
+            resources = copy.deepcopy(experiment.resources())
+            if resources.pop("_inherit_defaults", True) is False:
+                return self.canonicalize_resources(resources)
+
+            # merge with default resources
+            defaults = self.canonicalize_resources(default_resources)
+            update = self.canonicalize_resources(resources)
+
+            defaults_ = copy.deepcopy(defaults)
+            update_ = copy.deepcopy(update)
+
+            # apply removals (e.g. #remove_me)
+            removals = [k for k in update.keys() if k.startswith("#")]
+            for removal in removals:
+                defaults_.pop(removal[1:], None)
+                update_.pop(removal, None)
+
+            return update_dict(defaults_, update_)
+
+        return {}
+
+    def dispatch(self) -> Any:
+        if self.on_before_dispatch() is False:
+            return False
+
+        results = self._dispatch()
+
+        if not isinstance(results, (list, tuple)):
+            results = [results]
+
+        self.on_after_dispatch(results)
+
+        return results
+
+    def on_before_dispatch(self) -> Optional[bool]:
+        """Event triggered before engine dispatch of an execution
+
+        Return False to prevent the dispatch
+        """
+
+    def on_after_dispatch(self, results: List[Any]) -> None:
+        """Event triggered after the dispatch of an execution"""
+
+    def _dispatch(self) -> List[Any]:
+        return [
+            self._dispatch_experiment(experiment)
+            for experiment in self.execution.experiments
+        ]
+
+    def _dispatch_experiment(self, experiment: "Experiment") -> Any:
+        return experiment.interface().dispatch()
+
+    def __str__(self):
+        return self.__repr__()
+
+    def __repr__(self):
+        return "Engine"
 
     def __repr__(self):
         return "Execution"
