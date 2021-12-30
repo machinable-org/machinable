@@ -11,13 +11,19 @@ from typing import (
 
 import collections
 import copy
-import re
+
 from functools import wraps
 
 import arrow
 import omegaconf
+import pydantic
 from machinable import schema
 from machinable.collection import Collection
+from machinable.config import (
+    from_element,
+    match_method,
+    rewrite_config_methods,
+)
 from machinable.errors import ConfigurationError
 from machinable.types import ElementType, VersionType
 from machinable.utils import (
@@ -128,54 +134,33 @@ class Connectable:
             self.__class__.__connection__ = self._outer_connection
 
 
-def _rewrite_config_methods(
-    config: Union[collections.abc.Mapping, str, list, tuple]
-) -> Any:
-    if isinstance(config, list):
-        return [_rewrite_config_methods(v) for v in config]
-
-    if isinstance(config, tuple):
-        return (_rewrite_config_methods(v) for v in config)
-
-    if isinstance(config, collections.abc.Mapping):
-        return {k: _rewrite_config_methods(v) for k, v in config.items()}
-
-    if isinstance(config, str):
-        fn_match = re.match(r"(?P<method>\w+)\s?\((?P<args>.*)\)", config)
-        if fn_match is not None:
-            function = fn_match.groupdict()["method"]
-            args = fn_match.groupdict()["args"]
-            return '${config_method:"' + function + '","' + args + '"}'
-
-    return config
-
-
 class ConfigMethod:
-    def __init__(self, component: "Component") -> None:
-        self.component = component
+    def __init__(self, element: "Element", prefix="config") -> None:
+        self.element = element
+        self.prefix = prefix
 
     def __call__(self, function, args) -> Any:
         definition = f"{function}({args})"
-        method = f"config_{function}"
+        method = f"{self.prefix}_{function}"
 
-        if hasattr(self.component, method):
-            prefix = "self.component."
-        elif hasattr(self.component.parent, method):
-            prefix = "self.component.parent."
+        if hasattr(self.element, method):
+            obj = "self.element."
+        elif hasattr(self.element.parent, method):
+            obj = "self.element.parent."
         else:
             raise AttributeError(
-                f"Config method {definition} specified but {type(self.component).__name__}.{method}() does not exist."
+                f"{self.prefix.title()} method {definition} specified but {type(self).__name__}.{method}() does not exist."
             )
 
         # Using eval is evil, but in this case there is probably not enough at stake
         # to justify the implementation of a proper parser
         try:
             return eval(  # pylint: disable=eval-used
-                prefix + method + "(" + args + ")"
+                obj + method + "(" + args + ")"
             )
         except Exception as _ex:
             raise ConfigurationError(
-                f"{_ex} in config method {type(self.component).__name__}.{method}()"
+                f"{_ex} in {self.prefix} method {type(self).__name__}.{method}()"
             ) from _ex
 
 
@@ -263,6 +248,68 @@ def _internal_key(key):
     return key.startswith("_") and key.endswith("_")
 
 
+def _get(
+    self,
+    name: str,
+    version: VersionType = None,
+    uses: Optional[dict] = None,
+    parent: Union["Element", "Component", None] = None,
+) -> "Element":
+    config = {}
+    kind = "components"
+
+    if uses is None:
+        uses = {}
+    if not isinstance(uses, dict):
+        raise ValueError(f"Uses must be a mapping, found {uses}")
+    uses = {k: compact(v) for k, v in uses.items()}
+
+    if name in self.parsed_config():
+        component = self.parsed_config()[name]
+        module = self.provider().on_component_import(component["module"], self)
+        if module is None or isinstance(module, str):
+            module = import_from_directory(
+                module if isinstance(module, str) else component["module"],
+                self.__model__.directory,
+                or_fail=True,
+            )
+
+        config = {
+            **component["config_data"],
+            "_lineage_": component["lineage"],
+        }
+        kind = component["kind"]
+    else:
+        try:
+            module = importlib.import_module(name)
+        except ModuleNotFoundError as _e:
+            raise ValueError(f"Could not find component '{name}'") from _e
+
+    base_class = self.provider().get_component_class(kind)
+    if base_class is None:
+        raise ConfigurationError(
+            f"Could not resolve component type {kind}. "
+            "Is it registered in the project's provider?"
+        )
+    component_class = find_subclass_in_module(module, base_class)
+    if component_class is None:
+        raise ConfigurationError(
+            f"Could not find a component inheriting from the {base_class.__name__} base class. "
+            f"Is it correctly defined in {module.__name__}?"
+        )
+
+    try:
+        return component_class(
+            config={**config, "_uses_": uses},
+            version=version,
+            parent=parent,
+        )
+    except TypeError as _e:
+        raise MachinableError(
+            f"Could not instantiate component {component_class.__module__}.{component_class.__name__}"
+        ) from _e
+
+
 class Element(Jsonable):
     """Element baseclass"""
 
@@ -270,14 +317,17 @@ class Element(Jsonable):
     default: Optional["Element"] = None
 
     def __new__(cls, *args, **kwargs):
-        view = kwargs.pop("view", cls._kind in ["Experiment", "Execution"])
-        if view is True:
-            view = args[0] if len(args) > 0 else False
-        if getattr(cls, "_active_view", None) is None and isinstance(view, str):
+        view = args[0] if len(args) > 0 else False
+        if isinstance(view, str):
             from machinable.project import Project
 
             module = import_from_directory(view, Project.get().path())
             view_class = find_subclass_in_module(module, cls)
+            # if view_class is None:
+            #     raise ConfigurationError(
+            #         f"Could not find a component inheriting from the {base_class.__name__} base class. "
+            #         f"Is it correctly defined in {module.__name__}?"
+            #     )
             if view_class is not None:
                 return super().__new__(view_class)
 
@@ -314,12 +364,6 @@ class Element(Jsonable):
             self.__model__._storage_instance is not None
             and self.__model__._storage_id is not None
         )
-
-    @belongs_to
-    def project():
-        from machinable.project import Project
-
-        return Project
 
     def __getitem__(self, view: str) -> "Element":
         from machinable.view import from_element
@@ -453,7 +497,7 @@ class Element(Jsonable):
 
     @property
     def config(self) -> DictConfig:
-        """Component configuration"""
+        """Element configuration"""
         if self._config is None:
             # register resolvers
             for name in dir(self):
@@ -469,49 +513,16 @@ class Element(Jsonable):
                 name="config_method", resolver=ConfigMethod(self), replace=True
             )
 
-            __config = copy.deepcopy(self.__config)
-            __version = copy.deepcopy(self.__version)
+            # expose raw config so events and config methods can use it
+            config_model = from_element(self) or pydantic.BaseModel
+            raw_config = config_model().dict()
 
-            lineage = copy.deepcopy(self.__config.get("_lineage_", []))
-            uses = copy.deepcopy(self.__config.get("_uses_", {}))
-            # parse slots
-            available_slots = {
-                key[1:-1]: value
-                for key, value in __config.items()
-                if key.startswith("<") and key.endswith(">")
-            }
-
-            dynamic_uses = False
-            if "_dynamic_uses_" in __config:
-                dynamic_uses = __config.pop("_dynamic_uses_")
-            # validate uses
-            if not dynamic_uses:
-                for use in uses:
-                    if use not in available_slots:
-                        raise ConfigurationError(
-                            f"'{self.__module__}' has no slot '{use}'"
-                        )
-
-            # we assign the raw config
-            self._config = OmegaConf.create(__config)
+            self._config = OmegaConf.create(raw_config)
 
             self.on_before_configure(self._config)
 
-            slot_update = {}
-            for slot, slot_config in available_slots.items():
-                if slot_config is None:
-                    continue
-                if not isinstance(slot_config, collections.abc.Mapping):
-                    slot_config = {"_default_": slot_config}
-                if slot not in uses:
-                    # default available?
-                    default = slot_config.get("_default_", None)
-                    if default is not None:
-                        uses[slot] = normversion(default)
-                if slot in uses:
-                    slot_update = update_dict(slot_update, slot_config)
-
-            self._config = OmegaConf.merge(self._config, slot_update)
+            # apply versioning
+            __version = copy.deepcopy(self.__version)
 
             # compose configuration update
             config_update = {}
@@ -519,42 +530,36 @@ class Element(Jsonable):
                 if isinstance(version, collections.abc.Mapping):
                     version = unflatten_dict(version)
                 elif isinstance(version, str) and version.startswith("~"):
-                    # from local version
-                    name = version[1:]
-                    path = name.split(":")
-                    version = {}
-                    level = self._config
-                    try:
-                        for key in path:
-                            level = level["~" + key]
-                            # extract config on this level
-                            patch = {
-                                k: copy.deepcopy(v)
-                                for k, v in level.items()
-                                if not k.startswith("~")
-                            }
-                            version = update_dict(version, patch)
-                    except KeyError as _e:
+                    definition = version[1:]
+
+                    if not definition.endswith(")"):
+                        definition = definition + "()"
+
+                    method = match_method(definition)
+
+                    if method is None:
                         raise ConfigurationError(
-                            f"'~{name}' could not be resolved."
-                        ) from _e
+                            f"Invalid version: {definition}"
+                        )
+
+                    version = ConfigMethod(self, "version")(*method)
+                    if version is None:
+                        version = {}
+
+                    if not isinstance(version, collections.abc.Mapping):
+                        raise ConfigurationError(
+                            f"Version method {definition} must produce a mapping, but returned {type(patch)}: {patch}"
+                        )
 
                 config_update = update_dict(config_update, version)
 
             # apply update
             self._config = OmegaConf.merge(self._config, config_update)
 
-            # remove versions and uses
-            config = {
-                k: v
-                for k, v in OmegaConf.to_container(self._config).items()
-                if not (
-                    k.startswith("~") or (k.startswith("<") and k.endswith(">"))
-                )
-            }
-
             # enable config methods
-            self._config = OmegaConf.create(_rewrite_config_methods(config))
+            self._config = OmegaConf.create(
+                rewrite_config_methods(self._config)
+            )
 
             # computed configuration transform
             self.on_configure()
@@ -562,51 +567,17 @@ class Element(Jsonable):
             # resolve config
             config = OmegaConf.to_container(self._config, resolve=True)
 
-            slot_version = {
-                name: copy.deepcopy(config.get(name, {})) for name in uses
-            }
-
-            # parse config if config class is available
-            if hasattr(self.__class__, "Config"):
-                config["_schematized_"] = True
-
-                class SchemaConf:
-                    extra = "forbid"
-
-                schema = dataclass(config=SchemaConf)(
-                    getattr(self.__class__, "Config")
-                ).__pydantic_model__
-
-                parsed = schema(
-                    **{
-                        k: v
-                        for k, v in config.items()
-                        if not (_internal_key(k) or k in uses)
-                    }
-                )
-
-                config = parsed.dict()
-            else:
-                config["_schematized_"] = False
+            # enforce schema
+            config = config_model(**config).dict()
 
             # add introspection data
-            config["_lineage_"] = lineage
-            config["_uses_"] = uses
-            config["_raw_"] = self.__config
-            config["_component_"] = self.__class__.__module__
+            config["_raw_"] = raw_config
+            config["_module_"] = self.__class__.__module__
             config["_version_"] = self.__version
-            config["_slot_update_"] = slot_update
             config["_update_"] = config_update
 
             # make config property accessible for slot components
             self._config = OmegaConf.create(config)
-
-            # resolve slot components
-            self._resolved_components = {}
-            for name, component in self.components.items():
-                # we prepend the version to allow for slot component overrides
-                component.__version = [slot_version[name]] + component.__version
-                self._config[name] = component.config
 
             # disallow further transformation
             OmegaConf.set_readonly(self._config, True)
@@ -631,3 +602,17 @@ class Element(Jsonable):
 
     def __str__(self):
         return self.__repr__()
+
+    def on_before_configure(self, config: DictConfig) -> None:
+        """Configuration event operating on the raw configuration
+        This may be used to apply computed configuration updates
+        Do not use to validate the configuration but use validators in the config schema
+        that are applied at a later stage.
+        """
+
+    def on_configure(self) -> None:
+        """Configuration event
+        This may be used to apply computed configuration updates
+        Do not use to validate the configuration but use validators in the config schema
+        that are applied at a later stage.
+        """

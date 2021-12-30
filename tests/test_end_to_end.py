@@ -1,7 +1,5 @@
 import machinable as ml
 from machinable import errors
-from machinable.schema import Execution
-from pydantic.errors import ExtraError
 
 
 def test_end_to_end_execution(tmp_path):

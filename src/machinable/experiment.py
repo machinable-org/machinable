@@ -50,12 +50,11 @@ class Experiment(Element):  # pylint: disable=too-many-public-methods
 
     def __init__(
         self,
-        interface: Optional[str] = None,
+        using: Optional[str] = None,
         version: VersionType = None,
         group: Union[Group, str, None] = None,
         resources: Optional[Dict] = None,
         seed: Union[int, None] = None,
-        uses: Optional[dict] = None,
         derived_from: Optional["Experiment"] = None,
     ):
         """Experiment
@@ -66,24 +65,19 @@ class Experiment(Element):  # pylint: disable=too-many-public-methods
         derived_from: Optional ancestor experiment
         """
         super().__init__()
-        if interface is None:
-            interface = Interface.default or get_settings().default_interface
+        if using is None:
+            using = Experiment.default or get_settings().default_experiment
         if seed is None:
             seed = generate_seed()
         self.__model__ = schema.Experiment(
-            interface=compact(interface, version), seed=seed
+            interface=compact(using, version), seed=seed
         )
-        self._resolved_interface: Optional[Interface] = None
         self._resolved_config: Optional[DictConfig] = None
         self._deferred_data = {}
         if resources is not None:
             self.resources(resources)
         if group is not None:
             self.group_as(group)
-        if uses is not None:
-            for slot, args in uses.items():
-                component, *version = compact(args)
-                self.use(slot, component, version)
         if derived_from is not None:
             self.__model__.derived_from_id = derived_from.experiment_id
             self.__model__.derived_from_timestamp = derived_from.timestamp
@@ -93,6 +87,12 @@ class Experiment(Element):  # pylint: disable=too-many-public-methods
     @belongs_to
     def group():
         return Group
+
+    @belongs_to
+    def project():
+        from machinable.project import Project
+
+        return Project
 
     @has_many
     def derived() -> ExperimentCollection:

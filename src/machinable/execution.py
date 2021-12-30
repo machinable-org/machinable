@@ -5,7 +5,7 @@ import os
 
 from machinable import schema
 from machinable.collection import ExperimentCollection
-from machinable.element import Element, compact, has_many
+from machinable.element import Element, compact, has_many, belongs_to
 from machinable.experiment import Experiment
 from machinable.project import Project
 from machinable.settings import get_settings
@@ -18,12 +18,12 @@ class Execution(Element):
 
     def __init__(
         self,
-        engine: Union[str, None] = None,
+        using: Union[str, None] = None,
         version: VersionType = None,
     ):
         super().__init__()
-        if engine is None:
-            engine = Engine.default or get_settings().default_engine
+        if using is None:
+            engine = Execution.default or get_settings().default_execution
         self.__model__ = schema.Execution(
             engine=compact(engine, version),
             host=Project.get().provider().get_host_info(),
@@ -33,6 +33,12 @@ class Execution(Element):
     @has_many
     def experiments() -> ExperimentCollection:
         return Experiment, ExperimentCollection
+
+    @belongs_to
+    def project():
+        from machinable.project import Project
+
+        return Project
 
     @classmethod
     def local(cls, processes: Optional[int] = None) -> "Execution":

@@ -8,12 +8,12 @@ from pydantic import BaseModel
 
 
 class Settings(BaseModel):
-    default_engine: List[Union[str, dict]] = ["machinable.engine.local_engine"]
+    default_execution: List[Union[str, dict]] = ["machinable.engine.local_engine"]
     default_storage: List[Union[str, dict]] = [
         "machinable.storage.filesystem_storage",
         {"directory": "./storage"},
     ]
-    default_interface: Optional[str] = None
+    default_experiment: Optional[str] = None
     default_group: Optional[str] = "%Y_%U_%a/"
 
 

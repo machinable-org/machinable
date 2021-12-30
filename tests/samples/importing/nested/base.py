@@ -1,5 +1,5 @@
-from machinable import Component
+from machinable import Element
 
 
-class BaseComponent(Component):
+class BaseComponent(Element):
     """Base component"""

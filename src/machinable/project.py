@@ -11,19 +11,14 @@ import sys
 import machinable
 from commandlib import Command
 from machinable import schema
-from machinable.config import from_file as load_config_from_file
-from machinable.config import parse as parse_config
-from machinable.config import prefix as prefix_config
 from machinable.element import Connectable, Element, compact, normversion
 from machinable.errors import ConfigurationError, MachinableError
 from machinable.types import VersionType
 from machinable.utils import (
-    find_subclass_in_module,
     get_commit,
     get_diff,
     get_machinable_version,
-    get_root_commit,
-    import_from_directory,
+    get_root_commit
 )
 
 if TYPE_CHECKING:
@@ -149,8 +144,6 @@ class Project(Connectable, Element):
             directory=directory,
             version=normversion(version),
         )
-        self._provider: str = "_machinable/project"
-        self._resolved_provider: Optional[Provider] = None
         self._parent: Optional[Project] = None
         self._config: Optional[dict] = None
         self._parsed_config: Optional[dict] = None
@@ -208,105 +201,10 @@ class Project(Connectable, Element):
         }
 
     def get_diff(self) -> Union[str, None]:
-        return
+        return get_diff(self.path())
 
     def exists(self) -> bool:
         return os.path.exists(self.__model__.directory)
-
-    def config(self, reload: bool = False) -> dict:
-        if self._config is None or reload:
-            self._config = self.provider().load_config(self.__model__.directory)
-
-        return self._config
-
-    def vendor_config(self, reload: bool = False) -> dict:
-        if self._vendor_config is None or reload:
-            self._vendor_config = {}
-            for vendor_name in self.get_vendors():
-                vendor_project = Project(self.path("vendor", vendor_name))
-                vendor_project._parent = self
-
-                vendor_config = prefix_config(
-                    vendor_project.parsed_config(), "vendor." + vendor_name
-                )
-                self._vendor_config.update(vendor_config)
-
-        return self._vendor_config
-
-    def parsed_config(self, reload: bool = False) -> dict:
-        if self._parsed_config is None or reload:
-            vendor_config = self.vendor_config(reload=reload)
-            self._parsed_config = parse_config(
-                self.config(reload=reload), vendor_config
-            )
-
-        return self._parsed_config
-
-    def has_component(self, name: str) -> bool:
-        return name in self.parsed_config()
-
-    def get_component(
-        self,
-        name: str,
-        version: VersionType = None,
-        uses: Optional[dict] = None,
-        parent: Union["Element", "Component", None] = None,
-    ) -> Element:
-        config = {}
-        kind = "components"
-
-        if uses is None:
-            uses = {}
-        if not isinstance(uses, dict):
-            raise ValueError(f"Uses must be a mapping, found {uses}")
-        uses = {k: compact(v) for k, v in uses.items()}
-
-        if name in self.parsed_config():
-            component = self.parsed_config()[name]
-            module = self.provider().on_component_import(
-                component["module"], self
-            )
-            if module is None or isinstance(module, str):
-                module = import_from_directory(
-                    module if isinstance(module, str) else component["module"],
-                    self.__model__.directory,
-                    or_fail=True,
-                )
-
-            config = {
-                **component["config_data"],
-                "_lineage_": component["lineage"],
-            }
-            kind = component["kind"]
-        else:
-            try:
-                module = importlib.import_module(name)
-            except ModuleNotFoundError as _e:
-                raise ValueError(f"Could not find component '{name}'") from _e
-
-        base_class = self.provider().get_component_class(kind)
-        if base_class is None:
-            raise ConfigurationError(
-                f"Could not resolve component type {kind}. "
-                "Is it registered in the project's provider?"
-            )
-        component_class = find_subclass_in_module(module, base_class)
-        if component_class is None:
-            raise ConfigurationError(
-                f"Could not find a component inheriting from the {base_class.__name__} base class. "
-                f"Is it correctly defined in {module.__name__}?"
-            )
-
-        try:
-            return component_class(
-                config={**config, "_uses_": uses},
-                version=version,
-                parent=parent,
-            )
-        except TypeError as _e:
-            raise MachinableError(
-                f"Could not instantiate component {component_class.__module__}.{component_class.__name__}"
-            ) from _e
 
     def serialize(self) -> dict:
         return {
@@ -317,17 +215,6 @@ class Project(Connectable, Element):
     @classmethod
     def unserialize(cls, serialized: dict) -> "Project":
         return cls(**serialized)
-
-    @property
-    def name(self) -> Optional[str]:
-        if not isinstance(self.config().get("name", None), str):
-            return None
-
-        return self.config()["name"]
-
-    def get_component_class(self, kind: str) -> Optional[Any]:
-        """Returns the component base class for the component kind"""
-        return getattr(machinable, kind[:-1].capitalize(), None)
 
     def get_host_info(self) -> dict:
         """Returned dictionary will be recorded as host information"""
@@ -341,18 +228,6 @@ class Project(Connectable, Element):
             "argv": sys.argv,
             "machinable_version": get_machinable_version(),
         }
-
-    def load_config(self, directory: str) -> dict:
-        """Returns the configuration of the given project directory
-
-        By default this will load a machinable.yaml file. You may
-        overwrite this method to support other configuration formats
-        in your project. Note that this method should return the raw
-        configuration that will be parsed at a later stage
-        """
-        return load_config_from_file(
-            os.path.join(directory, "machinable.yaml"), default={}
-        )
 
     def on_resolve_vendor(
         self, name: str, source: str, target: str

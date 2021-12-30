@@ -1,5 +1,6 @@
 from dataclasses import dataclass
-
+import omegaconf
+from typing import Optional
 import pydantic
 import pytest
 from machinable import Execution, Experiment, Project, schema
@@ -12,113 +13,120 @@ from machinable.element import (
 )
 from machinable.errors import ConfigurationError
 from machinable.types import ElementType
-from omegaconf.omegaconf import OmegaConf
+from omegaconf import OmegaConf
+from machinable.config import (
+    RequiredField,
+    Field,
+    from_element,
+)
 
 
 def test_element_instantiation():
     assert Element.model() == schema.Model
-    experiment = Experiment("tests.samples.project.interface", {"tets": 1})
+    experiment = Experiment("tests.samples.project.interface", {"test": 1})
 
-    print(type(experiment), experiment.model())
     experiment.execute()
 
 
-def test_component_version():
-    project = Project("./tests/samples/project").connect()
+def test_element_config():
+    class Dummy(Element):
+        class Config:
+            foo: float = RequiredField
+            test: int = 1
 
-    assert project.get_component("dummy", {"alpha": -1}).config.alpha == -1
+        def version_floaty(self):
+            return {"foo": 0.1}
 
-    c = project.get_component("dummy", ({"a": 1}, {"a": 2, "b": 3})).config
+        def version_string(self):
+            return {"foo": "test"}
+
+    with pytest.raises(omegaconf.errors.MissingMandatoryValue):
+        Dummy().config
+
+    with pytest.raises(pydantic.ValidationError):
+        Dummy({"foo": "test"}).config
+        Dummy("~string").config
+
+    assert Dummy({"foo": 1}).config.foo == 1.0
+    assert Dummy([{"foo": 0.5}, "~floaty"]).config.foo == 0.1
+
+    class Dummy(Element):
+        @dataclass
+        class Config:
+            @dataclass
+            class Beta:
+                test: Optional[bool] = None
+
+            beta: Beta = Beta()
+            a: int = Field("through_config_method(1)")
+            b: Optional[int] = None
+            alpha: int = 0
+
+        def version_one(self):
+            return {"alpha": 1, "beta": {"test": True}}
+
+        def version_two(self):
+            return {"alpha": 2}
+
+        def version_three(self):
+            return {"alpha": 3}
+
+        def config_through_config_method(self, arg):
+            return arg
+
+    assert Dummy({"alpha": -1}).config.alpha == -1
+    c = Dummy(({"a": 1}, {"a": 2, "b": 3})).config
     assert c["a"] == 2
     assert c["b"] == 3
 
     with pytest.raises(ConfigurationError):
-        project.get_component("dummy", "~non-existent").config
+        Dummy("~non-existent").config
 
-    assert project.get_component("dummy", "~one").config.alpha == 1
+    assert Dummy("~one").config.alpha == 1
 
-    c = project.get_component("dummy", ("~three", "~one", "~two")).config
+    c = Dummy(("~three", "~one", "~two")).config
     assert c["alpha"] == 2
     assert c["beta"]["test"]
 
-    # nested
-    c = project.get_component("dummy", "~three:nested").config
-    assert c["unaffected"] == "value"
-    assert c["nested"] is None
-    assert c["alpha"] == 4
-    assert c["beta"] == "nested"
-    assert "should_not_be" not in c
-
-    c = project.get_component("dummy", ("~two", "~nested")).config
-    assert c["alpha"] == 2
-    assert c["nested"] is True
-
-    c = project.get_component("dummy", "~three:nested:nestednested").config
-    assert c["unaffected"] == "value"
-    assert c["works"] is False
-    assert c["alpha"] == 5
-    assert c["beta"] == "overwritten"
-    assert c["added"] == "value"
-
     # ingores None
-    assert (
-        project.get_component("dummy", (None, {"alpha": -1}, None)).config.alpha
-        == -1
-    )
+    assert Dummy((None, {"alpha": -1}, None)).config.alpha == -1
 
     # flattening
-    c = project.get_component(
-        "components.flattened_notation",
-        {
-            "flat.merge": "merged",
-            "more.nested.values": "here",
-            "flat.can_also_save_space": "overwritten",
-        },
-    ).config
-    assert "flat" in c
-    assert c["flat"]["can"]["be"]["useful"]
-    assert c["flat"]["can_also_save_space"] == "overwritten"
-    assert c["flat"]["merge"] == "merged"
-    assert c["more"]["nested"]["values"] == "here"
-
-    # versions
-    c = project.get_component(
-        "components.flattened_notation", "~flat_version"
-    ).config
-    assert "flat" in c
-    assert c["flat"]["can"]["be"]["useful"]
-    assert c["flat"]["nested"] is False
-    assert c["flat"]["version"] == 2
+    assert Dummy({"beta.test": False}).config.beta.test is False
 
     # config methods
-    co = project.get_component(
-        "components.configmethods",
-        uses={"comp": ["components.configmethods_nested"]},
-    )
-    c = co.config
+
+    class Methods(Element):
+        class Config:
+            @dataclass
+            class Nested:
+                method: str = "hello()"
+
+            method: str = "hello()"
+            argmethod: str = "arghello('world')"
+            nested: Nested = Nested()
+            recursive: str = "recursive_call('test')"
+
+        def config_hello(self):
+            return "test"
+
+        def config_arghello(self, arg):
+            return arg
+
+        def config_recursive_call(self, arg):
+            return self.config.method + str(arg)
+
+    c = Methods().config
     assert c.method == "test"
     assert c.argmethod == "world"
     assert c.recursive == "testtest"
     assert c.nested.method == "test"
-    assert c.comp.from_parent == "test"
-    assert co.components["comp"].config.nested == "method"
 
-    # test config introspection
-    c = project.get_component(
-        "components.flattened_notation", "~flat_version"
-    ).config
-    assert c._schematized_ is False
-    assert c._lineage_ == ["components.inherited_flatness"]
-    assert c._uses_ == {}
-    assert c._component_ == "components.flattened_notation"
-    assert c._version_ == ["~flat_version"]
-    assert c._slot_update_ == {}
-
-    class IntrospectiveComponent(Component):
-        def test(self):
-            return self.config._version_
-
-    assert IntrospectiveComponent({}).test() == []
+    # introspection
+    assert c._version_ == []
+    assert c._update_ == {}
+    assert c._module_ == "tests.test_element"
+    assert c._raw_["method"] == "hello()"
 
 
 def test_component_config_schema():

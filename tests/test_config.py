@@ -1,67 +1,32 @@
-import pytest
-import yaml
-from machinable.config import from_file, from_string, parse, prefix
-from machinable.errors import ConfigurationError
+from machinable.config import (
+    from_element,
+    match_method,
+    rewrite_config_methods,
+)
 
 
-def test_config_loader():
-    assert from_file("non-existent.yaml") is None
-    assert from_file("non-existent.yaml", default=True) is True
+def test_config_from_element():
+    class Dummy:
+        pass
 
-    data = from_file("./tests/samples/project/machinable.yaml")
+    assert from_element(Dummy) is None
 
-    # outsourcing $/
-    assert data["outsource"]["outsourced_config"] == "success"
+    class HasConf:
+        class Config:
+            q: int = 1
 
-    # correct scientific notation parsing
-    assert data["scientific"] == 5e-6
-
-    # + includes
-    assert data["outsourced_config"] == "success"
-    assert data["appended"]["section"] is True
-
-    with pytest.raises(ConfigurationError):
-        assert from_string(yaml.dump({"+": "test"}))
+    assert from_element(HasConf)().q == 1
+    assert from_element(HasConf())().q == 1
 
 
-def test_config_parser():
-    bedrock = from_file(
-        "./tests/samples/project/vendor/fooba/vendor/bedrock/machinable.yaml"
-    )
-    vendor = from_file("./tests/samples/project/vendor/fooba/machinable.yaml")
-    data = from_file("./tests/samples/project/machinable.yaml")
-    config = parse(
-        data,
-        prefix(
-            parse(vendor, prefix(parse(bedrock), "vendor.bedrock")),
-            "vendor.fooba",
-        ),
-    )
+def test_match_method():
+    assert match_method("find_me(a=1)") == ("find_me", "a=1")
+    assert match_method("test(1)") == ("test", "1")
+    assert match_method("foo") is None
+    assert match_method("ma$formed()") is None
 
-    # aliasing
-    assert config["dummy"]["alias"] is None
-    assert config["child"]["alias"] == "dummy_alias"
 
-    # inheritance
-    assert config["child"]["config_data"]["a"] == 2
-    assert config["child"]["config_data"]["b"] == 3
-    assert config["child"]["config_data"]["unaffected"] is True
-    assert config["child"]["lineage"] == ["dummy"]
-
-    assert config["inherit"]["config_data"]["blub"] == "bla"
-    assert config["inherit"]["config_data"]["test"] == 123
-    assert config["inherit"]["lineage"] == [
-        "experiments.start",
-        "experiments.start_parent",
-    ]
-
-    # kind
-    assert config["dummy"]["kind"] == "components"
-    assert config["components.flattened_notation"]["prefix"] == "components"
-
-    # unflattening
-    c = config["components.flattened_notation"]["config_data"]
-    assert c["flat"]["nested"] is True
-    assert c["inherited"]["flat"] == "value"
-    assert c["flat"]["can"]["be"]["useful"]
-    assert c["flat"]["can_also_save_space"] == " "
+def test_rewrite_config_methods():
+    rewrite_config_methods({"test": "test_me(1)"}) == {
+        "test": "${config_method:test_me,1}"
+    }
