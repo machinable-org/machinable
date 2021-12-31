@@ -220,10 +220,10 @@ def test_extract():
 
 
 def test_connectable():
-    for kind in [None, "global"]:
+    for mode in [None, "global"]:
 
         class Dummy(Connectable):
-            _kind = kind
+            _key = mode
 
             @classmethod
             def make(cls):

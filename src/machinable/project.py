@@ -126,7 +126,7 @@ def fetch_vendors(project: "Project"):
 
 
 class Project(Connectable, Element):
-    _kind = "Project"
+    _key = "Project"
 
     def __init__(
         self,

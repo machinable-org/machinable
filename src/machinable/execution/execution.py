@@ -15,7 +15,7 @@ from machinable.utils import update_dict
 
 
 class Execution(Element):
-    _kind = "Execution"
+    _key = "Execution"
     default = get_settings().default_execution
 
     def __init__(

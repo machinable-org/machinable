@@ -34,7 +34,7 @@ if TYPE_CHECKING:
 class Storage(Connectable, Element):
     """Storage base class"""
 
-    _kind = "Storage"
+    _key = "Storage"
     default = get_settings().default_storage
 
     def __init__(

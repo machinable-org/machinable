@@ -32,7 +32,7 @@ def belongs_to(f: Callable) -> Any:
         if self.__related__.get(name, None) is None and self.is_mounted():
             related = self.__model__._storage_instance.retrieve_related(
                 self.__model__._storage_id,
-                f"{self._kind.lower()}.{name}",
+                f"{self._key.lower()}.{name}",
             )
             if related is None:
                 return None
@@ -65,7 +65,7 @@ def has_many(f: Callable) -> Any:
         if self.__related__.get(name, None) is None and self.is_mounted():
             related = self.__model__._storage_instance.retrieve_related(
                 self.__model__._storage_id,
-                f"{self._kind.lower()}.{name}",
+                f"{self._key.lower()}.{name}",
             )
             if related is None:
                 return None
@@ -91,23 +91,23 @@ class Connectable:
 
     @classmethod
     def get(cls) -> "Connectable":
-        if getattr(cls, "_kind", None) is not None:
-            return _CONNECTIONS.setdefault(cls._kind, cls.make())
+        if getattr(cls, "_key", None) is not None:
+            return _CONNECTIONS.setdefault(cls._key, cls.make())
 
         return cls() if cls.__connection__ is None else cls.__connection__
 
     def connect(self) -> "Connectable":
-        if getattr(self, "_kind", None) is not None:
-            _CONNECTIONS[self._kind] = self
+        if getattr(self, "_key", None) is not None:
+            _CONNECTIONS[self._key] = self
             return self
 
         self.__class__.__connection__ = self
         return self
 
     def close(self) -> "Connectable":
-        if getattr(self, "_kind", None) is not None:
-            if _CONNECTIONS.get(self._kind, None) is self:
-                del _CONNECTIONS[self._kind]
+        if getattr(self, "_key", None) is not None:
+            if _CONNECTIONS.get(self._key, None) is self:
+                del _CONNECTIONS[self._key]
 
             return self
 
@@ -116,12 +116,12 @@ class Connectable:
         return self
 
     def __enter__(self):
-        if getattr(self, "_kind", None) is not None:
-            _CONNECTIONS.setdefault(self._kind + "_scopes", [])
-            if self._kind in _CONNECTIONS:
+        if getattr(self, "_key", None) is not None:
+            _CONNECTIONS.setdefault(self._key + "_scopes", [])
+            if self._key in _CONNECTIONS:
                 # store previous context
-                _CONNECTIONS[self._kind + "_scopes"].append(
-                    _CONNECTIONS[self._kind]
+                _CONNECTIONS[self._key + "_scopes"].append(
+                    _CONNECTIONS[self._key]
                 )
             self.connect()
             return self
@@ -133,14 +133,14 @@ class Connectable:
         return self
 
     def __exit__(self, exc_type, exc_value, exc_traceback):
-        if getattr(self, "_kind", None) is not None:
-            if _CONNECTIONS.get(self._kind, None) is self:
-                del _CONNECTIONS[self._kind]
-            _CONNECTIONS.setdefault(self._kind + "_scopes", [])
-            if len(_CONNECTIONS[self._kind + "_scopes"]) > 0:
-                outer = _CONNECTIONS[self._kind + "_scopes"].pop()
+        if getattr(self, "_key", None) is not None:
+            if _CONNECTIONS.get(self._key, None) is self:
+                del _CONNECTIONS[self._key]
+            _CONNECTIONS.setdefault(self._key + "_scopes", [])
+            if len(_CONNECTIONS[self._key + "_scopes"]) > 0:
+                outer = _CONNECTIONS[self._key + "_scopes"].pop()
                 if outer is not None:
-                    _CONNECTIONS[self._kind] = outer
+                    _CONNECTIONS[self._key] = outer
         else:
 
             if self.__class__.__connection__ is self:
@@ -278,7 +278,7 @@ def transfer_to(src: "Element", destination: "Element") -> "Element":
 class Element(Jsonable):
     """Element baseclass"""
 
-    _kind = None
+    _key = None
     default: Optional["Element"] = None
 
     def __init__(self, version: VersionType = None):
@@ -344,7 +344,7 @@ class Element(Jsonable):
 
         storage = Storage.get()
 
-        storage_id = getattr(storage, f"find_{cls._kind.lower()}")(
+        storage_id = getattr(storage, f"find_{cls._key.lower()}")(
             element_id, *args, **kwargs
         )
 
@@ -375,7 +375,7 @@ class Element(Jsonable):
             storage = Storage.get()
 
         return cls.from_model(
-            getattr(storage, f"retrieve_{cls._kind.lower()}")(storage_id)
+            getattr(storage, f"retrieve_{cls._key.lower()}")(storage_id)
         )
 
     @classmethod
@@ -403,12 +403,12 @@ class Element(Jsonable):
             if isinstance(element, cls.model()):
                 return element
 
-            raise ValueError(f"Invalid {cls._kind.lower()} model: {element}.")
+            raise ValueError(f"Invalid {cls._key.lower()} model: {element}.")
 
-        if cls._kind is None:
+        if cls._key is None:
             return schema.Element
 
-        return getattr(schema, cls._kind)
+        return getattr(schema, cls._key)
 
     @classmethod
     def set_default(
