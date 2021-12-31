@@ -1,10 +1,12 @@
 __all__ = ["Field", "validator", "RequiredField"]
-from typing import TYPE_CHECKING, Dict, Optional, Tuple, Union, Any
-from pydantic import BaseModel, Field, validator
-from pydantic.dataclasses import dataclass
-from inspect import isclass
+from typing import TYPE_CHECKING, Any, Dict, Optional, Tuple, Union
+
 import collections
 import re
+from inspect import isclass
+
+from pydantic import BaseModel, Field, validator
+from pydantic.dataclasses import dataclass
 
 if TYPE_CHECKING:
     from machinable.element import Element

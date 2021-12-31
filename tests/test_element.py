@@ -1,9 +1,12 @@
-from dataclasses import dataclass
-import omegaconf
 from typing import Optional
+
+from dataclasses import dataclass
+
+import omegaconf
 import pydantic
 import pytest
 from machinable import Execution, Experiment, Project, Storage
+from machinable.config import Field, RequiredField
 from machinable.element import (
     Connectable,
     Element,
@@ -15,7 +18,6 @@ from machinable.element import (
 from machinable.errors import ConfigurationError
 from machinable.types import ElementType
 from omegaconf import OmegaConf
-from machinable.config import RequiredField, Field
 
 
 def test_element_instantiation():

@@ -11,14 +11,11 @@ def test_storage_interface(tmpdir):
         "machinable.storage.filesystem_storage", {"directory": str(tmpdir)}
     )
     repository_b = Storage.filesystem(str(tmpdir))
-    assert (
-        repository.config.directory
-        == repository_b.config.directory
-    )
+    assert repository.config.directory == repository_b.config.directory
 
     # serialization
     restored = Storage.from_json(repository.as_json())
-    #assert restored.config.directory == str(tmpdir)
+    # assert restored.config.directory == str(tmpdir)
 
     # deferred data
     experiment = Experiment()

@@ -1,15 +1,7 @@
-from typing import (
-    TYPE_CHECKING,
-    Any,
-    Callable,
-    List,
-    Optional,
-    Tuple,
-    Union,
-)
+from typing import TYPE_CHECKING, Any, Callable, List, Optional, Tuple, Union
+
 import collections
 import copy
-
 from functools import wraps
 
 import arrow
@@ -17,18 +9,10 @@ import omegaconf
 import pydantic
 from machinable import schema
 from machinable.collection import Collection
-from machinable.config import (
-    from_element,
-    match_method,
-    rewrite_config_methods,
-)
+from machinable.config import from_element, match_method, rewrite_config_methods
 from machinable.errors import ConfigurationError
 from machinable.types import ElementType, VersionType
-from machinable.utils import (
-    Jsonable,
-    unflatten_dict,
-    update_dict,
-)
+from machinable.utils import Jsonable, unflatten_dict, update_dict
 from omegaconf import DictConfig, OmegaConf
 from pydantic.dataclasses import dataclass
 

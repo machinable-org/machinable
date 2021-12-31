@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Dict, Optional, List, Union
+from typing import TYPE_CHECKING, Dict, List, Optional, Union
 
 from datetime import datetime
 

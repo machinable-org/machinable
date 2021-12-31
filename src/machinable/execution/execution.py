@@ -7,18 +7,18 @@ from machinable import schema
 from machinable.collection import ExperimentCollection
 from machinable.element import (
     Element,
+    belongs_to,
     compact,
     defaultversion,
     has_many,
-    belongs_to,
     normversion,
 )
 from machinable.experiment import Experiment
 from machinable.project import Project
 from machinable.settings import get_settings
+from machinable.storage import Storage
 from machinable.types import VersionType
 from machinable.utils import update_dict
-from machinable.storage import Storage
 
 
 class Execution(Element):
@@ -108,9 +108,7 @@ class Execution(Element):
     def resources(self, experiment: "Experiment") -> Dict:
         default_resources = None
         if hasattr(experiment, "default_resources"):
-            default_resources = experiment.default_resources(
-                engine=self
-            )
+            default_resources = experiment.default_resources(engine=self)
 
         if experiment.resources() is None and default_resources is not None:
             return self.canonicalize_resources(default_resources)

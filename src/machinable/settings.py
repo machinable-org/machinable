@@ -1,8 +1,8 @@
 from typing import List, Optional, Union
 
+import json
 import os
 
-import json
 from machinable.errors import ConfigurationError
 from pydantic import BaseModel
 

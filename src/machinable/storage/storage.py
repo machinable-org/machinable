@@ -55,9 +55,7 @@ class Storage(Connectable, Element):
         default_group: Optional[str] = get_settings().default_group,
     ):
         module, version = defaultversion(
-            module,
-            version,
-            Storage.default or get_settings().default_storage
+            module, version, Storage.default or get_settings().default_storage
         )
         return super().make(
             module, version, base_class=Storage, default_group=default_group

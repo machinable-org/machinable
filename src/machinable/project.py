@@ -23,7 +23,6 @@ from machinable.utils import (
     import_from_directory,
 )
 
-
 if TYPE_CHECKING:
     from machinable.project import Project
 
@@ -108,10 +107,7 @@ def fetch_vendors(project: "Project"):
             if os.path.islink(top_level) and not os.path.exists(top_level):
                 os.unlink(top_level)
 
-            if (
-                project.on_resolve_vendor(name, source, top_level)
-                is not False
-            ):
+            if project.on_resolve_vendor(name, source, top_level) is not False:
                 # fetch import to the top-level if it does not exist
                 if not os.path.exists(top_level):
                     print(f"Fetching '+.{name}' to {top_level}")
@@ -235,9 +231,7 @@ class Project(Connectable, Element):
             )
 
         try:
-            return element_class(
-                version=version, **constructor_kwargs
-            )
+            return element_class(version=version, **constructor_kwargs)
         except TypeError as _e:
             raise
             raise MachinableError(

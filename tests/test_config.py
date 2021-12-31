@@ -1,8 +1,4 @@
-from machinable.config import (
-    from_element,
-    match_method,
-    rewrite_config_methods,
-)
+from machinable.config import from_element, match_method, rewrite_config_methods
 
 
 def test_config_from_element():
