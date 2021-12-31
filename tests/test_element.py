@@ -25,7 +25,8 @@ def test_element_instantiation():
     with pytest.raises(ModuleNotFoundError):
         project.element("non.existing", Experiment)
     with pytest.raises(ConfigurationError):
-        project.element("views.empty", Experiment)
+        project.element("empty", Experiment)
+    assert project.element("basic").hello() == "there"
 
 
 def test_element_transfer():
@@ -271,6 +272,7 @@ def test_element_relations(tmp_path):
     assert experiment.experiment_id == execution.experiments[0].experiment_id
     # group <-> execution
     assert experiment.group.path == "test/group"
+    assert experiment.group.pattern == "test/group"
     assert experiment.group.experiments[0].nickname == experiment.nickname
 
     # invalidate cache and reconstruct

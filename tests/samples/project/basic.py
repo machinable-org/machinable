@@ -1,7 +1,4 @@
-from typing import Optional
-
 from machinable import Experiment
-from machinable.types import VersionType
 
 
 class TestView(Experiment):

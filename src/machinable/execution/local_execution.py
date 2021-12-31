@@ -20,7 +20,7 @@ class LocalExecution(Execution):
 
             for result in pool.imap_unordered(
                 self._dispatch_experiment,
-                self.execution.experiments,
+                self.experiments,
             ):
                 results.append(result)
 

@@ -88,6 +88,13 @@ class Connectable:
 
     @classmethod
     def get(cls) -> "Connectable":
+        if getattr(cls, "_kind", None) is not None:
+            exec(f"from machinable import {cls._kind}")
+            if eval(f"{cls._kind}.__connection__ is None"):
+                return cls.make() if cls._kind != "Project" else cls()
+            else:
+                return eval(f"{cls._kind}.__connection__")
+
         return cls() if cls.__connection__ is None else cls.__connection__
 
     def connect(self) -> "Connectable":
@@ -382,7 +389,7 @@ class Element(Jsonable):
             raise ValueError(f"Invalid {cls._kind.lower()} model: {element}.")
 
         if cls._kind is None:
-            return schema.Model
+            return schema.Element
 
         return getattr(schema, cls._kind)
 

@@ -1,4 +1,5 @@
 # Test data
+storage/
 tests/_test_data
 tests/test_project/exports
 tests/.hypothesis

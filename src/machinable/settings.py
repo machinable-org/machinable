@@ -4,6 +4,7 @@ import json
 import os
 
 from machinable.errors import ConfigurationError
+from machinable.schema import Execution, Experiment
 from pydantic import BaseModel
 
 
@@ -19,17 +20,15 @@ class Settings(BaseModel):
     default_group: Optional[str] = "%Y_%U_%a/"
 
 
-def get_settings():
-    # todo: look up local environment
-    system_config = "~/.machinable/settings.json"
+def get_settings(file="~/.machinable/settings.json"):
     try:
-        with open(os.path.expanduser(system_config)) as f:
+        with open(os.path.expanduser(file)) as f:
             data = json.load(f)
     except FileNotFoundError:
         data = {}
-    except json.parser.ParserError as _e:
+    except json.decoder.JSONDecodeError as _e:
         raise ConfigurationError(
-            f"Could not parse settings file at {system_config}"
+            f"Could not parse settings file at {file}"
         ) from _e
 
     return Settings(**data)

@@ -5,14 +5,7 @@ import os
 
 from machinable import schema
 from machinable.collection import ExperimentCollection
-from machinable.element import (
-    Element,
-    belongs_to,
-    compact,
-    defaultversion,
-    has_many,
-    normversion,
-)
+from machinable.element import Element, defaultversion, has_many
 from machinable.experiment import Experiment
 from machinable.project import Project
 from machinable.settings import get_settings
@@ -50,12 +43,6 @@ class Execution(Element):
     @has_many
     def experiments() -> ExperimentCollection:
         return Experiment, ExperimentCollection
-
-    @belongs_to
-    def project():
-        from machinable.project import Project
-
-        return Project
 
     @classmethod
     def local(cls, processes: Optional[int] = None) -> "Execution":
@@ -174,14 +161,8 @@ class Execution(Element):
     def _dispatch_experiment(self, experiment: "Experiment") -> Any:
         return experiment.dispatch()
 
-    def __str__(self):
+    def __str__(self) -> str:
         return self.__repr__()
 
-    def __repr__(self):
-        return "Engine"
-
-    def __repr__(self):
+    def __repr__(self) -> str:
         return "Execution"
-
-    def __str__(self):
-        return self.__repr__()
