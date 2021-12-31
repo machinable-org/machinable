@@ -1,6 +1,6 @@
-from machinable import Component
+from machinable import Experiment
 
 
-class Dummy(Component):
-    def config_through_config_method(self, arg):
-        return arg
+class Dummy(Experiment):
+    class Config:
+        a: int = 1

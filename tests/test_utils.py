@@ -2,7 +2,8 @@ import os
 
 import pytest
 from commandlib import Command
-from machinable import Component, utils
+from machinable import utils
+from machinable.element import Element
 
 
 def test_experiment_id_encoding():
@@ -97,7 +98,7 @@ def test_find_subclass_in_module():
     assert utils.find_subclass_in_module(None, None) is None
 
     module = utils.import_from_directory("top", "./tests/samples/importing")
-    assert type(utils.find_subclass_in_module(module, Component)) is type(
+    assert type(utils.find_subclass_in_module(module, Element)) is type(
         module.TopComponent
     )
 
@@ -105,7 +106,7 @@ def test_find_subclass_in_module():
     module = utils.import_from_directory(
         "nested.bottom", "./tests/samples/importing"
     )
-    assert type(utils.find_subclass_in_module(module, Component)) is type(
+    assert type(utils.find_subclass_in_module(module, Element)) is type(
         module.BottomComponent
     )
 

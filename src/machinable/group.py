@@ -5,6 +5,7 @@ from datetime import datetime
 from machinable import schema
 from machinable.collection import ExperimentCollection
 from machinable.element import Element, has_many
+from machinable.types import VersionType
 
 
 def normgroup(group: Optional[str]) -> str:
@@ -24,11 +25,18 @@ def resolve_group(group: str) -> Tuple[str, str]:
 class Group(Element):
     """Group element"""
 
-    _kind = "Group"
+    _key = "Group"
 
-    def __init__(self, group: Optional[str] = None):
-        super().__init__()
-        self.__model__ = schema.Group(pattern=normgroup(group))
+    def __init__(
+        self, group: Optional[str] = None, version: VersionType = None
+    ):
+        super().__init__(version=version)
+        self.__model__ = schema.Group(
+            module=self.__model__.module,
+            config=self.__model__.config,
+            version=self.__model__.version,
+            pattern=normgroup(group),
+        )
 
     @property
     def pattern(self) -> str:

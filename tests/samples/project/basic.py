@@ -1,5 +1,16 @@
-from machinable import Interface
+from machinable import Experiment
 
 
-class Basic(Interface):
-    pass
+class TestView(Experiment):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._state = None
+
+    def hello(self):
+        return "there"
+
+    def set_state(self, state):
+        self._state = state
+
+    def get_state(self):
+        return self._state

@@ -1,27 +1,17 @@
 import os
 
 import pytest
-from machinable import (
-    Execution,
-    Experiment,
-    Project,
-    Repository,
-    Storage,
-    errors,
-    schema,
-)
+from machinable import Execution, Experiment, Project, Storage, errors, schema
 
 
 def test_experiment(tmp_path):
     Project("./tests/samples/project").connect()
-    experiment = Experiment("dummy")
+    experiment = Experiment.make("dummy")
     assert isinstance(str(experiment), str)
     assert isinstance(repr(experiment), str)
     assert experiment.config.a == 1
 
-    # uses
-    experiment.use("test", "dummy")
-    assert len(experiment.__model__.uses) == 1
+    # version
     assert experiment.version() == []
     assert experiment.version("test") == ["test"]
     assert experiment.version() == ["test"]
@@ -52,7 +42,6 @@ def test_experiment(tmp_path):
     assert os.path.isdir(
         experiment.local_directory("non-existing/dir", create=True)
     )
-    assert len(experiment.uses) == 0
     # records
     assert len(experiment.records()) == 0
     record = experiment.record("testing")
@@ -88,7 +77,7 @@ def test_experiment(tmp_path):
     assert not experiment.is_incomplete()
 
     # execution data
-    experiment = Experiment("basic")
+    experiment = Experiment()
     with pytest.raises(ValueError):
         experiment.save_execution_data("test", "data")
     execution = Execution().add(experiment)
@@ -98,19 +87,19 @@ def test_experiment(tmp_path):
 
 
 def test_experiment_relations(tmp_path):
-    Repository(
+    Storage.make(
         "machinable.storage.filesystem_storage", {"directory": str(tmp_path)}
     ).connect()
     Project("./tests/samples/project").connect()
 
-    experiment = Experiment("basic", group="test/group")
+    experiment = Experiment(group="test/group")
     execution = Execution().add(experiment)
     execution.dispatch()
 
     with pytest.raises(errors.ConfigurationError):
         experiment.version("attempt_overwrite")
 
-    derived = Experiment("basic", derived_from=experiment)
+    derived = Experiment(derived_from=experiment)
     assert derived.ancestor is experiment
     derived_execution = Execution().add(derived).dispatch()
 
@@ -123,12 +112,27 @@ def test_experiment_relations(tmp_path):
     assert derived.ancestor.experiment_id == experiment.experiment_id
     assert experiment.derived[0].experiment_id == derived.experiment_id
 
-    derived = Experiment("basic", derived_from=experiment)
+    derived = Experiment(derived_from=experiment)
     Execution().add(derived).dispatch()
     assert len(experiment.derived) == 2
 
     assert experiment.derive().experiment_id != experiment.experiment_id
-    assert experiment.derive("other").__model__.interface == ["other"]
 
     derived = experiment.derive(version=experiment.config)
     Execution().add(derived).dispatch()
+
+
+def test_experiment_interface(tmp_path):
+    Project("tests/samples/project").connect()
+
+    # test dispatch lifecycle
+    experiment = Experiment.make("interfaces.events_check")
+
+    experiment.__model__._storage_instance = Storage.make(
+        "machinable.storage.filesystem_storage",
+        {"directory": str(tmp_path)},
+    )
+    experiment.__model__._storage_id = str(tmp_path)
+
+    experiment.dispatch()
+    assert len(experiment.load_data("events.json")) == 6

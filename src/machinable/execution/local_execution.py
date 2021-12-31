@@ -1,15 +1,11 @@
-from typing import TYPE_CHECKING, Any, List, Optional
+from typing import Any, List, Optional
 
 from multiprocessing import Pool
 
-from machinable import Engine
-from machinable.errors import ExecutionFailed
-
-if TYPE_CHECKING:
-    from machinable.execution import Execution
+from machinable.execution import Execution
 
 
-class LocalEngine(Engine):
+class LocalExecution(Execution):
     class Config:
         processes: Optional[int] = None
 
@@ -24,7 +20,7 @@ class LocalEngine(Engine):
 
             for result in pool.imap_unordered(
                 self._dispatch_experiment,
-                self.execution.experiments,
+                self.experiments,
             ):
                 results.append(result)
 

@@ -1,9 +1,9 @@
 from typing import Any, Optional
 
-from machinable import Interface, errors
+from machinable import Experiment, errors
 
 
-class InterfaceCheck(Interface):
+class EventsCheck(Experiment):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.events = ["on_init"]
@@ -20,21 +20,21 @@ class InterfaceCheck(Interface):
         assert False
 
     def on_create(self):
-        assert self.experiment.is_started()
+        assert self.is_started()
         self.events.append("on_create")
 
     def on_execute(self) -> Any:
-        assert self.experiment.is_active()
+        assert self.is_active()
         self.events.append("on_execute")
 
         return "result"
 
     def on_destroy(self):
         self.events.append("on_destroy")
-        self.experiment.save_data("events.json", self.events)
+        self.save_data("events.json", self.events)
 
     def on_failure(self, exception: errors.MachinableError):
         assert False
 
     def on_after_destroy(self):
-        assert self.experiment.is_finished()
+        assert self.is_finished()

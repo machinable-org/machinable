@@ -1,16 +1,14 @@
 import machinable as ml
 from machinable import errors
-from machinable.schema import Execution
-from pydantic.errors import ExtraError
 
 
 def test_end_to_end_execution(tmp_path):
-    ml.Repository(
+    ml.Storage.make(
         "machinable.storage.filesystem_storage", {"directory": str(tmp_path)}
     ).connect()
     ml.Project("./tests/samples/project").connect()
 
-    experiment = ml.Experiment(
+    experiment = ml.Experiment.make(
         "interfaces.interrupted_lifecycle", group="a/b/c"
     )
     try:
@@ -24,12 +22,12 @@ def test_end_to_end_execution(tmp_path):
 
     # resume
     try:
-        experiment.execution.engine().dispatch()
+        experiment.execution.dispatch()
     except errors.ExecutionFailed:
         pass
     assert len(experiment.records()) == 7
 
-    experiment.execution.engine().dispatch()
+    experiment.execution.dispatch()
     assert len(experiment.records()) == 10
     assert experiment.is_finished()
 

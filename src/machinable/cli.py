@@ -1,5 +1,13 @@
+from typing import Dict
+
 import argparse
 import sys
+
+
+def cli() -> Dict:
+    from omegaconf import OmegaConf
+
+    return OmegaConf.to_container(OmegaConf.from_cli())
 
 
 class Cli:

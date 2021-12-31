@@ -1,53 +1,70 @@
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Dict,
+    List,
+    NoReturn,
+    Optional,
+    Tuple,
+    Union,
+)
 
 import copy
 import os
+import traceback
 from time import time
 
 import arrow
-from machinable import schema
+from machinable import errors, schema
 from machinable.collection import (
     ExecutionCollection,
     ExperimentCollection,
     RecordCollection,
 )
-from machinable.component import compact, normversion
-from machinable.element import Element, belongs_to, has_many
+from machinable.element import (
+    Element,
+    belongs_to,
+    compact,
+    defaultversion,
+    has_many,
+    normversion,
+)
 from machinable.errors import ConfigurationError, StorageError
 from machinable.group import Group
-from machinable.interface import Interface
 from machinable.project import Project
-from machinable.repository import Repository
 from machinable.settings import get_settings
+from machinable.storage.storage import Storage
 from machinable.types import (
-    ComponentType,
     DatetimeType,
+    ElementType,
     TimestampType,
     VersionType,
 )
-from machinable.utils import generate_seed, sentinel, timestamp_to_directory
+from machinable.utils import (
+    Events,
+    apply_seed,
+    generate_seed,
+    sentinel,
+    timestamp_to_directory,
+)
 from omegaconf import OmegaConf
-from omegaconf.dictconfig import DictConfig
 
 if TYPE_CHECKING:
-    from machinable.execution import Execution
+    from machinable.execution.execution import Execution
     from machinable.record import Record
 
 
-class Experiment(Element):
-    _kind = "Experiment"
+class Experiment(Element):  # pylint: disable=too-many-public-methods
+    _key = "Experiment"
+    default = get_settings().default_experiment
 
     def __init__(
         self,
-        interface: Optional[str] = None,
         version: VersionType = None,
         group: Union[Group, str, None] = None,
         resources: Optional[Dict] = None,
         seed: Union[int, None] = None,
-        uses: Optional[dict] = None,
         derived_from: Optional["Experiment"] = None,
-        *,
-        view: Union[bool, None, str] = True,
     ):
         """Experiment
 
@@ -56,33 +73,60 @@ class Experiment(Element):
         version: Configuration to override the default config
         derived_from: Optional ancestor experiment
         """
-        super().__init__(view=view)
-        if interface is None:
-            interface = Interface.default or get_settings().default_interface
+        super().__init__(version=version)
         if seed is None:
             seed = generate_seed()
         self.__model__ = schema.Experiment(
-            interface=compact(interface, version), seed=seed
+            module=self.__model__.module,
+            config=self.__model__.config,
+            version=self.__model__.version,
+            seed=seed,
         )
-        self._resolved_interface: Optional[Interface] = None
-        self._resolved_config: Optional[DictConfig] = None
         self._deferred_data = {}
         if resources is not None:
             self.resources(resources)
         if group is not None:
             self.group_as(group)
-        if uses is not None:
-            for slot, args in uses.items():
-                component, *version = compact(args)
-                self.use(slot, component, version)
         if derived_from is not None:
             self.__model__.derived_from_id = derived_from.experiment_id
             self.__model__.derived_from_timestamp = derived_from.timestamp
             self.__related__["ancestor"] = derived_from
+        self._events: Events = Events()
+
+    @classmethod
+    def make(
+        cls,
+        module: Optional[str] = None,
+        version: VersionType = None,
+        group: Union[Group, str, None] = None,
+        resources: Optional[Dict] = None,
+        seed: Union[int, None] = None,
+        derived_from: Optional["Experiment"] = None,
+    ):
+        module, version = defaultversion(
+            module,
+            version,
+            Experiment.default,
+        )
+        return super().make(
+            module,
+            version,
+            base_class=Experiment,
+            group=group,
+            resources=resources,
+            seed=seed,
+            derived_from=derived_from,
+        )
 
     @belongs_to
     def group():
         return Group
+
+    @belongs_to
+    def project():
+        from machinable.project import Project
+
+        return Project
 
     @has_many
     def derived() -> ExperimentCollection:
@@ -96,13 +140,13 @@ class Experiment(Element):
 
     @has_many
     def executions() -> "ExecutionCollection":
-        from machinable.execution import Execution
+        from machinable.execution.execution import Execution
 
         return Execution, ExecutionCollection
 
     @belongs_to
     def execution() -> "Execution":
-        from machinable.execution import Execution
+        from machinable.execution.execution import Execution
 
         return Execution, False
 
@@ -113,7 +157,7 @@ class Experiment(Element):
 
     @classmethod
     def from_model(cls, model: schema.Experiment) -> "Experiment":
-        instance = cls(model.interface[0])
+        instance = cls()
         instance.__model__ = model
         return instance
 
@@ -149,41 +193,29 @@ class Experiment(Element):
 
     def derive(
         self,
-        interface: Optional[str] = sentinel,
         version: VersionType = sentinel,
         group: Union[Group, str, None] = sentinel,
         resources: Optional[Dict] = sentinel,
-        uses: Optional[Dict] = sentinel,
         seed: Union[int, None] = sentinel,
     ) -> "Experiment":
-        if interface is sentinel:
-            interface = self.__model__.interface[0]
         if version is sentinel:
-            version = self.__model__.interface[1:]
+            version = self.__model__.version
         if group is sentinel:
             group = self.group.clone() if self.group is not None else None
         if resources is sentinel:
             resources = copy.deepcopy(self.resources())
-        if uses is sentinel:
-            uses = copy.deepcopy(self.__model__.uses)
         if seed is sentinel:
             seed = None
 
         experiment = Experiment(
-            interface,
             version,
             group=group,
             resources=resources,
-            uses=uses,
             seed=seed,
             derived_from=self,
         )
 
         return experiment
-
-    @property
-    def component(self) -> str:
-        return self.__model__.interface[0]
 
     def version(
         self, version: VersionType = sentinel, overwrite: bool = False
@@ -191,40 +223,24 @@ class Experiment(Element):
         self._assert_editable()
 
         if version is sentinel:
-            return self.__model__.interface[1:]
+            return self.__model__.version
 
         if overwrite:
-            self.__model__.interface = compact(
-                self.__model__.interface[0], version
-            )
+            self.__model__.version = normversion(version)
         else:
-            self.__model__.interface.extend(normversion(version))
+            self.__model__.version.extend(normversion(version))
 
         self._clear_caches()
 
-        return self.__model__.interface[1:]
-
-    def interface(self, reload: bool = False) -> Interface:
-        """Resolves and returns the interface instance"""
-        if self._resolved_interface is None or reload:
-            self._resolved_interface = Interface.make(
-                self.__model__.interface[0],
-                self.__model__.interface[1:],
-                slots=self.__model__.uses,
-                parent=self,
-            )
-
-        return self._resolved_interface
+        return self.__model__.version
 
     def execute(
-        self, engine: Union[str, None] = None, version: VersionType = None
+        self, using: Union[str, None] = None, version: VersionType = None
     ) -> "Experiment":
         """Executes the experiment"""
-        from machinable.execution import Execution
+        from machinable.execution.execution import Execution
 
-        Execution(engine=engine, version=version).add(
-            experiment=self
-        ).dispatch()
+        Execution.make(using, version=version).add(experiment=self).dispatch()
 
         return self
 
@@ -236,59 +252,15 @@ class Experiment(Element):
             return False
 
         self.save_execution_data(
-            "host.json", data=Project.get().provider().get_host_info()
+            "host.json", data=Project.get().get_host_info()
         )
 
         return True
 
     def commit(self) -> "Experiment":
-        Repository.get().commit(self)
+        Storage.get().commit(self)
 
         return self
-
-    def use(
-        self,
-        slot: Optional[str] = None,
-        component: Optional[str] = None,
-        version: VersionType = None,
-        overwrite: bool = False,
-    ) -> "Experiment":
-        """Adds a component
-
-        # Arguments
-        slot: The slot name
-        component: The name of the component as defined in the machinable.yaml
-        version: Configuration to override the default config
-        overwrite: If True, will overwrite existing uses
-        """
-        self._assert_editable()
-
-        if overwrite:
-            self.__model__.uses = {}
-
-        if slot is not None:
-            self.__model__.uses[slot] = compact(component, version)
-
-        self._clear_caches()
-
-        return self
-
-    @property
-    def uses(self) -> Dict[str, ComponentType]:
-        return self.__model__.uses
-
-    @property
-    def config(self) -> DictConfig:
-        if self._resolved_config is None:
-            if self.__model__.config is not None:
-                self._resolved_config = OmegaConf.create(self.__model__.config)
-            else:
-                self._resolved_config = self.interface().config
-                self.__model__.config = OmegaConf.to_container(
-                    self.interface().config
-                )
-
-        return self._resolved_config
 
     @property
     def experiment_id(self) -> str:
@@ -501,6 +473,139 @@ class Experiment(Element):
         return self.is_started() and not (
             self.is_active() or self.is_finished()
         )
+
+    def default_resources(self, engine: "Engine") -> Optional[dict]:
+        """Default resources"""
+
+    def dispatch(self):
+        """Execute the interface lifecycle"""
+        try:
+            self.on_dispatch()
+
+            if self.is_mounted():
+                self.mark_started()
+                self._events.on("heartbeat", self.update_heartbeat)
+                self._events.heartbeats(seconds=15)
+                self.save_host_info()
+
+            if self.on_seeding() is not False:
+                self.set_seed()
+
+            # create
+            self.on_before_create()
+            self.on_create()
+            self.on_after_create()
+
+            # execute
+            self.on_before_execute()
+            result = self.on_execute()
+            self.on_after_execute()
+
+            self.on_success(result=result)
+            self.on_finish(success=True, result=result)
+
+            # destroy
+            self.on_before_destroy()
+            self._events.heartbeats(None)
+            self.on_destroy()
+            if self.is_mounted():
+                self.update_heartbeat(mark_finished=True)
+
+            self.on_after_destroy()
+
+            return result
+        except BaseException as _ex:  # pylint: disable=broad-except
+            self.on_failure(exception=_ex)
+            self.on_finish(success=False, result=_ex)
+            failure_message = "".join(
+                traceback.format_exception(
+                    etype=type(_ex), value=_ex, tb=_ex.__traceback__
+                )
+            )
+            raise errors.ExecutionFailed(
+                f"{self.__class__.__name__} dispatch failed: {failure_message}"
+            ) from _ex
+
+    def set_seed(self, seed: Optional[int] = None) -> bool:
+        """Applies a random seed
+
+        # Arguments
+        seed: Integer, random seed. If None, self.seed will be used
+
+        To prevent the automatic seeding, you can overwrite
+        the on_seeding event and return False
+        """
+        if seed is None:
+            seed = self.seed
+
+        return apply_seed(seed)
+
+    # life cycle
+
+    def on_init(self):
+        """Event when interface is initialised."""
+
+    def on_dispatch(self):
+        """Lifecycle event triggered at the very beginning of the component dispatch"""
+
+    def on_seeding(self):
+        """Lifecycle event to implement custom seeding
+
+        Return False to prevent the default seeding procedure
+        """
+
+    def on_before_create(self):
+        """Lifecycle event triggered before components creation"""
+
+    def on_create(self):
+        """Lifecycle event triggered during components creation"""
+
+    def on_after_create(self):
+        """Lifecycle event triggered after components creation"""
+
+    def on_before_execute(self):
+        """Lifecycle event triggered before components execution"""
+
+    def on_execute(self) -> Any:
+        """Lifecycle event triggered at components execution"""
+        return True
+
+    def on_after_execute_iteration(self, iteration: int):
+        """Lifecycle event triggered after execution iteration"""
+
+    def on_after_execute(self):
+        """Lifecycle event triggered after execution"""
+
+    def on_before_destroy(self):
+        """Lifecycle event triggered before components destruction"""
+
+    def on_destroy(self):
+        """Lifecycle event triggered at components destruction"""
+
+    def on_after_destroy(self):
+        """Lifecycle event triggered after components destruction"""
+
+    def on_finish(self, success: bool, result: Optional[Any] = None):
+        """Lifecycle event triggered right before the end of the component execution
+
+        # Arguments
+        success: Whether the execution finished sucessfully
+        result: Return value of on_execute event
+        """
+
+    def on_success(self, result: Optional[Any] = None):
+        """Lifecycle event triggered iff execution finishes successfully
+
+        # Arguments
+        result: Return value of on_execute event
+        """
+
+    def on_failure(self, exception: errors.MachinableError):
+        """Lifecycle event triggered iff the execution finished with an exception
+
+        # Arguments
+        exception: Execution exception
+        """
 
     def __repr__(self):
         return f"Experiment [{self.__model__.experiment_id}]"

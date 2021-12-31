@@ -6,7 +6,7 @@ from unittest import TestCase
 
 from machinable.collection import Collection, ExperimentCollection, collect
 from machinable.experiment import Experiment, Project
-from machinable.repository import Repository
+from machinable.storage import Storage
 
 
 def test_collect():
@@ -15,8 +15,8 @@ def test_collect():
 
 def test_experiment_collection(tmp_path):
     Project("./tests/samples/project").connect()
-    Repository.filesystem(str(tmp_path)).connect()
-    collection = Experiment.collect([Experiment("basic") for _ in range(5)])
+    Storage.filesystem(str(tmp_path)).connect()
+    collection = Experiment.collect([Experiment() for _ in range(5)])
     assert isinstance(collection, ExperimentCollection)
     # collection.as_dataframe()
     collection.execute()

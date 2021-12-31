@@ -10,6 +10,7 @@ source =
     */site-packages/
 
 [report]
+show_missing = True
 # Regexes for lines to exclude from consideration
 exclude_lines =
     # Have to re-enable the standard pragma
@@ -26,3 +27,4 @@ exclude_lines =
     # Don't complain if non-runnable code isn't run:
     if 0:
     if __name__ == .__main__.:
+    if TYPE_CHECKING:

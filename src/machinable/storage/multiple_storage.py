@@ -15,34 +15,34 @@ class MultipleStorage(Storage):
     def __init__(self, primary: Storage, *secondary: Storage):
         if len(secondary) == 0:
             raise ValueError("You have to provide multiple storages")
-        self.__primary = primary
-        self.__secondary = secondary
+        self._primary = primary
+        self._secondary = secondary
         # maps primary storage ID to equivalent in secondary storages
         self._translation: Dict[str, str] = {}
 
-        super().__init__({}, version=None)
+        super().__init__(version=None)
 
     def serialize(self) -> dict:
         return {
-            "primary": self.__primary.serialize(),
+            "primary": self._primary.serialize(),
             "secondary": [
-                secondary.serialize() for secondary in self.__secondary
+                secondary.serialize() for secondary in self._secondary
             ],
         }
 
     @classmethod
-    def unserialize(cls, serialized: dict) -> "Component":
+    def unserialize(cls, serialized: dict) -> "MultipleStorage":
         return cls(**serialized)
 
     def _read(self, method: str, *args) -> Any:
         # read from primary storage
-        return getattr(self.__primary, method)(*args)
+        return getattr(self._primary, method)(*args)
 
     def _write(self, method: str, *args) -> Any:
         # propagate to both primary and all secondary storages
-        primary_result = getattr(self.__primary, method)(*args)
+        primary_result = getattr(self._primary, method)(*args)
 
-        for index, secondary in enumerate(self.__secondary):
+        for index, secondary in enumerate(self._secondary):
             translated_args = [self._translate_arg(index, arg) for arg in args]
             secondary_result = getattr(secondary, method)(*translated_args)
             # capture mappings between primary and secondary ID
@@ -64,18 +64,20 @@ class MultipleStorage(Storage):
     def _translate_arg(self, index: int, arg: Any) -> Any:
         if isinstance(arg, (list, tuple)):
             return [self._translate_arg(index, a) for a in arg]
-        if not isinstance(arg, schema.Model):
+        if not isinstance(arg, schema.Element):
             return arg
         return self._translate_model(index, arg)
 
-    def _translate_model(self, index: int, model: schema.Model) -> schema.Model:
+    def _translate_model(
+        self, index: int, model: schema.Element
+    ) -> schema.Element:
         translated = model.copy()
         if model._storage_id is not None:
             try:
                 translated._storage_id = self._translation[
                     f"{index}:{model.__class__.__name__.lower()}:{model._storage_id}"
                 ]
-                translated._storage_instance = self.__secondary[index]
+                translated._storage_instance = self._secondary[index]
             except KeyError as _ex:
                 pass
         return translated

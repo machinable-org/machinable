@@ -609,9 +609,14 @@ def update_dict(
     if not update:
         return d
     if not isinstance(update, Mapping):
-        raise ValueError(
-            f"Error: Expected update mapping but found {type(update).__name__}: {update}"
-        )
+        if isinstance(update, str):
+            raise ValueError(
+                f"Error: Invalid version {update}. Did you forget the ~-prefix?"
+            )
+        else:
+            raise ValueError(
+                f"Error: Expected update mapping but found {type(update).__name__}: {update}"
+            )
     for k, val in update.items():
         if isinstance(val, Mapping):
             d[k] = update_dict(d.get(k, {}), val, copy=copy)

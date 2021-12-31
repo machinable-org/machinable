@@ -32,7 +32,6 @@ jsonlines = "^3.0"
 pydantic = "^1.8.1"
 arrow = "^1.1.1"
 importlib-metadata = "^4.10.0"
-PyYAML = "^6.0"
 commandlib = "^0.3.5"
 omegaconf = "^2.1.0"
 

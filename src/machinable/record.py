@@ -6,17 +6,27 @@ from machinable import schema
 from machinable.element import Element, belongs_to
 from machinable.errors import StorageError
 from machinable.experiment import Experiment
-from machinable.types import JsonableType
+from machinable.types import JsonableType, VersionType
 
 
 class Record(Element):
     """Tabular record writer"""
 
-    _kind = "Record"
+    _key = "Record"
 
-    def __init__(self, experiment: Experiment, scope: str = "default"):
-        super().__init__()
-        self.__model__ = schema.Record(scope=scope)
+    def __init__(
+        self,
+        experiment: Experiment,
+        scope: str = "default",
+        version: VersionType = None,
+    ):
+        super().__init__(version=version)
+        self.__model__ = schema.Record(
+            module=self.__model__.module,
+            config=self.__model__.config,
+            version=self.__model__.version,
+            scope=scope,
+        )
         self.__related__["experiment"] = experiment
 
     @belongs_to

@@ -1,11 +1,20 @@
 from typing import TYPE_CHECKING, Any, List, Optional, Union
 
+from machinable import schema
+from machinable.element import Connectable, Element, defaultversion
+from machinable.group import Group
+from machinable.project import Project
+from machinable.settings import get_settings
+from machinable.types import VersionType
+
+if TYPE_CHECKING:
+    from machinable.execution.execution import Execution
+    from machinable.experiment import Experiment
 import os
 
 import arrow
 from machinable import schema
 from machinable.collection import ExperimentCollection
-from machinable.component import Component
 from machinable.group import Group, resolve_group
 from machinable.project import Project
 from machinable.types import (
@@ -18,21 +27,92 @@ from machinable.utils import Jsonable
 
 if TYPE_CHECKING:
     from machinable.element import Element
-    from machinable.execution import Execution
+    from machinable.execution.execution import Execution
     from machinable.experiment import Experiment
 
 
-class Storage(Component):
+class Storage(Connectable, Element):
     """Storage base class"""
+
+    _key = "Storage"
+    default = get_settings().default_storage
+
+    def __init__(
+        self,
+        version: VersionType = None,
+        default_group: Optional[str] = get_settings().default_group,
+    ):
+        super().__init__(version=version)
+        self.__model__ = schema.Storage(
+            module=self.__model__.module,
+            config=self.__model__.config,
+            version=self.__model__.version,
+            default_group=default_group,
+        )
 
     @classmethod
     def make(
         cls,
-        name: Optional[str] = None,
+        module: Optional[str] = None,
         version: VersionType = None,
-        parent: Union["Element", "Component", None] = None,
+        default_group: Optional[str] = get_settings().default_group,
+    ):
+        module, version = defaultversion(module, version, Storage.default)
+        return super().make(
+            module, version, base_class=Storage, default_group=default_group
+        )
+
+    @classmethod
+    def filesystem(
+        cls,
+        directory: str,
+        default_group: Optional[str] = get_settings().default_group,
     ) -> "Storage":
-        return super().make(name, version, parent)
+        return cls(
+            storage="machinable.storage.filesystem_storage",
+            version={"directory": directory},
+            default_group=default_group,
+        )
+
+    def commit(
+        self,
+        experiments: Union["Experiment", List["Experiment"]],
+        execution: Optional["Execution"] = None,
+    ) -> None:
+        from machinable.experiment import Experiment
+
+        if isinstance(experiments, Experiment):
+            experiments = [experiments]
+        for experiment in experiments:
+            if not isinstance(experiment, Experiment):
+                raise ValueError(
+                    f"Expected experiment, found: {type(experiment)} {experiment}"
+                )
+            if experiment.is_mounted():
+                continue
+            # ensure that configuration has been parsed
+            assert experiment.config is not None
+
+            group = experiment.group
+            if group is None:
+                group = Group(self.__model__.default_group)
+                experiment.__related__["group"] = group
+
+            self.create_experiment(
+                experiment=experiment,
+                group=group,
+                project=Project.get(),
+            )
+
+            # write deferred experiment data
+            for filepath, data in experiment._deferred_data.items():
+                experiment.save_file(filepath, data)
+            experiment._deferred_data = {}
+
+        if execution is None or execution.is_mounted():
+            return
+
+        self.create_execution(execution, experiments)
 
     @classmethod
     def filesystem(cls, directory: Optional[str] = None) -> "Storage":
@@ -55,7 +135,7 @@ class Storage(Component):
         execution: Union["Execution", schema.Execution],
         experiments: List[Union["Experiment", schema.Experiment]],
     ) -> schema.Execution:
-        from machinable.execution import Execution
+        from machinable.execution.execution import Execution
         from machinable.experiment import Experiment
 
         execution = Execution.model(execution)
@@ -363,7 +443,7 @@ class Storage(Component):
 
     def retrieve_related(
         self, storage_id: str, relation: str
-    ) -> Optional[schema.Model]:
+    ) -> Optional[schema.Element]:
         relations = {
             "experiment.execution": "execution",
             "execution.experiments": "experiments",
@@ -398,3 +478,9 @@ class Storage(Component):
         self, experiment_storage_id: str, filepath: str
     ) -> Optional[Any]:
         raise NotImplementedError
+
+    def __repr__(self):
+        return f"Storage <{self.__model__.default_group}>"
+
+    def __str__(self):
+        return self.__repr__()
