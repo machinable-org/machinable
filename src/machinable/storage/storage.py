@@ -35,6 +35,7 @@ class Storage(Connectable, Element):
     """Storage base class"""
 
     _kind = "Storage"
+    default = get_settings().default_storage
 
     def __init__(
         self,
@@ -54,9 +55,7 @@ class Storage(Connectable, Element):
         version: VersionType = None,
         default_group: Optional[str] = get_settings().default_group,
     ):
-        module, version = defaultversion(
-            module, version, Storage.default or get_settings().default_storage
-        )
+        module, version = defaultversion(module, version, Storage.default)
         return super().make(
             module, version, base_class=Storage, default_group=default_group
         )

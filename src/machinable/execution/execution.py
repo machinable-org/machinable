@@ -16,6 +16,7 @@ from machinable.utils import update_dict
 
 class Execution(Element):
     _kind = "Execution"
+    default = get_settings().default_execution
 
     def __init__(
         self,
@@ -36,7 +37,7 @@ class Execution(Element):
         module, version = defaultversion(
             module,
             version,
-            Execution.default or get_settings().default_execution,
+            Execution.default,
         )
         return super().make(module, version, base_class=Execution)
 

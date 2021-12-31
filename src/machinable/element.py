@@ -81,6 +81,9 @@ def has_many(f: Callable) -> Any:
     return _wrapper
 
 
+_CONNECTIONS = {}
+
+
 class Connectable:
     """Connectable trait"""
 
@@ -89,18 +92,13 @@ class Connectable:
     @classmethod
     def get(cls) -> "Connectable":
         if getattr(cls, "_kind", None) is not None:
-            exec(f"from machinable import {cls._kind}")
-            if eval(f"{cls._kind}.__connection__ is None"):
-                return cls.make() if cls._kind != "Project" else cls()
-            else:
-                return eval(f"{cls._kind}.__connection__")
+            return _CONNECTIONS.setdefault(cls._kind, cls.make())
 
         return cls() if cls.__connection__ is None else cls.__connection__
 
     def connect(self) -> "Connectable":
         if getattr(self, "_kind", None) is not None:
-            exec(f"from machinable import {self._kind}")
-            exec(f"{self._kind}.__connection__ = self")
+            _CONNECTIONS[self._kind] = self
             return self
 
         self.__class__.__connection__ = self
@@ -108,9 +106,8 @@ class Connectable:
 
     def close(self) -> "Connectable":
         if getattr(self, "_kind", None) is not None:
-            exec(f"from machinable import {self._kind}")
-            if eval(f"{self._kind}.__connection__ is self"):
-                exec(f"{self._kind}.__connection__ = None")
+            if _CONNECTIONS.get(self._kind, None) is self:
+                del _CONNECTIONS[self._kind]
 
             return self
 
@@ -119,6 +116,16 @@ class Connectable:
         return self
 
     def __enter__(self):
+        if getattr(self, "_kind", None) is not None:
+            _CONNECTIONS.setdefault(self._kind + "_scopes", [])
+            if self._kind in _CONNECTIONS:
+                # store previous context
+                _CONNECTIONS[self._kind + "_scopes"].append(
+                    _CONNECTIONS[self._kind]
+                )
+            self.connect()
+            return self
+
         self._outer_connection = (  # pylint: disable=attribute-defined-outside-init
             self.__class__.__connection__
         )
@@ -126,10 +133,20 @@ class Connectable:
         return self
 
     def __exit__(self, exc_type, exc_value, exc_traceback):
-        if self.__class__.__connection__ is self:
-            self.__class__.__connection__ = None
-        if getattr(self, "_outer_connection", None) is not None:
-            self.__class__.__connection__ = self._outer_connection
+        if getattr(self, "_kind", None) is not None:
+            if _CONNECTIONS.get(self._kind, None) is self:
+                del _CONNECTIONS[self._kind]
+            _CONNECTIONS.setdefault(self._kind + "_scopes", [])
+            if len(_CONNECTIONS[self._kind + "_scopes"]) > 0:
+                outer = _CONNECTIONS[self._kind + "_scopes"].pop()
+                if outer is not None:
+                    _CONNECTIONS[self._kind] = outer
+        else:
+
+            if self.__class__.__connection__ is self:
+                self.__class__.__connection__ = None
+            if getattr(self, "_outer_connection", None) is not None:
+                self.__class__.__connection__ = self._outer_connection
 
 
 class ConfigMethod:

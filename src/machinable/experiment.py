@@ -57,6 +57,7 @@ if TYPE_CHECKING:
 
 class Experiment(Element):  # pylint: disable=too-many-public-methods
     _kind = "Experiment"
+    default = get_settings().default_experiment
 
     def __init__(
         self,
@@ -104,7 +105,7 @@ class Experiment(Element):  # pylint: disable=too-many-public-methods
         module, version = defaultversion(
             module,
             version,
-            Experiment.default or get_settings().default_experiment,
+            Experiment.default,
         )
         return super().make(
             module,

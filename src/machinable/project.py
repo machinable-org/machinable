@@ -143,6 +143,14 @@ class Project(Connectable, Element):
         )
         self._parent: Optional[Project] = None
 
+    @classmethod
+    def make(
+        cls,
+        module: Optional[str] = None,
+        version: VersionType = None,
+    ) -> "Project":
+        return Project(module, version)
+
     def add_to_path(self) -> None:
         if (
             os.path.exists(self.__model__.directory)
