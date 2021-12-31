@@ -19,7 +19,9 @@ class Element(BaseModel):
     # morphMany relation to storage
     _storage_id: Optional[str] = PrivateAttr(default=None)
     _storage_instance: Optional["Storage"] = PrivateAttr(default=None)
+    module: Optional[str] = None
     version: List[Union[str, dict]] = []
+    config: Optional[dict] = None
 
 
 class Project(Element):
@@ -38,7 +40,6 @@ class Experiment(Element):
         default_factory=lambda: int(datetime.now().timestamp())
     )
     seed: int = Field(default_factory=generate_seed)
-    config: Optional[dict] = None
     nickname: str = Field(default_factory=generate_nickname)
     derived_from_id: Optional[str] = None
     derived_from_timestamp: Optional[int] = None

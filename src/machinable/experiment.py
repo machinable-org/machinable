@@ -48,7 +48,6 @@ from machinable.utils import (
     timestamp_to_directory,
 )
 from omegaconf import OmegaConf
-from omegaconf.dictconfig import DictConfig
 
 if TYPE_CHECKING:
     from machinable.execution.execution import Execution
@@ -78,9 +77,11 @@ class Experiment(Element):  # pylint: disable=too-many-public-methods
         if seed is None:
             seed = generate_seed()
         self.__model__ = schema.Experiment(
-            version=self.__model__.version, seed=seed
+            module=self.__model__.module,
+            config=self.__model__.config,
+            version=self.__model__.version,
+            seed=seed,
         )
-        self._resolved_config: Optional[DictConfig] = None
         self._deferred_data = {}
         if resources is not None:
             self.resources(resources)
@@ -260,46 +261,6 @@ class Experiment(Element):  # pylint: disable=too-many-public-methods
         Storage.get().commit(self)
 
         return self
-
-    # def use(
-    #     self,
-    #     slot: Optional[str] = None,
-    #     component: Optional[str] = None,
-    #     version: VersionType = None,
-    #     overwrite: bool = False,
-    # ) -> "Experiment":
-    #     """Adds an element
-
-    #     # Arguments
-    #     slot: The slot name
-    #     component: The name of the component as defined in the machinable.yaml
-    #     version: Configuration to override the default config
-    #     overwrite: If True, will overwrite existing uses
-    #     """
-    #     self._assert_editable()
-
-    #     if overwrite:
-    #         self.__model__.uses = {}
-
-    #     if slot is not None:
-    #         self.__model__.uses[slot] = compact(component, version)
-
-    #     self._clear_caches()
-
-    #     return self
-
-    @property
-    def config(self) -> DictConfig:
-        if self._resolved_config is None:
-            if self.__model__.config is not None:
-                self._resolved_config = OmegaConf.create(self.__model__.config)
-            else:
-                self._resolved_config = super().config
-                self.__model__.config = OmegaConf.to_container(
-                    self._resolved_config
-                )
-
-        return self._resolved_config
 
     @property
     def experiment_id(self) -> str:

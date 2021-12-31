@@ -134,7 +134,6 @@ def test_element_config():
     # introspection
     assert c._version_ == []
     assert c._update_ == {}
-    assert c._module_ == "tests.test_element"
     assert c._raw_["method"] == "hello()"
 
 

@@ -142,14 +142,37 @@ class Project(Connectable, Element):
             version=normversion(version),
         )
         self._parent: Optional[Project] = None
+        self._provider: str = "_machinable/project"
+        self._resolved_provider: Optional[Project] = None
 
     @classmethod
     def make(
         cls,
-        module: Optional[str] = None,
+        directory: Optional[str] = None,
         version: VersionType = None,
     ) -> "Project":
-        return Project(module, version)
+        return Project(directory, version).provider()
+
+    def provider(self, reload: Union[str, bool] = False) -> "Project":
+        """Resolves and returns the provider instance"""
+        if isinstance(reload, str):
+            self._provider = reload
+            self._resolved_provider = None
+        if self._resolved_provider is None or reload:
+            if isinstance(self._provider, str):
+                self._resolved_provider = find_subclass_in_module(
+                    module=import_from_directory(
+                        self._provider, self.__model__.directory
+                    ),
+                    base_class=Project,
+                    default=Project,
+                )(self.__model__.directory, version=self.__model__.version)
+            else:
+                self._resolved_provider = Project(
+                    version=self.__model__.version
+                )
+
+        return self._resolved_provider
 
     def add_to_path(self) -> None:
         if (
@@ -212,6 +235,8 @@ class Project(Connectable, Element):
         if base_class is None:
             base_class = Element
 
+        path = module
+
         # import project-relative
         module = (
             import_from_directory(
@@ -239,9 +264,9 @@ class Project(Connectable, Element):
             )
 
         try:
+            element_class._module = path  # assign project-relative module
             return element_class(version=version, **constructor_kwargs)
         except TypeError as _e:
-            raise
             raise MachinableError(
                 f"Could not instantiate element {element_class.__module__}.{element_class.__name__}"
             ) from _e

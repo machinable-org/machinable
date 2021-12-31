@@ -15,7 +15,8 @@ def test_storage_interface(tmpdir):
 
     # serialization
     restored = Storage.from_json(repository.as_json())
-    # assert restored.config.directory == str(tmpdir)
+    assert restored.__module__ == repository.__module__
+    assert restored.config.directory == str(tmpdir)
 
     # deferred data
     experiment = Experiment()

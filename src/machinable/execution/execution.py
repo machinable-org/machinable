@@ -24,6 +24,8 @@ class Execution(Element):
     ):
         super().__init__(version)
         self.__model__ = schema.Execution(
+            module=self.__model__.module,
+            config=self.__model__.config,
             version=self.__model__.version,
             host=Project.get().get_host_info(),
         )
