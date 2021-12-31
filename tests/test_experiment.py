@@ -77,7 +77,7 @@ def test_experiment(tmp_path):
     assert not experiment.is_incomplete()
 
     # execution data
-    experiment = Experiment("basic")
+    experiment = Experiment()
     with pytest.raises(ValueError):
         experiment.save_execution_data("test", "data")
     execution = Execution().add(experiment)
@@ -92,14 +92,14 @@ def test_experiment_relations(tmp_path):
     ).connect()
     Project("./tests/samples/project").connect()
 
-    experiment = Experiment("basic", group="test/group")
+    experiment = Experiment(group="test/group")
     execution = Execution().add(experiment)
     execution.dispatch()
 
     with pytest.raises(errors.ConfigurationError):
         experiment.version("attempt_overwrite")
 
-    derived = Experiment("basic", derived_from=experiment)
+    derived = Experiment(derived_from=experiment)
     assert derived.ancestor is experiment
     derived_execution = Execution().add(derived).dispatch()
 
@@ -112,12 +112,11 @@ def test_experiment_relations(tmp_path):
     assert derived.ancestor.experiment_id == experiment.experiment_id
     assert experiment.derived[0].experiment_id == derived.experiment_id
 
-    derived = Experiment("basic", derived_from=experiment)
+    derived = Experiment(derived_from=experiment)
     Execution().add(derived).dispatch()
     assert len(experiment.derived) == 2
 
     assert experiment.derive().experiment_id != experiment.experiment_id
-    assert experiment.derive("other").__model__.interface == ["other"]
 
     derived = experiment.derive(version=experiment.config)
     Execution().add(derived).dispatch()

@@ -138,11 +138,11 @@ def test_element_config():
 def test_component_config_schema():
     class Basic(Element):
         class Config:
-            hello: str
-            world: float
+            hello: str = ""
+            world: float = RequiredField
 
     # detect missing values
-    with pytest.raises(pydantic.error_wrappers.ValidationError):
+    with pytest.raises(omegaconf.errors.MissingMandatoryValue):
         schema = Basic({}).config
 
     # casting
@@ -151,22 +151,22 @@ def test_component_config_schema():
     assert schema.config.world == 0.1
 
     with pytest.raises(pydantic.error_wrappers.ValidationError):
-        schema = Basic({"hello": 1, "world": "0.1"}, {"typo": 1}).config
+        schema = Basic([{"hello": 1, "world": "0.1"}, {"typo": 1}]).config
 
     class Dataclass(Element):
         @dataclass
         class Config:
-            test: str
+            test: str = ""
 
-    assert Dataclass({"test": 1}, {"test": 0.1}).config.test == "0.1"
+    assert Dataclass([{"test": 1}, {"test": 0.1}]).config.test == "0.1"
 
     class Vector(pydantic.BaseModel):
-        a: str
-        b: float
+        a: str = ""
+        b: float = 0.0
 
     class Nesting(Element):
         class Config:
-            value: Vector
+            value: Vector = Vector()
 
     schema = Nesting({"value": {"a": 1, "b": 1}})
     assert schema.config.value.a == "1"
@@ -257,7 +257,7 @@ def test_element_relations(tmp_path):
     print(type(Storage.get()), "adfsdfdsaffasdf")
     Project("./tests/samples/project").connect()
 
-    experiment = Experiment("basic", group="test/group")
+    experiment = Experiment(group="test/group")
     execution = Execution().add(experiment)
     execution.dispatch()
 
@@ -288,7 +288,7 @@ def test_element_relations(tmp_path):
     class CustomExecution(Execution):
         pass
 
-    experiment = CustomExperiment("basic")
+    experiment = CustomExperiment()
     execution = CustomExecution().add(experiment)
     execution.dispatch()
     experiment.__related__ = {}

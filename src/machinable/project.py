@@ -109,7 +109,7 @@ def fetch_vendors(project: "Project"):
                 os.unlink(top_level)
 
             if (
-                project.provider().on_resolve_vendor(name, source, top_level)
+                project.on_resolve_vendor(name, source, top_level)
                 is not False
             ):
                 # fetch import to the top-level if it does not exist

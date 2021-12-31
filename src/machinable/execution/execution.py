@@ -39,7 +39,7 @@ class Execution(Element):
         cls,
         module: Optional[str] = None,
         version: VersionType = None,
-    ):
+    ) -> "Execution":
         module, version = defaultversion(
             module,
             version,
@@ -66,7 +66,7 @@ class Execution(Element):
 
     @classmethod
     def from_model(cls, model: schema.Execution) -> "Execution":
-        instance = cls(model.engine[0])
+        instance = cls(model.version)
         instance.__model__ = model
         return instance
 
@@ -98,13 +98,6 @@ class Execution(Element):
         Storage.get().commit(experiments=self.experiments, execution=self)
         return self
 
-    def dispatch(self) -> "Execution":
-        """Commits and dispatches the execution"""
-        self.commit()
-        self.engine().dispatch()
-
-        return self
-
     @property
     def timestamp(self) -> float:
         return self.__model__.timestamp
@@ -114,8 +107,8 @@ class Execution(Element):
 
     def resources(self, experiment: "Experiment") -> Dict:
         default_resources = None
-        if hasattr(experiment.interface(), "default_resources"):
-            default_resources = experiment.interface().default_resources(
+        if hasattr(experiment, "default_resources"):
+            default_resources = experiment.default_resources(
                 engine=self
             )
 
@@ -149,7 +142,10 @@ class Execution(Element):
 
         return {}
 
-    def dispatch(self) -> Any:
+    def dispatch(self) -> "Execution":
+        """Commits and dispatches the execution"""
+        self.commit()
+
         if self.on_before_dispatch() is False:
             return False
 
@@ -160,7 +156,7 @@ class Execution(Element):
 
         self.on_after_dispatch(results)
 
-        return results
+        return self
 
     def on_before_dispatch(self) -> Optional[bool]:
         """Event triggered before engine dispatch of an execution

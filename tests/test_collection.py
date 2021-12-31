@@ -16,7 +16,7 @@ def test_collect():
 def test_experiment_collection(tmp_path):
     Project("./tests/samples/project").connect()
     Storage.filesystem(str(tmp_path)).connect()
-    collection = Experiment.collect([Experiment("basic") for _ in range(5)])
+    collection = Experiment.collect([Experiment() for _ in range(5)])
     assert isinstance(collection, ExperimentCollection)
     # collection.as_dataframe()
     collection.execute()

@@ -104,7 +104,7 @@ class Experiment(Element):  # pylint: disable=too-many-public-methods
         module, version = defaultversion(
             module,
             version,
-            Experiment.default or get_settings().default_experiment
+            Experiment.default or get_settings().default_experiment,
         )
         return super().make(
             module,
@@ -191,32 +191,24 @@ class Experiment(Element):  # pylint: disable=too-many-public-methods
 
     def derive(
         self,
-        interface: Optional[str] = sentinel,
         version: VersionType = sentinel,
         group: Union[Group, str, None] = sentinel,
         resources: Optional[Dict] = sentinel,
-        uses: Optional[Dict] = sentinel,
         seed: Union[int, None] = sentinel,
     ) -> "Experiment":
-        if interface is sentinel:
-            interface = self.__model__.interface[0]
         if version is sentinel:
-            version = self.__model__.interface[1:]
+            version = self.__model__.version
         if group is sentinel:
             group = self.group.clone() if self.group is not None else None
         if resources is sentinel:
             resources = copy.deepcopy(self.resources())
-        if uses is sentinel:
-            uses = copy.deepcopy(self.__model__.uses)
         if seed is sentinel:
             seed = None
 
         experiment = Experiment(
-            interface,
             version,
             group=group,
             resources=resources,
-            uses=uses,
             seed=seed,
             derived_from=self,
         )
@@ -241,14 +233,12 @@ class Experiment(Element):  # pylint: disable=too-many-public-methods
         return self.__model__.version
 
     def execute(
-        self, engine: Union[str, None] = None, version: VersionType = None
+        self, using: Union[str, None] = None, version: VersionType = None
     ) -> "Experiment":
         """Executes the experiment"""
         from machinable.execution.execution import Execution
 
-        Execution(engine=engine, version=version).add(
-            experiment=self
-        ).dispatch()
+        Execution.make(using, version=version).add(experiment=self).dispatch()
 
         return self
 
@@ -260,7 +250,7 @@ class Experiment(Element):  # pylint: disable=too-many-public-methods
             return False
 
         self.save_execution_data(
-            "host.json", data=Project.get().provider().get_host_info()
+            "host.json", data=Project.get().get_host_info()
         )
 
         return True

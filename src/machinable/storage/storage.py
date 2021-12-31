@@ -99,7 +99,7 @@ class Storage(Connectable, Element):
                 group = Group(self.__model__.default_group)
                 experiment.__related__["group"] = group
 
-            self.storage().create_experiment(
+            self.create_experiment(
                 experiment=experiment,
                 group=group,
                 project=Project.get(),
@@ -113,7 +113,7 @@ class Storage(Connectable, Element):
         if execution is None or execution.is_mounted():
             return
 
-        self.storage().create_execution(execution, experiments)
+        self.create_execution(execution, experiments)
 
     @classmethod
     def filesystem(cls, directory: Optional[str] = None) -> "Storage":
