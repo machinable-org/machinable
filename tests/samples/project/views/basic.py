@@ -5,15 +5,8 @@ from machinable.types import VersionType
 
 
 class TestView(Experiment):
-    def __init__(
-        self,
-        interface: Optional[str] = None,
-        version: VersionType = None,
-        derived_from: Optional["Experiment"] = None,
-    ):
-        super().__init__(
-            interface=interface, version=version, derived_from=derived_from
-        )
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
         self._state = None
 
     def hello(self):

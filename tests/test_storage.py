@@ -7,18 +7,18 @@ from machinable.testing import storage_tests
 
 def test_storage_interface(tmpdir):
     Project("./tests/samples/project").connect()
-    repository = Storage(
+    repository = Storage.make(
         "machinable.storage.filesystem_storage", {"directory": str(tmpdir)}
     )
     repository_b = Storage.filesystem(str(tmpdir))
     assert (
-        repository.storage().config.directory
-        == repository_b.storage().config.directory
+        repository.config.directory
+        == repository_b.config.directory
     )
 
     # serialization
     restored = Storage.from_json(repository.as_json())
-    assert restored.storage().config.directory == str(tmpdir)
+    assert restored.config.directory == str(tmpdir)
 
     # deferred data
     experiment = Experiment("dummy")

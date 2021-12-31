@@ -7,6 +7,7 @@ import sqlite3
 import arrow
 from machinable import schema
 from machinable.errors import StorageError
+from machinable.settings import get_settings
 from machinable.storage.storage import Storage
 from machinable.types import DatetimeType, JsonableType, VersionType
 from machinable.utils import load_file, save_file, timestamp_to_directory
@@ -19,15 +20,14 @@ class FilesystemStorage(Storage):
     class Config:
         """Config annotation"""
 
-        directory: Optional[str]
+        directory: Optional[str] = None
 
     def __init__(
         self,
-        config: dict,
         version: VersionType,
-        parent: Union["Element", None] = None,
+        default_group: Optional[str] = get_settings().default_group,
     ):
-        super().__init__(config, version=version, parent=parent)
+        super().__init__(version=version, default_group=default_group)
         if self.config.directory is None:
             return
         os.makedirs(self.config.directory, exist_ok=True)
@@ -106,7 +106,7 @@ class FilesystemStorage(Storage):
             ) VALUES (?,?,?)""",
             (
                 execution_directory,
-                json.dumps(execution.engine),
+                json.dumps(execution.__module__),
                 execution.timestamp,
             ),
         )
@@ -196,7 +196,7 @@ class FilesystemStorage(Storage):
                 ) VALUES (?,?,?,?,?,?,?,?,?,?,?)""",
             (
                 storage_id,
-                json.dumps(experiment.interface),
+                json.dumps(experiment.__module__),
                 json.dumps(experiment.uses),
                 experiment.experiment_id,
                 experiment.seed,

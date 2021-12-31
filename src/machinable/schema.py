@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Dict, Optional
+from typing import TYPE_CHECKING, Dict, Optional, List, Union
 
 from datetime import datetime
 
@@ -15,22 +15,21 @@ if TYPE_CHECKING:
     from machinable.storage.storage import Storage
 
 
-class Model(BaseModel):
+class Element(BaseModel):
     # morphMany relation to storage
     _storage_id: Optional[str] = PrivateAttr(default=None)
     _storage_instance: Optional["Storage"] = PrivateAttr(default=None)
+    version: List[Union[str, dict]] = []
 
 
-class Project(Model):
+class Project(Element):
     directory: str
-    version: VersionType = None
     code_version: Optional[dict] = None
     code_diff: Optional[str] = None
     host_info: Optional[dict] = None
 
 
-class Experiment(Model):
-    interface: ElementType
+class Experiment(Element):
     uses: Dict[str, ElementType] = {}
     experiment_id: str = Field(
         default_factory=lambda: encode_experiment_id(generate_experiment_id())
@@ -45,24 +44,22 @@ class Experiment(Model):
     derived_from_timestamp: Optional[int] = None
 
 
-class Storage(Model):
-    storage: ElementType
+class Storage(Element):
     default_group: Optional[str] = None
 
 
-class Group(Model):
+class Group(Element):
     pattern: str
     path: Optional[str] = None
 
 
-class Execution(Model):
-    engine: ElementType
+class Execution(Element):
     resources: Optional[dict] = None
     host: Optional[dict] = None
     timestamp: float = Field(default_factory=lambda: datetime.now().timestamp())
 
 
-class Record(Model):
+class Record(Element):
     scope: str
     current: dict = {}
     last: dict = None

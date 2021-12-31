@@ -1,4 +1,13 @@
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Dict,
+    List,
+    NoReturn,
+    Optional,
+    Tuple,
+    Union,
+)
 
 import copy
 import os
@@ -16,6 +25,7 @@ from machinable.element import (
     Element,
     belongs_to,
     compact,
+    defaultversion,
     has_many,
     normversion,
 )
@@ -41,7 +51,7 @@ from omegaconf import OmegaConf
 from omegaconf.dictconfig import DictConfig
 
 if TYPE_CHECKING:
-    from machinable.execution import Execution
+    from machinable.execution.execution import Execution
     from machinable.record import Record
 
 
@@ -50,7 +60,6 @@ class Experiment(Element):  # pylint: disable=too-many-public-methods
 
     def __init__(
         self,
-        using: Optional[str] = None,
         version: VersionType = None,
         group: Union[Group, str, None] = None,
         resources: Optional[Dict] = None,
@@ -64,13 +73,11 @@ class Experiment(Element):  # pylint: disable=too-many-public-methods
         version: Configuration to override the default config
         derived_from: Optional ancestor experiment
         """
-        super().__init__()
-        if using is None:
-            using = Experiment.default or get_settings().default_experiment
+        super().__init__(version=version)
         if seed is None:
             seed = generate_seed()
         self.__model__ = schema.Experiment(
-            interface=compact(using, version), seed=seed
+            version=self.__model__.version, seed=seed
         )
         self._resolved_config: Optional[DictConfig] = None
         self._deferred_data = {}
@@ -83,6 +90,31 @@ class Experiment(Element):  # pylint: disable=too-many-public-methods
             self.__model__.derived_from_timestamp = derived_from.timestamp
             self.__related__["ancestor"] = derived_from
         self._events: Events = Events()
+
+    @classmethod
+    def make(
+        cls,
+        module: Optional[str] = None,
+        version: VersionType = None,
+        group: Union[Group, str, None] = None,
+        resources: Optional[Dict] = None,
+        seed: Union[int, None] = None,
+        derived_from: Optional["Experiment"] = None,
+    ):
+        module, version = defaultversion(
+            module,
+            version,
+            Experiment.default or get_settings().default_experiment
+        )
+        return super().make(
+            module,
+            version,
+            base_class=Experiment,
+            group=group,
+            resources=resources,
+            seed=seed,
+            derived_from=derived_from,
+        )
 
     @belongs_to
     def group():
@@ -106,13 +138,13 @@ class Experiment(Element):  # pylint: disable=too-many-public-methods
 
     @has_many
     def executions() -> "ExecutionCollection":
-        from machinable.execution import Execution
+        from machinable.execution.execution import Execution
 
         return Execution, ExecutionCollection
 
     @belongs_to
     def execution() -> "Execution":
-        from machinable.execution import Execution
+        from machinable.execution.execution import Execution
 
         return Execution, False
 
@@ -123,7 +155,7 @@ class Experiment(Element):  # pylint: disable=too-many-public-methods
 
     @classmethod
     def from_model(cls, model: schema.Experiment) -> "Experiment":
-        instance = cls(model.interface[0])
+        instance = cls()
         instance.__model__ = model
         return instance
 
@@ -191,46 +223,28 @@ class Experiment(Element):  # pylint: disable=too-many-public-methods
 
         return experiment
 
-    @property
-    def component(self) -> str:
-        return self.__model__.interface[0]
-
     def version(
         self, version: VersionType = sentinel, overwrite: bool = False
     ) -> List[Union[str, dict]]:
         self._assert_editable()
 
         if version is sentinel:
-            return self.__model__.interface[1:]
+            return self.__model__.version
 
         if overwrite:
-            self.__model__.interface = compact(
-                self.__model__.interface[0], version
-            )
+            self.__model__.version = normversion(version)
         else:
-            self.__model__.interface.extend(normversion(version))
+            self.__model__.version.extend(normversion(version))
 
         self._clear_caches()
 
-        return self.__model__.interface[1:]
-
-    # def interface(self, reload: bool = False) -> Interface:
-    #     """Resolves and returns the interface instance"""
-    #     if self._resolved_interface is None or reload:
-    #         self._resolved_interface = Interface.make(
-    #             self.__model__.interface[0],
-    #             self.__model__.interface[1:],
-    #             slots=self.__model__.uses,
-    #             parent=self,
-    #         )
-
-    #     return self._resolved_interface
+        return self.__model__.version
 
     def execute(
         self, engine: Union[str, None] = None, version: VersionType = None
     ) -> "Experiment":
         """Executes the experiment"""
-        from machinable.execution import Execution
+        from machinable.execution.execution import Execution
 
         Execution(engine=engine, version=version).add(
             experiment=self
@@ -256,36 +270,32 @@ class Experiment(Element):  # pylint: disable=too-many-public-methods
 
         return self
 
-    def use(
-        self,
-        slot: Optional[str] = None,
-        component: Optional[str] = None,
-        version: VersionType = None,
-        overwrite: bool = False,
-    ) -> "Experiment":
-        """Adds a component
+    # def use(
+    #     self,
+    #     slot: Optional[str] = None,
+    #     component: Optional[str] = None,
+    #     version: VersionType = None,
+    #     overwrite: bool = False,
+    # ) -> "Experiment":
+    #     """Adds an element
 
-        # Arguments
-        slot: The slot name
-        component: The name of the component as defined in the machinable.yaml
-        version: Configuration to override the default config
-        overwrite: If True, will overwrite existing uses
-        """
-        self._assert_editable()
+    #     # Arguments
+    #     slot: The slot name
+    #     component: The name of the component as defined in the machinable.yaml
+    #     version: Configuration to override the default config
+    #     overwrite: If True, will overwrite existing uses
+    #     """
+    #     self._assert_editable()
 
-        if overwrite:
-            self.__model__.uses = {}
+    #     if overwrite:
+    #         self.__model__.uses = {}
 
-        if slot is not None:
-            self.__model__.uses[slot] = compact(component, version)
+    #     if slot is not None:
+    #         self.__model__.uses[slot] = compact(component, version)
 
-        self._clear_caches()
+    #     self._clear_caches()
 
-        return self
-
-    @property
-    def uses(self) -> Dict[str, ElementType]:
-        return self.__model__.uses
+    #     return self
 
     @property
     def config(self) -> DictConfig:
@@ -293,9 +303,9 @@ class Experiment(Element):  # pylint: disable=too-many-public-methods
             if self.__model__.config is not None:
                 self._resolved_config = OmegaConf.create(self.__model__.config)
             else:
-                self._resolved_config = self.interface().config
+                self._resolved_config = super().config
                 self.__model__.config = OmegaConf.to_container(
-                    self.interface().config
+                    self._resolved_config
                 )
 
         return self._resolved_config
@@ -520,11 +530,11 @@ class Experiment(Element):  # pylint: disable=too-many-public-methods
         try:
             self.on_dispatch()
 
-            if self.experiment.is_mounted():
-                self.experiment.mark_started()
-                self._events.on("heartbeat", self.experiment.update_heartbeat)
+            if self.is_mounted():
+                self.mark_started()
+                self._events.on("heartbeat", self.update_heartbeat)
                 self._events.heartbeats(seconds=15)
-                self.experiment.save_host_info()
+                self.save_host_info()
 
             if self.on_seeding() is not False:
                 self.set_seed()
@@ -545,14 +555,9 @@ class Experiment(Element):  # pylint: disable=too-many-public-methods
             # destroy
             self.on_before_destroy()
             self._events.heartbeats(None)
-            for component in self.components.values():
-                on_destroy = getattr(component, "on_destroy", None)
-                if callable(on_destroy):
-                    on_destroy()
-
             self.on_destroy()
-            if self.experiment.is_mounted():
-                self.experiment.update_heartbeat(mark_finished=True)
+            if self.is_mounted():
+                self.update_heartbeat(mark_finished=True)
 
             self.on_after_destroy()
 
@@ -573,13 +578,13 @@ class Experiment(Element):  # pylint: disable=too-many-public-methods
         """Applies a random seed
 
         # Arguments
-        seed: Integer, random seed. If None, self.experiment.seed will be used
+        seed: Integer, random seed. If None, self.seed will be used
 
         To prevent the automatic seeding, you can overwrite
         the on_seeding event and return False
         """
         if seed is None:
-            seed = self.experiment.seed
+            seed = self.seed
 
         return apply_seed(seed)
 

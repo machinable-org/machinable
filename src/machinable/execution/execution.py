@@ -5,12 +5,20 @@ import os
 
 from machinable import schema
 from machinable.collection import ExperimentCollection
-from machinable.element import Element, compact, has_many, belongs_to
+from machinable.element import (
+    Element,
+    compact,
+    defaultversion,
+    has_many,
+    belongs_to,
+    normversion,
+)
 from machinable.experiment import Experiment
 from machinable.project import Project
 from machinable.settings import get_settings
 from machinable.types import VersionType
 from machinable.utils import update_dict
+from machinable.storage import Storage
 
 
 class Execution(Element):
@@ -18,17 +26,26 @@ class Execution(Element):
 
     def __init__(
         self,
-        using: Union[str, None] = None,
         version: VersionType = None,
     ):
-        super().__init__()
-        if using is None:
-            engine = Execution.default or get_settings().default_execution
+        super().__init__(version)
         self.__model__ = schema.Execution(
-            engine=compact(engine, version),
-            host=Project.get().provider().get_host_info(),
+            version=self.__model__.version,
+            host=Project.get().get_host_info(),
         )
-        self._resolved_engine: Optional[Engine] = None
+
+    @classmethod
+    def make(
+        cls,
+        module: Optional[str] = None,
+        version: VersionType = None,
+    ):
+        module, version = defaultversion(
+            module,
+            version,
+            Execution.default or get_settings().default_execution,
+        )
+        return super().make(module, version, base_class=Execution)
 
     @has_many
     def experiments() -> ExperimentCollection:
@@ -42,33 +59,16 @@ class Execution(Element):
 
     @classmethod
     def local(cls, processes: Optional[int] = None) -> "Execution":
-        return cls(
-            engine="machinable.engine.local_engine",
+        return cls.make(
+            "machinable.execution.local_execution",
             version={"processes": processes},
         )
-
-    @property
-    def version(self) -> VersionType:
-        return self.__model__.engine[1:]
-
-    @property
-    def component(self) -> str:
-        return self.__model__.engine[0]
 
     @classmethod
     def from_model(cls, model: schema.Execution) -> "Execution":
         instance = cls(model.engine[0])
         instance.__model__ = model
         return instance
-
-    def engine(self, reload: bool = False) -> "Engine":
-        """Resolves and returns the engine instance"""
-        if self._resolved_engine is None or reload:
-            self._resolved_engine = Engine.make(
-                self.__model__.engine[0], self.__model__.engine[1:], parent=self
-            )
-
-        return self._resolved_engine
 
     def add(
         self, experiment: Union[Experiment, List[Experiment]]
@@ -174,11 +174,11 @@ class Execution(Element):
     def _dispatch(self) -> List[Any]:
         return [
             self._dispatch_experiment(experiment)
-            for experiment in self.execution.experiments
+            for experiment in self.experiments
         ]
 
     def _dispatch_experiment(self, experiment: "Experiment") -> Any:
-        return experiment.interface().dispatch()
+        return experiment.dispatch()
 
     def __str__(self):
         return self.__repr__()

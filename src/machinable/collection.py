@@ -1388,12 +1388,12 @@ class ExperimentCollection(Collection):
         return pandas.DataFrame.from_dict(data)
 
     def execute(
-        self, engine: Union[str, None] = None, version: VersionType = None
+        self, using: Union[str, None] = None, version: VersionType = None
     ) -> "ExperimentCollection":
         """Executes all experiments in the collection"""
-        from machinable.execution import Execution
+        from machinable.execution.execution import Execution
 
-        execution = Execution(engine=engine, version=version)
+        execution = Execution.make(using, version=version)
 
         for experiment in self:
             execution.add(experiment=experiment)

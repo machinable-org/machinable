@@ -2,13 +2,11 @@ from typing import (
     TYPE_CHECKING,
     Any,
     Callable,
-    Dict,
     List,
     Optional,
     Tuple,
     Union,
 )
-
 import collections
 import copy
 
@@ -28,9 +26,6 @@ from machinable.errors import ConfigurationError
 from machinable.types import ElementType, VersionType
 from machinable.utils import (
     Jsonable,
-    find_subclass_in_module,
-    import_from_directory,
-    resolve_at_alias,
     unflatten_dict,
     update_dict,
 )
@@ -112,10 +107,22 @@ class Connectable:
         return cls() if cls.__connection__ is None else cls.__connection__
 
     def connect(self) -> "Connectable":
+        if getattr(self, "_kind", None) is not None:
+            exec(f"from machinable import {self._kind}")
+            exec(f"{self._kind}.__connection__ = self")
+            return self
+
         self.__class__.__connection__ = self
         return self
 
     def close(self) -> "Connectable":
+        if getattr(self, "_kind", None) is not None:
+            exec(f"from machinable import {self._kind}")
+            if eval(f"{self._kind}.__connection__ is self"):
+                exec(f"{self._kind}.__connection__ = None")
+
+            return self
+
         if self.__class__.__connection__ is self:
             self.__class__.__connection__ = None
         return self
@@ -197,117 +204,67 @@ def normversion(version: VersionType = None) -> List[Union[str, dict]]:
 
 
 def compact(
-    component: Union[str, List[Union[str, dict, None]]],
+    element: Union[str, List[Union[str, dict, None]]],
     version: VersionType = None,
 ) -> ElementType:
-    if isinstance(component, (list, tuple, omegaconf.listconfig.ListConfig)):
-        component, *default_version = component
+    if isinstance(element, (list, tuple, omegaconf.listconfig.ListConfig)):
+        element, *default_version = element
         if not isinstance(version, (list, tuple)):
             version = [version]
         version = list(default_version) + version
 
-    if not isinstance(component, str):
+    if not isinstance(element, str):
         raise ValueError(
-            f"Invalid component, expected str but found <{type(component).__name__}>: {component}"
+            f"Invalid component, expected str but found <{type(element).__name__}>: {element}"
         )
 
-    return [component] + normversion(version)
+    return [element] + normversion(version)
+
+
+def defaultversion(
+    element: Optional[str], version: VersionType, default: VersionType
+) -> Tuple[str, VersionType]:
+    if element is not None:
+        return element, version
+
+    default = normversion(default)
+    return default[0], default[1:] + normversion(version)
 
 
 def extract(
-    compact_component: Union[str, List[Union[str, dict]], None]
+    compact_element: Union[str, List[Union[str, dict]], None]
 ) -> Tuple[Optional[str], Optional[List[Union[str, dict]]]]:
-    if compact_component is None:
+    if compact_element is None:
         return None, None
 
-    if isinstance(compact_component, str):
-        return compact_component, None
+    if isinstance(compact_element, str):
+        return compact_element, None
 
-    if not isinstance(compact_component, (list, tuple)):
+    if not isinstance(compact_element, (list, tuple)):
         raise ValueError(
-            f"Invalid component defintion. Expected list or str but found {compact_component}"
+            f"Invalid component defintion. Expected list or str but found {compact_element}"
         )
 
-    if len(compact_component) == 0:
+    if len(compact_element) == 0:
         raise ValueError(
             f"Invalid component defintion. Expected str or non-empty list."
         )
 
-    if not isinstance(compact_component[0], str):
+    if not isinstance(compact_element[0], str):
         raise ValueError(
             f"Invalid component defintion. First element in list has to be a string."
         )
 
-    if len(compact_component) == 1:
-        return compact_component[0], None
+    if len(compact_element) == 1:
+        return compact_element[0], None
 
-    return compact_component[0], normversion(compact_component[1:])
-
-
-def _internal_key(key):
-    return key.startswith("_") and key.endswith("_")
+    return compact_element[0], normversion(compact_element[1:])
 
 
-def _get(
-    self,
-    name: str,
-    version: VersionType = None,
-    uses: Optional[dict] = None,
-    parent: Union["Element", "Component", None] = None,
-) -> "Element":
-    config = {}
-    kind = "components"
+def transfer_to(src: "Element", destination: "Element") -> "Element":
+    destination.__model__ = src.__model__
 
-    if uses is None:
-        uses = {}
-    if not isinstance(uses, dict):
-        raise ValueError(f"Uses must be a mapping, found {uses}")
-    uses = {k: compact(v) for k, v in uses.items()}
-
-    if name in self.parsed_config():
-        component = self.parsed_config()[name]
-        module = self.provider().on_component_import(component["module"], self)
-        if module is None or isinstance(module, str):
-            module = import_from_directory(
-                module if isinstance(module, str) else component["module"],
-                self.__model__.directory,
-                or_fail=True,
-            )
-
-        config = {
-            **component["config_data"],
-            "_lineage_": component["lineage"],
-        }
-        kind = component["kind"]
-    else:
-        try:
-            module = importlib.import_module(name)
-        except ModuleNotFoundError as _e:
-            raise ValueError(f"Could not find component '{name}'") from _e
-
-    base_class = self.provider().get_component_class(kind)
-    if base_class is None:
-        raise ConfigurationError(
-            f"Could not resolve component type {kind}. "
-            "Is it registered in the project's provider?"
-        )
-    component_class = find_subclass_in_module(module, base_class)
-    if component_class is None:
-        raise ConfigurationError(
-            f"Could not find a component inheriting from the {base_class.__name__} base class. "
-            f"Is it correctly defined in {module.__name__}?"
-        )
-
-    try:
-        return component_class(
-            config={**config, "_uses_": uses},
-            version=version,
-            parent=parent,
-        )
-    except TypeError as _e:
-        raise MachinableError(
-            f"Could not instantiate component {component_class.__module__}.{component_class.__name__}"
-        ) from _e
+    return destination
 
 
 class Element(Jsonable):
@@ -316,36 +273,38 @@ class Element(Jsonable):
     _kind = None
     default: Optional["Element"] = None
 
-    def __new__(cls, *args, **kwargs):
-        view = args[0] if len(args) > 0 else False
-        if isinstance(view, str):
-            from machinable.project import Project
-
-            module = import_from_directory(view, Project.get().path())
-            view_class = find_subclass_in_module(module, cls)
-            # if view_class is None:
-            #     raise ConfigurationError(
-            #         f"Could not find a component inheriting from the {base_class.__name__} base class. "
-            #         f"Is it correctly defined in {module.__name__}?"
-            #     )
-            if view_class is not None:
-                return super().__new__(view_class)
-
-        return super().__new__(cls)
-
-    def __init__(
-        self, version: VersionType = None, parent: Union["Element", None] = None
-    ):
+    def __init__(self, version: VersionType = None):
         super().__init__()
-
-        self.__model__: schema.Model = None
+        self.__model__ = schema.Element(version=normversion(version))
         self.__related__ = {}
-        self._cache = {}
-        self.__config: Optional[dict] = None
-        self.__version = normversion(version)
-        self.__parent = parent
         self._config: Optional[DictConfig] = None
-        self._resolved_components: Dict[str, "Component"] = {}
+        self._cache = {}
+
+    @classmethod
+    def make(
+        cls,
+        module: Optional[str] = None,
+        version: VersionType = None,
+        base_class: "Element" = None,
+        **constructor_kwargs,
+    ) -> "Element":
+        if module is None:
+            if (
+                cls.__module__.startswith("machinable.element")
+                and cls.__name__ == "Element"
+            ):
+                raise ValueError("You have to provide an element name.")
+
+            module = cls.__module__
+
+        from machinable.project import Project
+
+        return Project.get().element(
+            module=module,
+            version=version,
+            base_class=base_class,
+            **constructor_kwargs,
+        )
 
     def mount(self, storage: "Storage", storage_id: Any) -> bool:
         if self.__model__ is None:
@@ -365,15 +324,8 @@ class Element(Jsonable):
             and self.__model__._storage_id is not None
         )
 
-    def __getitem__(self, view: str) -> "Element":
-        from machinable.view import from_element
-
-        return from_element(
-            resolve_at_alias(view, f"{self._kind.lower()}s"), self
-        )
-
     @classmethod
-    def from_model(cls, model: schema.Model) -> "Element":
+    def from_model(cls, model: schema.Element) -> "Element":
         instance = cls()
         instance.__model__ = model
         return instance
@@ -435,7 +387,7 @@ class Element(Jsonable):
         return Collection(elements)
 
     @classmethod
-    def model(cls, element: Optional[Any] = None) -> schema.Model:
+    def model(cls, element: Optional[Any] = None) -> schema.Element:
         if element is not None:
             if isinstance(element, cls):
                 return element.__model__
@@ -451,49 +403,12 @@ class Element(Jsonable):
         return getattr(schema, cls._kind)
 
     @classmethod
-    def make(
-        cls,
-        name: Optional[str] = None,
-        version: VersionType = None,
-        slots: Optional[dict] = None,
-        parent: Union["Element", "Component", None] = None,
-    ) -> "Component":
-        if name is None:
-            if (
-                cls.__module__.startswith("machinable.component")
-                and cls.__name__ == "Component"
-            ):
-                raise ValueError("You have to provide a component name.")
-
-            name = cls.__module__
-
-        from machinable.project import Project
-
-        return Project.get().get_component(name, version, slots, parent)
-
-    @classmethod
     def set_default(
         cls,
-        name: Optional[str] = None,
+        module: Optional[str] = None,
         version: VersionType = None,
     ) -> None:
-        cls.default = compact(name, version)
-
-    @property
-    def components(self) -> Dict[str, "Component"]:
-        from machinable.project import Project
-
-        for slot, component in self.config.get("_uses_", {}).items():
-            if slot not in self._resolved_components:
-                self._resolved_components[slot] = Project.get().get_component(
-                    component[0], component[1:], parent=self
-                )
-
-        return self._resolved_components
-
-    @property
-    def parent(self) -> Optional["Component"]:
-        return self.__parent if isinstance(self.__parent, Component) else None
+        cls.default = compact(module, version)
 
     @property
     def config(self) -> DictConfig:
@@ -522,7 +437,7 @@ class Element(Jsonable):
             self.on_before_configure(self._config)
 
             # apply versioning
-            __version = copy.deepcopy(self.__version)
+            __version = copy.deepcopy(self.__model__.version)
 
             # compose configuration update
             config_update = {}
@@ -573,7 +488,7 @@ class Element(Jsonable):
             # add introspection data
             config["_raw_"] = raw_config
             config["_module_"] = self.__class__.__module__
-            config["_version_"] = self.__version
+            config["_version_"] = __version
             config["_update_"] = config_update
 
             # make config property accessible for slot components

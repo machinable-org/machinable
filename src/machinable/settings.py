@@ -2,13 +2,15 @@ from typing import List, Optional, Union
 
 import os
 
-import yaml
+import json
 from machinable.errors import ConfigurationError
 from pydantic import BaseModel
 
 
 class Settings(BaseModel):
-    default_execution: List[Union[str, dict]] = ["machinable.engine.local_engine"]
+    default_execution: List[Union[str, dict]] = [
+        "machinable.execution.local_execution"
+    ]
     default_storage: List[Union[str, dict]] = [
         "machinable.storage.filesystem_storage",
         {"directory": "./storage"},
@@ -19,13 +21,13 @@ class Settings(BaseModel):
 
 def get_settings():
     # todo: look up local environment
-    system_config = "~/.machinable/settings.yaml"
+    system_config = "~/.machinable/settings.json"
     try:
         with open(os.path.expanduser(system_config)) as f:
-            data = yaml.load(f, Loader=yaml.SafeLoader)
+            data = json.load(f)
     except FileNotFoundError:
         data = {}
-    except yaml.parser.ParserError as _e:
+    except json.parser.ParserError as _e:
         raise ConfigurationError(
             f"Could not parse settings file at {system_config}"
         ) from _e

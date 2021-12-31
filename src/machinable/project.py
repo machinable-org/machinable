@@ -15,11 +15,14 @@ from machinable.element import Connectable, Element, compact, normversion
 from machinable.errors import ConfigurationError, MachinableError
 from machinable.types import VersionType
 from machinable.utils import (
+    find_subclass_in_module,
     get_commit,
     get_diff,
     get_machinable_version,
-    get_root_commit
+    get_root_commit,
+    import_from_directory,
 )
+
 
 if TYPE_CHECKING:
     from machinable.project import Project
@@ -65,9 +68,7 @@ def fetch_vendor(source, target):
     return fetch_directory(source, target)
 
 
-def fetch_vendors(project: "Project", config: Optional[dict] = None):
-    if config is None:
-        config = project.config().get("vendors", {})
+def fetch_vendors(project: "Project"):
     top_level_vendor = project.get_root().path("vendor")
     os.makedirs(top_level_vendor, exist_ok=True)
 
@@ -145,9 +146,6 @@ class Project(Connectable, Element):
             version=normversion(version),
         )
         self._parent: Optional[Project] = None
-        self._config: Optional[dict] = None
-        self._parsed_config: Optional[dict] = None
-        self._vendor_config: Optional[dict] = None
 
     def add_to_path(self) -> None:
         if (
@@ -200,6 +198,52 @@ class Project(Connectable, Element):
             },
         }
 
+    def element(
+        self,
+        module: str,
+        version: VersionType = None,
+        base_class: Any = None,
+        **constructor_kwargs,
+    ) -> "Element":
+        if base_class is None:
+            base_class = Element
+
+        # import project-relative
+        module = (
+            import_from_directory(
+                module,
+                self.path(),
+                or_fail=False,
+            )
+            or module
+        )
+
+        # import globally
+        if isinstance(module, str):
+            try:
+                module = importlib.import_module(module)
+            except ModuleNotFoundError as _e:
+                raise ModuleNotFoundError(
+                    f"Could not find module '{module}' in project {self.path()}"
+                ) from _e
+
+        element_class = find_subclass_in_module(module, base_class)
+        if element_class is None:
+            raise ConfigurationError(
+                f"Could not find an element inheriting from the {base_class.__name__} base class. "
+                f"Is it correctly defined in {module.__name__}?"
+            )
+
+        try:
+            return element_class(
+                version=version, **constructor_kwargs
+            )
+        except TypeError as _e:
+            raise
+            raise MachinableError(
+                f"Could not instantiate element {element_class.__module__}.{element_class.__name__}"
+            ) from _e
+
     def get_diff(self) -> Union[str, None]:
         return get_diff(self.path())
 
@@ -240,19 +284,6 @@ class Project(Connectable, Element):
         target: The target directory (may or may not exists yet)
 
         Return False to prevent the default automatic resolution
-        """
-
-    def on_component_import(
-        self, module: str, project: "Project"
-    ) -> Union[None, str, types.ModuleType]:
-        """Event triggered before a component is imported from a module
-
-        You can prevent the import and return a component or an alternative module import path
-        from this method to be used instead.
-
-        # Arguments
-        module: The module that is about to be imported
-        project: The machinable project
         """
 
     def __repr__(self) -> str:

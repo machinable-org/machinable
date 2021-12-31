@@ -3,29 +3,35 @@ import omegaconf
 from typing import Optional
 import pydantic
 import pytest
-from machinable import Execution, Experiment, Project, schema
+from machinable import Execution, Experiment, Project, Storage
 from machinable.element import (
     Connectable,
     Element,
     compact,
     extract,
     normversion,
+    transfer_to,
 )
 from machinable.errors import ConfigurationError
 from machinable.types import ElementType
 from omegaconf import OmegaConf
-from machinable.config import (
-    RequiredField,
-    Field,
-    from_element,
-)
+from machinable.config import RequiredField, Field
 
 
 def test_element_instantiation():
-    assert Element.model() == schema.Model
-    experiment = Experiment("tests.samples.project.interface", {"test": 1})
+    project = Project("./tests/samples/project").connect()
+    with pytest.raises(ModuleNotFoundError):
+        project.element("non.existing", Experiment)
+    with pytest.raises(ConfigurationError):
+        project.element("views.empty", Experiment)
 
-    experiment.execute()
+
+def test_element_transfer():
+    src = Experiment("dummy")
+    target = Experiment("test")
+    assert src.experiment_id != target.experiment_id
+    transfered = transfer_to(src, target)
+    assert transfered.experiment_id == transfered.experiment_id
 
 
 def test_element_config():
@@ -130,7 +136,7 @@ def test_element_config():
 
 
 def test_component_config_schema():
-    class Basic(Component):
+    class Basic(Element):
         class Config:
             hello: str
             world: float
@@ -147,7 +153,7 @@ def test_component_config_schema():
     with pytest.raises(pydantic.error_wrappers.ValidationError):
         schema = Basic({"hello": 1, "world": "0.1"}, {"typo": 1}).config
 
-    class Dataclass(Component):
+    class Dataclass(Element):
         @dataclass
         class Config:
             test: str
@@ -158,57 +164,13 @@ def test_component_config_schema():
         a: str
         b: float
 
-    class Nesting(Component):
+    class Nesting(Element):
         class Config:
             value: Vector
 
     schema = Nesting({"value": {"a": 1, "b": 1}})
     assert schema.config.value.a == "1"
     assert schema.config.value.b == 1.0
-
-
-def test_component_slots():
-    project = Project("./tests/samples/project").connect()
-
-    with pytest.raises(ConfigurationError):
-        c = project.get_component(
-            "components.slots", uses={"invalid": "dummy"}
-        ).config
-
-    assert (
-        project.get_component(
-            "components.slots", uses={"test": "dummy"}
-        ).config.a
-        == 1
-    )
-    c = project.get_component(
-        "components.slots",
-        version="~test",
-        uses={"with_version": "components.slot_use"},
-    ).config
-    assert c.a == 0
-    assert c.with_version.nested == "version"
-    assert c.c == 4
-    c = project.get_component(
-        "components.slots",
-        version="~ver",
-        uses={"with_version": "components.slot_use"},
-    ).config
-    assert c.a == 2
-    assert c.b == 3
-    assert c.c == 1
-    assert c.with_version.manipulate is False
-    assert c.with_version.nested == "override"
-    c = project.get_component(
-        "components.slots",
-        version="~ver",
-        uses={"with_version": ["components.slot_use", {"manipulate": True}]},
-    ).config
-    assert c.a == 2
-    assert c.b == 3
-    assert c.c == 1
-    assert c.with_version.manipulate is True
-    assert c.with_version.nested == "manipulated"
 
 
 def test_normversion():
@@ -289,9 +251,10 @@ def test_connectable():
 
 
 def test_element_relations(tmp_path):
-    Storage(
+    Storage.make(
         "machinable.storage.filesystem_storage", {"directory": str(tmp_path)}
     ).connect()
+    print(type(Storage.get()), "adfsdfdsaffasdf")
     Project("./tests/samples/project").connect()
 
     experiment = Experiment("basic", group="test/group")

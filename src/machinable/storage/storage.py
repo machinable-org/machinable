@@ -1,14 +1,14 @@
 from typing import TYPE_CHECKING, Any, List, Optional, Union
 
 from machinable import schema
-from machinable.element import Connectable, Element, compact
+from machinable.element import Connectable, Element, defaultversion
 from machinable.group import Group
 from machinable.project import Project
 from machinable.settings import get_settings
 from machinable.types import VersionType
 
 if TYPE_CHECKING:
-    from machinable.execution import Execution
+    from machinable.execution.execution import Execution
     from machinable.experiment import Experiment
 import os
 
@@ -27,7 +27,7 @@ from machinable.utils import Jsonable
 
 if TYPE_CHECKING:
     from machinable.element import Element
-    from machinable.execution import Execution
+    from machinable.execution.execution import Execution
     from machinable.experiment import Experiment
 
 
@@ -38,17 +38,30 @@ class Storage(Connectable, Element):
 
     def __init__(
         self,
-        storage: Union[str, None] = None,
         version: VersionType = None,
         default_group: Optional[str] = get_settings().default_group,
     ):
-        super().__init__()
-        if storage is None:
-            storage = Storage.default or get_settings().default_storage
+        super().__init__(version=version)
         self.__model__ = schema.Storage(
-            storage=compact(storage, version), default_group=default_group
+            version=self.__model__.version,
+            default_group=default_group,
         )
-        self._resolved_storage: Optional[Storage] = None
+
+    @classmethod
+    def make(
+        cls,
+        module: Optional[str] = None,
+        version: VersionType = None,
+        default_group: Optional[str] = get_settings().default_group,
+    ):
+        module, version = defaultversion(
+            module,
+            version,
+            Storage.default or get_settings().default_storage
+        )
+        return super().make(
+            module, version, base_class=Storage, default_group=default_group
+        )
 
     @classmethod
     def filesystem(
@@ -103,15 +116,6 @@ class Storage(Connectable, Element):
         self.storage().create_execution(execution, experiments)
 
     @classmethod
-    def make(
-        cls,
-        name: Optional[str] = None,
-        version: VersionType = None,
-        parent: Union["Element", "Component", None] = None,
-    ) -> "Storage":
-        return super().make(name, version, parent)
-
-    @classmethod
     def filesystem(cls, directory: Optional[str] = None) -> "Storage":
         return cls.make(
             "machinable.storage.filesystem_storage",
@@ -132,7 +136,7 @@ class Storage(Connectable, Element):
         execution: Union["Execution", schema.Execution],
         experiments: List[Union["Experiment", schema.Experiment]],
     ) -> schema.Execution:
-        from machinable.execution import Execution
+        from machinable.execution.execution import Execution
         from machinable.experiment import Experiment
 
         execution = Execution.model(execution)
@@ -440,7 +444,7 @@ class Storage(Connectable, Element):
 
     def retrieve_related(
         self, storage_id: str, relation: str
-    ) -> Optional[schema.Model]:
+    ) -> Optional[schema.Element]:
         relations = {
             "experiment.execution": "execution",
             "execution.experiments": "experiments",

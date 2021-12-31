@@ -1,12 +1,12 @@
-from machinable import Interface
+from machinable import Experiment
 
 
-class InterruptedLifecycle(Interface):
+class InterruptedLifecycle(Experiment):
     def on_create(self):
-        self.state = self.experiment.load_data("state.json", {"steps": 0})
+        self.state = self.load_data("state.json", {"steps": 0})
 
     def on_execute(self):
-        record = self.experiment.record()
+        record = self.record()
         for step in range(self.state["steps"], 10):
             # some computatation
             record["step"] = step
@@ -22,4 +22,4 @@ class InterruptedLifecycle(Interface):
         return "done"
 
     def on_finish(self, success, result):
-        self.experiment.save_data("state.json", self.state)
+        self.save_data("state.json", self.state)

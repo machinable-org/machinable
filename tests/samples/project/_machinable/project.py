@@ -1,7 +1,7 @@
-from machinable import Provider
+from machinable import Project
 
 
-class Project(Provider):
+class TestProject(Project):
     def config_global_conf(self, works=False):
         return works
 

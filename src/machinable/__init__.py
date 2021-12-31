@@ -10,7 +10,7 @@ __all__ = [
 ]
 from typing import Dict
 from machinable.element import Element
-from machinable.execution import Execution
+from machinable.execution.execution import Execution
 from machinable.experiment import Experiment
 from machinable.project import Project
 from machinable.record import Record

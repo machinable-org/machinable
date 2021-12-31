@@ -6,14 +6,12 @@ from machinable import Execution, Experiment, Project, Storage, errors, schema
 
 def test_experiment(tmp_path):
     Project("./tests/samples/project").connect()
-    experiment = Experiment("dummy")
+    experiment = Experiment.make("dummy")
     assert isinstance(str(experiment), str)
     assert isinstance(repr(experiment), str)
     assert experiment.config.a == 1
 
-    # uses
-    experiment.use("test", "dummy")
-    assert len(experiment.__model__.uses) == 1
+    # version
     assert experiment.version() == []
     assert experiment.version("test") == ["test"]
     assert experiment.version() == ["test"]
@@ -44,7 +42,6 @@ def test_experiment(tmp_path):
     assert os.path.isdir(
         experiment.local_directory("non-existing/dir", create=True)
     )
-    assert len(experiment.uses) == 0
     # records
     assert len(experiment.records()) == 0
     record = experiment.record("testing")
@@ -90,7 +87,7 @@ def test_experiment(tmp_path):
 
 
 def test_experiment_relations(tmp_path):
-    Storage(
+    Storage.make(
         "machinable.storage.filesystem_storage", {"directory": str(tmp_path)}
     ).connect()
     Project("./tests/samples/project").connect()
@@ -130,7 +127,7 @@ def test_experiment_interface(tmp_path):
     Project("tests/samples/project").connect()
 
     # test dispatch lifecycle
-    experiment = Experiment("components.interface_check")
+    experiment = Experiment.make("interfaces.events_check")
 
     experiment.__model__._storage_instance = Storage.make(
         "machinable.storage.filesystem_storage",
@@ -138,37 +135,5 @@ def test_experiment_interface(tmp_path):
     )
     experiment.__model__._storage_id = str(tmp_path)
 
-    experiment.interface().dispatch()
+    experiment.dispatch()
     assert len(experiment.load_data("events.json")) == 6
-
-    # uses
-    experiment = Experiment("interfaces.uses_components")
-    interface = experiment.interface()
-    interface.dispatch()
-    assert interface.test.__module__ == "basic"
-    assert interface.dummy.config.alpha == 1
-    assert interface.dummy.config.beta.test
-    assert interface.optional is None
-    assert interface.experiment is experiment
-    assert len(interface.components) == 2
-    assert interface.dummy.parent is interface
-
-    # test that default uses are being overwritten
-    experiment = Experiment("interfaces.uses_components")
-    experiment.use("dummy", "dummy")
-    experiment.use("optional", "basic")
-    interface = experiment.interface()
-    interface.dispatch()
-    assert interface.test.__module__ == "basic"
-    assert interface.dummy.config.alpha == 0
-    assert interface.dummy.config.beta.test is None
-    assert interface.optional.__module__ == "basic"
-    assert interface.experiment is experiment
-    assert len(interface.components) == 3
-    assert interface.dummy.parent is interface
-
-    # test nested use
-    experiment = Experiment("interfaces.uses_components")
-    experiment.use("nested", "components.nested_use", overwrite=True)
-    interface = experiment.interface()
-    interface.dispatch()
