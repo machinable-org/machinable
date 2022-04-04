@@ -42,7 +42,7 @@ pyupgrade = "^2.31.0"
 black = "^21.12b0"
 pytest = "^6.2"
 pylint = "^2.10"
-pre-commit = "^2.14"
+pre-commit = "^2.18"
 editorconfig-checker = "^2.3.54"
 pytest-cov = "^3.0.0"
 
