@@ -20,7 +20,7 @@ import jsonlines
 import omegaconf
 from baseconv import base62
 from flatten_dict import unflatten as _unflatten_dict
-from importlib_metadata import entry_points, version
+from importlib_metadata import PackageNotFoundError, entry_points, version
 from omegaconf.omegaconf import OmegaConf
 
 sentinel = object()
@@ -670,8 +670,11 @@ def unflatten_dict(
     return d
 
 
-def get_machinable_version() -> str:
-    return version("machinable")
+def get_machinable_version() -> Optional[str]:
+    try:
+        return version("machinable")
+    except PackageNotFoundError:
+        return None
 
 
 def get_diff(repository: str) -> Optional[str]:

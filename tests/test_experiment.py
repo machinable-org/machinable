@@ -16,9 +16,9 @@ def test_experiment(tmp_path):
     assert experiment.version("test") == ["test"]
     assert experiment.version() == ["test"]
     assert experiment.version("replace", overwrite=True) == ["replace"]
-    experiment.version({'a': -1}, overwrite=True)
+    experiment.version({"a": -1}, overwrite=True)
     assert experiment.config.a == -1
-    experiment.version({'a': 1})
+    experiment.version({"a": 1})
     assert experiment.config.a == 1
 
     experiment = Experiment.from_model(Experiment.model(experiment))
