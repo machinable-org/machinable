@@ -172,8 +172,8 @@ class Experiment(Element):  # pylint: disable=too-many-public-methods
             )
 
     def _clear_caches(self) -> None:
-        self._resolved_interface = None
-        self._resolved_config = None
+        self._config = None
+        self.__model__.config = None
 
     def group_as(self, group: Union[Group, str]) -> "Experiment":
         # todo: allow group modifications after execution

@@ -262,7 +262,6 @@ def test_element_relations(tmp_path):
     Storage.make(
         "machinable.storage.filesystem_storage", {"directory": str(tmp_path)}
     ).connect()
-    print(type(Storage.get()), "adfsdfdsaffasdf")
     Project("./tests/samples/project").connect()
 
     experiment = Experiment(group="test/group")
