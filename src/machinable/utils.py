@@ -217,7 +217,7 @@ def generate_seed(random_state=None):
     if random_state is None or isinstance(random_state, int):
         random_state = random.Random(random_state)
 
-    return random_state.randint(0, 2 ** 31 - 1)
+    return random_state.randint(0, 2**31 - 1)
 
 
 def as_color(experiment_id: str):
@@ -243,7 +243,7 @@ def encode_experiment_id(seed, or_fail=True) -> Optional[str]:
     try:
         if not isinstance(seed, int):
             raise ValueError
-        if 62 ** 5 <= seed <= 62 ** 6 - 1:
+        if 62**5 <= seed <= 62**6 - 1:
             return base62.encode(seed)
         raise ValueError
     except (ValueError, TypeError) as e:
@@ -265,7 +265,7 @@ def decode_experiment_id(experiment_id, or_fail=True) -> Optional[int]:
         if not isinstance(experiment_id, str):
             raise ValueError
         value = int(base62.decode(experiment_id))
-        if 62 ** 5 <= value <= 62 ** 6 - 1:
+        if 62**5 <= value <= 62**6 - 1:
             return value
         raise ValueError
     except (ValueError, TypeError) as e:
@@ -281,7 +281,7 @@ def generate_experiment_id(random_state=None) -> int:
         random_state = random.Random(random_state)
 
     # ~ 55x10^9 distinct experiment IDs that if represented in base62 are len 6
-    return random_state.randint(62 ** 5, 62 ** 6 - 1)
+    return random_state.randint(62**5, 62**6 - 1)
 
 
 def is_valid_variable_name(name):
