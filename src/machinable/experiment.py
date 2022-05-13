@@ -518,9 +518,7 @@ class Experiment(Element):  # pylint: disable=too-many-public-methods
             self.on_failure(exception=_ex)
             self.on_finish(success=False, result=_ex)
             failure_message = "".join(
-                traceback.format_exception(
-                    etype=type(_ex), value=_ex, tb=_ex.__traceback__
-                )
+                traceback.format_exception(value=_ex, tb=_ex.__traceback__)
             )
             raise errors.ExecutionFailed(
                 f"{self.__class__.__name__} dispatch failed: {failure_message}"
