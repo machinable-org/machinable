@@ -1,1 +1,0 @@
-const t={key:"v-23441c14",path:"/miscellaneous/comparison.html",title:"Comparison with alternatives",lang:"en-US",frontmatter:{},excerpt:"",headers:[],git:{updatedTime:1652909269e3,contributors:[{name:"Frithjof",email:"frithjof@noc.io",commits:1}]},filePathRelative:"miscellaneous/comparison.md"};export{t as data};
