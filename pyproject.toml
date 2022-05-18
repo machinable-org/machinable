@@ -1,7 +1,7 @@
 [tool.poetry]
 name = "machinable"
-version = "3.0"
-description = "A modular configuration system for machine learning projects"
+version = "4.0"
+description = "A modular configuration system for research projects"
 license = "MIT"
 authors = [
     "Frithjof Gressmann <hello@machinable.org>"
@@ -18,8 +18,7 @@ classifiers = [
     "Development Status :: 5 - Production/Stable",
     "Programming Language :: Python",
     "License :: OSI Approved :: MIT License",
-    "Intended Audience :: Science/Research",
-    "Topic :: Scientific/Engineering :: Artificial Intelligence"
+    "Intended Audience :: Science/Research"
 ]
 include = ["CHANGELOG.md"]
 

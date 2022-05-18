@@ -1,3 +1,0 @@
-# Experiment
-
-{% machinable.Experiment %}
