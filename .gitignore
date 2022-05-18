@@ -7,6 +7,7 @@ tests/.hypothesis
 # Docs
 node_modules
 docs/.vuepress/dist
+docs/.vuepress/.cache
 
 # Temporary and binary files
 *~
