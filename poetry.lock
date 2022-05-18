@@ -1,7 +1,7 @@
 [[package]]
 name = "antlr4-python3-runtime"
-version = "4.8"
-description = "ANTLR 4.8 runtime for Python 3.7"
+version = "4.9.3"
+description = "ANTLR 4.9.3 runtime for Python 3.7"
 category = "main"
 optional = false
 python-versions = "*"
@@ -282,14 +282,14 @@ python-versions = "*"
 
 [[package]]
 name = "omegaconf"
-version = "2.2.0"
+version = "2.2.1"
 description = "A flexible configuration library"
 category = "main"
 optional = false
 python-versions = ">=3.6"
 
 [package.dependencies]
-antlr4-python3-runtime = "4.8"
+antlr4-python3-runtime = ">=4.9.0,<4.10.0"
 PyYAML = ">=5.1.0"
 
 [[package]]
@@ -582,7 +582,7 @@ content-hash = "94efa7dd7f0cff5ac7f0cbdfb06053f380efab57d4f84f88a5fe98f8620d9690
 
 [metadata.files]
 antlr4-python3-runtime = [
-    {file = "antlr4-python3-runtime-4.8.tar.gz", hash = "sha256:15793f5d0512a372b4e7d2284058ad32ce7dd27126b105fb0b2245130445db33"},
+    {file = "antlr4-python3-runtime-4.9.3.tar.gz", hash = "sha256:f224469b4168294902bb1efa80a8bf7855f24c99aef99cbefc1bcd3cce77881b"},
 ]
 arrow = [
     {file = "arrow-1.2.2-py3-none-any.whl", hash = "sha256:d622c46ca681b5b3e3574fcb60a04e5cc81b9625112d5fb2b44220c36c892177"},
@@ -778,8 +778,8 @@ observable = [
     {file = "observable-1.0.3.tar.gz", hash = "sha256:97fe8e9d8c2a6185cee3661fa5fba9ce38c7ba388894132940cd6a81633626d9"},
 ]
 omegaconf = [
-    {file = "omegaconf-2.2.0-py3-none-any.whl", hash = "sha256:61ade5dbc667cb51d290e8f5e7d54850ebf145f14dddf81222123bab5f0f7bc1"},
-    {file = "omegaconf-2.2.0.tar.gz", hash = "sha256:5d07815213292256db9cacd8920b9f565a0bfc64b42620456120ac393f0eda6a"},
+    {file = "omegaconf-2.2.1-py3-none-any.whl", hash = "sha256:5ce512b0a8996b5acddc7b30f6bffa337a4b0ada1d96b4270588365e2a69e6d5"},
+    {file = "omegaconf-2.2.1.tar.gz", hash = "sha256:6796a5b51a0112410d9940c3a5d2938d5e644377a5517c02db1aef99e03b8af2"},
 ]
 packaging = [
     {file = "packaging-21.3-py3-none-any.whl", hash = "sha256:ef103e05f519cdc783ae24ea4e2e0f508a9c99b2d4969652eed6a2e1ea5bd522"},
