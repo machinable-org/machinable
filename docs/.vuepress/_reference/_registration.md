@@ -1,3 +1,0 @@
-# Registration
-
-{% machinable.registration.Registration %}

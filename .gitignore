@@ -1,11 +1,7 @@
 # Test data
 storage/
-tests/_test_data
-tests/test_project/exports
 tests/.hypothesis
 **/vendor/.cache
-tests/test_project/code_backup/project/external_link
-tests/test_project/code_backup/project/link
 .hypothesis
 
 # Docs
