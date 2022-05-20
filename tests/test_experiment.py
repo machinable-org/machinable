@@ -27,7 +27,7 @@ def test_experiment(tmp_path):
 
     # storage
     storage = Storage.make(
-        "machinable.storage.filesystem_storage",
+        "machinable.storage.filesystem",
         {"directory": str(tmp_path)},
     )
 
@@ -53,10 +53,18 @@ def test_experiment(tmp_path):
     record.save()
     assert len(experiment.records("testing")) == 1
 
+    # save and load
     experiment.save_file("test.txt", "hello")
     assert experiment.load_file("test.txt") == "hello"
     experiment.save_data("floaty", 1.0)
     assert experiment.load_data("floaty") == "1.0"
+    uncommitted = Experiment()
+    uncommitted.save_data("test", "deferred")
+    assert uncommitted.load_data("test") == "deferred"
+
+    # resources
+    experiment.resources({"test": "me"})
+    assert experiment.resources() == {"test": "me"}
 
     # output
     assert experiment.output() is None
@@ -92,7 +100,7 @@ def test_experiment(tmp_path):
 
 def test_experiment_relations(tmp_path):
     Storage.make(
-        "machinable.storage.filesystem_storage", {"directory": str(tmp_path)}
+        "machinable.storage.filesystem", {"directory": str(tmp_path)}
     ).connect()
     Project("./tests/samples/project").connect()
 
@@ -133,7 +141,7 @@ def test_experiment_interface(tmp_path):
     experiment = Experiment.make("interfaces.events_check")
 
     experiment.__model__._storage_instance = Storage.make(
-        "machinable.storage.filesystem_storage",
+        "machinable.storage.filesystem",
         {"directory": str(tmp_path)},
     )
     experiment.__model__._storage_id = str(tmp_path)

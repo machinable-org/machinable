@@ -9,11 +9,9 @@ from pydantic import BaseModel
 
 
 class Settings(BaseModel):
-    default_execution: List[Union[str, dict]] = [
-        "machinable.execution.local_execution"
-    ]
+    default_execution: List[Union[str, dict]] = ["machinable.execution.local"]
     default_storage: List[Union[str, dict]] = [
-        "machinable.storage.filesystem_storage",
+        "machinable.storage.filesystem",
         {"directory": "./storage"},
     ]
     default_experiment: Optional[str] = None

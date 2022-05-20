@@ -117,7 +117,7 @@ class Storage(Connectable, Element):
     @classmethod
     def filesystem(cls, directory: Optional[str] = None) -> "Storage":
         return cls.make(
-            "machinable.storage.filesystem_storage",
+            "machinable.storage.filesystem",
             version={"directory": directory},
         )
 
@@ -126,9 +126,9 @@ class Storage(Connectable, Element):
         if len(secondary) == 0:
             return primary
 
-        from machinable.storage.multiple_storage import MultipleStorage
+        from machinable.storage.multiple import Multiple
 
-        return MultipleStorage(primary, *secondary)
+        return Multiple(primary, *secondary)
 
     def create_execution(
         self,

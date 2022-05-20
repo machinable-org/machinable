@@ -302,6 +302,10 @@ class Experiment(Element):  # pylint: disable=too-many-public-methods
 
     def load_file(self, filepath: str, default=None) -> Optional[Any]:
         if not self.is_mounted():
+            # has write been deferred?
+            if filepath in self._deferred_data:
+                return self._deferred_data[filepath]
+
             return default
 
         data = self.__model__._storage_instance.retrieve_file(self, filepath)
@@ -397,9 +401,9 @@ class Experiment(Element):  # pylint: disable=too-many-public-methods
 
         return output
 
-    def resources(self, resources: Dict = sentinel) -> Optional[Dict]:
+    def resources(self, resources: Dict = sentinel) -> Dict:
         if resources is sentinel:
-            return self.load_file("resources.json", default=None)
+            return self.load_file("resources.json", default={})
 
         resources = OmegaConf.to_container(
             OmegaConf.create(copy.deepcopy(resources))
@@ -474,7 +478,7 @@ class Experiment(Element):  # pylint: disable=too-many-public-methods
             self.is_active() or self.is_finished()
         )
 
-    def default_resources(self, engine: "Engine") -> Optional[dict]:
+    def default_resources(self, execution: "Execution") -> Optional[dict]:
         """Default resources"""
 
     def dispatch(self):

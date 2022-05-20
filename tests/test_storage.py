@@ -8,7 +8,7 @@ from machinable.testing import storage_tests
 def test_storage_interface(tmpdir):
     Project("./tests/samples/project").connect()
     repository = Storage.make(
-        "machinable.storage.filesystem_storage", {"directory": str(tmpdir)}
+        "machinable.storage.filesystem", {"directory": str(tmpdir)}
     )
     repository_b = Storage.filesystem(str(tmpdir))
     assert repository.config.directory == repository_b.config.directory
@@ -38,7 +38,7 @@ def test_storage(tmpdir):
 
 def test_filesystem_storage(tmpdir):
     storage = Storage.make(
-        "machinable.storage.filesystem_storage",
+        "machinable.storage.filesystem",
         {"directory": str(tmpdir / "storage")},
     )
     storage_tests(storage)
@@ -46,11 +46,11 @@ def test_filesystem_storage(tmpdir):
 
 def test_multiple_storage(tmpdir):
     storage_a = Storage.make(
-        "machinable.storage.filesystem_storage",
+        "machinable.storage.filesystem",
         {"directory": str(tmpdir / "a")},
     )
     storage_b = Storage.make(
-        "machinable.storage.filesystem_storage",
+        "machinable.storage.filesystem",
         {"directory": str(tmpdir / "b")},
     )
     storage = Storage.multiple(storage_a, storage_b)

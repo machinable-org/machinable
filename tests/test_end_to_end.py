@@ -4,7 +4,7 @@ from machinable import errors
 
 def test_end_to_end_execution(tmp_path):
     ml.Storage.make(
-        "machinable.storage.filesystem_storage", {"directory": str(tmp_path)}
+        "machinable.storage.filesystem", {"directory": str(tmp_path)}
     ).connect()
     ml.Project("./tests/samples/project").connect()
 

@@ -260,7 +260,7 @@ def test_connectable():
 
 def test_element_relations(tmp_path):
     Storage.make(
-        "machinable.storage.filesystem_storage", {"directory": str(tmp_path)}
+        "machinable.storage.filesystem", {"directory": str(tmp_path)}
     ).connect()
     Project("./tests/samples/project").connect()
 
