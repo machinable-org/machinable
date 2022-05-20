@@ -1,5 +1,5 @@
 # Test data
-storage/
+/storage
 tests/.hypothesis
 **/vendor/.cache
 .hypothesis
