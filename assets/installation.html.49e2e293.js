@@ -1,1 +1,0 @@
-const t={key:"v-d7be191a",path:"/guide/installation.html",title:"Installation",lang:"en-US",frontmatter:{},excerpt:"",headers:[{level:2,title:"For development",slug:"for-development",children:[]}],git:{updatedTime:1654631983e3,contributors:[{name:"frthjf",email:"frithjof@noc.io",commits:1}]},filePathRelative:"guide/installation.md"};export{t as data};

@@ -1,0 +1,1 @@
+const t={key:"v-23441c14",path:"/miscellaneous/comparison.html",title:"Comparison with alternatives",lang:"en-US",frontmatter:{},excerpt:"",headers:[],git:{updatedTime:1654632338e3,contributors:[{name:"frthjf",email:"frithjof@noc.io",commits:1}]},filePathRelative:"miscellaneous/comparison.md"};export{t as data};
