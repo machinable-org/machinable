@@ -20,7 +20,12 @@ import jsonlines
 import omegaconf
 from baseconv import base62
 from flatten_dict import unflatten as _unflatten_dict
-from importlib_metadata import PackageNotFoundError, entry_points, version
+
+if sys.version_info >= (3, 8):
+    from importlib import metadata as importlib_metadata
+else:
+    import importlib_metadata
+
 from omegaconf.omegaconf import OmegaConf
 
 sentinel = object()
@@ -591,7 +596,9 @@ def find_subclass_in_module(
 def find_installed_extensions(key: str) -> List[Tuple[str, ModuleType]]:
     return [
         (module.name, module.load())
-        for module in entry_points().get(f"machinable.{key}", [])
+        for module in importlib_metadata.entry_points().get(
+            f"machinable.{key}", []
+        )
     ]
 
 
@@ -670,11 +677,11 @@ def unflatten_dict(
     return d
 
 
-def get_machinable_version() -> Optional[str]:
+def get_machinable_version() -> str:
     try:
-        return version("machinable")
-    except PackageNotFoundError:
-        return None
+        return importlib_metadata.version("machinable")
+    except importlib_metadata.PackageNotFoundError:  # pragma: no cover
+        return "unknown"
 
 
 def get_diff(repository: str) -> Optional[str]:
