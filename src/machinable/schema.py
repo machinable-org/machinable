@@ -26,13 +26,13 @@ class Element(BaseModel):
 
 class Project(Element):
     directory: str
+    name: str
     code_version: Optional[dict] = None
     code_diff: Optional[str] = None
     host_info: Optional[dict] = None
 
 
 class Experiment(Element):
-    uses: Dict[str, ElementType] = {}
     experiment_id: str = Field(
         default_factory=lambda: encode_experiment_id(generate_experiment_id())
     )

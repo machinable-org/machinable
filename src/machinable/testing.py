@@ -15,7 +15,7 @@ def storage_tests(storage: Storage) -> None:
         schema.Experiment(interface=["b"]),
         schema.Experiment(interface=["c"]),
     ]
-    project = schema.Project(directory=".")
+    project = schema.Project(directory=".", name="test")
     group = schema.Group(pattern="test/me", path="test/me")
 
     for experiment in experiments:
@@ -68,6 +68,12 @@ def storage_tests(storage: Storage) -> None:
             experiments[0]._storage_id, "experiment.ancestor"
         )
         is None
+    )
+    assert (
+        storage.retrieve_related(
+            experiments[0]._storage_id, "experiment.project"
+        ).name
+        == project.name
     )
 
     # search

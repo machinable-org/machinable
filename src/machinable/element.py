@@ -231,9 +231,9 @@ def compact(
 
 def defaultversion(
     module: Optional[str], version: VersionType, element: "Element"
-) -> Tuple[str, VersionType]:
+) -> Tuple[Optional[str], VersionType]:
     if module is not None:
-        return module, version
+        return module, normversion(version)
 
     default_version = normversion(element.default)
 
