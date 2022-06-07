@@ -98,10 +98,13 @@ class Storage(Connectable, Element):
                 group = Group(self.__model__.default_group)
                 experiment.__related__["group"] = group
 
+            elements = [element for element in experiment.elements or []]
+
             self.create_experiment(
                 experiment=experiment,
                 group=group,
                 project=Project.get(),
+                elements=elements,
             )
 
             # write deferred experiment data
@@ -163,14 +166,18 @@ class Storage(Connectable, Element):
         experiment: schema.Experiment,
         group: schema.Group,
         project: schema.Project,
+        elements: List[Union["Element", schema.Element]],
     ) -> schema.Experiment:
         from machinable.experiment import Experiment
 
         experiment = Experiment.model(experiment)
         group = Group.model(group)
         project = Project.model(project)
+        elements = [Element.model(element) for element in elements]
 
-        storage_id = self._create_experiment(experiment, group, project)
+        storage_id = self._create_experiment(
+            experiment, group, project, elements
+        )
         assert storage_id is not None
 
         experiment._storage_id = storage_id
@@ -183,6 +190,39 @@ class Storage(Connectable, Element):
         experiment: schema.Experiment,
         group: schema.Group,
         project: schema.Project,
+        elements: List[schema.Element],
+    ) -> str:
+        raise NotImplementedError
+
+    def create_element(
+        self,
+        element: Union["Element", schema.Element],
+        experiment: Union["Experiment", schema.Experiment],
+    ) -> schema.Element:
+        from machinable.experiment import Experiment
+
+        element = Element.model(element)
+        experiment = Experiment.model(experiment)
+
+        target_experiment = (
+            self.find_experiment(experiment.experiment_id, experiment.timestamp)
+            or experiment
+        )
+
+        storage_id = self._create_element(
+            element=element, experiment=target_experiment
+        )
+        assert storage_id is not None
+
+        element._storage_id = storage_id
+        element._storage_instance = self
+
+        return element
+
+    def _create_element(
+        self,
+        element: schema.Element,
+        experiment: schema.Experiment,
     ) -> str:
         raise NotImplementedError
 
@@ -321,6 +361,21 @@ class Storage(Connectable, Element):
         return project
 
     def _retrieve_project(self, storage_id: str) -> schema.Project:
+        raise NotImplementedError
+
+    def retrieve_element(self, storage_id: str) -> schema.Element:
+        element = self._retrieve_element(storage_id)
+        element._storage_id = storage_id
+        element._storage_instance = self
+
+        return element
+
+    def retrieve_elements(
+        self, storage_ids: List[str]
+    ) -> List[schema.Execution]:
+        return [self.retrieve_element(storage_id) for storage_id in storage_ids]
+
+    def _retrieve_element(self, storage_id: str) -> schema.Element:
         raise NotImplementedError
 
     def retrieve_records(
@@ -465,12 +520,14 @@ class Storage(Connectable, Element):
     ) -> Optional[schema.Element]:
         relations = {
             "experiment.execution": "execution",
+            "experiment.executions": "executions",
             "execution.experiments": "experiments",
             "group.experiments": "experiments",
             "experiment.group": "group",
             "experiment.ancestor": "experiment",
             "experiment.derived": "experiments",
             "experiment.project": "project",
+            "experiment.elements": "elements",
         }
 
         if relation not in relations:

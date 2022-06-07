@@ -97,8 +97,18 @@ class Multiple(Storage):
         experiment: schema.Experiment,
         group: schema.Group,
         project: schema.Project,
+        elements: List[schema.Element],
     ) -> str:
-        return self._write("_create_experiment", experiment, group, project)
+        return self._write(
+            "_create_experiment", experiment, group, project, elements
+        )
+
+    def _create_element(
+        self,
+        element: schema.Element,
+        experiment: schema.Experiment,
+    ) -> str:
+        return self._write("_create_element", element, experiment)
 
     def _create_group(self, group: schema.Group) -> str:
         return self._write("_create_group", group)
@@ -143,6 +153,9 @@ class Multiple(Storage):
 
     def _retrieve_experiment(self, storage_id: str) -> schema.Experiment:
         return self._read("_retrieve_experiment", storage_id)
+
+    def _retrieve_element(self, storage_id: str) -> schema.Element:
+        raise self._read("_retrieve_element", storage_id)
 
     def _retrieve_group(self, storage_id: str) -> schema.Group:
         return self._read("_retrieve_group", storage_id)

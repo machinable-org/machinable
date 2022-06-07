@@ -2,6 +2,7 @@ import os
 
 import pytest
 from machinable import Execution, Experiment, Project, Storage, errors, schema
+from machinable.element import Element
 
 
 def test_experiment(tmp_path):
@@ -31,11 +32,12 @@ def test_experiment(tmp_path):
         {"directory": str(tmp_path)},
     )
 
-    execution = schema.Execution(engine=["t"])
+    execution = schema.Execution()
     model = storage.create_experiment(
-        experiment=schema.Experiment(interface=["t"], config={"test": True}),
+        experiment=schema.Experiment(config={"test": True}),
         group=schema.Group(pattern="", path=""),
         project=schema.Project(directory=".", name="test"),
+        elements=[],
     )
 
     experiment = Experiment.from_model(model)
@@ -104,12 +106,14 @@ def test_experiment_relations(tmp_path):
     ).connect()
     Project("./tests/samples/project", name="test-project").connect()
 
-    experiment = Experiment(group="test/group")
+    experiment = Experiment.use("basic", group="test/group")
     execution = Execution().add(experiment)
     execution.dispatch()
 
     assert experiment.project.name() == "test-project"
     assert experiment.execution.timestamp == execution.timestamp
+    assert experiment.executions[0].timestamp == execution.timestamp
+    assert len(experiment.elements) == 0
 
     with pytest.raises(errors.ConfigurationError):
         experiment.version("attempt_overwrite")
@@ -125,6 +129,7 @@ def test_experiment_relations(tmp_path):
     derived_execution.__related__ = {}
 
     assert derived.ancestor.experiment_id == experiment.experiment_id
+    assert derived.ancestor.hello() == "there"
     assert experiment.derived[0].experiment_id == derived.experiment_id
 
     derived = Experiment(derived_from=experiment)
@@ -135,6 +140,26 @@ def test_experiment_relations(tmp_path):
 
     derived = experiment.derive(version=experiment.config)
     Execution().add(derived).dispatch()
+
+
+class DataElement(Element):
+    class Config:
+        dataset: str = "mnist"
+
+    def hello(self):
+        return "element"
+
+
+def test_experiment_elements():
+    Project("./tests/samples/project").connect()
+    experiment = Experiment.use("dummy")
+    dataset = DataElement({"dataset": "cifar"})
+    experiment.add(dataset)
+    assert experiment.elements[0].config.dataset == "cifar"
+    experiment.execute()
+    experiment.__related__ = {}
+    assert experiment.elements[0].config.dataset == "cifar"
+    assert experiment.elements[0].hello() == "element"
 
 
 def test_experiment_interface(tmp_path):

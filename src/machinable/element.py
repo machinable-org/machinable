@@ -304,7 +304,7 @@ def instantiate(
 class Element(Jsonable):
     """Element baseclass"""
 
-    _key: Optional[str] = None
+    _key: Optional[str] = "Element"
     default: Optional["Element"] = None
 
     def __init__(self, version: VersionType = None):
@@ -350,6 +350,18 @@ class Element(Jsonable):
             version=version,
             base_class=base_class,
             **constructor_kwargs,
+        )
+
+    @classmethod
+    def use(
+        cls,
+        module: Optional[str] = None,
+        version: VersionType = None,
+        **constructor_kwargs,
+    ) -> "Element":
+        module, version = defaultversion(module, version, cls)
+        return cls.make(
+            module, version, base_class=Element, **constructor_kwargs
         )
 
     def mount(self, storage: "Storage", storage_id: Any) -> bool:

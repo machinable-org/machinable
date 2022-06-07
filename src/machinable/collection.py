@@ -1367,16 +1367,7 @@ def collect(elements):
     return Collection(elements)
 
 
-class ExperimentCollection(Collection):
-    def __str__(self):
-        if len(self.items) > 15:
-            items = ", ".join([repr(item) for item in self.items[:5]])
-            items += " ... "
-            items += ", ".join([repr(item) for item in self.items[-5:]])
-        else:
-            items = ", ".join([repr(item) for item in self.items])
-        return f"Experiments ({len(self.items)}) <{items}>"
-
+class ElementCollection(Collection):
     def as_dataframe(self):
         """Returns collection as Pandas dataframe"""
         data = {k: [] for k in self._items[0].serialize().keys()}
@@ -1386,6 +1377,20 @@ class ExperimentCollection(Collection):
         import pandas
 
         return pandas.DataFrame.from_dict(data)
+
+    def __str__(self):
+        return f"Elements <{len(self.items)}>"
+
+
+class ExperimentCollection(ElementCollection):
+    def __str__(self):
+        if len(self.items) > 15:
+            items = ", ".join([repr(item) for item in self.items[:5]])
+            items += " ... "
+            items += ", ".join([repr(item) for item in self.items[-5:]])
+        else:
+            items = ", ".join([repr(item) for item in self.items])
+        return f"Experiments ({len(self.items)}) <{items}>"
 
     def execute(
         self, using: Union[str, None] = None, version: VersionType = None
@@ -1403,7 +1408,7 @@ class ExperimentCollection(Collection):
         return self
 
 
-class ExecutionCollection(Collection):
+class ExecutionCollection(ElementCollection):
     def status(self, status="started"):
         """Filters the collection by a status attribute
 
@@ -1415,18 +1420,11 @@ class ExecutionCollection(Collection):
         except AttributeError as _ex:
             raise ValueError(f"Invalid status field: {status}") from _ex
 
-    def as_dataframe(self):
-        """Returns collection as Pandas dataframe"""
-        data = {k: [] for k in self._items[0].serialize().keys()}
-        for item in self._items:
-            for k, v in item.serialize().items():
-                data[k].append(v)
-        import pandas
-
-        return pandas.DataFrame.from_dict(data)
+    def __str__(self):
+        return f"Executions <{len(self.items)}>"
 
 
-class RecordCollection(Collection):
+class RecordCollection(ElementCollection):
     def as_dataframe(self):
         """Returns collection as Pandas dataframe"""
         import pandas
@@ -1439,10 +1437,4 @@ class RecordCollection(Collection):
         return pandas.DataFrame.from_dict(data)
 
     def __str__(self):
-        if len(self.items) > 15:
-            items = ", ".join([repr(item) for item in self.items[:5]])
-            items += " ... "
-            items += ", ".join([repr(item) for item in self.items[-5:]])
-        else:
-            items = ", ".join([repr(item) for item in self.items])
-        return f"Records ({len(self.items)}) <{items}>"
+        return f"Records <{len(self.items)}>"
