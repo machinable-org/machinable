@@ -31,16 +31,12 @@ class Execution(Element):
         )
 
     @classmethod
-    def make(
+    def use(
         cls,
         module: Optional[str] = None,
         version: VersionType = None,
     ) -> "Execution":
-        module, version = defaultversion(
-            module,
-            version,
-            Execution.default,
-        )
+        module, version = defaultversion(module, version, cls)
         return super().make(module, version, base_class=Execution)
 
     @has_many
@@ -56,9 +52,7 @@ class Execution(Element):
 
     @classmethod
     def from_model(cls, model: schema.Execution) -> "Execution":
-        instance = cls(model.version)
-        instance.__model__ = model
-        return instance
+        return super().from_model(model)
 
     def add(
         self, experiment: Union[Experiment, List[Experiment]]

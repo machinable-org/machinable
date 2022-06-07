@@ -9,8 +9,9 @@ from machinable.execution.slurm import Slurm
 
 
 class SlurmExperiment(Experiment):
-    def on_execute():
+    def on_execute(self):
         print("Hello world from Slurm")
+        self.save_data("test_run.json", {"success": True})
 
 
 @pytest.mark.skipif(
@@ -28,6 +29,7 @@ def test_slurm_execution():
     for _ in range(15):
         if experiment.is_finished():
             assert "Hello world from Slurm" in experiment.output()
+            assert experiment.load_data("test_run.json")["success"] is True
             return
 
         time.sleep(1)

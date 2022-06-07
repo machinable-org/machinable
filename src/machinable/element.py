@@ -5,16 +5,16 @@ import copy
 from functools import wraps
 
 import arrow
+import machinable
 import omegaconf
 import pydantic
 from machinable import schema
 from machinable.collection import Collection
 from machinable.config import from_element, match_method, rewrite_config_methods
-from machinable.errors import ConfigurationError
+from machinable.errors import ConfigurationError, MachinableError
 from machinable.types import ElementType, VersionType
 from machinable.utils import Jsonable, unflatten_dict, update_dict
 from omegaconf import DictConfig, OmegaConf
-from pydantic.dataclasses import dataclass
 
 if TYPE_CHECKING:
     from machinable.storage import Storage
@@ -92,7 +92,7 @@ class Connectable:
     @classmethod
     def get(cls) -> "Connectable":
         if getattr(cls, "_key", None) is not None:
-            return _CONNECTIONS.setdefault(cls._key, cls.make())
+            return _CONNECTIONS.setdefault(cls._key, cls.use())
 
         return cls() if cls.__connection__ is None else cls.__connection__
 
@@ -230,13 +230,27 @@ def compact(
 
 
 def defaultversion(
-    element: Optional[str], version: VersionType, default: VersionType
+    module: Optional[str], version: VersionType, element: "Element"
 ) -> Tuple[str, VersionType]:
-    if element is not None:
-        return element, version
+    if module is not None:
+        return module, version
 
-    default = normversion(default)
-    return default[0], default[1:] + normversion(version)
+    default_version = normversion(element.default)
+
+    if len(default_version) == 0:
+        return module, normversion(version)
+
+    if isinstance(default_version[0], str) and not default_version[
+        0
+    ].startswith("~"):
+        if module is None:
+            return default_version[0], default_version[1:] + normversion(
+                version
+            )
+        else:
+            return module, default_version[1:] + normversion(version)
+
+    return module, default_version + normversion(version)
 
 
 def extract(
@@ -275,6 +289,18 @@ def transfer_to(src: "Element", destination: "Element") -> "Element":
     return destination
 
 
+def instantiate(
+    module: str, class_: "Element", version: VersionType, **constructor_kwargs
+):
+    try:
+        class_._module = module  # assign project-relative module
+        return class_(version=version, **constructor_kwargs)
+    except TypeError as _ex:
+        raise MachinableError(
+            f"Could not instantiate element {class_.__module__}.{class_.__name__}"
+        ) from _ex
+
+
 class Element(Jsonable):
     """Element baseclass"""
 
@@ -304,9 +330,18 @@ class Element(Jsonable):
                 cls.__module__.startswith("machinable.element")
                 and cls.__name__ == "Element"
             ):
-                raise ValueError("You have to provide an element name.")
+                raise ValueError("You have to provide a module.")
 
             module = cls.__module__
+
+        if base_class is None:
+            base_class = getattr(machinable, cls._key, Element)
+
+        # prevent circlar instantiation
+        if module == "machinable" or module == base_class.__module__:
+            return instantiate(
+                module, base_class, version, **constructor_kwargs
+            )
 
         from machinable.project import Project
 

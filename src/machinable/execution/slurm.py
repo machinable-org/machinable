@@ -69,6 +69,7 @@ class Slurm(Execution):
                         "project_source": self.project_source(experiment),
                     },
                 )
+                experiment.save_execution_data("recover.sh", script)
                 results.append(job_id)
             except FileNotFoundError as _exception:
                 raise errors.ExecutionFailed(
@@ -100,6 +101,7 @@ class Slurm(Execution):
         Project('{self.project_directory(experiment)}').connect()
         Storage.from_json('{storage}').connect()
         experiment = Experiment.find('{experiment.experiment_id}', timestamp={experiment.timestamp})
+        assert experiment.__module__ == experiment.__model__.module, 'Could not instantiate experiment'
         experiment.dispatch()
         """.replace(
             "\n        ", ";"

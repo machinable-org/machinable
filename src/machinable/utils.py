@@ -418,7 +418,7 @@ def load_file(
     # Arguments
     filepath: Target filepath. The extension is being used to determine
         the file format. Supported formats are:
-        .json (JSON), .jsonl (JSON-lines), .npy (numpy), .p (pickle), .txt|.log|.diff (txt)
+        .json (JSON), .jsonl (JSON-lines), .npy (numpy), .p (pickle), .txt|.log|.diff|.sh (txt)
     default: Optional default if reading fails
     opener: Customer file opener
     opener_kwargs: Optional arguments to pass to the opener
@@ -446,13 +446,13 @@ def load_file(
                 mode = mode + "b"
             with opener(filepath, mode, **opener_kwargs) as f:
                 data = np.load(f, allow_pickle=True)
-        elif ext in [".txt", ".log", ".diff", ""]:
+        elif ext in [".txt", ".log", ".diff", ".sh", ""]:
             with opener(filepath, mode, **opener_kwargs) as f:
                 data = f.read()
         else:
             raise ValueError(
                 f"Invalid format: '{ext}'. "
-                f"Supported formats are .json (JSON), .npy (numpy), .p (pickle), .txt|.log|.diff (txt)"
+                f"Supported formats are .json (JSON), .npy (numpy), .p (pickle), .txt|.log|.diff|.sh (txt)"
             )
         return data
     except (FileNotFoundError, Exception) as _ex:
@@ -473,7 +473,7 @@ def save_file(
     # Arguments
     filepath: Target filepath. The extension is being used to determine
         the file format. Supported formats are:
-        .json (JSON), .jsonl (JSON-lines), .npy (numpy), .p (pickle), .txt|.log|.diff (txt)
+        .json (JSON), .jsonl (JSON-lines), .npy (numpy), .p (pickle), .txt|.log|.diff|.sh (txt)
     data: The data object
     makedirs: If True or Callable, path will be created
     opener: Customer file opener
@@ -518,13 +518,13 @@ def save_file(
             mode += "b"
         with opener(filepath, mode, **opener_kwargs) as f:
             pickle.dump(data, f)
-    elif ext in [".txt", ".log", ".diff", ""]:
+    elif ext in [".txt", ".log", ".diff", ".sh", ""]:
         with opener(filepath, mode, **opener_kwargs) as f:
             f.write(str(data))
     else:
         raise ValueError(
             f"Invalid format: '{ext}'. "
-            f"Supported formats are .json (JSON), .jsonl (JSON-lines), .npy (numpy), .p (pickle), .txt|.log|.diff (txt)"
+            f"Supported formats are .json (JSON), .jsonl (JSON-lines), .npy (numpy), .p (pickle), .txt|.log|.diff|.sh (txt)"
         )
 
     return os.path.abspath(filepath)

@@ -1,18 +1,7 @@
-from typing import (
-    TYPE_CHECKING,
-    Any,
-    Dict,
-    List,
-    NoReturn,
-    Optional,
-    Tuple,
-    Union,
-)
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
 
 import copy
 import os
-import traceback
-from time import time
 
 import arrow
 from machinable import errors, schema
@@ -24,22 +13,16 @@ from machinable.collection import (
 from machinable.element import (
     Element,
     belongs_to,
-    compact,
     defaultversion,
     has_many,
     normversion,
 )
-from machinable.errors import ConfigurationError, StorageError
+from machinable.errors import ConfigurationError
 from machinable.group import Group
 from machinable.project import Project
 from machinable.settings import get_settings
 from machinable.storage.storage import Storage
-from machinable.types import (
-    DatetimeType,
-    ElementType,
-    TimestampType,
-    VersionType,
-)
+from machinable.types import DatetimeType, TimestampType, VersionType
 from machinable.utils import (
     Events,
     apply_seed,
@@ -94,7 +77,7 @@ class Experiment(Element):  # pylint: disable=too-many-public-methods
         self._events: Events = Events()
 
     @classmethod
-    def make(
+    def use(
         cls,
         module: Optional[str] = None,
         version: VersionType = None,
@@ -103,11 +86,8 @@ class Experiment(Element):  # pylint: disable=too-many-public-methods
         seed: Union[int, None] = None,
         derived_from: Optional["Experiment"] = None,
     ):
-        module, version = defaultversion(
-            module,
-            version,
-            Experiment.default,
-        )
+        module, version = defaultversion(module, version, cls)
+
         return super().make(
             module,
             version,
@@ -157,9 +137,7 @@ class Experiment(Element):  # pylint: disable=too-many-public-methods
 
     @classmethod
     def from_model(cls, model: schema.Experiment) -> "Experiment":
-        instance = cls()
-        instance.__model__ = model
-        return instance
+        return super().from_model(model)
 
     def __reduce__(self) -> Union[str, Tuple[Any, ...]]:
         return (self.__class__, ("",), self.serialize())
@@ -240,7 +218,7 @@ class Experiment(Element):  # pylint: disable=too-many-public-methods
         """Executes the experiment"""
         from machinable.execution.execution import Execution
 
-        Execution.make(using, version=version).add(experiment=self).dispatch()
+        Execution.use(using, version=version).add(experiment=self).dispatch()
 
         return self
 
