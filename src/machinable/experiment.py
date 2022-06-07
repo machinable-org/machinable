@@ -6,6 +6,7 @@ import os
 import arrow
 from machinable import errors, schema
 from machinable.collection import (
+    ElementCollection,
     ExecutionCollection,
     ExperimentCollection,
     RecordCollection,
@@ -130,6 +131,10 @@ class Experiment(Element):  # pylint: disable=too-many-public-methods
 
         return Execution, False
 
+    @has_many
+    def elements() -> "ElementCollection":
+        return Element, ElementCollection
+
     @classmethod
     def collect(cls, experiments) -> ExperimentCollection:
         """Returns a collection of experiments"""
@@ -152,6 +157,29 @@ class Experiment(Element):  # pylint: disable=too-many-public-methods
     def _clear_caches(self) -> None:
         self._config = None
         self.__model__.config = None
+
+    def add(self, element: Union[Element, List[Element]]) -> "Experiment":
+        """Adds an element to the experiment
+
+        # Arguments
+        element: Element or list of Elements
+        """
+        self._assert_editable()
+
+        if isinstance(element, (list, tuple)):
+            for _element in element:
+                self.add(_element)
+            return self
+
+        if not isinstance(element, Element):
+            raise ValueError(
+                f"Expected element, but found: {type(element)} {element}"
+            )
+
+        self.__related__.setdefault("elements", ElementCollection())
+        self.__related__["elements"].append(element)
+
+        return self
 
     def group_as(self, group: Union[Group, str]) -> "Experiment":
         # todo: allow group modifications after execution

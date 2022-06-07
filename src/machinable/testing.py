@@ -9,21 +9,22 @@ def storage_tests(storage: Storage) -> None:
     storage = storage.clone()
 
     # commit
-    pre_execution = schema.Execution(engine=["example"])
+    pre_execution = schema.Execution()
     experiments = [
-        schema.Experiment(interface=["a"]),
-        schema.Experiment(interface=["b"]),
-        schema.Experiment(interface=["c"]),
+        schema.Experiment(),
+        schema.Experiment(),
+        schema.Experiment(),
     ]
     project = schema.Project(directory=".", name="test")
     group = schema.Group(pattern="test/me", path="test/me")
+    elements = [schema.Experiment(), schema.Execution()]
 
     for experiment in experiments:
-        storage.create_experiment(experiment, group, project)
+        storage.create_experiment(experiment, group, project, elements)
 
     storage.create_execution(execution=pre_execution, experiments=experiments)
 
-    execution = schema.Execution(engine=["example"])
+    execution = schema.Execution()
     storage.create_execution(execution=execution, experiments=experiments)
 
     execution_ = storage.retrieve_execution(execution._storage_id)

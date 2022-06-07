@@ -58,7 +58,9 @@ class Filesystem(Storage):
                 """CREATE TABLE executions (
                     id integer PRIMARY KEY,
                     storage_id text NOT NULL,
-                    execution text,
+                    module text,
+                    config json,
+                    version json,
                     timestamp real
                 )"""
             )
@@ -66,11 +68,12 @@ class Filesystem(Storage):
                 """CREATE TABLE experiments (
                     id integer PRIMARY KEY,
                     storage_id text NOT NULL,
-                    experiment text,
+                    module text,
+                    config json,
+                    version json,
                     experiment_id text,
                     nickname text,
                     seed integer,
-                    config json,
                     execution_id integer,
                     timestamp integer,
                     ancestor_id integer,
@@ -80,6 +83,17 @@ class Filesystem(Storage):
                     FOREIGN KEY (project_id) REFERENCES projects (id)
                     FOREIGN KEY (execution_id) REFERENCES executions (id)
                     FOREIGN KEY (ancestor_id) REFERENCES experiments (id)
+                )"""
+            )
+            cur.execute(
+                """CREATE TABLE elements (
+                    id integer PRIMARY KEY,
+                    storage_id text,
+                    module text,
+                    config json,
+                    version json,
+                    experiment_id integer,
+                    FOREIGN KEY (experiment_id) REFERENCES experiments (id)
                 )"""
             )
             cur.execute(
@@ -124,12 +138,16 @@ class Filesystem(Storage):
         cur.execute(
             """INSERT INTO executions (
             storage_id,
-            execution,
+            module,
+            config,
+            version,
             timestamp
-            ) VALUES (?,?,?)""",
+            ) VALUES (?,?,?,?,?)""",
             (
                 execution_directory,
-                execution.__module__,
+                execution.module,
+                json.dumps(execution.config),
+                json.dumps(execution.version),
                 execution.timestamp,
             ),
         )
@@ -146,11 +164,58 @@ class Filesystem(Storage):
 
         return execution_directory
 
+    def _create_element(
+        self,
+        element: schema.Element,
+        experiment: schema.Experiment,
+        _experiment_db_id: Optional[int] = None,
+    ) -> str:
+        self._assert_editable()
+
+        # find experiment
+        if not _experiment_db_id:
+            _experiment_db_id = cur.execute(
+                """SELECT id FROM experiments WHERE experiment_id=? AND timestamp=?""",
+                (experiment.experiment_id, experiment.timestamp),
+            ).fetchone()
+            if not _experiment_db_id:
+                raise StorageError("Invalid experiment")
+            _experiment_db_id = _experiment_db_id[0]
+
+        cur = self._db.cursor()
+        cur.execute(
+            """INSERT INTO elements (
+            storage_id,
+            module,
+            config,
+            version,
+            experiment_id
+            ) VALUES (?,?,?,?,?)""",
+            (
+                None,
+                element.module,
+                json.dumps(element.config),
+                json.dumps(element.version),
+                _experiment_db_id,
+            ),
+        )
+        self._db.commit()
+        storage_id = cur.lastrowid
+
+        cur.execute(
+            """UPDATE elements SET storage_id=? WHERE id=?""",
+            (str(storage_id), storage_id),
+        )
+        self._db.commit()
+
+        return storage_id
+
     def _create_experiment(
         self,
         experiment: schema.Experiment,
         group: schema.Group,
         project: schema.Project,
+        elements: List[schema.Element],
     ) -> str:
         self._assert_editable()
         project = self.create_project(project)
@@ -192,6 +257,12 @@ class Filesystem(Storage):
             makedirs=True,
         )
 
+        save_file(
+            os.path.join(storage_id, "elements.json"),
+            [element.dict() for element in elements],
+            makedirs=True,
+        )
+
         cur = self._db.cursor()
         ancestor_id = cur.execute(
             """SELECT id FROM experiments WHERE experiment_id=? AND timestamp=?""",
@@ -214,23 +285,25 @@ class Filesystem(Storage):
         cur.execute(
             """INSERT INTO experiments(
                 storage_id,
-                experiment,
+                module,
+                config,
+                version,
                 experiment_id,
                 seed,
-                config,
                 nickname,
                 seed,
                 timestamp,
                 'group_id',
                 project_id,
                 ancestor_id
-                ) VALUES (?,?,?,?,?,?,?,?,?,?,?)""",
+                ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)""",
             (
                 storage_id,
                 experiment.__module__,
+                json.dumps(experiment.config),
+                json.dumps(experiment.version),
                 experiment.experiment_id,
                 experiment.seed,
-                json.dumps(experiment.config),
                 experiment.nickname,
                 experiment.seed,
                 experiment.timestamp,
@@ -240,6 +313,12 @@ class Filesystem(Storage):
             ),
         )
         self._db.commit()
+        experiment_id = cur.lastrowid
+
+        experiment._storage_id = storage_id
+
+        for element in elements:
+            self._create_element(element, experiment, experiment_id)
 
         return storage_id
 
@@ -379,6 +458,17 @@ class Filesystem(Storage):
         ).fetchone()
         return schema.Project(directory=row[0], name=row[1])
 
+    def _retrieve_element(self, storage_id: str) -> schema.Element:
+        self._assert_editable()
+        cur = self._db.cursor()
+        row = cur.execute(
+            """SELECT `module`, `config`, `version` FROM elements WHERE `storage_id`=?""",
+            (storage_id,),
+        ).fetchone()
+        return schema.Element(
+            module=row[0], config=json.loads(row[1]), version=json.loads(row[2])
+        )
+
     def _retrieve_records(
         self, experiment_storage_id: str, scope: str
     ) -> List[JsonableType]:
@@ -410,6 +500,28 @@ class Filesystem(Storage):
             if row:
                 return row[0]
             return None
+        if relation == "experiment.executions":
+            cur = self._db.cursor()
+            return [
+                row[0]
+                for row in cur.execute(
+                    """SELECT executions.storage_id FROM executions
+                LEFT JOIN experiments ON experiments.execution_id = executions.id
+                WHERE experiments.storage_id=?""",
+                    (storage_id,),
+                ).fetchall()
+            ]
+        if relation == "experiment.elements":
+            cur = self._db.cursor()
+            return [
+                row[0]
+                for row in cur.execute(
+                    """SELECT elements.storage_id FROM elements
+                LEFT JOIN experiments ON elements.experiment_id = experiments.id
+                WHERE experiments.storage_id=?""",
+                    (storage_id,),
+                ).fetchall()
+            ]
         if relation == "execution.experiments":
             cur = self._db.cursor()
             return [
