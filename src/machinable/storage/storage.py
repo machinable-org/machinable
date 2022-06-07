@@ -202,6 +202,22 @@ class Storage(Connectable, Element):
     def _create_group(self, group: schema.Group) -> str:
         raise NotImplementedError
 
+    def create_project(
+        self, project: Union[Project, schema.Project]
+    ) -> schema.Project:
+        project = Project.model(project)
+
+        storage_id = self._create_project(project)
+        assert storage_id is not None
+
+        project._storage_id = storage_id
+        project._storage_instance = self
+
+        return project
+
+    def _create_project(self, project: schema.Project) -> str:
+        raise NotImplementedError
+
     def create_record(
         self,
         experiment: Union["Experiment", schema.Experiment],
@@ -295,6 +311,16 @@ class Storage(Connectable, Element):
         return group
 
     def _retrieve_group(self, storage_id: str) -> schema.Group:
+        raise NotImplementedError
+
+    def retrieve_project(self, storage_id: str) -> schema.Project:
+        project = self._retrieve_project(storage_id)
+        project._storage_id = storage_id
+        project._storage_instance = self
+
+        return project
+
+    def _retrieve_project(self, storage_id: str) -> schema.Project:
         raise NotImplementedError
 
     def retrieve_records(
@@ -444,6 +470,7 @@ class Storage(Connectable, Element):
             "experiment.group": "group",
             "experiment.ancestor": "experiment",
             "experiment.derived": "experiments",
+            "experiment.project": "project",
         }
 
         if relation not in relations:

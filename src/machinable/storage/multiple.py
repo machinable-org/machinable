@@ -103,6 +103,9 @@ class Multiple(Storage):
     def _create_group(self, group: schema.Group) -> str:
         return self._write("_create_group", group)
 
+    def _create_project(self, project: schema.Project) -> str:
+        return self._write("_create_project", project)
+
     def _create_record(
         self,
         experiment: schema.Experiment,
@@ -143,6 +146,9 @@ class Multiple(Storage):
 
     def _retrieve_group(self, storage_id: str) -> schema.Group:
         return self._read("_retrieve_group", storage_id)
+
+    def _retrieve_project(self, storage_id: str) -> schema.Project:
+        return self._read("_retrieve_project", storage_id)
 
     def _retrieve_records(
         self, experiment_storage_id: str, scope: str

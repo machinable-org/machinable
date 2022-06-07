@@ -35,7 +35,7 @@ def test_experiment(tmp_path):
     model = storage.create_experiment(
         experiment=schema.Experiment(interface=["t"], config={"test": True}),
         group=schema.Group(pattern="", path=""),
-        project=schema.Project(directory="."),
+        project=schema.Project(directory=".", name="test"),
     )
 
     experiment = Experiment.from_model(model)
@@ -102,11 +102,14 @@ def test_experiment_relations(tmp_path):
     Storage.make(
         "machinable.storage.filesystem", {"directory": str(tmp_path)}
     ).connect()
-    Project("./tests/samples/project").connect()
+    Project("./tests/samples/project", name="test-project").connect()
 
     experiment = Experiment(group="test/group")
     execution = Execution().add(experiment)
     execution.dispatch()
+
+    assert experiment.project.name() == "test-project"
+    assert experiment.execution.timestamp == execution.timestamp
 
     with pytest.raises(errors.ConfigurationError):
         experiment.version("attempt_overwrite")

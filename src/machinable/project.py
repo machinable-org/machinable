@@ -131,13 +131,17 @@ class Project(Connectable, Element):
         self,
         directory: Optional[str] = None,
         version: VersionType = None,
+        name: Optional[str] = None,
     ):
         super().__init__()
         if directory is None:
             directory = os.getcwd()
         directory = os.path.abspath(directory)
+        if name is None:
+            name = os.path.basename(directory)
         self.__model__ = schema.Project(
             directory=directory,
+            name=name,
             version=normversion(version),
         )
         self._parent: Optional[Project] = None
@@ -186,6 +190,9 @@ class Project(Connectable, Element):
     def connect(self) -> "Project":
         self.add_to_path()
         return super().connect()
+
+    def name(self) -> str:
+        return self.__model__.name
 
     def path(self, *append: str) -> str:
         return os.path.join(self.__model__.directory, *append)

@@ -3,6 +3,7 @@ from typing import TYPE_CHECKING, Any, List, Optional, Union
 import json
 import os
 import sqlite3
+from multiprocessing.sharedctypes import Value
 
 from machinable import schema
 from machinable.errors import StorageError
@@ -57,7 +58,7 @@ class Filesystem(Storage):
                 """CREATE TABLE executions (
                     id integer PRIMARY KEY,
                     storage_id text NOT NULL,
-                    engine json,
+                    execution text,
                     timestamp real
                 )"""
             )
@@ -65,8 +66,7 @@ class Filesystem(Storage):
                 """CREATE TABLE experiments (
                     id integer PRIMARY KEY,
                     storage_id text NOT NULL,
-                    interface json,
-                    uses json,
+                    experiment text,
                     experiment_id text,
                     nickname text,
                     seed integer,
@@ -75,7 +75,9 @@ class Filesystem(Storage):
                     timestamp integer,
                     ancestor_id integer,
                     'group_id' integer,
+                    project_id integer,
                     FOREIGN KEY (group_id) REFERENCES groups (id)
+                    FOREIGN KEY (project_id) REFERENCES projects (id)
                     FOREIGN KEY (execution_id) REFERENCES executions (id)
                     FOREIGN KEY (ancestor_id) REFERENCES experiments (id)
                 )"""
@@ -85,6 +87,13 @@ class Filesystem(Storage):
                     id integer PRIMARY KEY,
                     path text,
                     pattern text
+                )"""
+            )
+            cur.execute(
+                """CREATE TABLE projects (
+                    id integer PRIMARY KEY,
+                    directory text,
+                    name text NOT NULL UNIQUE
                 )"""
             )
             cur.execute("PRAGMA user_version = 1;")
@@ -115,12 +124,12 @@ class Filesystem(Storage):
         cur.execute(
             """INSERT INTO executions (
             storage_id,
-            engine,
+            execution,
             timestamp
             ) VALUES (?,?,?)""",
             (
                 execution_directory,
-                json.dumps(execution.__module__),
+                execution.__module__,
                 execution.timestamp,
             ),
         )
@@ -144,6 +153,7 @@ class Filesystem(Storage):
         project: schema.Project,
     ) -> str:
         self._assert_editable()
+        project = self.create_project(project)
         group = self.create_group(group)
         head, tail = os.path.split(group.path)
         directory = os.path.join(
@@ -195,11 +205,16 @@ class Filesystem(Storage):
         ).fetchone()
         if group_id:
             group_id = group_id[0]
+        project_id = cur.execute(
+            """SELECT id FROM projects WHERE name=?""",
+            (project.name,),
+        ).fetchone()
+        if project_id:
+            project_id = project_id[0]
         cur.execute(
             """INSERT INTO experiments(
                 storage_id,
-                interface,
-                uses,
+                experiment,
                 experiment_id,
                 seed,
                 config,
@@ -207,12 +222,12 @@ class Filesystem(Storage):
                 seed,
                 timestamp,
                 'group_id',
+                project_id,
                 ancestor_id
                 ) VALUES (?,?,?,?,?,?,?,?,?,?,?)""",
             (
                 storage_id,
-                json.dumps(experiment.__module__),
-                json.dumps(experiment.uses),
+                experiment.__module__,
                 experiment.experiment_id,
                 experiment.seed,
                 json.dumps(experiment.config),
@@ -220,6 +235,7 @@ class Filesystem(Storage):
                 experiment.seed,
                 experiment.timestamp,
                 group_id,
+                project_id,
                 ancestor_id,
             ),
         )
@@ -243,6 +259,24 @@ class Filesystem(Storage):
             self._db.commit()
 
         return group.path
+
+    def _create_project(self, project: schema.Project) -> str:
+        self._assert_editable()
+
+        cur = self._db.cursor()
+
+        row = cur.execute(
+            """SELECT id FROM projects WHERE name=?""",
+            (project.name,),
+        ).fetchone()
+        if row is None:
+            cur.execute(
+                """INSERT INTO projects ('directory', 'name') VALUES (?,?)""",
+                (project.directory, project.name),
+            )
+            self._db.commit()
+
+        return project.name
 
     def _create_record(
         self,
@@ -336,6 +370,15 @@ class Filesystem(Storage):
         ).fetchone()
         return schema.Group(path=row[0], pattern=row[1])
 
+    def _retrieve_project(self, storage_id: str) -> schema.Project:
+        self._assert_editable()
+        cur = self._db.cursor()
+        row = cur.execute(
+            """SELECT `directory`, `name` FROM projects WHERE `name`=?""",
+            (storage_id,),
+        ).fetchone()
+        return schema.Project(directory=row[0], name=row[1])
+
     def _retrieve_records(
         self, experiment_storage_id: str, scope: str
     ) -> List[JsonableType]:
@@ -412,6 +455,16 @@ class Filesystem(Storage):
             cur = self._db.cursor()
             row = cur.execute(
                 """SELECT e.storage_id FROM experiments e INNER JOIN experiments m ON m.ancestor_id=e.id WHERE m.storage_id=?""",
+                (storage_id,),
+            ).fetchone()
+            if row:
+                return row[0]
+        if relation == "experiment.project":
+            cur = self._db.cursor()
+            row = cur.execute(
+                """SELECT projects.name FROM experiments
+                LEFT JOIN projects ON experiments.project_id = projects.id
+                WHERE experiments.storage_id=?""",
                 (storage_id,),
             ).fetchone()
             if row:
