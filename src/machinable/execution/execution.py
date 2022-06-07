@@ -31,16 +31,12 @@ class Execution(Element):
         )
 
     @classmethod
-    def make(
+    def use(
         cls,
         module: Optional[str] = None,
         version: VersionType = None,
     ) -> "Execution":
-        module, version = defaultversion(
-            module,
-            version,
-            Execution.default,
-        )
+        module, version = defaultversion(module, version, cls)
         return super().make(module, version, base_class=Execution)
 
     @has_many
@@ -50,15 +46,13 @@ class Execution(Element):
     @classmethod
     def local(cls, processes: Optional[int] = None) -> "Execution":
         return cls.make(
-            "machinable.execution.local_execution",
+            "machinable.execution.local",
             version={"processes": processes},
         )
 
     @classmethod
     def from_model(cls, model: schema.Execution) -> "Execution":
-        instance = cls(model.version)
-        instance.__model__ = model
-        return instance
+        return super().from_model(model)
 
     def add(
         self, experiment: Union[Experiment, List[Experiment]]
@@ -98,7 +92,7 @@ class Execution(Element):
     def resources(self, experiment: "Experiment") -> Dict:
         default_resources = None
         if hasattr(experiment, "default_resources"):
-            default_resources = experiment.default_resources(engine=self)
+            default_resources = experiment.default_resources(execution=self)
 
         if experiment.resources() is None and default_resources is not None:
             return self.canonicalize_resources(default_resources)
@@ -121,7 +115,11 @@ class Execution(Element):
             update_ = copy.deepcopy(update)
 
             # apply removals (e.g. #remove_me)
-            removals = [k for k in update.keys() if k.startswith("#")]
+            removals = [
+                k
+                for k in update.keys()
+                if isinstance(k, str) and k.startswith("#")
+            ]
             for removal in removals:
                 defaults_.pop(removal[1:], None)
                 update_.pop(removal, None)
@@ -137,7 +135,7 @@ class Execution(Element):
         if self.on_before_dispatch() is False:
             return False
 
-        results = self._dispatch()
+        results = self.on_dispatch()
 
         if not isinstance(results, (list, tuple)):
             results = [results]
@@ -155,13 +153,13 @@ class Execution(Element):
     def on_after_dispatch(self, results: List[Any]) -> None:
         """Event triggered after the dispatch of an execution"""
 
-    def _dispatch(self) -> List[Any]:
+    def on_dispatch(self) -> List[Any]:
         return [
-            self._dispatch_experiment(experiment)
+            self.on_dispatch_experiment(experiment)
             for experiment in self.experiments
         ]
 
-    def _dispatch_experiment(self, experiment: "Experiment") -> Any:
+    def on_dispatch_experiment(self, experiment: "Experiment") -> Any:
         return experiment.dispatch()
 
     def __str__(self) -> str:

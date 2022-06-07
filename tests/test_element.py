@@ -11,6 +11,7 @@ from machinable.element import (
     Connectable,
     Element,
     compact,
+    defaultversion,
     extract,
     normversion,
     transfer_to,
@@ -26,7 +27,13 @@ def test_element_instantiation():
         project.element("non.existing", Experiment)
     with pytest.raises(ConfigurationError):
         project.element("empty", Experiment)
-    assert project.element("basic").hello() == "there"
+    experiment = project.element("basic")
+    assert experiment.hello() == "there"
+    from_model = Experiment.from_model(experiment.__model__)
+    assert from_model.hello() == "there"
+    # prevents circular instantiation
+    assert isinstance(Experiment.make("machinable"), Experiment)
+    assert isinstance(Experiment.make("machinable.experiment"), Experiment)
 
 
 def test_element_transfer():
@@ -218,6 +225,14 @@ def test_extract():
         extract([])
 
 
+def test_defaultversion():
+    assert defaultversion("test", ["example"], Experiment) == (
+        "test",
+        ["example"],
+    )
+    assert defaultversion(None, None, Experiment) == (None, [])
+
+
 def test_connectable():
     for mode in [None, "global"]:
 
@@ -225,7 +240,7 @@ def test_connectable():
             _key = mode
 
             @classmethod
-            def make(cls):
+            def use(cls):
                 return cls()
 
         dummy_1 = Dummy()
@@ -260,7 +275,7 @@ def test_connectable():
 
 def test_element_relations(tmp_path):
     Storage.make(
-        "machinable.storage.filesystem_storage", {"directory": str(tmp_path)}
+        "machinable.storage.filesystem", {"directory": str(tmp_path)}
     ).connect()
     Project("./tests/samples/project").connect()
 

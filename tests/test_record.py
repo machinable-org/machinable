@@ -4,7 +4,7 @@ from machinable import Experiment, Record, Storage
 def test_record(tmp_path):
     experiment = Experiment("test")
     experiment.__model__._storage_instance = Storage.make(
-        "machinable.storage.filesystem_storage",
+        "machinable.storage.filesystem",
         {"directory": str(tmp_path)},
     )
     experiment.__model__._storage_id = str(tmp_path)

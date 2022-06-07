@@ -5,6 +5,10 @@ from machinable.utils import random_str
 
 
 def storage_tests(storage: Storage) -> None:
+    # serialization should not affect any of the tests
+    storage = storage.clone()
+
+    # commit
     pre_execution = schema.Execution(engine=["example"])
     experiments = [
         schema.Experiment(interface=["a"]),

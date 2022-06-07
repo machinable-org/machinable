@@ -8,11 +8,10 @@ import platform
 import socket
 import sys
 
-import machinable
 from commandlib import Command
 from machinable import schema
-from machinable.element import Connectable, Element, compact, normversion
-from machinable.errors import ConfigurationError, MachinableError
+from machinable.element import Connectable, Element, instantiate, normversion
+from machinable.errors import ConfigurationError
 from machinable.types import VersionType
 from machinable.utils import (
     find_subclass_in_module,
@@ -146,7 +145,7 @@ class Project(Connectable, Element):
         self._resolved_provider: Optional[Project] = None
 
     @classmethod
-    def make(
+    def use(
         cls,
         directory: Optional[str] = None,
         version: VersionType = None,
@@ -263,13 +262,7 @@ class Project(Connectable, Element):
                 f"Is it correctly defined in {module.__name__}?"
             )
 
-        try:
-            element_class._module = path  # assign project-relative module
-            return element_class(version=version, **constructor_kwargs)
-        except TypeError as _e:
-            raise MachinableError(
-                f"Could not instantiate element {element_class.__module__}.{element_class.__name__}"
-            ) from _e
+        return instantiate(path, element_class, version, **constructor_kwargs)
 
     def get_diff(self) -> Union[str, None]:
         return get_diff(self.path())

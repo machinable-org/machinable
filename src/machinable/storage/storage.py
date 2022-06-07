@@ -51,13 +51,13 @@ class Storage(Connectable, Element):
         )
 
     @classmethod
-    def make(
+    def use(
         cls,
         module: Optional[str] = None,
         version: VersionType = None,
         default_group: Optional[str] = get_settings().default_group,
     ):
-        module, version = defaultversion(module, version, Storage.default)
+        module, version = defaultversion(module, version, cls)
         return super().make(
             module, version, base_class=Storage, default_group=default_group
         )
@@ -68,8 +68,8 @@ class Storage(Connectable, Element):
         directory: str,
         default_group: Optional[str] = get_settings().default_group,
     ) -> "Storage":
-        return cls(
-            storage="machinable.storage.filesystem_storage",
+        return cls.make(
+            "machinable.storage.filesystem",
             version={"directory": directory},
             default_group=default_group,
         )
@@ -115,20 +115,13 @@ class Storage(Connectable, Element):
         self.create_execution(execution, experiments)
 
     @classmethod
-    def filesystem(cls, directory: Optional[str] = None) -> "Storage":
-        return cls.make(
-            "machinable.storage.filesystem_storage",
-            version={"directory": directory},
-        )
-
-    @classmethod
     def multiple(cls, primary: "Storage", *secondary: "Storage") -> "Storage":
         if len(secondary) == 0:
             return primary
 
-        from machinable.storage.multiple_storage import MultipleStorage
+        from machinable.storage.multiple import Multiple
 
-        return MultipleStorage(primary, *secondary)
+        return Multiple(primary, *secondary)
 
     def create_execution(
         self,

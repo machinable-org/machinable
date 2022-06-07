@@ -5,7 +5,7 @@ from machinable.storage.storage import Storage
 from machinable.types import DatetimeType, JsonableType
 
 
-class MultipleStorage(Storage):
+class Multiple(Storage):
     """Allows to use multiple storage instances
 
     All read operations are being forwarded to primary storage only.
@@ -31,8 +31,11 @@ class MultipleStorage(Storage):
         }
 
     @classmethod
-    def unserialize(cls, serialized: dict) -> "MultipleStorage":
-        return cls(**serialized)
+    def unserialize(cls, serialized: dict) -> "Multiple":
+        return cls(
+            Storage.unserialize(serialized["primary"]),
+            *[Storage.unserialize(s) for s in serialized["secondary"]],
+        )
 
     def _read(self, method: str, *args) -> Any:
         # read from primary storage

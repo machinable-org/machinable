@@ -4,7 +4,6 @@ import json
 import os
 import sqlite3
 
-import arrow
 from machinable import schema
 from machinable.errors import StorageError
 from machinable.settings import get_settings
@@ -16,7 +15,7 @@ if TYPE_CHECKING:
     from machinable.element import Element
 
 
-class FilesystemStorage(Storage):
+class Filesystem(Storage):
     class Config:
         """Config annotation"""
 
@@ -24,16 +23,30 @@ class FilesystemStorage(Storage):
 
     def __init__(
         self,
-        version: VersionType,
+        version: VersionType = None,
         default_group: Optional[str] = get_settings().default_group,
     ):
         super().__init__(version=version, default_group=default_group)
+        self._db = None
+        self._db_file = None
         if self.config.directory is None:
             return
+        self._prepare_db()
+
+    def _prepare_db(self):
         os.makedirs(self.config.directory, exist_ok=True)
         self._db_file = os.path.join(self.config.directory, "storage.sqlite")
         self._db = sqlite3.connect(self._db_file)
         self._migrate(self._db)
+
+    def set_model(self, model: schema.Element) -> "Filesystem":
+        super().set_model(model)
+        self._prepare_db()
+        return self
+
+    def _assert_editable(self):
+        if not self._db:
+            raise StorageError("No filesystem directory was provided.")
 
     def _migrate(self, database):
         cur = database.cursor()
@@ -86,6 +99,7 @@ class FilesystemStorage(Storage):
         execution: schema.Execution,
         experiments: List[schema.Experiment],
     ) -> str:
+        self._assert_editable()
         suffix = timestamp_to_directory(execution.timestamp)
         for experiment in experiments:
             execution_directory = os.path.join(
@@ -129,6 +143,7 @@ class FilesystemStorage(Storage):
         group: schema.Group,
         project: schema.Project,
     ) -> str:
+        self._assert_editable()
         group = self.create_group(group)
         head, tail = os.path.split(group.path)
         directory = os.path.join(
@@ -213,6 +228,7 @@ class FilesystemStorage(Storage):
         return storage_id
 
     def _create_group(self, group: schema.Group) -> str:
+        self._assert_editable()
         cur = self._db.cursor()
 
         row = cur.execute(
@@ -283,6 +299,7 @@ class FilesystemStorage(Storage):
     def _find_experiment(
         self, experiment_id: str, timestamp: int = None
     ) -> Optional[str]:
+        self._assert_editable()
         cur = self._db.cursor()
         if timestamp is not None:
             query = cur.execute(
@@ -311,6 +328,7 @@ class FilesystemStorage(Storage):
         )
 
     def _retrieve_group(self, storage_id: str) -> schema.Group:
+        self._assert_editable()
         cur = self._db.cursor()
         row = cur.execute(
             """SELECT `path`, `pattern` FROM groups WHERE `path`=?""",
@@ -337,6 +355,7 @@ class FilesystemStorage(Storage):
     def _find_related(
         self, storage_id: str, relation: str
     ) -> Optional[Union[str, List[str]]]:
+        self._assert_editable()
         if relation == "experiment.execution":
             cur = self._db.cursor()
             row = cur.execute(
