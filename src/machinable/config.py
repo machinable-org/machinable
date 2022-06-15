@@ -1,18 +1,48 @@
 __all__ = ["Field", "validator", "RequiredField"]
-from typing import TYPE_CHECKING, Any, Dict, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any, Callable, Dict, Optional, Tuple, Union
 
 import collections
 import re
 from inspect import isclass
 
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field
+from pydantic import validator as _validator
 from pydantic.dataclasses import dataclass
+from pydantic.typing import AnyCallable
 
 if TYPE_CHECKING:
     from machinable.element import Element
+    from pydantic.typing import AnyClassMethod
 
 
 RequiredField = Field("???")
+
+
+def validator(
+    *fields: str,
+    pre: bool = False,
+    each_item: bool = False,
+    always: bool = False,
+    check_fields: bool = True,
+) -> Callable[[AnyCallable], "AnyClassMethod"]:
+    """
+    Decorate methods on the class indicating that they should be used to validate fields
+
+    fields: which field(s) the method should be called on
+    pre: whether or not this validator should be called before the standard validators (else after)
+    each_item: for complex objects (sets, lists etc.) whether to validate individual elements rather than the
+      whole object
+    always: whether this method and other validators should be called even if the value is missing
+    check_fields: whether to check that the fields actually exist on the model
+    """
+    return _validator(
+        *fields,
+        pre=pre,
+        each_item=each_item,
+        always=always,
+        check_fields=check_fields,
+        allow_reuse=True,
+    )
 
 
 def from_element(element: "Element") -> Optional[BaseModel]:
