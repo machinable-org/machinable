@@ -30,8 +30,7 @@ def validator(
 
     fields: which field(s) the method should be called on
     pre: whether or not this validator should be called before the standard validators (else after)
-    each_item: for complex objects (sets, lists etc.) whether to validate individual elements rather than the
-      whole object
+    each_item: for complex objects (sets, lists etc.) whether to validate individual elements rather than the whole object
     always: whether this method and other validators should be called even if the value is missing
     check_fields: whether to check that the fields actually exist on the model
     """
