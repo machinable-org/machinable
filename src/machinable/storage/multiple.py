@@ -2,7 +2,7 @@ from typing import Any, Dict, List, Optional, Union
 
 from machinable import schema
 from machinable.storage.storage import Storage
-from machinable.types import DatetimeType, JsonableType
+from machinable.types import DatetimeType, JsonableType, VersionType
 
 
 class Multiple(Storage):
@@ -190,6 +190,13 @@ class Multiple(Storage):
         self, experiment_id: str, timestamp: float = None
     ) -> Optional[str]:
         return self._read("_find_experiment", experiment_id, timestamp)
+
+    def _find_experiment_by_version(
+        self,
+        module: str,
+        version: VersionType = None,
+    ) -> List[str]:
+        return self._read("_find_experiment_by_version", module, version)
 
     def _find_related(
         self, storage_id: str, relation: str

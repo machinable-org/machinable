@@ -299,7 +299,7 @@ class Filesystem(Storage):
                 ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)""",
             (
                 storage_id,
-                experiment.__module__,
+                experiment.module,
                 json.dumps(experiment.config),
                 json.dumps(experiment.version),
                 experiment.experiment_id,
@@ -429,6 +429,26 @@ class Filesystem(Storage):
             return result[0]
 
         return None
+
+    def _find_experiment_by_version(
+        self,
+        module: str,
+        version: VersionType = None,
+    ) -> List[str]:
+        self._assert_editable()
+        cur = self._db.cursor()
+        if version:
+            query = cur.execute(
+                """SELECT storage_id FROM experiments WHERE module=? AND version=?""",
+                (module, json.dumps(version)),
+            )
+        else:
+            query = cur.execute(
+                """SELECT storage_id FROM experiments WHERE module=?""",
+                (module,),
+            )
+
+        return [row[0] for row in query.fetchall()]
 
     def _retrieve_execution(self, storage_id: str) -> schema.Execution:
         return schema.Execution(

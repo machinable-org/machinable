@@ -152,6 +152,7 @@ class DataElement(Element):
 
 def test_experiment_elements():
     Project("./tests/samples/project").connect()
+    assert Experiment.singleton("dummy") is not None
     experiment = Experiment.use("dummy")
     dataset = DataElement({"dataset": "cifar"})
     experiment.add(dataset)

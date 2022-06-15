@@ -1,7 +1,7 @@
 from typing import TYPE_CHECKING, Any, List, Optional, Union
 
 from machinable import schema
-from machinable.element import Connectable, Element, defaultversion
+from machinable.element import Connectable, Element, defaultversion, normversion
 from machinable.group import Group
 from machinable.project import Project
 from machinable.settings import get_settings
@@ -513,6 +513,20 @@ class Storage(Connectable, Element):
     def _find_experiment(
         self, experiment_id: str, timestamp: int = None
     ) -> Optional[str]:
+        raise NotImplementedError
+
+    def find_experiment_by_version(
+        self,
+        module: str,
+        version: VersionType = None,
+    ) -> List[str]:
+        return self._find_experiment_by_version(module, normversion(version))
+
+    def _find_experiment_by_version(
+        self,
+        module: str,
+        version: VersionType = None,
+    ) -> List[str]:
         raise NotImplementedError
 
     def retrieve_related(
