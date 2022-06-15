@@ -11,13 +11,15 @@ def storage_tests(storage: Storage) -> None:
     # commit
     pre_execution = schema.Execution()
     experiments = [
-        schema.Experiment(),
-        schema.Experiment(),
-        schema.Experiment(),
+        schema.Experiment(
+            module="test.catch_me", version=["~if", {"you": "can"}]
+        ),
+        schema.Experiment(module="test.catch_me", version=["~if"]),
+        schema.Experiment(module="another"),
     ]
     project = schema.Project(directory=".", name="test")
     group = schema.Group(pattern="test/me", path="test/me")
-    elements = [schema.Experiment(), schema.Execution()]
+    elements = [schema.Experiment(module="test.catch_me"), schema.Execution()]
 
     for experiment in experiments:
         storage.create_experiment(experiment, group, project, elements)
@@ -89,6 +91,21 @@ def storage_tests(storage: Storage) -> None:
         == experiments[0]._storage_id
     )
     assert storage.find_experiment("not-existing") is None
+    # search by version
+    assert len(storage.find_experiment_by_version("non-existing")) == 0
+    assert len(storage.find_experiment_by_version(module="test.catch_me")) == 2
+    assert (
+        storage.find_experiment_by_version(
+            module="test.catch_me", version=["~if", {"you": "can"}]
+        )[0]
+        == experiments[0]._storage_id
+    )
+    assert (
+        storage.find_experiment_by_version(
+            module="test.catch_me", version=[{"you": "can"}]
+        )
+        == []
+    )
 
     # status managment
     now = arrow.now()

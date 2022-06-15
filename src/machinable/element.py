@@ -409,6 +409,44 @@ class Element(Jsonable):
 
         return cls.from_storage(storage_id, storage)
 
+    @classmethod
+    def find_many(cls, elements: List[str]) -> "Collection":
+        return cls.collect([cls.find(element_id) for element_id in elements])
+
+    @classmethod
+    def find_by_version(
+        cls,
+        module: str,
+        version: VersionType = None,
+    ) -> "Collection":
+        from machinable.storage import Storage
+
+        storage = Storage.get()
+
+        storage_ids = getattr(storage, f"find_{cls._key.lower()}_by_version")(
+            module, version
+        )
+
+        return cls.collect(
+            [
+                cls.from_storage(storage_id, storage)
+                for storage_id in storage_ids
+            ]
+        )
+
+    @classmethod
+    def singleton(
+        cls,
+        module: str,
+        version: VersionType,
+        **constructor_kwargs,
+    ) -> "Element":
+        candidates = cls.find_by_version(module, version)
+        if candidates:
+            return candidates[0]
+
+        return cls.make(module, version)
+
     @property
     def config(self) -> DictConfig:
         """Element configuration"""
@@ -529,10 +567,6 @@ class Element(Jsonable):
         return cls.from_model(
             getattr(storage, f"retrieve_{cls._key.lower()}")(storage_id)
         )
-
-    @classmethod
-    def find_many(cls, elements: List[str]) -> "Collection":
-        return cls.collect([cls.find(element_id) for element_id in elements])
 
     def find_latest(self, limit=10, since=None):
         if since is None:

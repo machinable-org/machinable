@@ -99,6 +99,26 @@ class Experiment(Element):  # pylint: disable=too-many-public-methods
             derived_from=derived_from,
         )
 
+    @classmethod
+    def singleton(
+        cls,
+        module: Optional[str] = None,
+        version: VersionType = None,
+        group: Union[Group, str, None] = None,
+        resources: Optional[Dict] = None,
+        seed: Union[int, None] = None,
+        derived_from: Optional["Experiment"] = None,
+    ) -> "Experiment":
+        return super().singleton(
+            module,
+            version,
+            base_class=Experiment,
+            group=group,
+            resources=resources,
+            seed=seed,
+            derived_from=derived_from,
+        )
+
     @belongs_to
     def group():
         return Group

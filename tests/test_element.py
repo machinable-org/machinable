@@ -320,3 +320,23 @@ def test_element_relations(tmp_path):
     experiment.__related__ = {}
     execution.__related__ = {}
     execution.experiments[0] == experiment
+
+
+def test_element_search(tmp_path):
+    Storage.make(
+        "machinable.storage.filesystem", {"directory": str(tmp_path)}
+    ).connect()
+    Project("./tests/samples/project").connect()
+    exp1 = Experiment.make("dummy", {"a": 1}).execute()
+    exp2 = Experiment.make("dummy", {"a": 2}).execute()
+    assert Experiment.find(exp1.experiment_id).timestamp == exp1.timestamp
+    assert Experiment.find_by_version("non-existing").empty()
+    assert Experiment.find_by_version("dummy").count() == 2
+    # singleton
+    assert Experiment.singleton("dummy", {"a": 2}).nickname == exp2.nickname
+    assert Experiment.singleton("dummy", {"a": 2}).timestamp == exp2.timestamp
+    n = Experiment.singleton("dummy", {"a": 3}).execute()
+    assert n.nickname != exp2.nickname
+    assert (
+        n.experiment_id == Experiment.singleton("dummy", {"a": 3}).experiment_id
+    )
