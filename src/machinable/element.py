@@ -505,7 +505,7 @@ class Element(Jsonable):
 
                         if not isinstance(version, collections.abc.Mapping):
                             raise ConfigurationError(
-                                f"Version method {definition} must produce a mapping, but returned {type(patch)}: {patch}"
+                                f"Version method {definition} must produce a mapping, but returned {type(version)}: {version}"
                             )
 
                     config_update = update_dict(config_update, version)
