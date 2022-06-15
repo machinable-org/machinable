@@ -510,6 +510,9 @@ class Experiment(Element):  # pylint: disable=too-many-public-methods
     def dispatch(self):
         """Execute the interface lifecycle"""
         try:
+            if self.is_finished():
+                return True
+
             self.on_dispatch()
 
             if self.is_mounted():
