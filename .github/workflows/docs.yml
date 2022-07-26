@@ -36,7 +36,7 @@ jobs:
       - name: Build
         run: /home/runner/work/machinable/machinable/node_modules/vuepress/bin/vuepress.js build docs
       - name: Deploy
-        uses: JamesIves/github-pages-deploy-action@v4.3.3
+        uses: JamesIves/github-pages-deploy-action@v4.4.0
         with:
           branch: gh-pages
           folder: docs/.vuepress/dist
