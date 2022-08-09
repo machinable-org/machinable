@@ -264,6 +264,9 @@ class Experiment(Element):  # pylint: disable=too-many-public-methods
         self, using: Union[str, None] = None, version: VersionType = None
     ) -> "Experiment":
         """Executes the experiment"""
+        if self.is_finished():
+            return self
+
         from machinable.execution.execution import Execution
 
         Execution.use(using, version=version).add(experiment=self).dispatch()
