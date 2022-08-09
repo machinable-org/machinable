@@ -1,1 +1,0 @@
-const e={key:"v-5b6fbac0",path:"/miscellaneous/contribution-guide.html",title:"Contribution guide",lang:"en-US",frontmatter:{},excerpt:"",headers:[],git:{updatedTime:1660013462e3,contributors:[{name:"Frithjof Gressmann",email:"fg14@illinois.edu",commits:1}]},filePathRelative:"miscellaneous/contribution-guide.md"};export{e as data};
