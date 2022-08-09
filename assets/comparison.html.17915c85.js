@@ -1,0 +1,1 @@
+const e={key:"v-23441c14",path:"/miscellaneous/comparison.html",title:"Comparison with alternatives",lang:"en-US",frontmatter:{},excerpt:"",headers:[],git:{updatedTime:1660013462e3,contributors:[{name:"Frithjof Gressmann",email:"fg14@illinois.edu",commits:1}]},filePathRelative:"miscellaneous/comparison.md"};export{e as data};
