@@ -23,7 +23,8 @@ export default defineConfig({
         { text: 'Changelog', link: 'https://github.com/machinable-org/machinable/blob/main/CHANGELOG.md' }
       ],
       footer: {
-        message: 'MIT Licensed'
+        message: 'MIT Licensed',
+        copyright: 'Copyright © 2021-present'
       }
     }
 })
