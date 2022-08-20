@@ -1,3 +1,0 @@
-# Comparison with alternatives
-
--
