@@ -38,7 +38,7 @@ jobs:
       - name: Build
         run: |
           /home/runner/work/machinable/machinable/node_modules/vitepress/bin/vitepress.js build docs
-          cp -r docs/public/* docs/.vitepress/dist/
+          cp -r docs/.vitepress/public/* docs/.vitepress/dist/
       - name: Deploy
         uses: JamesIves/github-pages-deploy-action@v4.4.0
         with:
