@@ -246,10 +246,10 @@ class Experiment(Element):  # pylint: disable=too-many-public-methods
     def version(
         self, version: VersionType = sentinel, overwrite: bool = False
     ) -> List[Union[str, dict]]:
-        self._assert_editable()
-
         if version is sentinel:
             return self.__model__.version
+
+        self._assert_editable()
 
         if overwrite:
             self.__model__.version = normversion(version)

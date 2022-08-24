@@ -12,6 +12,7 @@ from machinable.element import (
     Element,
     compact,
     defaultversion,
+    equalversion,
     extract,
     normversion,
     transfer_to,
@@ -231,6 +232,17 @@ def test_defaultversion():
         ["example"],
     )
     assert defaultversion(None, None, Experiment) == (None, [])
+
+
+def test_equalversion():
+    assert equalversion(None, None)
+    assert equalversion([], None)
+    assert equalversion(["~test", {"a": 2}], ("~test", {"a": 2}))
+    assert equalversion([{}, {"a": 2}], (None, {"a": 2}))
+    assert equalversion({"a": 1, "b": 2}, {"b": 2, "a": 1})
+    assert not equalversion(
+        ({"a": 1, "b": 2}, "test"), ("test", {"b": 2, "a": 1})
+    )
 
 
 def test_connectable():
