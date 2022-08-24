@@ -3,7 +3,6 @@ from typing import TYPE_CHECKING, Any, Callable, List, Optional, Tuple, Union
 import collections
 import copy
 import json
-from distutils.version import Version
 from functools import wraps
 
 import arrow
