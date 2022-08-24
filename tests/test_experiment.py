@@ -99,6 +99,11 @@ def test_experiment(tmp_path):
     experiment.save_execution_data("test", "data")
     assert experiment.load_execution_data("test") == "data"
 
+    # write protection
+    assert experiment.version() == []
+    with pytest.raises(errors.ConfigurationError):
+        experiment.version(["modify"])
+
 
 def test_experiment_relations(tmp_path):
     Storage.make(

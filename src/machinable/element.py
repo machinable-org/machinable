@@ -2,6 +2,8 @@ from typing import TYPE_CHECKING, Any, Callable, List, Optional, Tuple, Union
 
 import collections
 import copy
+import json
+from distutils.version import Version
 from functools import wraps
 
 import arrow
@@ -281,6 +283,12 @@ def extract(
         return compact_element[0], None
 
     return compact_element[0], normversion(compact_element[1:])
+
+
+def equalversion(a: VersionType, b: VersionType) -> bool:
+    return json.dumps(normversion(a), sort_keys=True) == json.dumps(
+        normversion(b), sort_keys=True
+    )
 
 
 def transfer_to(src: "Element", destination: "Element") -> "Element":
