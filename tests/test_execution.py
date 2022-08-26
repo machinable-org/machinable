@@ -1,5 +1,7 @@
+import time
+
 import pytest
-from machinable import Execution, Experiment, Project
+from machinable import Execution, Experiment, Project, Storage
 
 
 def test_execution():
@@ -52,3 +54,18 @@ def test_execution_resources():
 def test_local_execution():
     Experiment().execute("machinable.execution.local", {"processes": None})
     Experiment().execute("machinable.execution.local", {"processes": 1})
+
+
+class ExternalExperiment(Experiment):
+    def on_create(self):
+        print("Hello from the external script")
+        self.save_data("test.txt", "hello")
+
+
+def test_external_execution(tmpdir):
+    with Storage.filesystem(str(tmpdir)):
+        experiment = ExternalExperiment()
+        experiment.execute("machinable.execution.external", {})
+        time.sleep(0.1)
+        assert experiment.is_finished()
+        assert experiment.load_data("test.txt") == "hello"
