@@ -504,7 +504,10 @@ class Storage(Connectable, Element):
         if status is None:
             return None
 
-        return arrow.get(status)
+        try:
+            return arrow.get(status)
+        except arrow.ParserError:
+            return None
 
     def _retrieve_status(
         self, experiment_storage_id: str, field: str
