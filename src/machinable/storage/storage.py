@@ -117,6 +117,12 @@ class Storage(Connectable, Element):
 
         self.create_execution(execution, experiments)
 
+        # write deferred execution data
+        for experiment in experiments:
+            for filepath, data in experiment._deferred_execution_data.items():
+                experiment.save_execution_data(filepath, data)
+            experiment._deferred_execution_data = {}
+
     @classmethod
     def multiple(cls, primary: "Storage", *secondary: "Storage") -> "Storage":
         if len(secondary) == 0:

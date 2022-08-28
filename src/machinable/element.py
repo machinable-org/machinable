@@ -447,12 +447,7 @@ class Element(Jsonable):
         )
 
     @classmethod
-    def singleton(
-        cls,
-        module: str,
-        version: VersionType,
-        **constructor_kwargs,
-    ) -> "Element":
+    def singleton(cls, module: str, version: VersionType) -> "Element":
         candidates = cls.find_by_version(module, version)
         if candidates:
             return candidates[0]

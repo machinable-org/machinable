@@ -92,10 +92,13 @@ def test_experiment(tmp_path):
 
     # execution data
     experiment = Experiment()
-    with pytest.raises(ValueError):
-        experiment.save_execution_data("test", "data")
+    assert (
+        experiment.save_execution_data("test_deferred", "success")
+        == "$deferred"
+    )
     execution = Execution().add(experiment)
     execution.dispatch()
+    assert experiment.load_execution_data("test_deferred") == "success"
     experiment.save_execution_data("test", "data")
     assert experiment.load_execution_data("test") == "data"
 
@@ -144,7 +147,6 @@ def test_experiment_relations(tmp_path):
             assert len(experiment.derived) == 2
 
             assert experiment.derive().experiment_id != experiment.experiment_id
-
             derived = experiment.derive(version=experiment.config)
             Execution().add(derived).dispatch()
 

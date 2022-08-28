@@ -2,7 +2,7 @@
 # https://github.com/sdispater/backpack/blob/master/backpack/collections/base_collection.py.
 # The copyright and license agreement can be found in the ThirdPartyNotices.txt file at the root of this repository.
 
-from typing import Dict, Optional, Union
+from typing import TYPE_CHECKING, Any, Callable, Optional, Union
 
 import copy
 from functools import reduce
@@ -14,6 +14,10 @@ from machinable.types import VersionType
 long = int
 unicode = str
 basestring = str
+
+
+if TYPE_CHECKING:
+    from machinable.experiment import Experiment
 
 
 def _get_value(val):
@@ -93,7 +97,7 @@ class Collection:
         # Arguments
         items: ``list``|``Collection``|``map`` of items to collect
         """
-        if isinstance(items, Collection):
+        if isinstance(items, cls):
             return items
 
         return cls(items)
@@ -161,7 +165,7 @@ class Collection:
         """
         chunks = self._chunk(size)
 
-        return Collection(list(map(Collection, chunks)))
+        return self.__class__(list(map(self.__class__, chunks)))
 
     def _chunk(self, size):
         items = self.items
@@ -267,7 +271,7 @@ class Collection:
 
             results += values
 
-        return Collection(results)
+        return self.__class__(results)
 
     def diff(self, items):
         """Compares the collection against another collection, a `list` or a `dict`
@@ -282,7 +286,7 @@ class Collection:
         # [1, 3, 5]
         ```
         """
-        return Collection([i for i in self.items if i not in items])
+        return self.__class__([i for i in self.items if i not in items])
 
     def each(self, callback):
         """Iterates over the items in the collection and passes each item to a given callback
@@ -344,7 +348,7 @@ class Collection:
             if position % step == offset:
                 new.append(item)
 
-        return Collection(new)
+        return self.__class__(new)
 
     def without(self, *keys):
         """Get all items except for those with the specified keys.
@@ -359,7 +363,7 @@ class Collection:
         for key in keys:
             del items[key]
 
-        return Collection(items)
+        return self.__class__(items)
 
     def only(self, *keys):
         """
@@ -374,7 +378,7 @@ class Collection:
             if key in keys:
                 items.append(value)
 
-        return Collection(items)
+        return self.__class__(items)
 
     def filter(self, callback=None):
         """Filters the collection by a given callback, keeping only those items that pass a given truth test
@@ -393,9 +397,9 @@ class Collection:
         ```
         """
         if callback:
-            return Collection(list(filter(callback, self.items)))
+            return self.__class__(list(filter(callback, self.items)))
 
-        return Collection(list(filter(None, self.items)))
+        return self.__class__(list(filter(None, self.items)))
 
     def where(self, key, value):
         """Filter items by the given key value pair.
@@ -485,7 +489,7 @@ class Collection:
             else:
                 yield d
 
-        return Collection(list(_flatten(self.items)))
+        return self.__class__(list(_flatten(self.items)))
 
     def forget(self, *keys):
         """Remove an item from the collection by key.
@@ -646,7 +650,7 @@ class Collection:
         ```
         """
         if self.items is None:
-            return Collection([])
+            return self.__class__([])
 
         if key:
             return dict(
@@ -657,7 +661,7 @@ class Collection:
         else:
             results = list(map(lambda x: data_get(x, value), self.items))
 
-        return Collection(results)
+        return self.__class__(results)
 
     def map(self, callback):
         """Iterates through the collection and passes each value to the given callback.
@@ -683,7 +687,7 @@ class Collection:
         method.
         :::
         """
-        return Collection(list(map(callback, self.items)))
+        return self.__class__(list(map(callback, self.items)))
 
     def max(self, key=None):
         """Get the max value of a given key.
@@ -886,7 +890,7 @@ class Collection:
         # [5, 4, 3, 2, 1]
         ```
         """
-        return Collection(list(reversed(self.items)))
+        return self.__class__(list(reversed(self.items)))
 
     def sort(self, callback=None, reverse=False):
         """Sorts the collection
@@ -908,9 +912,9 @@ class Collection:
         items = self.items
 
         if callback:
-            return Collection(sorted(items, key=callback, reverse=reverse))
+            return self.__class__(sorted(items, key=callback, reverse=reverse))
         else:
-            return Collection(sorted(items, reverse=reverse))
+            return self.__class__(sorted(items, reverse=reverse))
 
     def sum(self, callback=None):
         """Returns the sum of all items in the collection
@@ -1044,7 +1048,7 @@ class Collection:
             seen = set()
             seen_add = seen.add
 
-            return Collection(
+            return self.__class__(
                 [x for x in self.items if not (x in seen or seen_add(x))]
             )
 
@@ -1074,7 +1078,7 @@ class Collection:
         # [('Chair', 100), ('Desk', 200)]
         ```
         """
-        return Collection(list(zip(self.items, *items)))
+        return self.__class__(list(zip(self.items, *items)))
 
     def empty(self):
         """Returns `True` if the collection is empty; otherwise, `False` is returned"""
@@ -1258,18 +1262,12 @@ class Collection:
         return self.pluck_or_none(value, key, none=float("nan"))
 
     def section(self, of, reduce=None):
-        """Performs horizontal reduce through collection
+        """Performs horizontal reduce through the collection
 
         # Arguments
-        of: String|``Callable`` Selector of reduce values
+        of: ``Callable`` Selector of reduce values
         reduce: Optional ``callable`` reduce method
         """
-        if isinstance(of, str):
-            field = of
-
-            def of(x):
-                return x.records.pluck(field)
-
         if not callable(reduce):
 
             def reduce(x):
@@ -1290,7 +1288,7 @@ class Collection:
             for row in range(rows)
         ]
 
-        return Collection(section)
+        return self.__class__(section)
 
     def _value_retriever(self, value):
         if self._use_as_callable(value):
@@ -1328,7 +1326,7 @@ class Collection:
 
     def __getitem__(self, item):
         if isinstance(item, slice):
-            return Collection.make(self.items[item])
+            return self.__class__.make(self.items[item])
 
         return self.items[item]
 
@@ -1406,6 +1404,47 @@ class ExperimentCollection(ElementCollection):
         execution.dispatch()
 
         return self
+
+    def finished(self) -> "ExperimentCollection":
+        return self.filter(lambda x: x.is_finished())
+
+    def started(self) -> "ExperimentCollection":
+        return self.filter(lambda x: x.is_started())
+
+    def active(self) -> "ExperimentCollection":
+        return self.filter(lambda x: x.is_active())
+
+    def incomplete(self) -> "ExperimentCollection":
+        return self.filter(lambda x: x.is_incomplete())
+
+    def filter_by_version(
+        self, module: str, version: VersionType = None
+    ) -> "ExperimentCollection":
+        from machinable.element import equalversion
+
+        return self.filter(
+            lambda x: (
+                x.__model__.module == module
+                and equalversion(x.version(), version)
+            )
+        )
+
+    def singleton(
+        self,
+        module: str,
+        version: VersionType = None,
+        predicate: Optional[Callable[["Experiment"], bool]] = None,
+        default: Any = None,
+    ) -> Union[Any, "Experiment"]:
+        from machinable.element import equalversion
+
+        return self.filter(
+            lambda x: (
+                x.is_finished()
+                and x.__model__.module == module
+                and equalversion(x.version(), version)
+            )
+        ).first(callback=predicate, default=default)
 
 
 class ExecutionCollection(ElementCollection):

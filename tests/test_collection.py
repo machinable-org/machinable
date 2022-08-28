@@ -16,12 +16,49 @@ def test_collect():
 def test_experiment_collection(tmp_path):
     with Project("./tests/samples/project"):
         with Storage.filesystem(str(tmp_path)):
-            collection = Experiment.collect([Experiment() for _ in range(5)])
+            collection = Experiment.collect(
+                [Experiment({"m": i % 2}) for i in range(5)]
+            )
+            for i, e in enumerate(collection):
+                e.save_data("i", i)
             assert isinstance(collection, ExperimentCollection)
-            # collection.as_dataframe()
+
             collection.execute()
             assert all(collection.map(lambda x: x.is_finished()))
-            collection.execute()
+
+            assert len(collection.finished()) == 5
+            assert len(collection.active()) == 0
+            assert len(collection.started()) == 5
+            assert len(collection.incomplete()) == 0
+            assert len(collection.started().active()) == 0
+
+            assert len(collection.filter_by_version("non-existent")) == 0
+            assert (
+                len(collection.filter_by_version("machinable.experiment")) == 0
+            )
+            assert (
+                len(
+                    collection.filter_by_version(
+                        "machinable.experiment", {"m": 0}
+                    )
+                )
+                == 3
+            )
+            assert (
+                len(
+                    collection.filter_by_version(
+                        "machinable.experiment", {"m": 1}
+                    )
+                )
+                == 2
+            )
+
+            assert (
+                collection.singleton(
+                    "machinable.experiment", {"m": 1}
+                ).load_data("i")
+                == "1"
+            )
 
 
 class CollectionTestCase(TestCase):
