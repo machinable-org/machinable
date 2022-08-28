@@ -63,6 +63,7 @@ class ExternalExperiment(Experiment):
 
 
 def test_external_execution(tmpdir):
+    # tmpdir = "./test"
     with Storage.filesystem(str(tmpdir)):
         experiment = ExternalExperiment()
         experiment.execute("machinable.execution.external", {})

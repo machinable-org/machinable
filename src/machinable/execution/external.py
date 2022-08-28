@@ -1,4 +1,7 @@
-from typing import Any, List, Optional
+from typing import Any, List, Optional, Union
+
+import os
+import stat
 
 import commandlib
 from machinable import errors
@@ -20,10 +23,13 @@ class External(Execution):
     class Config:
         shebang: str = "#!/usr/bin/env bash"
         python: str = "python"
-        runner: str = "bash"
+        runner: Union[str, List[str]] = "bash"
 
     def on_dispatch(self) -> List[Any]:
-        runner = commandlib.Command(self.config.runner)
+        if isinstance(self.config.runner, str):
+            runner = commandlib.Command(self.config.runner)
+        else:
+            runner = commandlib.Command(*self.config.runner)
 
         results = []
         for experiment in self.experiments:
@@ -36,6 +42,9 @@ class External(Execution):
             script_filepath = experiment.save_execution_data(
                 "runner.sh", script
             )
+            st = os.stat(script_filepath)
+            os.chmod(script_filepath, st.st_mode | stat.S_IEXEC)
+
             print(
                 f"Running experiment {experiment.experiment_id} script at {script_filepath}"
             )

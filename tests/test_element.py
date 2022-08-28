@@ -23,18 +23,18 @@ from omegaconf import OmegaConf
 
 
 def test_element_instantiation():
-    project = Project("./tests/samples/project").connect()
-    with pytest.raises(ModuleNotFoundError):
-        project.element("non.existing", Experiment)
-    with pytest.raises(ConfigurationError):
-        project.element("empty", Experiment)
-    experiment = project.element("basic")
-    assert experiment.hello() == "there"
-    from_model = Experiment.from_model(experiment.__model__)
-    assert from_model.hello() == "there"
-    # prevents circular instantiation
-    assert isinstance(Experiment.make("machinable"), Experiment)
-    assert isinstance(Experiment.make("machinable.experiment"), Experiment)
+    with Project("./tests/samples/project") as project:
+        with pytest.raises(ModuleNotFoundError):
+            project.element("non.existing", Experiment)
+        with pytest.raises(ConfigurationError):
+            project.element("empty", Experiment)
+        experiment = project.element("basic")
+        assert experiment.hello() == "there"
+        from_model = Experiment.from_model(experiment.__model__)
+        assert from_model.hello() == "there"
+        # prevents circular instantiation
+        assert isinstance(Experiment.make("machinable"), Experiment)
+        assert isinstance(Experiment.make("machinable.experiment"), Experiment)
 
 
 def test_element_transfer():
@@ -285,70 +285,95 @@ def test_connectable():
         assert Dummy.get() is not dummy_1
 
 
+# sub-class relations
+class CustomExperiment(Experiment):
+    pass
+
+
+class CustomExecution(Execution):
+    pass
+
+
 def test_element_relations(tmp_path):
-    Storage.make(
+    with Storage.make(
         "machinable.storage.filesystem", {"directory": str(tmp_path)}
-    ).connect()
-    Project("./tests/samples/project").connect()
+    ):
+        with Project("./tests/samples/project"):
 
-    experiment = Experiment(group="test/group")
-    execution = Execution().add(experiment)
-    execution.dispatch()
+            experiment = Experiment(group="test/group")
+            execution = Execution().add(experiment)
+            execution.dispatch()
 
-    experiment_clone = Experiment.from_storage(experiment.storage_id)
-    assert experiment.experiment_id == experiment_clone.experiment_id
+            experiment_clone = Experiment.from_storage(experiment.storage_id)
+            assert experiment.experiment_id == experiment_clone.experiment_id
 
-    # experiment <-> execution
-    assert int(execution.timestamp) == int(experiment.execution.timestamp)
-    assert experiment.experiment_id == execution.experiments[0].experiment_id
-    # group <-> execution
-    assert experiment.group.path == "test/group"
-    assert experiment.group.pattern == "test/group"
-    assert experiment.group.experiments[0].nickname == experiment.nickname
+            # experiment <-> execution
+            assert int(execution.timestamp) == int(
+                experiment.execution.timestamp
+            )
+            assert (
+                experiment.experiment_id
+                == execution.experiments[0].experiment_id
+            )
+            # group <-> execution
+            assert experiment.group.path == "test/group"
+            assert experiment.group.pattern == "test/group"
+            assert (
+                experiment.group.experiments[0].nickname == experiment.nickname
+            )
 
-    # invalidate cache and reconstruct
-    experiment.__related__ = {}
-    execution.__related__ = {}
-    # experiment <-> execution
-    assert int(execution.timestamp) == int(experiment.execution.timestamp)
-    assert experiment.experiment_id == execution.experiments[0].experiment_id
-    # group <-> execution
-    assert experiment.group.path == "test/group"
-    assert experiment.group.experiments[0].nickname == experiment.nickname
+            # invalidate cache and reconstruct
+            experiment.__related__ = {}
+            execution.__related__ = {}
+            # experiment <-> execution
+            assert int(execution.timestamp) == int(
+                experiment.execution.timestamp
+            )
+            assert (
+                experiment.experiment_id
+                == execution.experiments[0].experiment_id
+            )
+            # group <-> execution
+            assert experiment.group.path == "test/group"
+            assert (
+                experiment.group.experiments[0].nickname == experiment.nickname
+            )
 
-    # sub-class relations
-    class CustomExperiment(Experiment):
-        pass
-
-    class CustomExecution(Execution):
-        pass
-
-    experiment = CustomExperiment()
-    execution = CustomExecution().add(experiment)
-    execution.dispatch()
-    experiment.__related__ = {}
-    execution.__related__ = {}
-    experiment.execution == execution
-    experiment.__related__ = {}
-    execution.__related__ = {}
-    execution.experiments[0] == experiment
+            experiment = CustomExperiment()
+            execution = CustomExecution().add(experiment)
+            execution.dispatch()
+            experiment.__related__ = {}
+            execution.__related__ = {}
+            experiment.execution == execution
+            experiment.__related__ = {}
+            execution.__related__ = {}
+            execution.experiments[0] == experiment
 
 
 def test_element_search(tmp_path):
-    Storage.make(
+    with Storage.make(
         "machinable.storage.filesystem", {"directory": str(tmp_path)}
-    ).connect()
-    Project("./tests/samples/project").connect()
-    exp1 = Experiment.make("dummy", {"a": 1}).execute()
-    exp2 = Experiment.make("dummy", {"a": 2}).execute()
-    assert Experiment.find(exp1.experiment_id).timestamp == exp1.timestamp
-    assert Experiment.find_by_version("non-existing").empty()
-    assert Experiment.find_by_version("dummy").count() == 2
-    # singleton
-    assert Experiment.singleton("dummy", {"a": 2}).nickname == exp2.nickname
-    assert Experiment.singleton("dummy", {"a": 2}).timestamp == exp2.timestamp
-    n = Experiment.singleton("dummy", {"a": 3}).execute()
-    assert n.nickname != exp2.nickname
-    assert (
-        n.experiment_id == Experiment.singleton("dummy", {"a": 3}).experiment_id
-    )
+    ):
+        with Project("./tests/samples/project"):
+            exp1 = Experiment.make("dummy", {"a": 1}).execute()
+            exp2 = Experiment.make("dummy", {"a": 2}).execute()
+            assert (
+                Experiment.find(exp1.experiment_id).timestamp == exp1.timestamp
+            )
+            assert Experiment.find_by_version("non-existing").empty()
+            assert Experiment.find_by_version("dummy").count() == 2
+            # singleton
+            assert (
+                Experiment.singleton("dummy", {"a": 2}).nickname
+                == exp2.nickname
+            )
+            assert (
+                Experiment.singleton("dummy", {"a": 2}).timestamp
+                == exp2.timestamp
+            )
+            n = Experiment.singleton("dummy", {"a": 3}).execute()
+            assert n.nickname != exp2.nickname
+            assert (
+                n.experiment_id
+                == Experiment.singleton("dummy", {"a": 3}).experiment_id
+            )

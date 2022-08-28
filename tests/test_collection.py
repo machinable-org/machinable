@@ -14,14 +14,14 @@ def test_collect():
 
 
 def test_experiment_collection(tmp_path):
-    Project("./tests/samples/project").connect()
-    Storage.filesystem(str(tmp_path)).connect()
-    collection = Experiment.collect([Experiment() for _ in range(5)])
-    assert isinstance(collection, ExperimentCollection)
-    # collection.as_dataframe()
-    collection.execute()
-    assert all(collection.map(lambda x: x.is_finished()))
-    collection.execute()
+    with Project("./tests/samples/project"):
+        with Storage.filesystem(str(tmp_path)):
+            collection = Experiment.collect([Experiment() for _ in range(5)])
+            assert isinstance(collection, ExperimentCollection)
+            # collection.as_dataframe()
+            collection.execute()
+            assert all(collection.map(lambda x: x.is_finished()))
+            collection.execute()
 
 
 class CollectionTestCase(TestCase):

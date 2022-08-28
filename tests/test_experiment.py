@@ -6,7 +6,7 @@ from machinable.element import Element
 
 
 def test_experiment(tmp_path):
-    Project("./tests/samples/project").connect()
+    p = Project("./tests/samples/project").connect()
     experiment = Experiment.make("dummy")
     assert isinstance(str(experiment), str)
     assert isinstance(repr(experiment), str)
@@ -104,47 +104,49 @@ def test_experiment(tmp_path):
     with pytest.raises(errors.ConfigurationError):
         experiment.version(["modify"])
 
+    p.close()
+
 
 def test_experiment_relations(tmp_path):
-    Storage.make(
+    with Storage.make(
         "machinable.storage.filesystem", {"directory": str(tmp_path)}
-    ).connect()
-    Project("./tests/samples/project", name="test-project").connect()
+    ):
+        with Project("./tests/samples/project", name="test-project"):
 
-    experiment = Experiment.use("basic", group="test/group")
-    execution = Execution().add(experiment)
-    execution.dispatch()
+            experiment = Experiment.use("basic", group="test/group")
+            execution = Execution().add(experiment)
+            execution.dispatch()
 
-    assert experiment.project.name() == "test-project"
-    assert experiment.execution.timestamp == execution.timestamp
-    assert experiment.executions[0].timestamp == execution.timestamp
-    assert len(experiment.elements) == 0
+            assert experiment.project.name() == "test-project"
+            assert experiment.execution.timestamp == execution.timestamp
+            assert experiment.executions[0].timestamp == execution.timestamp
+            assert len(experiment.elements) == 0
 
-    with pytest.raises(errors.ConfigurationError):
-        experiment.version("attempt_overwrite")
+            with pytest.raises(errors.ConfigurationError):
+                experiment.version("attempt_overwrite")
 
-    derived = Experiment(derived_from=experiment)
-    assert derived.ancestor is experiment
-    derived_execution = Execution().add(derived).dispatch()
+            derived = Experiment(derived_from=experiment)
+            assert derived.ancestor is experiment
+            derived_execution = Execution().add(derived).dispatch()
 
-    # invalidate cache and reconstruct
-    experiment.__related__ = {}
-    execution.__related__ = {}
-    derived.__related__ = {}
-    derived_execution.__related__ = {}
+            # invalidate cache and reconstruct
+            experiment.__related__ = {}
+            execution.__related__ = {}
+            derived.__related__ = {}
+            derived_execution.__related__ = {}
 
-    assert derived.ancestor.experiment_id == experiment.experiment_id
-    assert derived.ancestor.hello() == "there"
-    assert experiment.derived[0].experiment_id == derived.experiment_id
+            assert derived.ancestor.experiment_id == experiment.experiment_id
+            assert derived.ancestor.hello() == "there"
+            assert experiment.derived[0].experiment_id == derived.experiment_id
 
-    derived = Experiment(derived_from=experiment)
-    Execution().add(derived).dispatch()
-    assert len(experiment.derived) == 2
+            derived = Experiment(derived_from=experiment)
+            Execution().add(derived).dispatch()
+            assert len(experiment.derived) == 2
 
-    assert experiment.derive().experiment_id != experiment.experiment_id
+            assert experiment.derive().experiment_id != experiment.experiment_id
 
-    derived = experiment.derive(version=experiment.config)
-    Execution().add(derived).dispatch()
+            derived = experiment.derive(version=experiment.config)
+            Execution().add(derived).dispatch()
 
 
 class DataElement(Element):
@@ -156,29 +158,28 @@ class DataElement(Element):
 
 
 def test_experiment_elements():
-    Project("./tests/samples/project").connect()
-    assert Experiment.singleton("dummy") is not None
-    experiment = Experiment.use("dummy")
-    dataset = DataElement({"dataset": "cifar"})
-    experiment.add(dataset)
-    assert experiment.elements[0].config.dataset == "cifar"
-    experiment.execute()
-    experiment.__related__ = {}
-    assert experiment.elements[0].config.dataset == "cifar"
-    assert experiment.elements[0].hello() == "element"
+    with Project("./tests/samples/project"):
+        assert Experiment.singleton("dummy") is not None
+        experiment = Experiment.use("dummy")
+        dataset = DataElement({"dataset": "cifar"})
+        experiment.add(dataset)
+        assert experiment.elements[0].config.dataset == "cifar"
+        experiment.execute()
+        experiment.__related__ = {}
+        assert experiment.elements[0].config.dataset == "cifar"
+        assert experiment.elements[0].hello() == "element"
 
 
 def test_experiment_interface(tmp_path):
-    Project("tests/samples/project").connect()
+    with Project("tests/samples/project"):
+        # test dispatch lifecycle
+        experiment = Experiment.make("interfaces.events_check")
 
-    # test dispatch lifecycle
-    experiment = Experiment.make("interfaces.events_check")
+        experiment.__model__._storage_instance = Storage.make(
+            "machinable.storage.filesystem",
+            {"directory": str(tmp_path)},
+        )
+        experiment.__model__._storage_id = str(tmp_path)
 
-    experiment.__model__._storage_instance = Storage.make(
-        "machinable.storage.filesystem",
-        {"directory": str(tmp_path)},
-    )
-    experiment.__model__._storage_id = str(tmp_path)
-
-    experiment.dispatch()
-    assert len(experiment.load_data("events.json")) == 6
+        experiment.dispatch()
+        assert len(experiment.load_data("events.json")) == 6

@@ -1,10 +1,8 @@
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 import commandlib
 from machinable import errors
 from machinable.execution.external import External
-from machinable.experiment import Experiment
-from machinable.project import Project
 from machinable.storage import Storage
 
 
@@ -13,6 +11,10 @@ class Slurm(External):
         shebang: str = "#!/usr/bin/env bash"
         python: str = "python"
         srunner: str = "sbatch"
+
+    def commit(self):
+        Storage.get().commit(experiments=self.experiments, execution=self)
+        return self
 
     def on_dispatch(self) -> List[Any]:
         sbatch = commandlib.Command(self.config.srunner)
