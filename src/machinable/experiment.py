@@ -67,6 +67,7 @@ class Experiment(Element):  # pylint: disable=too-many-public-methods
             seed=seed,
         )
         self._deferred_data = {}
+        self._deferred_execution_data = {}
         if resources is not None:
             self.resources(resources)
         if group is not None:
@@ -104,20 +105,8 @@ class Experiment(Element):  # pylint: disable=too-many-public-methods
         cls,
         module: Optional[str] = None,
         version: VersionType = None,
-        group: Union[Group, str, None] = None,
-        resources: Optional[Dict] = None,
-        seed: Union[int, None] = None,
-        derived_from: Optional["Experiment"] = None,
     ) -> "Experiment":
-        return super().singleton(
-            module,
-            version,
-            base_class=Experiment,
-            group=group,
-            resources=resources,
-            seed=seed,
-            derived_from=derived_from,
-        )
+        return super().singleton(module, version)
 
     @belongs_to
     def group():
@@ -171,7 +160,7 @@ class Experiment(Element):  # pylint: disable=too-many-public-methods
         if self.is_mounted():
             raise ConfigurationError(
                 "Experiment can not be modified as it has already been executed. "
-                "Use .derive() to derive a modified experiment."
+                "Use .derive() or Experiment(derived_from) to derive a modified experiment."
             )
 
     def _clear_caches(self) -> None:
@@ -219,11 +208,40 @@ class Experiment(Element):  # pylint: disable=too-many-public-methods
 
     def derive(
         self,
+        module: Optional[str] = None,
+        version: VersionType = None,
+        group: Union[Group, str, None] = None,
+        resources: Optional[Dict] = None,
+        seed: Union[int, None] = None,
+    ) -> "Experiment":
+        if not self.is_mounted():
+            raise ConfigurationError(
+                "The experiment you are trying to derive from has not been executed yet"
+            )
+
+        experiment = self.make(
+            module,
+            version,
+            base_class=Experiment,
+            group=group,
+            resources=resources,
+            seed=seed,
+            derived_from=self,
+        )
+
+        return experiment
+
+    def derive_modified(
+        self,
+        module: str = sentinel,
         version: VersionType = sentinel,
         group: Union[Group, str, None] = sentinel,
         resources: Optional[Dict] = sentinel,
         seed: Union[int, None] = sentinel,
     ) -> "Experiment":
+
+        if module is sentinel:
+            module = self.__model__.module
         if version is sentinel:
             version = self.__model__.version
         if group is sentinel:
@@ -233,15 +251,18 @@ class Experiment(Element):  # pylint: disable=too-many-public-methods
         if seed is sentinel:
             seed = None
 
-        experiment = Experiment(
-            version,
-            group=group,
-            resources=resources,
-            seed=seed,
+        return self.derive(module, version, group, resources, seed)
+
+    def derive_singleton(
+        self,
+        module: Optional[str] = None,
+        version: VersionType = None,
+    ):
+        return self.derived.singleton(module, version) or self.make(
+            module,
+            version=version,
             derived_from=self,
         )
-
-        return experiment
 
     def version(
         self, version: VersionType = sentinel, overwrite: bool = False
@@ -360,25 +381,48 @@ class Experiment(Element):  # pylint: disable=too-many-public-methods
     def load_data(self, filepath: str, default=None) -> Optional[Any]:
         return self.load_file(os.path.join("data", filepath), default)
 
-    def save_execution_data(self, filepath: str, data: Any) -> str:
-        if self.execution is None:
-            raise ValueError(
-                "Experiment is not linked to any execution"
-            )  # todo: support deferred writes
+    def save_execution_data(
+        self,
+        filepath: str,
+        data: Any,
+        defer: bool = False,
+        execution_timestamp: Optional[float] = None,
+    ) -> str:
+        if defer or self.execution is None:
+            # defer writes until next execution creation
+            self._deferred_execution_data[filepath] = data
+            return "$deferred"
+
+        if execution_timestamp is None:
+            execution_timestamp = self.execution.timestamp
+
         return self.save_file(
             os.path.join(
-                f"execution-{timestamp_to_directory(self.execution.timestamp)}/data",
+                f"execution-{timestamp_to_directory(execution_timestamp)}/data",
                 filepath,
             ),
             data,
         )
 
-    def load_execution_data(self, filepath: str, default=None) -> Optional[Any]:
+    def load_execution_data(
+        self,
+        filepath: str,
+        default=None,
+        execution_timestamp: Optional[float] = None,
+    ) -> Optional[Any]:
         if self.execution is None:
+            # has write been deferred?
+            if filepath in self._deferred_execution_data:
+                return self._deferred_execution_data[filepath]
+
             return default
+
+        if execution_timestamp is None:
+            execution_timestamp = self.execution.timestamp
+
         return self.load_file(
             os.path.join(
-                f"execution-{timestamp_to_directory(self.execution.timestamp)}/data",
+                f"execution-{timestamp_to_directory(execution_timestamp)}/data",
                 filepath,
             ),
             default,
@@ -432,14 +476,15 @@ class Experiment(Element):  # pylint: disable=too-many-public-methods
 
     def resources(self, resources: Dict = sentinel) -> Dict:
         if resources is sentinel:
-            return self.load_file("resources.json", default={})
+            return self.load_execution_data("resources.json", default={})
 
         resources = OmegaConf.to_container(
             OmegaConf.create(copy.deepcopy(resources))
         )
-        self.save_file(
+        self.save_execution_data(
             "resources.json",
             resources,
+            defer=self.is_started(),  # if the experiment has already been executed, we write to upcoming execution
         )
 
         return resources
