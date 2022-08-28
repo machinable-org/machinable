@@ -19,21 +19,22 @@ class SlurmExperiment(Experiment):
     or "MACHINABLE_SLURM_TEST_RESOURCES" not in os.environ,
     reason="Test requires Slurm environment",
 )
-def test_slurm_execution():
-    experiment = SlurmExperiment(
-        resources=json.loads(
-            os.environ.get("MACHINABLE_SLURM_TEST_RESOURCES", "{}")
+def test_slurm_execution(tmp_path):
+    with Storage.filesystem(str(tmp_path)):
+        experiment = SlurmExperiment(
+            resources=json.loads(
+                os.environ.get("MACHINABLE_SLURM_TEST_RESOURCES", "{}")
+            )
         )
-    )
-    experiment.execute("machinable.execution.slurm")
-    for _ in range(15):
-        if experiment.is_finished():
-            assert "Hello world from Slurm" in experiment.output()
-            assert experiment.load_data("test_run.json")["success"] is True
-            return
+        experiment.execute("machinable.execution.slurm")
+        for _ in range(30):
+            if experiment.is_finished():
+                assert "Hello world from Slurm" in experiment.output()
+                assert experiment.load_data("test_run.json")["success"] is True
+                return
 
-        time.sleep(1)
-    assert False, "Timeout"
+            time.sleep(1)
+        assert False, "Timeout"
 
 
 def test_slurm_script():

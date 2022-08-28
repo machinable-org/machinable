@@ -10,3 +10,5 @@ def test_project():
     assert project.name() == "test"
     assert project.path().endswith("samples/project")
     project.connect()
+    assert Project.get().name() == "test"
+    project.close()

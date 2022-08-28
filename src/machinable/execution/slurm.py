@@ -1,28 +1,23 @@
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 import commandlib
 from machinable import errors
-from machinable.execution import Execution
-from machinable.experiment import Experiment
-from machinable.project import Project
+from machinable.execution.external import External
 from machinable.storage import Storage
 
 
-def _wrap(line):
-    if not line:
-        return ""
-    if not line.endswith("\n"):
-        line += "\n"
-    return line
-
-
-class Slurm(Execution):
+class Slurm(External):
     class Config:
-        python: str = "python"
         shebang: str = "#!/usr/bin/env bash"
+        python: str = "python"
+        srunner: str = "sbatch"
+
+    def commit(self):
+        Storage.get().commit(experiments=self.experiments, execution=self)
+        return self
 
     def on_dispatch(self) -> List[Any]:
-        sbatch = commandlib.Command("sbatch")
+        sbatch = commandlib.Command(self.config.srunner)
 
         results = []
         for experiment in self.experiments:
@@ -44,11 +39,7 @@ class Slurm(Execution):
                 sbatch_arguments.append(line)
             script += "\n".join(sbatch_arguments) + "\n"
 
-            script += _wrap(self.before_script(experiment))
-
-            script += _wrap(self.script(experiment))
-
-            script += _wrap(self.after_script(experiment))
+            script += self.script_body(experiment)
 
             # submit to slurm
             try:
@@ -81,36 +72,6 @@ class Slurm(Execution):
                 ) from _exception
 
         return results
-
-    def project_source(self, experiment: Experiment) -> str:
-        return Project.get().path()
-
-    def project_directory(self, experiment: Experiment) -> str:
-        return Project.get().path()
-
-    def before_script(self, experiment: Experiment) -> Optional[str]:
-        """Returns script to be executed before the experiment dispatch"""
-
-    def script(self, experiment: Experiment) -> Optional[str]:
-        return f'{self.config.python} -c "{self.code(experiment)}"'
-
-    def code(self, experiment: Experiment) -> Optional[str]:
-        storage = Storage.get().as_json().replace('"', '\\"')
-        return f"""
-        from machinable import Project, Storage, Experiment
-        Project('{self.project_directory(experiment)}').connect()
-        Storage.from_json('{storage}').connect()
-        experiment = Experiment.find('{experiment.experiment_id}', timestamp={experiment.timestamp})
-        assert experiment.__module__ == experiment.__model__.module, 'Could not instantiate experiment'
-        experiment.dispatch()
-        """.replace(
-            "\n        ", ";"
-        )[
-            1:-1
-        ]
-
-    def after_script(self, experiment: Experiment) -> Optional[str]:
-        """Returns script to be executed after the experiment dispatch"""
 
     def canonicalize_resources(self, resources: Dict) -> Dict:
         if resources is None:

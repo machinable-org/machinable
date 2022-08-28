@@ -6,30 +6,30 @@ from machinable.testing import storage_tests
 
 
 def test_storage_interface(tmpdir):
-    Project("./tests/samples/project").connect()
-    repository = Storage.make(
-        "machinable.storage.filesystem", {"directory": str(tmpdir)}
-    )
-    repository_b = Storage.filesystem(str(tmpdir))
-    assert repository.config.directory == repository_b.config.directory
+    with Project("./tests/samples/project"):
+        repository = Storage.make(
+            "machinable.storage.filesystem", {"directory": str(tmpdir)}
+        )
+        repository_b = Storage.filesystem(str(tmpdir))
+        assert repository.config.directory == repository_b.config.directory
 
-    # serialization
-    restored = Storage.from_json(repository.as_json())
-    assert restored.__module__ == repository.__module__
-    assert restored.config.directory == str(tmpdir)
+        # serialization
+        restored = Storage.from_json(repository.as_json())
+        assert restored.__module__ == repository.__module__
+        assert restored.config.directory == str(tmpdir)
 
-    # deferred data
-    experiment = Experiment()
-    experiment.save_data("test.txt", "deferral")
-    experiment.save_file("test.json", "deferral")
-    assert len(experiment._deferred_data) == 2
+        # deferred data
+        experiment = Experiment()
+        experiment.save_data("test.txt", "deferral")
+        experiment.save_file("test.json", "deferral")
+        assert len(experiment._deferred_data) == 2
 
-    execution = Execution().add(experiment)
-    repository.commit(experiment, execution)
+        execution = Execution().add(experiment)
+        repository.commit(experiment, execution)
 
-    assert os.path.isfile(experiment.local_directory("data/test.txt"))
-    assert os.path.isfile(experiment.local_directory("test.json"))
-    assert len(experiment._deferred_data) == 0
+        assert os.path.isfile(experiment.local_directory("data/test.txt"))
+        assert os.path.isfile(experiment.local_directory("test.json"))
+        assert len(experiment._deferred_data) == 0
 
 
 def test_storage(tmpdir):

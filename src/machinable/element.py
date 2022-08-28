@@ -300,7 +300,7 @@ def instantiate(
     module: str, class_: "Element", version: VersionType, **constructor_kwargs
 ):
     try:
-        class_._module = module  # assign project-relative module
+        Element._module_ = module  # assign project-relative module
         return class_(version=version, **constructor_kwargs)
     except TypeError as _ex:
         raise MachinableError(
@@ -313,16 +313,21 @@ class Element(Jsonable):
 
     _key: Optional[str] = "Element"
     default: Optional["Element"] = None
+    _module_: Optional[str] = None
 
     def __init__(self, version: VersionType = None):
         super().__init__()
+        if Element._module_ is None:
+            Element._module_ = self.__module__
         self.__model__ = schema.Element(
-            module=getattr(self, "_module", self.__module__),
+            module=Element._module_,
             version=normversion(version),
         )
         self.__related__ = {}
         self._config: Optional[DictConfig] = None
         self._cache = {}
+
+        Element._module_ = None
 
     @classmethod
     def make(
