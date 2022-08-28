@@ -301,7 +301,6 @@ def instantiate(
 ):
     try:
         Element._module_ = module  # assign project-relative module
-        # raise ValueError(Element._module_)
         return class_(version=version, **constructor_kwargs)
     except TypeError as _ex:
         raise MachinableError(
