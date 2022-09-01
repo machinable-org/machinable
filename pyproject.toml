@@ -28,7 +28,7 @@ python-baseconv = "^1.2"
 observable = "^1.0"
 flatten-dict = "^0.4"
 jsonlines = "^3.1"
-pydantic = "^1.10.0"
+pydantic = "^1.10.1"
 arrow = "^1.2"
 importlib-metadata = {version = "^4.12", python = "<3.8"}
 commandlib = "^0.3.5"
