@@ -141,7 +141,7 @@ python-versions = "*"
 
 [[package]]
 name = "editorconfig-checker"
-version = "2.4.0"
+version = "2.6.0"
 description = "Python wrapper around invoking editorconfig-checker (https://github.com/editorconfig-checker/editorconfig-checker)"
 category = "dev"
 optional = false
@@ -583,7 +583,7 @@ all = []
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.7"
-content-hash = "6d96eff0251cd6a7655e47085452d83cfd8d36e0d1fad56a31e7b9d2197c9a2b"
+content-hash = "1938368c3ae22e759d78470ec13fd6804a32b5c2e9cdd24fe26c146ce3a6df47"
 
 [metadata.files]
 antlr4-python3-runtime = [
@@ -702,7 +702,7 @@ distlib = [
     {file = "distlib-0.3.4.zip", hash = "sha256:e4b58818180336dc9c529bfb9a0b58728ffc09ad92027a3f30b7cd91e3458579"},
 ]
 editorconfig-checker = [
-    {file = "editorconfig-checker-2.4.0.tar.gz", hash = "sha256:1f7839df7d967d95f0cf2ed6a42a0f456c65072d2ffcff1fedc0eac62ed236ea"},
+    {file = "editorconfig-checker-2.6.0.tar.gz", hash = "sha256:d7b3515db12fc03f61ea5045b265b45c06dab7cc147ad5e5c7d0bff580b3dde3"},
 ]
 filelock = [
     {file = "filelock-3.7.1-py3-none-any.whl", hash = "sha256:37def7b658813cda163b56fc564cdc75e86d338246458c4c28ae84cabefa2404"},
