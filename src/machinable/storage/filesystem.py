@@ -3,7 +3,6 @@ from typing import TYPE_CHECKING, Any, List, Optional, Union
 import json
 import os
 import sqlite3
-from multiprocessing.sharedctypes import Value
 
 from machinable import schema
 from machinable.errors import StorageError

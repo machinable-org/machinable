@@ -1,7 +1,7 @@
 import time
 
 import pytest
-from machinable import Execution, Experiment, Project, Storage
+from machinable import Execution, Experiment, Project, Storage, errors
 
 
 def test_execution():
@@ -26,6 +26,27 @@ def test_execution():
         execution = Execution.local().use(experiment)
         assert len(execution.experiments) == 1
         execution.dispatch()
+
+
+def test_execution_dispatch():
+    # prevent execution from experiment
+    class T(Experiment):
+        class Config:
+            mode: str = "before"
+
+        def on_before_dispatch(self):
+            if self.config.mode == "before":
+                raise ValueError("Prevent execution")
+
+        def on_execute(self):
+            if self.config.mode == "runtime":
+                raise RuntimeError("Should not execute")
+
+    with pytest.raises(ValueError):
+        T().execute()
+
+    with pytest.raises(errors.ExecutionFailed):
+        T({"mode": "runtime"}).execute()
 
 
 def test_execution_resources():

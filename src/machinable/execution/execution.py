@@ -2,7 +2,6 @@ from typing import Any, Dict, List, Optional, Union
 
 import copy
 import os
-from multiprocessing.sharedctypes import Value
 
 from machinable import schema
 from machinable.collection import ExperimentCollection
@@ -130,11 +129,11 @@ class Execution(Element):
         return {}
 
     def dispatch(self) -> "Execution":
-        """Commits and dispatches the execution"""
-        self.commit()
-
+        """Dispatches the execution"""
         if self.on_before_dispatch() is False:
             return False
+
+        self.commit()
 
         results = self.on_dispatch()
 
@@ -150,6 +149,9 @@ class Execution(Element):
 
         Return False to prevent the dispatch
         """
+        # forward into experiment on_before_dispatch
+        for experiment in self.experiments:
+            experiment.on_before_dispatch()
 
     def on_after_dispatch(self, results: List[Any]) -> None:
         """Event triggered after the dispatch of an execution"""
