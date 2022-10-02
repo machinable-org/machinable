@@ -19,12 +19,15 @@ export default defineConfig({
     themeConfig: {
       logo: '/logo/logo.svg',
       nav: [
-        { text: 'Guide', link: '/guide/index.html' },
+        { text: 'Guide', link: '/guide/introduction.html' },
         { text: 'Changelog', link: 'https://github.com/machinable-org/machinable/blob/main/CHANGELOG.md' }
       ],
       footer: {
         message: 'MIT Licensed',
         copyright: 'Copyright © 2021-present'
       }
+    },
+    markdown: {
+      lineNumbers: false
     }
 })
