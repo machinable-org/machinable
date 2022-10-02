@@ -96,7 +96,7 @@ def test_experiment(tmp_path):
         experiment.save_execution_data("test_deferred", "success")
         == "$deferred"
     )
-    execution = Execution().add(experiment)
+    execution = Execution().use(experiment)
     execution.dispatch()
     assert experiment.load_execution_data("test_deferred") == "success"
     experiment.save_execution_data("test", "data")
@@ -116,8 +116,8 @@ def test_experiment_relations(tmp_path):
     ):
         with Project("./tests/samples/project", name="test-project"):
 
-            experiment = Experiment.use("basic", group="test/group")
-            execution = Execution().add(experiment)
+            experiment = Experiment.instance("basic", group="test/group")
+            execution = Execution().use(experiment)
             execution.dispatch()
 
             assert experiment.project.name() == "test-project"
@@ -130,7 +130,7 @@ def test_experiment_relations(tmp_path):
 
             derived = Experiment(derived_from=experiment)
             assert derived.ancestor is experiment
-            derived_execution = Execution().add(derived).dispatch()
+            derived_execution = Execution().use(derived).dispatch()
 
             # invalidate cache and reconstruct
             experiment.__related__ = {}
@@ -143,12 +143,12 @@ def test_experiment_relations(tmp_path):
             assert experiment.derived[0].experiment_id == derived.experiment_id
 
             derived = Experiment(derived_from=experiment)
-            Execution().add(derived).dispatch()
+            Execution().use(derived).dispatch()
             assert len(experiment.derived) == 2
 
             assert experiment.derive().experiment_id != experiment.experiment_id
             derived = experiment.derive(version=experiment.config)
-            Execution().add(derived).dispatch()
+            Execution().use(derived).dispatch()
 
 
 class DataElement(Element):
@@ -162,9 +162,9 @@ class DataElement(Element):
 def test_experiment_elements():
     with Project("./tests/samples/project"):
         assert Experiment.singleton("dummy") is not None
-        experiment = Experiment.use("dummy")
+        experiment = Experiment.instance("dummy")
         dataset = DataElement({"dataset": "cifar"})
-        experiment.add(dataset)
+        experiment.use(dataset)
         assert experiment.elements[0].config.dataset == "cifar"
         experiment.execute()
         experiment.__related__ = {}

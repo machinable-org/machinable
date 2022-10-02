@@ -5,9 +5,9 @@ from machinable import Execution, Experiment, Project, Storage
 
 
 def test_execution():
-    assert len(Execution().add([Experiment(), Experiment()]).experiments) == 2
+    assert len(Execution().use([Experiment(), Experiment()]).experiments) == 2
     with pytest.raises(ValueError):
-        Execution().add(None)
+        Execution().use(None)
     execution = Execution()
     assert (
         Execution.from_model(execution.__model__).timestamp
@@ -18,12 +18,12 @@ def test_execution():
     assert repr(Execution()) == "Execution"
 
     with Project("./tests/samples/project"):
-        execution = Execution().add(Experiment())
+        execution = Execution().use(Experiment())
         assert len(execution.experiments) == 1
         assert isinstance(execution.timestamp, float)
 
         experiment = Experiment()
-        execution = Execution.local().add(experiment)
+        execution = Execution.local().use(experiment)
         assert len(execution.experiments) == 1
         execution.dispatch()
 

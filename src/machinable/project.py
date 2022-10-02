@@ -149,7 +149,7 @@ class Project(Connectable, Element):
         self._resolved_provider: Optional[Project] = None
 
     @classmethod
-    def use(
+    def instance(
         cls,
         directory: Optional[str] = None,
         version: VersionType = None,

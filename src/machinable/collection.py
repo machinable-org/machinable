@@ -1399,7 +1399,7 @@ class ExperimentCollection(ElementCollection):
         execution = Execution.make(using, version=version)
 
         for experiment in self:
-            execution.add(experiment=experiment)
+            execution.use(experiment=experiment)
 
         execution.dispatch()
 

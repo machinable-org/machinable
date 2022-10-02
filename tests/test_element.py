@@ -252,7 +252,7 @@ def test_connectable():
             _key = mode
 
             @classmethod
-            def use(cls):
+            def instance(cls):
                 return cls()
 
         dummy_1 = Dummy()
@@ -301,7 +301,7 @@ def test_element_relations(tmp_path):
         with Project("./tests/samples/project"):
 
             experiment = Experiment(group="test/group")
-            execution = Execution().add(experiment)
+            execution = Execution().use(experiment)
             execution.dispatch()
 
             experiment_clone = Experiment.from_storage(experiment.storage_id)
@@ -340,7 +340,7 @@ def test_element_relations(tmp_path):
             )
 
             experiment = CustomExperiment()
-            execution = CustomExecution().add(experiment)
+            execution = CustomExecution().use(experiment)
             execution.dispatch()
             experiment.__related__ = {}
             execution.__related__ = {}

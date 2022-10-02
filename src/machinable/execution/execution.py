@@ -32,7 +32,7 @@ class Execution(Element):
         )
 
     @classmethod
-    def use(
+    def instance(
         cls,
         module: Optional[str] = None,
         version: VersionType = None,
@@ -55,7 +55,7 @@ class Execution(Element):
     def from_model(cls, model: schema.Execution) -> "Execution":
         return super().from_model(model)
 
-    def add(
+    def use(
         self, experiment: Union[Experiment, List[Experiment]]
     ) -> "Execution":
         """Adds an experiment to the execution
@@ -65,7 +65,7 @@ class Execution(Element):
         """
         if isinstance(experiment, (list, tuple)):
             for _experiment in experiment:
-                self.add(_experiment)
+                self.use(_experiment)
             return self
 
         if not isinstance(experiment, Experiment):

@@ -79,7 +79,7 @@ class Experiment(Element):  # pylint: disable=too-many-public-methods
         self._events: Events = Events()
 
     @classmethod
-    def use(
+    def instance(
         cls,
         module: Optional[str] = None,
         version: VersionType = None,
@@ -167,7 +167,7 @@ class Experiment(Element):  # pylint: disable=too-many-public-methods
         self._config = None
         self.__model__.config = None
 
-    def add(self, element: Union[Element, List[Element]]) -> "Experiment":
+    def use(self, element: Union[Element, List[Element]]) -> "Experiment":
         """Adds an element to the experiment
 
         # Arguments
@@ -177,7 +177,7 @@ class Experiment(Element):  # pylint: disable=too-many-public-methods
 
         if isinstance(element, (list, tuple)):
             for _element in element:
-                self.add(_element)
+                self.use(_element)
             return self
 
         if not isinstance(element, Element):
@@ -290,7 +290,9 @@ class Experiment(Element):  # pylint: disable=too-many-public-methods
 
         from machinable.execution.execution import Execution
 
-        Execution.use(using, version=version).add(experiment=self).dispatch()
+        Execution.instance(using, version=version).use(
+            experiment=self
+        ).dispatch()
 
         return self
 

@@ -93,7 +93,7 @@ class Connectable:
     @classmethod
     def get(cls) -> "Connectable":
         if getattr(cls, "_key", None) is not None:
-            return _CONNECTIONS.setdefault(cls._key, cls.use())
+            return _CONNECTIONS.setdefault(cls._key, cls.instance())
 
         return cls() if cls.__connection__ is None else cls.__connection__
 
@@ -365,7 +365,7 @@ class Element(Jsonable):
         )
 
     @classmethod
-    def use(
+    def instance(
         cls,
         module: Optional[str] = None,
         version: VersionType = None,
