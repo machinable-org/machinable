@@ -282,7 +282,7 @@ class Experiment(Element):  # pylint: disable=too-many-public-methods
         return self.__model__.version
 
     def execute(
-        self, using: Union[str, None] = None, version: VersionType = None
+        self, module: Union[str, None] = None, version: VersionType = None
     ) -> "Experiment":
         """Executes the experiment"""
         if self.is_finished():
@@ -290,7 +290,7 @@ class Experiment(Element):  # pylint: disable=too-many-public-methods
 
         from machinable.execution.execution import Execution
 
-        Execution.instance(using, version=version).use(
+        Execution.instance(module, version=version).use(
             experiment=self
         ).dispatch()
 
@@ -620,8 +620,11 @@ class Experiment(Element):  # pylint: disable=too-many-public-methods
 
     # life cycle
 
-    def on_init(self):
-        """Event when interface is initialised."""
+    def on_before_dispatch(self) -> Optional[bool]:
+        """Event triggered before the dispatch of the experiment
+
+        Return False to prevent the dispatch
+        """
 
     def on_dispatch(self):
         """Lifecycle event triggered at the very beginning of the component dispatch"""
