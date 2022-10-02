@@ -3,7 +3,7 @@ layout: home
 
 hero:
   name: machinable
-  text: research projects
+  text: research code
   tagline: A system to manage research code more effectively so you can move quickly while enabling reuse and collaboration.
   image:
     src: /logo/logo.png

@@ -51,7 +51,7 @@ class Storage(Connectable, Element):
         )
 
     @classmethod
-    def use(
+    def instance(
         cls,
         module: Optional[str] = None,
         version: VersionType = None,
