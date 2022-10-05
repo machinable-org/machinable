@@ -13,3 +13,8 @@ class TestProject(Project):
             return "basic"
 
         return module
+
+    def get_host_info(self):
+        info = super().get_host_info()
+        info["dummy"] = "data"
+        return info

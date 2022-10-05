@@ -305,7 +305,6 @@ class Project(Connectable, Element):
             "machine": platform.machine(),
             "python_version": platform.python_version(),
             "user": getpass.getuser(),
-            "environ": os.environ.copy(),
             "argv": sys.argv,
             "machinable_version": get_machinable_version(),
         }

@@ -29,4 +29,9 @@ def test_project_events():
         == Experiment.singleton("@test").hello()
     )
 
+    experiment = Experiment.instance("dummy")
+    experiment.execute()
+    info = experiment.load_execution_data("host.json")
+    assert info["dummy"] == "data"
+
     project.close()

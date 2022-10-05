@@ -304,7 +304,7 @@ class Experiment(Element):  # pylint: disable=too-many-public-methods
             return False
 
         self.save_execution_data(
-            "host.json", data=Project.get().get_host_info()
+            "host.json", data=Project.get().provider().get_host_info()
         )
 
         return True

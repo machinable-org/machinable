@@ -27,7 +27,7 @@ class Execution(Element):
             module=self.__model__.module,
             config=self.__model__.config,
             version=self.__model__.version,
-            host=Project.get().get_host_info(),
+            host=Project.get().provider().get_host_info(),
         )
 
     @classmethod
