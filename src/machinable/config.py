@@ -1,11 +1,12 @@
-__all__ = ["Field", "validator", "RequiredField"]
+__all__ = ["Field", "validator", "RequiredField", "Model"]
 from typing import TYPE_CHECKING, Any, Callable, Dict, Optional, Tuple, Union
 
 import collections
 import re
 from inspect import isclass
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel as Model
+from pydantic import Field
 from pydantic import validator as _validator
 from pydantic.dataclasses import dataclass
 from pydantic.typing import AnyCallable
@@ -44,7 +45,7 @@ def validator(
     )
 
 
-def from_element(element: "Element") -> Optional[BaseModel]:
+def from_element(element: "Element") -> Optional[Model]:
     if not isclass(element):
         element = element.__class__
 
@@ -61,8 +62,8 @@ def from_element(element: "Element") -> Optional[BaseModel]:
     return model
 
 
-def match_method(defition: str) -> Optional[Tuple[str, str]]:
-    fn_match = re.match(r"(?P<method>\w+)\s?\((?P<args>.*)\)", defition)
+def match_method(definition: str) -> Optional[Tuple[str, str]]:
+    fn_match = re.match(r"(?P<method>\w+)\s?\((?P<args>.*)\)", definition)
     if fn_match is None:
         return None
 
