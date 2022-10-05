@@ -88,6 +88,9 @@ def test_element_config():
         def version_three(self):
             return {"alpha": 3}
 
+        def version_custom(self, alpha=2):
+            return {"alpha": alpha}
+
         def config_through_config_method(self, arg):
             return arg
 
@@ -104,6 +107,10 @@ def test_element_config():
     c = Dummy(("~three", "~one", "~two")).config
     assert c["alpha"] == 2
     assert c["beta"]["test"]
+
+    assert Dummy("~custom").config.alpha == 2
+    assert Dummy("~custom(3)").config.alpha == 3
+    assert Dummy("~custom(alpha=5)").config.alpha == 5
 
     # ingores None
     assert Dummy((None, {"alpha": -1}, None)).config.alpha == -1

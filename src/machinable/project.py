@@ -177,6 +177,13 @@ class Project(Connectable, Element):
 
         return self._resolved_provider
 
+    @property
+    def module(self) -> Optional[str]:
+        if self.provider().__module__ != "machinable.project":
+            return self._provider.replace("/", ".")
+
+        return self.provider().__module__
+
     def add_to_path(self) -> None:
         if (
             os.path.exists(self.__model__.directory)
@@ -241,6 +248,9 @@ class Project(Connectable, Element):
         if base_class is None:
             base_class = Element
 
+        # allow overrides
+        module = self.provider().on_resolve_element(module)
+
         path = module
 
         # import project-relative
@@ -299,6 +309,9 @@ class Project(Connectable, Element):
             "argv": sys.argv,
             "machinable_version": get_machinable_version(),
         }
+
+    def on_resolve_element(self, module: str) -> str:
+        return module
 
     def on_resolve_vendor(
         self, name: str, source: str, target: str

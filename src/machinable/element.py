@@ -156,16 +156,18 @@ class ConfigMethod:
         self.prefix = prefix
 
     def __call__(self, function, args) -> Any:
+        from machinable.project import Project
+
         definition = f"{function}({args})"
         method = f"{self.prefix}_{function}"
 
         if hasattr(self.element, method):
             obj = "self.element."
-        elif hasattr(self.element.parent, method):
-            obj = "self.element.parent."
+        elif hasattr(Project.get().provider(), method):
+            obj = "Project.get().provider()."
         else:
             raise AttributeError(
-                f"{self.prefix.title()} method {definition} specified but {type(self).__name__}.{method}() does not exist."
+                f"{self.prefix.title()} method {definition} specified but {type(self.element).__name__}.{method}() does not exist."
             )
 
         # Using eval is evil, but in this case there is probably not enough at stake
@@ -349,7 +351,7 @@ class Element(Jsonable):
         if base_class is None:
             base_class = getattr(machinable, cls._key, Element)
 
-        # prevent circlar instantiation
+        # prevent circular instantiation
         if module == "machinable" or module == base_class.__module__:
             return instantiate(
                 module, base_class, version, **constructor_kwargs
