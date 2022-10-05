@@ -5,12 +5,16 @@ class TestProject(Project):
     def config_global_conf(self, works=False):
         return works
 
-    def host_information(self) -> dict:
-        return {"custom_info": True, "host_info_return": "test"}
+    def version_global_ver(self, works=False):
+        return works
 
-    @staticmethod
-    def host_test_info_static():
-        return "static_test_info"
+    def on_resolve_element(self, module):
+        if module == "@test":
+            return "basic"
 
-    def host_test_info(self):
-        return "test_info"
+        return module
+
+    def get_host_info(self):
+        info = super().get_host_info()
+        info["dummy"] = "data"
+        return info
