@@ -551,6 +551,10 @@ class Element(Jsonable):
         return self._config
 
     @property
+    def module(self) -> Optional[str]:
+        return self.__model__.module
+
+    @property
     def storage_id(self) -> Optional[str]:
         if not self.is_mounted():
             return None

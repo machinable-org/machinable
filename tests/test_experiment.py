@@ -8,6 +8,7 @@ from machinable.element import Element
 def test_experiment(tmp_path):
     p = Project("./tests/samples/project").connect()
     experiment = Experiment.make("dummy")
+    assert experiment.module == "dummy"
     assert isinstance(str(experiment), str)
     assert isinstance(repr(experiment), str)
     assert experiment.config.a == 1

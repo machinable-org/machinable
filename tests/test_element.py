@@ -144,6 +144,15 @@ def test_element_config():
     assert c._update_ == {}
     assert c._raw_["method"] == "hello()"
 
+    # module
+    assert Dummy().module == "tests.test_element"
+    with Project("./tests/samples/project"):
+        assert Experiment.instance("dummy").module == "dummy"
+        assert (
+            Experiment.instance("interfaces.events_check").module
+            == "interfaces.events_check"
+        )
+
 
 def test_component_config_schema():
     class Basic(Element):
