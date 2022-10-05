@@ -6,7 +6,7 @@
 
 <div align="center">
 
-A modular configuration system for research projects
+A modular system to manage research code effectively so you can move quickly while enabling reuse and collaboration.
 
 [![Build status](https://github.com/machinable-org/machinable/workflows/build/badge.svg)](https://github.com/machinable-org/machinable/actions?query=workflow%3Abuild)
 [![Dependencies Status](https://img.shields.io/badge/dependencies-up%20to%20date-brightgreen.svg)](https://github.com/machinable-org/machinable/pulls?utf8=%E2%9C%93&q=is%3Apr%20author%3Aapp%2Fdependabot)
@@ -17,6 +17,6 @@ A modular configuration system for research projects
 
 <br />
 
-**machinable** provides a system to manage configuration of research projects more effectively. Using straight-forward conventions and a powerful configuration engine, it can help structure your projects in a principled way so you can move quickly while enabling reuse and collaboration.
+**machinable** provides a system to manage research code effectively. Using a unified and modular representation, it can help structure your projects in a principled way so you can move quickly while enabling reuse and collaboration.
 
-Read the [user guide ](https://machinable.org/guide) to get started.
+Read the [user guide ](https://machinable.org/guide/introduction.html) to get started.
