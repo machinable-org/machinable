@@ -14,8 +14,9 @@ class EstimatePi(Experiment):
         for _ in range(self.config.trials):
             x, y = random(), random()
             count += int((x**2 + y**2) <= 1)
+        pi = 4 * count / self.config.trials
 
         self.save_data(
             "result.json",
-            {"count": count, "pi": 4 * count / self.config.trials},
+            {"count": count, "pi": pi},
         )

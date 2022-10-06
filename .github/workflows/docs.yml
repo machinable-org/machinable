@@ -30,7 +30,7 @@ jobs:
       - name: Autogenerate reference documentation
         run: |
           source .venv/bin/activate
-          python docs/.vitepress/autogen.py
+          python docs/.vitepress/pydocgen.py
       - name: Install vitepress
         uses: bahmutov/npm-install@v1.8.23
       - name: Build

@@ -27,13 +27,13 @@ Output:
 
 The above example demonstrates the two core principles of *machinable* code:
 
-- **Enforced modularity**: The Monte Carlo algorithm is encapsulated in its own module that can be instantiated with different configuation settings
-- **Unified representation** Running experiments is handled through the same interface that is used to retrieve their results. In fact, re-running the script will not re-run the Monte-Carlo simulation but only reprint the results. 
+- **Enforced modularity**: The Monte Carlo algorithm is encapsulated in its own module that can be instantiated with different configuation settings.
+- **Unified representation** Running experiments is handled through the same interface that is used to retrieve their results.
 
 You may already have questions - don't worry. We will cover the details in the rest of the documentation. For now, please read along so you can have a high-level understanding of what machinable offers.
 
 
-## Features
+## Key features
 
 machinable is a framework and ecosystem that covers features commonly needed in scientific code. But research is extremely diverse so machinable is primarly designed to be flexible and extensible via composition and inheritance. In any case, you can count on the following features:
 
@@ -44,21 +44,24 @@ machinable is a framework and ecosystem that covers features commonly needed in 
 - Result and storage managment
 
 
-## Installation
+## Learn more
 
-Ready to get started? Type
+Ready to get started? Feel free to pick a learning path that suits your preference.
 
-```bash
-$ pip install machinable
-```
+::: info  :student: &nbsp; [Continue with the Tutorial](./essentials/project-structure.md)
 
+Designed for beginners to learn the essential things hands-on.
 
-## Where to go from here
+:::
 
-Feel free to pick a learning path that suits your preference
+::: info  :open_book: &nbsp; [Read the reference guide](../reference/overview.md)
 
-- **Try the Tutorial**: For those who prefer learning things hands-on. (coming soon!)
-- [Read the Guide](quick-start.md): The guide walks you through every aspect of the framework in full detail
-- **Check out the Examples**: Explore examples of core features and common patterns (coming soon!)
+The guide describes every aspect of the framework and available APIs in full detail.
 
+:::
 
+::: info  :arrow_right: &nbsp; [Check out the How-to guides](../examples/overview.md)
+
+Explore real-world examples that demonstrate advanced concepts
+
+:::

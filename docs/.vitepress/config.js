@@ -19,13 +19,90 @@ export default defineConfig({
     themeConfig: {
       logo: '/logo/logo.svg',
       nav: [
-        { text: 'Guide', link: '/guide/introduction.html' },
+        { text: 'Tutorial', link: '/tutorial/introduction' },
+        { text: 'Reference', link: '/reference/overview' },
+        { text: 'Examples', link: '/examples/overview' },
         { text: 'Changelog', link: 'https://github.com/machinable-org/machinable/blob/main/CHANGELOG.md' }
       ],
+      sidebar: {
+        '/tutorial/': [
+          {
+            text: 'Getting Started',
+            items: [
+              {
+                text: 'Introduction',
+                link: '/tutorial/introduction'
+              },
+              {
+                text: 'Installation',
+                link: '/tutorial/installation'
+              }
+            ]
+          },
+          {
+            text: 'Essentials',
+            items: [
+              {
+                text: 'Quick start',
+                link: '/tutorial/essentials/overview'
+              },
+              {
+                text: 'Project structure',
+                link: '/tutorial/essentials/project-structure'
+              },
+              {
+                text: 'Implementing experiments',
+                link: '/tutorial/essentials/implementing-experiments'
+              },
+              {
+                text: 'Running experiments',
+                link: '/tutorial/essentials/running-experiments'
+              },
+              {
+                text: 'Storage and retrieval',
+                link: '/tutorial/essentials/storage-and-retrieval'
+              }
+            ]
+          },
+          {
+            text: 'Elements in-depth',
+            items: [
+              {
+                text: 'Overview',
+                link: '/tutorial/elements-in-depth/overview'
+              },
+              {
+                text: 'Advanced configuration',
+                link: '/tutorial/elements-in-depth/advanced-configuration'
+              },
+              {
+                text: 'Relationships',
+                link: '/tutorial/elements-in-depth/relationships'
+              },
+              {
+                text: 'Experiments',
+                link: '/tutorial/elements-in-depth/experiments'
+              },
+              {
+                text: 'Collections',
+                link: '/tutorial/elements-in-depth/collections'
+              },
+            ]
+          },
+        ]
+      },
       footer: {
         message: 'MIT Licensed',
         copyright: 'Copyright © 2021-present'
-      }
+      },
+      socialLinks: [
+        { icon: 'github', link: 'https://github.com/machinable-org/machinable'}
+      ],
+
+      editLink: {
+        pattern: 'https://github.com/machinable-org/machinable/edit/main/docs/:path',
+        text: 'Edit this page on GitHub'
+      },
     },
     markdown: {
       lineNumbers: false
