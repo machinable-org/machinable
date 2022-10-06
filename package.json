@@ -1,5 +1,6 @@
 {
     "scripts": {
+        "docs:pydoc": "poetry run docs/.vitepress/pydocgen.py",
         "docs:dev": "vitepress dev docs",
         "docs:build": "vitepress build docs",
         "docs:serve": "vitepress serve docs"
