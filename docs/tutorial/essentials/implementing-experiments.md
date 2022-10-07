@@ -2,7 +2,7 @@
 
 ## Events
 
-The experiments that we have created so far have been nothing more than an empty shell. Let's add an actual implementation by overriding the experiments event methods:
+The experiments that we have created so far have been nothing more than an empty shell. Let's add an actual implementation by overriding <Pydoc caption="on_execute()">machinable.Experiment.on_execute</Pydoc>
 
 ```python
 from machinable import Experiment
@@ -18,11 +18,13 @@ class EstimateGravity(Experiment):
       print("The gravity on the exoplanet is: ", g)
 ```
 
-Here, we have placed our algorithm in the <Pydoc>machinable.Experiment.on_execute</Pydoc> event. The <Pydoc>machinable.Experiment</Pydoc> base class provides a variety of different lifecycle events (all starting with `on_`), such as <Pydoc>machinable.Experiment.on_create</Pydoc>, <Pydoc>machinable.Experiment.on_success</Pydoc>, etc.
+The <Pydoc>machinable.Experiment</Pydoc> base class provides a variety of these lifecycle event methods that are prefixed with `on_`, such as <Pydoc caption="on_create()">machinable.Experiment.on_create</Pydoc>, <Pydoc caption="on_success()">machinable.Experiment.on_success</Pydoc>, etc.
 
-The event methods will be called automatically during the execution of the experiment, so you don't have to call them manually. For example, code placed in the <Pydoc>machinable.Experiment.on_failure</Pydoc> event is automatically invoked if an exception occurs. 
+When you implement your algorithm, pick an appropriate event and add your code in the event method. Of course, you are free to add other methods or properties to your class if needed.
 
-Of course, you are free to add other methods or properties to your class if needed.
+The event methods will be called automatically at the appropriate time, so you don't have to call them manually. For example, code placed in the <Pydoc caption="on_failure()">machinable.Experiment.on_failure</Pydoc> event is automatically invoked if an exception occurs.
+
+Feel free to explore all available events in the [reference documentation](../../reference/); in most cases, placing your algorithms in the <Pydoc caption="on_execute()">machinable.Experiment.on_execute</Pydoc> method is the right choice.
 
 ::: details Aside: How can I use existing code?
 
@@ -46,7 +48,7 @@ class EstimateGravity(Experiment):
 
 In practice, of course, experiments tend to have a number of varying parameters.
 
-We can define configuration options of the experiment using a `Config` dataclass placed at the top of the class definition:
+We can define configuration options of the experiment using a `Config` dataclass placed at the top of the experiment class definition:
 
 ```python
 from dataclasses import dataclass
@@ -89,7 +91,7 @@ To instantiate the experiment with different parameters, you can pass a dictiona
 2.0
 ```
 
-In the last line, it is worth noting that the `int` 2 was automatically casted to a `float` as the dataclass specified. Generally, strong configuration typing is enforced to catch subtle configuration errors early.
+In the last line, it is worth noting that the `int` 2 was automatically casted to a `float` as the dataclass specified. Generally, the experiment configuration types will be enforced to prevent subtle configuration errors.
 
 ## Design for failure
 
