@@ -130,6 +130,9 @@ class Execution(Element):
 
     def dispatch(self) -> "Execution":
         """Dispatches the execution"""
+        # trigger configuration validation for early failure
+        self.experiments.each(lambda x: x.config)
+
         if self.on_before_dispatch() is False:
             return False
 

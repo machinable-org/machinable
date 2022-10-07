@@ -2,7 +2,6 @@ from typing import Optional
 
 from dataclasses import dataclass
 
-import omegaconf
 import pydantic
 import pytest
 from machinable import Execution, Experiment, Project, Storage
@@ -57,10 +56,10 @@ def test_element_config():
         def version_string(self):
             return {"foo": "test"}
 
-    with pytest.raises(omegaconf.errors.MissingMandatoryValue):
+    with pytest.raises(ConfigurationError):
         Dummy().config
 
-    with pytest.raises(pydantic.ValidationError):
+    with pytest.raises(ConfigurationError):
         Dummy({"foo": "test"}).config
         Dummy("~string").config
 
@@ -168,7 +167,7 @@ def test_component_config_schema():
             world: float = RequiredField
 
     # detect missing values
-    with pytest.raises(omegaconf.errors.MissingMandatoryValue):
+    with pytest.raises(ConfigurationError):
         schema = Basic({}).config
 
     # casting
@@ -176,7 +175,7 @@ def test_component_config_schema():
     assert schema.config.hello == "1"
     assert schema.config.world == 0.1
 
-    with pytest.raises(pydantic.error_wrappers.ValidationError):
+    with pytest.raises(ConfigurationError):
         schema = Basic([{"hello": 1, "world": "0.1"}, {"typo": 1}]).config
 
     class Dataclass(Element):

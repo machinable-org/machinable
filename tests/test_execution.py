@@ -48,6 +48,16 @@ def test_execution_dispatch():
     with pytest.raises(errors.ExecutionFailed):
         T({"mode": "runtime"}).execute()
 
+    # prevent commit for configuration errors
+    with Project("./tests/samples/project"):
+        valid = Experiment.make("dummy")
+        invalid = Experiment.make("dummy", {"a": []})
+        execution = Execution().use([valid, invalid])
+        with pytest.raises(errors.ConfigurationError):
+            execution.dispatch()
+        assert not valid.is_mounted()
+        assert not invalid.is_mounted()
+
 
 def test_execution_resources():
     experiment = Experiment()

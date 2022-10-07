@@ -460,95 +460,100 @@ class Element(Jsonable):
     def config(self) -> DictConfig:
         """Element configuration"""
         if self._config is None:
-            if self.__model__.config is not None:
-                self._config = OmegaConf.create(self.__model__.config)
-            else:
-                # register resolvers
-                for name in dir(self):
-                    if name.startswith("resolver_") and len(name) > 9:
-                        method = getattr(self, name, None)
-                        if callable(method):
-                            OmegaConf.register_new_resolver(
-                                name=name[9:], resolver=method, replace=True
-                            )
+            try:
+                if self.__model__.config is not None:
+                    self._config = OmegaConf.create(self.__model__.config)
+                else:
+                    # register resolvers
+                    for name in dir(self):
+                        if name.startswith("resolver_") and len(name) > 9:
+                            method = getattr(self, name, None)
+                            if callable(method):
+                                OmegaConf.register_new_resolver(
+                                    name=name[9:], resolver=method, replace=True
+                                )
 
-                # config method resolver
-                OmegaConf.register_new_resolver(
-                    name="config_method",
-                    resolver=ConfigMethod(self),
-                    replace=True,
-                )
+                    # config method resolver
+                    OmegaConf.register_new_resolver(
+                        name="config_method",
+                        resolver=ConfigMethod(self),
+                        replace=True,
+                    )
 
-                # expose raw config so events and config methods can use it
-                config_model = from_element(self) or pydantic.BaseModel
-                raw_config = config_model().dict()
+                    # expose raw config so events and config methods can use it
+                    config_model = from_element(self) or pydantic.BaseModel
+                    raw_config = config_model().dict()
 
-                self._config = OmegaConf.create(raw_config)
+                    self._config = OmegaConf.create(raw_config)
 
-                self.on_before_configure(self._config)
+                    self.on_before_configure(self._config)
 
-                # apply versioning
-                __version = copy.deepcopy(self.__model__.version)
+                    # apply versioning
+                    __version = copy.deepcopy(self.__model__.version)
 
-                # compose configuration update
-                config_update = {}
-                for version in __version:
-                    if isinstance(version, collections.abc.Mapping):
-                        version = unflatten_dict(version)
-                    elif isinstance(version, str) and version.startswith("~"):
-                        definition = version[1:]
+                    # compose configuration update
+                    config_update = {}
+                    for version in __version:
+                        if isinstance(version, collections.abc.Mapping):
+                            version = unflatten_dict(version)
+                        elif isinstance(version, str) and version.startswith(
+                            "~"
+                        ):
+                            definition = version[1:]
 
-                        if not definition.endswith(")"):
-                            definition = definition + "()"
+                            if not definition.endswith(")"):
+                                definition = definition + "()"
 
-                        method = match_method(definition)
+                            method = match_method(definition)
 
-                        if method is None:
-                            raise ConfigurationError(
-                                f"Invalid version: {definition}"
-                            )
+                            if method is None:
+                                raise ConfigurationError(
+                                    f"Invalid version: {definition}"
+                                )
 
-                        version = ConfigMethod(self, "version")(*method)
-                        if version is None:
-                            version = {}
+                            version = ConfigMethod(self, "version")(*method)
+                            if version is None:
+                                version = {}
 
-                        if not isinstance(version, collections.abc.Mapping):
-                            raise ConfigurationError(
-                                f"Version method {definition} must produce a mapping, but returned {type(version)}: {version}"
-                            )
+                            if not isinstance(version, collections.abc.Mapping):
+                                raise ConfigurationError(
+                                    f"Version method {definition} must produce a mapping, but returned {type(version)}: {version}"
+                                )
 
-                    config_update = update_dict(config_update, version)
+                        config_update = update_dict(config_update, version)
 
-                # apply update
-                self._config = OmegaConf.merge(self._config, config_update)
+                    # apply update
+                    self._config = OmegaConf.merge(self._config, config_update)
 
-                # enable config methods
-                self._config = OmegaConf.create(
-                    rewrite_config_methods(self._config)
-                )
+                    # enable config methods
+                    self._config = OmegaConf.create(
+                        rewrite_config_methods(self._config)
+                    )
 
-                # computed configuration transform
-                self.on_configure()
+                    # computed configuration transform
+                    self.on_configure()
 
-                # resolve config
-                config = OmegaConf.to_container(self._config, resolve=True)
+                    # resolve config
+                    config = OmegaConf.to_container(self._config, resolve=True)
 
-                # enforce schema
-                config = config_model(**config).dict()
+                    # enforce schema
+                    config = config_model(**config).dict()
 
-                # add introspection data
-                config["_raw_"] = raw_config
-                config["_version_"] = __version
-                config["_update_"] = config_update
+                    # add introspection data
+                    config["_raw_"] = raw_config
+                    config["_version_"] = __version
+                    config["_update_"] = config_update
 
-                # make config property accessible for slot components
-                self._config = OmegaConf.create(config)
+                    # make config property accessible for slot components
+                    self._config = OmegaConf.create(config)
 
-                # disallow further transformation
-                OmegaConf.set_readonly(self._config, True)
+                    # disallow further transformation
+                    OmegaConf.set_readonly(self._config, True)
 
-                # save to model
-                self.__model__.config = OmegaConf.to_container(self._config)
+                    # save to model
+                    self.__model__.config = OmegaConf.to_container(self._config)
+            except (ValueError, omegaconf.errors.OmegaConfBaseException) as _ex:
+                raise ConfigurationError(str(_ex)) from _ex
 
         return self._config
 
