@@ -4,4 +4,9 @@ This page contains detailed API reference documentation. It's intended to be a r
 
 ## API
 
-Coming soon ...
+<script setup>
+import ApiExplorer from '../.vitepress/components/ApiExplorer.vue'
+</script>
+
+
+<ApiExplorer />

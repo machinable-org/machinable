@@ -62,7 +62,7 @@ experiment.execute('machinable.execution.external', {
 
 You may have noticed that `execute()` follows the same convention as <Pydoc>machinable.Experiment.instance</Pydoc> to specify and load executions by their module name and an optional dictionary with configuration options. In fact, the execution modes are implemented just like experiments, but derive from the <Pydoc>machinable.Execution</Pydoc> base class. 
 
-Check out the [reference documentation](../../reference/) for available execution modes. You may also be interested in implementing a [custom execution](../elements-in-depth/).
+Check out the [reference documentation](../../reference/) for available execution modes. You may also be interested in implementing a [custom execution](../elements-in-depth/execution.md).
 
 
 

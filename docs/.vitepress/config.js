@@ -20,7 +20,7 @@ export default defineConfig({
       logo: '/logo/logo.svg',
       nav: [
         { text: 'Tutorial', link: '/tutorial/introduction' },
-        { text: 'Reference', link: '/reference/overview' },
+        { text: 'Reference', link: '/reference/' },
         { text: 'Examples', link: '/examples/overview' },
         { text: 'Changelog', link: 'https://github.com/machinable-org/machinable/blob/main/CHANGELOG.md' }
       ],
