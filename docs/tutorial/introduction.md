@@ -44,9 +44,9 @@ machinable is a framework and ecosystem that covers features commonly needed in 
 - Result and storage managment
 
 
-## Learn more
+## Where to go next
 
-Ready to get started? Feel free to pick a learning path that suits your preference.
+Different people have different learning styles, so the feel free to choose the resources that suit you most.
 
 ::: info  :student: &nbsp; [Continue with the Tutorial](./essentials/project-structure.md)
 

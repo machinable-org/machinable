@@ -61,6 +61,10 @@ export default defineConfig({
               {
                 text: 'Storage and retrieval',
                 link: '/tutorial/essentials/storage-and-retrieval'
+              },
+              {
+                text: 'Unified representation',
+                link: '/tutorial/essentials/unified-representation'
               }
             ]
           },
@@ -83,9 +87,14 @@ export default defineConfig({
                 text: 'Experiments',
                 link: '/tutorial/elements-in-depth/experiments'
               },
+            ]
+          },
+          {
+            text: 'Extra topics',
+            items: [
               {
                 text: 'Collections',
-                link: '/tutorial/elements-in-depth/collections'
+                link: '/tutorial/extra-topics/collections'
               },
             ]
           },

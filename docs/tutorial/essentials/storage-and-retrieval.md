@@ -13,6 +13,3 @@ Local directory
 Singletons
 
 
-## Unified representation
-
-Shared method between runtime and analysis

@@ -1,5 +1,5 @@
 <template>
-  <a href="#">{{ label }}</a>
+  <a href="#" :style="spec.kind == 'unknown' ? {color: 'red'} : {}">{{ label }}</a>
 </template>
 <script>
 export default {
@@ -13,7 +13,7 @@ export default {
       return {
         'kind': 'unknown',
         'name': name,
-        'path': path,
+        'path': name,
       }
     },
     label() {

@@ -2,7 +2,7 @@
 
 ## Events
 
-The experiments that we have created so far have been nothing more than an empty shell. Let's add an actual implementation:
+The experiments that we have created so far have been nothing more than an empty shell. Let's add an actual implementation by overriding the experiments event methods:
 
 ```python
 from machinable import Experiment
@@ -11,17 +11,20 @@ class EstimateGravity(Experiment):
   """An experiment to estimate gravity"""
 
   def on_execute(self):
+      time_dilation - 1.0 
       height = 52
       time = 0.3
       g = 2 * height / time ** 2
       print("The gravity on the exoplanet is: ", g)
 ```
 
-Here, we have placed our algorithm in the <Pydoc>machinable.Experiment.on_execute</Pydoc> method. The <Pydoc>machinable.Experiment</Pydoc> base class provides a variety of different lifecycle events (all starting with `on_`), such as <Pydoc>machinable.Experiment.on_create</Pydoc>, <Pydoc>machinable.Experiment.on_success</Pydoc>, etc.
+Here, we have placed our algorithm in the <Pydoc>machinable.Experiment.on_execute</Pydoc> event. The <Pydoc>machinable.Experiment</Pydoc> base class provides a variety of different lifecycle events (all starting with `on_`), such as <Pydoc>machinable.Experiment.on_create</Pydoc>, <Pydoc>machinable.Experiment.on_success</Pydoc>, etc.
 
-The event methods will be called automatically during the execution of the experiment, so you don't have to call them manually. Of course, you are free to add other methods or properties to your class if needed. 
+The event methods will be called automatically during the execution of the experiment, so you don't have to call them manually. For example, code placed in the <Pydoc>machinable.Experiment.on_failure</Pydoc> event is automatically invoked if an exception occurs. 
 
-::: details How can I use existing code?
+Of course, you are free to add other methods or properties to your class if needed.
+
+::: details Aside: How can I use existing code?
 
 If you have some existing code, you can call it from the experiment without any additional changes, for example:
 
@@ -41,9 +44,9 @@ class EstimateGravity(Experiment):
 
 ## Configuration
 
-In the above example, we simply hardcoded the basic arguments of the algorithm. In practice, of course, experiments tend to have varying parameters, so let's make our parameters configurable. 
+In practice, of course, experiments tend to have a number of varying parameters.
 
-We can define configuration options of the experiment using a `Config` dataclass:
+We can define configuration options of the experiment using a `Config` dataclass placed at the top of the class definition:
 
 ```python
 from dataclasses import dataclass
@@ -54,27 +57,50 @@ class EstimateGravity(Experiment):
 
   @dataclass
   class Config:
-      height: float = 52
-      time: float = 0.3
+      time_dilation: float = 1.0
+      verbose: bool = True
 
   def on_execute(self):
-      g = 2 * self.config.height / self.config.time ** 2
+      height = 52
+      time = 0.3 * self.config.time_dilation
+      if self.config.verbose:
+        print(f"Assuming height of {height} and time of {time}")
+      g = 2 * height / time ** 2
       print("The gravity on the exoplanet is: ", g)
+      
 ```
 
-The parameter become available under `self.config` and can be accessed with object-notation (`self.config.my.value`) or dict-style access (`self.config['my']['value']`).
+The parameters become available under `self.config` and can be accessed with object-notation (`self.config.my.value`) or dict-style access (`self.config['my']['value']`).
 
-The `Config` dataclass allows for many advanced features such as validation, parameter documentation, computed values and much more.
+Notably, the `Config` dataclass allows for many advanced features such as validation, parameter documentation, computed values, etc., which will be covered in [later sections of the tutorial](../elements-in-depth/advanced-configuration.md).
 
 
-## Verify your implementation
+---
 
-Let's test the implementation. 
+To instantiate the experiment with different parameters, you can pass a dictionary as argument to <Pydoc>machinable.Experiment.instance</Pydoc>, for example:
 
 ```python
 >>> from machinable import Experiment
 >>> gravity = Experiment.instance('estimate_gravity')
-Experiment [8wqSsj]
->>> gravity.config.height
-52
+>>> gravity.config.time_dilation
+1.0
+>>> gravity = Experiment.instance('estimate_gravity', {'time_dilation': 2})
+>>> gravity.config.time_dilation
+2.0
 ```
+
+In the last line, it is worth noting that the `int` 2 was automatically casted to a `float` as the dataclass specified. Generally, strong configuration typing is enforced to catch subtle configuration errors early.
+
+## Design for failure
+
+As you may have noted above, experiments can be instantiated and accessed without side-effects (e.g. without necessarily triggering the gravity computation). As a result, we can inspect the configuration and catch mistakes like the following typo early:
+```python
+>>> gravity = Experiment.instance('estimate_gravity', {'time_diliation': 2})
+>>> gravity.config
+E  ValidationError: 1 validation error for Config
+E  time_diliation
+```
+Early validation is a key design principle of the experiments; when implementing an experiment, we encourage you to perform checks as early as possible and separate them from your main code. Learn more about [early-validation techniques](../elements-in-depth/advanced-configuration.md#validation). 
+
+Finally, it is good practice to design your code in a way that it can be resumed automatically if failures occur. For example, you may checkpoint and automatically reload intermediate results. Check out the [checkpointing example](../../examples/checkpointing.md) to see this in action.
+

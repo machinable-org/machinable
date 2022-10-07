@@ -46,7 +46,7 @@ from machinable import Experiment
 gravity = Experiment.instance('estimate_gravity')
 evolution = Experiment.instance('evolution.simulate_offspring')
 ```
-Note that we do not refer to the classes by their name but just by the modules that contain them. As we will see later, importing and instantiating experiments this way has a lot of advantages, so it is the default way of instantiating experiments.
+Note that we do not refer to the classes by their name but just by the modules that contain them. As we will see later, importing and instantiating experiments this way has a lot of advantages, so it is the default way of instantiation in machinable projects.
 
 ## Verify your setup
 
