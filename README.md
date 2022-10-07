@@ -17,4 +17,4 @@
 
 **machinable** provides a system to manage research code effectively. Using a unified and modular representation, it can help structure your projects in a principled way so you can move quickly while enabling reuse and collaboration.
 
-Read the [user guide ](https://machinable.org/guide/introduction.html) to get started.
+Read the [tutorial](https://machinable.org/tutorial/introduction.html) to get started.
