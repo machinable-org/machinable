@@ -65,6 +65,10 @@ export default defineConfig({
               {
                 text: 'Unified representation',
                 link: '/tutorial/essentials/unified-representation'
+              },
+              {
+                text: 'Next steps',
+                link: '/tutorial/essentials/next-steps'
               }
             ]
           },
@@ -86,6 +90,10 @@ export default defineConfig({
               {
                 text: 'Experiments',
                 link: '/tutorial/elements-in-depth/experiments'
+              },
+              {
+                text: 'Execution',
+                link: '/tutorial/elements-in-depth/execution'
               },
             ]
           },
