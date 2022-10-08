@@ -1,4 +1,7 @@
 # How-to examples
 
-Coming soon ...
+::: warning Coming soon
 
+This section is currently under construction
+
+:::

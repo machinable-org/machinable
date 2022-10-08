@@ -11,7 +11,7 @@ class EstimateGravity(Experiment):
   """An experiment to estimate gravity"""
 
   def on_execute(self):
-      time_dilation - 1.0 
+      time_dilation - 1.0
       height = 52
       time = 0.3
       g = 2 * height / time ** 2
@@ -43,7 +43,6 @@ class EstimateGravity(Experiment):
 
 :::
 
-
 ## Configuration
 
 In practice, of course, experiments tend to have a number of varying parameters.
@@ -69,13 +68,12 @@ class EstimateGravity(Experiment):
         print(f"Assuming height of {height} and time of {time}")
       g = 2 * height / time ** 2
       print("The gravity on the exoplanet is: ", g)
-      
+
 ```
 
 The parameters become available under `self.config` and can be accessed with object-notation (`self.config.my.value`) or dict-style access (`self.config['my']['value']`).
 
 Notably, the `Config` dataclass allows for many advanced features such as validation, parameter documentation, computed values, etc., which will be covered in [later sections of the tutorial](../elements-in-depth/advanced-configuration.md).
-
 
 ---
 
@@ -93,16 +91,17 @@ To instantiate the experiment with different parameters, you can pass a dictiona
 
 In the last line, it is worth noting that the `int` 2 was automatically casted to a `float` as the dataclass specified. Generally, the experiment configuration types will be enforced to prevent subtle configuration errors.
 
-## Design for failure
+## Design considerations
 
 As you may have noted above, experiments can be instantiated and accessed without side-effects (e.g. without necessarily triggering the gravity computation). As a result, we can inspect the configuration and catch mistakes like the following typo early:
+
 ```python
 >>> gravity = Experiment.instance('estimate_gravity', {'time_diliation': 2})
 >>> gravity.config
 E  ValidationError: 1 validation error for Config
 E  time_diliation
 ```
-Early validation is a key design principle of the experiments; when implementing an experiment, we encourage you to perform checks as early as possible and separate them from your main code. Learn more about [early-validation techniques](../elements-in-depth/advanced-configuration.md#validation). 
+
+Early validation is a key design principle of the experiments; when implementing an experiment, we encourage you to perform checks as early as possible and separate them from your main code. Learn more about [early-validation techniques](../elements-in-depth/advanced-configuration.md#validation).
 
 Finally, it is good practice to design your code in a way that it can be resumed automatically if failures occur. For example, you may checkpoint and automatically reload intermediate results. Check out the [checkpointing example](../../examples/checkpointing.md) to see this in action.
-

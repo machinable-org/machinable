@@ -1,6 +1,6 @@
 from machinable import Experiment
 
-experiment = Experiment.singleton("montecarlo", {"trials": 150})
+experiment = Experiment.instance("montecarlo", {"trials": 150})
 
 experiment.execute()
 

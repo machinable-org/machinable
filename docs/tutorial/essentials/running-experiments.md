@@ -12,7 +12,8 @@ Assuming height of 52 and time of 0.3
 The gravity on the exoplanet is:  1155.5555555555557
 ```
 
-If the execution is successful, the experiment is marked as finished. 
+If the execution is successful, the experiment is marked as finished.
+
 ```python
 >>> experiment.is_finished()
 True
@@ -20,7 +21,7 @@ True
 
 ## Reproducibility
 
-By design, experiment instances can only be executed once. There are automatically assigned a unique experiment ID, a random seed as well as a nickname for easy identification.
+By design, experiment instances can only be executed once. They are automatically assigned a unique experiment ID, a random seed, as well as a nickname for easy identification.
 
 ```python
 >>> gravity = Experiment.instance('estimate_gravity')
@@ -36,23 +37,25 @@ Repeated invocations of `execute()` after the initial execution, are simply igno
 
 To replicate or reproduce a experiment, create a new experiment instance with the same configuration. Learn more about [continuing and repeating experiments](../elements-in-depth/experiments.md#derivation).
 
-## Modes of execution
+## Execution implementations
 
-Experiment may be executed in different ways.
-
-For example, instead of the default single-threaded execution, you may like to run your experiment isolated using multiprocessing:
+Experiments can be executed in different ways. To configure the execution, <Pydoc caption="execute()">machinable.Experiment.execute</Pydoc> adopts the same module convention as <Pydoc>machinable.Experiment.instance</Pydoc>. You can specify the execution implementation that you like to use by its module name and optionally provide configuration options in form of a dictionary:
 
 ```python
 experiment.execute('machinable.execution.local', {'processes': 1})
 ```
 
-Execution on [Slurm](https://slurm.schedmd.com/documentation.html) can be as simple as:
+Just like in the case of experiments, this will instantiate a <Pydoc>machinable.Execution</Pydoc> class in the module `machinable.execution.local` that will handle the execution; in the above example, the experiment will run isolated using multiprocessing.
+
+machinable provides a number of alternative execution implementations out of the box.
+
+For instance, execution using a queue system like [Slurm](https://slurm.schedmd.com/documentation.html) can be as simple as:
 
 ```python
 experiment.execute('machinable.execution.slurm')
 ```
 
-Or delegating the execution to an external runner like [MPI](https://www.open-mpi.org/) may look like this:
+Delegating the execution to an external runner like [MPI](https://www.open-mpi.org/) may look like this:
 
 ```python
 experiment.execute('machinable.execution.external', {
@@ -60,9 +63,4 @@ experiment.execute('machinable.execution.external', {
 })
 ```
 
-You may have noticed that `execute()` follows the same convention as <Pydoc>machinable.Experiment.instance</Pydoc> to specify and load executions by their module name and an optional dictionary with configuration options. In fact, the execution modes are implemented just like experiments, but derive from the <Pydoc>machinable.Execution</Pydoc> base class. 
-
-Check out the [reference documentation](../../reference/) for available execution modes. You may also be interested in implementing a [custom execution](../elements-in-depth/execution.md).
-
-
-
+Check out the [execution guide](../elements-in-depth/execution.md) to learn more about available options. You may also be interested in implementing a [custom execution](../elements-in-depth/execution.md).
