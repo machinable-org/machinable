@@ -10,7 +10,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v3
       - name: Set up Python
-        uses: actions/setup-python@v4.2.0
+        uses: actions/setup-python@v4.3.0
         with:
           python-version: "3.x"
       - name: Install Poetry
@@ -20,7 +20,7 @@ jobs:
           virtualenvs-in-project: true
       - name: Set up cache
         id: cached-poetry-dependencies
-        uses: actions/cache@v3.0.10
+        uses: actions/cache@v3.0.11
         with:
           path: .venv
           key: venv-${{ runner.os }}-${{ hashFiles('**/poetry.lock') }}
@@ -32,14 +32,14 @@ jobs:
           source .venv/bin/activate
           python docs/.vitepress/pydocgen.py
       - name: Install vitepress
-        uses: bahmutov/npm-install@v1.8.23
+        uses: bahmutov/npm-install@v1.8.24
       - name: Build
         run: |
           /home/runner/work/machinable/machinable/node_modules/vitepress/bin/vitepress.js build docs
           cp -r docs/.vitepress/public/* docs/.vitepress/dist/
           cp -r docs/logo docs/.vitepress/dist/
       - name: Deploy
-        uses: JamesIves/github-pages-deploy-action@v4.4.0
+        uses: JamesIves/github-pages-deploy-action@v4.4.1
         with:
           branch: gh-pages
           folder: docs/.vitepress/dist
