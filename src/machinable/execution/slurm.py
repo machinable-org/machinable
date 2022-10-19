@@ -1,4 +1,4 @@
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 import commandlib
 from machinable import errors
@@ -9,7 +9,7 @@ from machinable.storage import Storage
 class Slurm(External):
     class Config:
         shebang: str = "#!/usr/bin/env bash"
-        python: str = "python"
+        python: Optional[str] = None
         srunner: str = "sbatch"
 
     def commit(self):

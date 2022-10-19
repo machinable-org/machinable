@@ -2,6 +2,7 @@ from typing import Any, List, Optional, Union
 
 import os
 import stat
+import sys
 
 import commandlib
 from machinable import errors
@@ -22,7 +23,7 @@ def _wrap(line):
 class External(Execution):
     class Config:
         shebang: str = "#!/usr/bin/env bash"
-        python: str = "python"
+        python: Optional[str] = None
         runner: Union[str, List[str]] = "bash"
 
     def on_dispatch(self) -> List[Any]:
@@ -71,7 +72,7 @@ class External(Execution):
         """Returns script to be executed before the experiment dispatch"""
 
     def script(self, experiment: Experiment) -> Optional[str]:
-        return f'{self.config.python} -c "{self.code(experiment)}"'
+        return f'{self.config.python or sys.executable} -c "{self.code(experiment)}"'
 
     def code(self, experiment: Experiment) -> Optional[str]:
         storage = Storage.get().as_json().replace('"', '\\"')
