@@ -1376,6 +1376,9 @@ class ElementCollection(Collection):
 
         return pandas.DataFrame.from_dict(data)
 
+    def filter_by_module(self, module):
+        return self.filter(lambda x: x.module == module)
+
     def __str__(self):
         return f"Elements <{len(self.items)}>"
 
