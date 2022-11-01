@@ -1,1 +1,0 @@
-import{_ as e,o as t,c as a,e as s}from"./app.4c670c7d.js";const f=JSON.parse('{"title":"Next steps","description":"","frontmatter":{},"headers":[],"relativePath":"tutorial/essentials/next-steps.md"}'),r={name:"tutorial/essentials/next-steps.md"},n=s("",2),o=[n];function i(c,_,d,p,h,l){return t(),a("div",null,o)}const m=e(r,[["render",i]]);export{f as __pageData,m as default};
