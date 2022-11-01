@@ -10,68 +10,64 @@ class Slurm(External):
     class Config:
         shebang: str = "#!/usr/bin/env bash"
         python: Optional[str] = None
-        srunner: str = "sbatch"
+        runner: str = "sbatch"
 
     def commit(self):
         Storage.get().commit(experiments=self.experiments, execution=self)
         return self
 
-    def on_dispatch(self) -> List[Any]:
-        sbatch = commandlib.Command(self.config.srunner)
+    def on_dispatch_experiment(self, experiment: "Experiment") -> Any:
+        runner = commandlib.Command(*self.runner_command(experiment))
 
-        results = []
-        for experiment in self.experiments:
-            script = f"{self.config.shebang}\n"
+        script = self.header_command(experiment)
 
-            resources = experiment.resources()
-            if "--job-name" not in resources:
-                resources["--job-name"] = f"{experiment.experiment_id}"
-            if "--output" not in resources:
-                resources["--output"] = experiment.local_directory("output.log")
-            if "--open-mode" not in resources:
-                resources["--open-mode"] = "append"
+        resources = experiment.resources()
+        if "--job-name" not in resources:
+            resources["--job-name"] = f"{experiment.experiment_id}"
+        if "--output" not in resources:
+            resources["--output"] = experiment.local_directory("output.log")
+        if "--open-mode" not in resources:
+            resources["--open-mode"] = "append"
 
-            sbatch_arguments = []
-            for k, v in resources.items():
-                line = "#SBATCH " + k
-                if v not in [None, True]:
-                    line += f"={v}"
-                sbatch_arguments.append(line)
-            script += "\n".join(sbatch_arguments) + "\n"
+        sbatch_arguments = []
+        for k, v in resources.items():
+            line = "#SBATCH " + k
+            if v not in [None, True]:
+                line += f"={v}"
+            sbatch_arguments.append(line)
+        script += "\n".join(sbatch_arguments) + "\n"
 
-            script += self.script_body(experiment)
+        script += self.script_body(experiment)
 
-            # submit to slurm
+        # submit to slurm
+        try:
+            output = runner.piped.from_string(script).output().strip()
             try:
-                output = sbatch.piped.from_string(script).output().strip()
-                try:
-                    job_id = int(output.rsplit(" ", maxsplit=1)[-1])
-                except ValueError:
-                    job_id = False
-                print(f"{output} for experiment {experiment.experiment_id}")
-                experiment.save_execution_data(
-                    filepath="slurm.json",
-                    data={
-                        "job_id": job_id,
-                        "cmd": sbatch_arguments,
-                        "script": script,
-                        "resources": resources,
-                        "project_directory": self.project_directory(experiment),
-                        "project_source": self.project_source(experiment),
-                    },
-                )
-                experiment.save_execution_data("recover.sh", script)
-                results.append(job_id)
-            except FileNotFoundError as _exception:
-                raise errors.ExecutionFailed(
-                    "Slurm sbatch not found."
-                ) from _exception
-            except commandlib.exceptions.CommandExitError as _exception:
-                raise errors.ExecutionFailed(
-                    "Could not submit job to Slurm"
-                ) from _exception
-
-        return results
+                job_id = int(output.rsplit(" ", maxsplit=1)[-1])
+            except ValueError:
+                job_id = False
+            print(f"{output} for experiment {experiment.experiment_id}")
+            experiment.save_execution_data(
+                filepath="slurm.json",
+                data={
+                    "job_id": job_id,
+                    "cmd": sbatch_arguments,
+                    "script": script,
+                    "resources": resources,
+                    "project_directory": self.project_directory(experiment),
+                    "project_source": self.project_source(experiment),
+                },
+            )
+            experiment.save_execution_data("recover.sh", script)
+            return job_id
+        except FileNotFoundError as _exception:
+            raise errors.ExecutionFailed(
+                "Slurm sbatch not found."
+            ) from _exception
+        except commandlib.exceptions.CommandExitError as _exception:
+            raise errors.ExecutionFailed(
+                "Could not submit job to Slurm"
+            ) from _exception
 
     def canonicalize_resources(self, resources: Dict) -> Dict:
         if resources is None:

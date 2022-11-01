@@ -26,38 +26,31 @@ class External(Execution):
         python: Optional[str] = None
         runner: Union[str, List[str]] = "bash"
 
-    def on_dispatch(self) -> List[Any]:
-        results = []
-        for experiment in self.experiments:
-            runner = commandlib.Command(*self.runner_command(experiment))
+    def on_dispatch_experiment(self, experiment: "Experiment") -> Any:
+        runner = commandlib.Command(*self.runner_command(experiment))
 
-            script = self.config.get("shebang", "#!/usr/bin/env bash") + "\n"
+        script = self.header_command(experiment)
 
-            script += self.script_body(experiment)
+        script += self.script_body(experiment)
 
-            # submit to runner
+        # submit to runner
+        script_filepath = experiment.save_execution_data("runner.sh", script)
+        st = os.stat(script_filepath)
+        os.chmod(script_filepath, st.st_mode | stat.S_IEXEC)
 
-            script_filepath = experiment.save_execution_data(
-                "runner.sh", script
-            )
-            st = os.stat(script_filepath)
-            os.chmod(script_filepath, st.st_mode | stat.S_IEXEC)
-
-            print(
-                f"Running experiment {experiment.experiment_id} script at {script_filepath}"
-            )
-            try:
-                output = runner(script_filepath).output()
-                print(output)
-                results.append(output)
-            except FileNotFoundError as _exception:
-                raise errors.ExecutionFailed("Runner not found") from _exception
-            except commandlib.exceptions.CommandExitError as _exception:
-                raise errors.ExecutionFailed(
-                    "Could not submit job to runner"
-                ) from _exception
-
-        return results
+        print(
+            f"Running experiment {experiment.experiment_id} script at {script_filepath}"
+        )
+        try:
+            output = runner(script_filepath).output()
+            print(output)
+            return output
+        except FileNotFoundError as _exception:
+            raise errors.ExecutionFailed("Runner not found") from _exception
+        except commandlib.exceptions.CommandExitError as _exception:
+            raise errors.ExecutionFailed(
+                "Could not submit job to runner"
+            ) from _exception
 
     def project_source(self, experiment: Experiment) -> str:
         return Project.get().path()
@@ -67,6 +60,9 @@ class External(Execution):
 
     def before_script(self, experiment: Experiment) -> Optional[str]:
         """Returns script to be executed before the experiment dispatch"""
+
+    def header_command(self, experiment: Experiment) -> str:
+        return self.config.get("shebang", "#!/usr/bin/env bash") + "\n"
 
     def runner_command(self, experiment: Experiment) -> List[str]:
         if isinstance(self.config.runner, str):
