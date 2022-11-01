@@ -27,7 +27,7 @@ class Execution(Element):
             module=self.__model__.module,
             config=self.__model__.config,
             version=self.__model__.version,
-            host=Project.get().provider().get_host_info(),
+            host_info=Project.get().provider().get_host_info(),
         )
 
     @classmethod
@@ -167,6 +167,10 @@ class Execution(Element):
 
     def on_dispatch_experiment(self, experiment: "Experiment") -> Any:
         return experiment.dispatch()
+
+    @property
+    def host_info(self) -> Optional[Dict]:
+        return self.__model__.host_info
 
     def __str__(self) -> str:
         return self.__repr__()

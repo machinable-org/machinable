@@ -27,6 +27,8 @@ def test_execution():
         assert len(execution.experiments) == 1
         execution.dispatch()
 
+        assert execution.host_info["python_version"].startswith("3")
+
 
 def test_execution_dispatch():
     # prevent execution from experiment

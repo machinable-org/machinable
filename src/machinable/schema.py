@@ -2,7 +2,6 @@ from typing import TYPE_CHECKING, Dict, List, Optional, Union
 
 from datetime import datetime
 
-from machinable.types import ElementType, VersionType
 from machinable.utils import (
     encode_experiment_id,
     generate_experiment_id,
@@ -20,16 +19,16 @@ class Element(BaseModel):
     _storage_id: Optional[str] = PrivateAttr(default=None)
     _storage_instance: Optional["Storage"] = PrivateAttr(default=None)
     module: Optional[str] = None
-    version: List[Union[str, dict]] = []
-    config: Optional[dict] = None
+    version: List[Union[str, Dict]] = []
+    config: Optional[Dict] = None
 
 
 class Project(Element):
     directory: str
     name: str
-    code_version: Optional[dict] = None
+    code_version: Optional[Dict] = None
     code_diff: Optional[str] = None
-    host_info: Optional[dict] = None
+    host_info: Optional[Dict] = None
 
 
 class Experiment(Element):
@@ -55,12 +54,12 @@ class Group(Element):
 
 
 class Execution(Element):
-    resources: Optional[dict] = None
-    host: Optional[dict] = None
+    resources: Optional[Dict] = None
+    host_info: Optional[Dict] = None
     timestamp: float = Field(default_factory=lambda: datetime.now().timestamp())
 
 
 class Record(Element):
     scope: str
-    current: dict = {}
-    last: dict = None
+    current: Dict = {}
+    last: Dict = None
