@@ -315,7 +315,7 @@ def test_element_relations(tmp_path):
     ):
         with Project("./tests/samples/project"):
 
-            experiment = Experiment(group="test/group")
+            experiment = Experiment().group_as("test/group")
             execution = Execution().use(experiment)
             execution.dispatch()
 

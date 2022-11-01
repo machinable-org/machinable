@@ -117,7 +117,7 @@ def test_experiment_relations(tmp_path):
     ):
         with Project("./tests/samples/project", name="test-project"):
 
-            experiment = Experiment.instance("basic", group="test/group")
+            experiment = Experiment.instance("basic").group_as("test/group")
             execution = Execution().use(experiment)
             execution.dispatch()
 

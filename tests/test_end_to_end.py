@@ -9,8 +9,8 @@ def test_end_to_end_execution(tmp_path):
         with ml.Project("./tests/samples/project"):
 
             experiment = ml.Experiment.make(
-                "interfaces.interrupted_lifecycle", group="a/b/c"
-            )
+                "interfaces.interrupted_lifecycle"
+            ).group_as("a/b/c")
             try:
                 experiment.execute(version={"processes": None})
             except errors.ExecutionFailed:

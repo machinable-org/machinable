@@ -45,18 +45,10 @@ class Experiment(Element):  # pylint: disable=too-many-public-methods
     def __init__(
         self,
         version: VersionType = None,
-        group: Union[Group, str, None] = None,
         resources: Optional[Dict] = None,
         seed: Union[int, None] = None,
         derived_from: Optional["Experiment"] = None,
     ):
-        """Experiment
-
-        # Arguments
-        interface: The name of the interface as defined in the machinable.yaml
-        version: Configuration to override the default config
-        derived_from: Optional ancestor experiment
-        """
         super().__init__(version=version)
         if seed is None:
             seed = generate_seed()
@@ -70,8 +62,6 @@ class Experiment(Element):  # pylint: disable=too-many-public-methods
         self._deferred_execution_data = {}
         if resources is not None:
             self.resources(resources)
-        if group is not None:
-            self.group_as(group)
         if derived_from is not None:
             self.__model__.derived_from_id = derived_from.experiment_id
             self.__model__.derived_from_timestamp = derived_from.timestamp
@@ -83,7 +73,6 @@ class Experiment(Element):  # pylint: disable=too-many-public-methods
         cls,
         module: Optional[str] = None,
         version: VersionType = None,
-        group: Union[Group, str, None] = None,
         resources: Optional[Dict] = None,
         seed: Union[int, None] = None,
         derived_from: Optional["Experiment"] = None,
@@ -94,7 +83,6 @@ class Experiment(Element):  # pylint: disable=too-many-public-methods
             module,
             version,
             base_class=Experiment,
-            group=group,
             resources=resources,
             seed=seed,
             derived_from=derived_from,
@@ -210,7 +198,6 @@ class Experiment(Element):  # pylint: disable=too-many-public-methods
         self,
         module: Optional[str] = None,
         version: VersionType = None,
-        group: Union[Group, str, None] = None,
         resources: Optional[Dict] = None,
         seed: Union[int, None] = None,
     ) -> "Experiment":
@@ -223,7 +210,6 @@ class Experiment(Element):  # pylint: disable=too-many-public-methods
             module,
             version,
             base_class=Experiment,
-            group=group,
             resources=resources,
             seed=seed,
             derived_from=self,
@@ -235,7 +221,6 @@ class Experiment(Element):  # pylint: disable=too-many-public-methods
         self,
         module: str = sentinel,
         version: VersionType = sentinel,
-        group: Union[Group, str, None] = sentinel,
         resources: Optional[Dict] = sentinel,
         seed: Union[int, None] = sentinel,
     ) -> "Experiment":
@@ -244,14 +229,17 @@ class Experiment(Element):  # pylint: disable=too-many-public-methods
             module = self.__model__.module
         if version is sentinel:
             version = self.__model__.version
-        if group is sentinel:
-            group = self.group.clone() if self.group is not None else None
         if resources is sentinel:
             resources = copy.deepcopy(self.resources())
         if seed is sentinel:
             seed = None
 
-        return self.derive(module, version, group, resources, seed)
+        experiment = self.derive(module, version, resources, seed)
+
+        if self.group:
+            experiment.group_as(self.group.clone())
+
+        return experiment
 
     def derive_singleton(
         self,
