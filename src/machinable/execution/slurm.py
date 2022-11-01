@@ -23,7 +23,7 @@ class Slurm(External):
         for experiment in self.experiments:
             script = f"{self.config.shebang}\n"
 
-            resources = self.resources(experiment)
+            resources = experiment.resources()
             if "--job-name" not in resources:
                 resources["--job-name"] = f"{experiment.experiment_id}"
             if "--output" not in resources:

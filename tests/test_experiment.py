@@ -66,8 +66,7 @@ def test_experiment(tmp_path):
     assert uncommitted.load_data("test") == "deferred"
 
     # resources
-    experiment.resources({"test": "me"})
-    assert experiment.resources() == {"test": "me"}
+    assert experiment.resources() == {}
 
     # output
     assert experiment.output() is None

@@ -71,8 +71,11 @@ class External(Execution):
     def before_script(self, experiment: Experiment) -> Optional[str]:
         """Returns script to be executed before the experiment dispatch"""
 
+    def script_command(self, experiment: Experiment) -> str:
+        return self.config.python or sys.executable
+
     def script(self, experiment: Experiment) -> Optional[str]:
-        return f'{self.config.python or sys.executable} -c "{self.code(experiment)}"'
+        return f'{self.script_command(experiment)} -c "{self.code(experiment)}"'
 
     def code(self, experiment: Experiment) -> Optional[str]:
         storage = Storage.get().as_json().replace('"', '\\"')

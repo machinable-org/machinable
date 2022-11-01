@@ -45,7 +45,6 @@ class Experiment(Element):  # pylint: disable=too-many-public-methods
     def __init__(
         self,
         version: VersionType = None,
-        resources: Optional[Dict] = None,
         seed: Union[int, None] = None,
         derived_from: Optional["Experiment"] = None,
     ):
@@ -60,8 +59,6 @@ class Experiment(Element):  # pylint: disable=too-many-public-methods
         )
         self._deferred_data = {}
         self._deferred_execution_data = {}
-        if resources is not None:
-            self.resources(resources)
         if derived_from is not None:
             self.__model__.derived_from_id = derived_from.experiment_id
             self.__model__.derived_from_timestamp = derived_from.timestamp
@@ -73,7 +70,6 @@ class Experiment(Element):  # pylint: disable=too-many-public-methods
         cls,
         module: Optional[str] = None,
         version: VersionType = None,
-        resources: Optional[Dict] = None,
         seed: Union[int, None] = None,
         derived_from: Optional["Experiment"] = None,
     ):
@@ -83,7 +79,6 @@ class Experiment(Element):  # pylint: disable=too-many-public-methods
             module,
             version,
             base_class=Experiment,
-            resources=resources,
             seed=seed,
             derived_from=derived_from,
         )
@@ -198,7 +193,6 @@ class Experiment(Element):  # pylint: disable=too-many-public-methods
         self,
         module: Optional[str] = None,
         version: VersionType = None,
-        resources: Optional[Dict] = None,
         seed: Union[int, None] = None,
     ) -> "Experiment":
         if not self.is_mounted():
@@ -210,7 +204,6 @@ class Experiment(Element):  # pylint: disable=too-many-public-methods
             module,
             version,
             base_class=Experiment,
-            resources=resources,
             seed=seed,
             derived_from=self,
         )
@@ -221,7 +214,6 @@ class Experiment(Element):  # pylint: disable=too-many-public-methods
         self,
         module: str = sentinel,
         version: VersionType = sentinel,
-        resources: Optional[Dict] = sentinel,
         seed: Union[int, None] = sentinel,
     ) -> "Experiment":
 
@@ -229,12 +221,10 @@ class Experiment(Element):  # pylint: disable=too-many-public-methods
             module = self.__model__.module
         if version is sentinel:
             version = self.__model__.version
-        if resources is sentinel:
-            resources = copy.deepcopy(self.resources())
         if seed is sentinel:
             seed = None
 
-        experiment = self.derive(module, version, resources, seed)
+        experiment = self.derive(module, version, seed)
 
         if self.group:
             experiment.group_as(self.group.clone())
@@ -464,20 +454,8 @@ class Experiment(Element):  # pylint: disable=too-many-public-methods
 
         return output
 
-    def resources(self, resources: Dict = sentinel) -> Dict:
-        if resources is sentinel:
-            return self.load_execution_data("resources.json", default={})
-
-        resources = OmegaConf.to_container(
-            OmegaConf.create(copy.deepcopy(resources))
-        )
-        self.save_execution_data(
-            "resources.json",
-            resources,
-            defer=self.is_started(),  # if the experiment has already been executed, we write to upcoming execution
-        )
-
-        return resources
+    def resources(self) -> Optional[Dict]:
+        return self.load_execution_data("resources.json", default={})
 
     @property
     def nickname(self) -> str:
@@ -541,9 +519,6 @@ class Experiment(Element):  # pylint: disable=too-many-public-methods
         return self.is_started() and not (
             self.is_active() or self.is_finished()
         )
-
-    def default_resources(self, execution: "Execution") -> Optional[dict]:
-        """Default resources"""
 
     def dispatch(self):
         """Execute the interface lifecycle"""
