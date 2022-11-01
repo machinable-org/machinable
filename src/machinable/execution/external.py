@@ -27,14 +27,11 @@ class External(Execution):
         runner: Union[str, List[str]] = "bash"
 
     def on_dispatch(self) -> List[Any]:
-        if isinstance(self.config.runner, str):
-            runner = commandlib.Command(self.config.runner)
-        else:
-            runner = commandlib.Command(*self.config.runner)
+        runner = commandlib.Command(*self.runner_command())
 
         results = []
         for experiment in self.experiments:
-            script = f"{self.config.shebang}\n"
+            script = self.config.get("shebang", "#!/usr/bin/env bash") + "\n"
 
             script += self.script_body(experiment)
 
@@ -71,8 +68,17 @@ class External(Execution):
     def before_script(self, experiment: Experiment) -> Optional[str]:
         """Returns script to be executed before the experiment dispatch"""
 
-    def script_command(self, experiment: Experiment) -> str:
+    def runner_command(self) -> List[str]:
+        if isinstance(self.config.runner, str):
+            return [self.config.runner]
+
+        return [str(v) for v in self.config.runner]
+
+    def python_command(self, experiment: Experiment) -> str:
         return self.config.python or sys.executable
+
+    def script_command(self, experiment: Experiment) -> str:
+        return self.python_command(experiment)
 
     def script(self, experiment: Experiment) -> Optional[str]:
         return f'{self.script_command(experiment)} -c "{self.code(experiment)}"'
