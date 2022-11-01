@@ -13,6 +13,7 @@ from machinable.element import (
     defaultversion,
     equalversion,
     extract,
+    idversion,
     normversion,
     transfer_to,
 )
@@ -285,6 +286,33 @@ def test_equalversion():
     )
 
 
+def test_idversion():
+    assert idversion(None) == idversion([])
+    assert idversion(["~test", {"a": 2}]) == ["~test", {"a": 2}]
+    assert idversion(["~test_", {"a": 2}]) == [{"a": 2}]
+    assert idversion(["~test_", {"a_": 2}]) == []
+    assert idversion(
+        [
+            {"b": 1, "a_": 2},
+            "~test_",
+        ]
+    ) == [{"b": 1}]
+    assert idversion(
+        [
+            {"b": {"c": 3, "d_": 42}, "a_": 2},
+            "~test_",
+        ]
+    ) == [{"b": {"c": 3}}]
+    assert idversion(
+        {
+            "b": {"c": 3, "d_": 42, "f": "~t_", "g": {"n": 1, "q_": 2}},
+            "a_": 2,
+            "_y": "y_",
+        }
+    ) == [{"b": {"c": 3, "f": "~t_", "g": {"n": 1}}, "_y": "y_"}]
+    assert idversion({"a": 1, "a_": 2, "_a": 3}) == [{"a": 1, "_a": 3}]
+
+
 def test_connectable():
     for mode in [None, "global"]:
 
@@ -405,6 +433,12 @@ def test_element_search(tmp_path):
             # singleton
             assert (
                 Experiment.singleton("dummy", {"a": 2}).nickname
+                == exp2.nickname
+            )
+            assert (
+                Experiment.singleton(
+                    "dummy", {"a": 2, "ignore_me_": 3}
+                ).nickname
                 == exp2.nickname
             )
             assert (

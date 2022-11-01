@@ -5,6 +5,7 @@ import os
 import sqlite3
 
 from machinable import schema
+from machinable.element import idversion
 from machinable.errors import StorageError
 from machinable.settings import get_settings
 from machinable.storage.storage import Storage
@@ -60,6 +61,7 @@ class Filesystem(Storage):
                     module text,
                     config json,
                     version json,
+                    idversion json,
                     timestamp real
                 )"""
             )
@@ -70,6 +72,7 @@ class Filesystem(Storage):
                     module text,
                     config json,
                     version json,
+                    idversion json,
                     experiment_id text,
                     nickname text,
                     seed integer,
@@ -91,6 +94,7 @@ class Filesystem(Storage):
                     module text,
                     config json,
                     version json,
+                    idversion json,
                     experiment_id integer,
                     FOREIGN KEY (experiment_id) REFERENCES experiments (id)
                 )"""
@@ -140,13 +144,15 @@ class Filesystem(Storage):
             module,
             config,
             version,
+            idversion,
             timestamp
-            ) VALUES (?,?,?,?,?)""",
+            ) VALUES (?,?,?,?,?,?)""",
             (
                 execution_directory,
                 execution.module,
                 json.dumps(execution.config),
                 json.dumps(execution.version),
+                json.dumps(idversion(execution.version)),
                 execution.timestamp,
             ),
         )
@@ -188,13 +194,15 @@ class Filesystem(Storage):
             module,
             config,
             version,
+            idversion,
             experiment_id
-            ) VALUES (?,?,?,?,?)""",
+            ) VALUES (?,?,?,?,?,?)""",
             (
                 None,
                 element.module,
                 json.dumps(element.config),
                 json.dumps(element.version),
+                json.dumps(idversion(element.version)),
                 _experiment_db_id,
             ),
         )
@@ -287,6 +295,7 @@ class Filesystem(Storage):
                 module,
                 config,
                 version,
+                idversion,
                 experiment_id,
                 seed,
                 nickname,
@@ -295,12 +304,13 @@ class Filesystem(Storage):
                 'group_id',
                 project_id,
                 ancestor_id
-                ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)""",
+                ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)""",
             (
                 storage_id,
                 experiment.module,
                 json.dumps(experiment.config),
                 json.dumps(experiment.version),
+                json.dumps(idversion(experiment.version)),
                 experiment.experiment_id,
                 experiment.seed,
                 experiment.nickname,
@@ -430,17 +440,21 @@ class Filesystem(Storage):
         return None
 
     def _find_experiment_by_version(
-        self,
-        module: str,
-        version: VersionType = None,
+        self, module: str, version: VersionType = None, mode: str = "default"
     ) -> List[str]:
         self._assert_editable()
         cur = self._db.cursor()
         if version:
-            query = cur.execute(
-                """SELECT storage_id FROM experiments WHERE module=? AND version=?""",
-                (module, json.dumps(version)),
-            )
+            if mode == "id":
+                query = cur.execute(
+                    """SELECT storage_id FROM experiments WHERE module=? AND idversion=?""",
+                    (module, json.dumps(idversion(version))),
+                )
+            else:
+                query = cur.execute(
+                    """SELECT storage_id FROM experiments WHERE module=? AND version=?""",
+                    (module, json.dumps(version)),
+                )
         else:
             query = cur.execute(
                 """SELECT storage_id FROM experiments WHERE module=?""",

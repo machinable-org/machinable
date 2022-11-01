@@ -533,16 +533,14 @@ class Storage(Connectable, Element):
         raise NotImplementedError
 
     def find_experiment_by_version(
-        self,
-        module: str,
-        version: VersionType = None,
+        self, module: str, version: VersionType = None, mode: str = "default"
     ) -> List[str]:
-        return self._find_experiment_by_version(module, normversion(version))
+        return self._find_experiment_by_version(
+            module, normversion(version), mode
+        )
 
     def _find_experiment_by_version(
-        self,
-        module: str,
-        version: VersionType = None,
+        self, module: str, version: VersionType = None, mode: str = "default"
     ) -> List[str]:
         raise NotImplementedError
 

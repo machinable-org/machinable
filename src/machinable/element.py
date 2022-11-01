@@ -207,8 +207,11 @@ def normversion(version: VersionType = None) -> List[Union[str, dict]]:
 
     def _norm(item):
         if isinstance(item, collections.abc.Mapping):
-            # convert to dict
-            return OmegaConf.to_container(OmegaConf.create(item))
+            # convert to dict and unflatten
+            return unflatten_dict(
+                OmegaConf.to_container(OmegaConf.create(item))
+            )
+
         return item
 
     return [_norm(v) for v in version if _valid(v)]
@@ -290,6 +293,22 @@ def equalversion(a: VersionType, b: VersionType) -> bool:
     return json.dumps(normversion(a), sort_keys=True) == json.dumps(
         normversion(b), sort_keys=True
     )
+
+
+def _idversion_filter(value: Union[str, dict]) -> Union[str, dict, None]:
+    if isinstance(value, str) and value.endswith("_"):
+        return None
+
+    def _f(m: Any):
+        if not isinstance(m, collections.abc.Mapping):
+            return m
+        return {k: _f(v) for k, v in m.items() if not k.endswith("_")}
+
+    return _f(value)
+
+
+def idversion(version: VersionType) -> VersionType:
+    return normversion([_idversion_filter(v) for v in normversion(version)])
 
 
 def transfer_to(src: "Element", destination: "Element") -> "Element":
@@ -432,16 +451,14 @@ class Element(Jsonable):
 
     @classmethod
     def find_by_version(
-        cls,
-        module: str,
-        version: VersionType = None,
+        cls, module: str, version: VersionType = None, mode: str = "default"
     ) -> "Collection":
         from machinable.storage import Storage
 
         storage = Storage.get()
 
         storage_ids = getattr(storage, f"find_{cls._key.lower()}_by_version")(
-            module, version
+            module, version, mode=mode
         )
 
         return cls.collect(
@@ -453,7 +470,7 @@ class Element(Jsonable):
 
     @classmethod
     def singleton(cls, module: str, version: VersionType) -> "Element":
-        candidates = cls.find_by_version(module, version)
+        candidates = cls.find_by_version(module, version, mode="id")
         if candidates:
             return candidates[0]
 
@@ -497,11 +514,7 @@ class Element(Jsonable):
                     # compose configuration update
                     config_update = {}
                     for version in __version:
-                        if isinstance(version, collections.abc.Mapping):
-                            version = unflatten_dict(version)
-                        elif isinstance(version, str) and version.startswith(
-                            "~"
-                        ):
+                        if isinstance(version, str) and version.startswith("~"):
                             definition = version[1:]
 
                             if not definition.endswith(")"):
