@@ -1,1 +1,0 @@
-import{_ as e,o as a,c as t}from"./app.d6591404.js";const d=JSON.parse('{"title":"","description":"","frontmatter":{},"headers":[],"relativePath":"examples/aim-ui-storage.md"}'),r={name:"examples/aim-ui-storage.md"};function o(s,c,i,n,m,p){return a(),t("div")}const l=e(r,[["render",o]]);export{d as __pageData,l as default};
