@@ -1,7 +1,13 @@
 from typing import TYPE_CHECKING, Any, List, Optional, Union
 
 from machinable import schema
-from machinable.element import Connectable, Element, defaultversion, normversion
+from machinable.element import (
+    Connectable,
+    Element,
+    defaultversion,
+    get_lineage,
+    normversion,
+)
 from machinable.group import Group
 from machinable.project import Project
 from machinable.settings import get_settings
@@ -10,6 +16,7 @@ from machinable.types import VersionType
 if TYPE_CHECKING:
     from machinable.execution.execution import Execution
     from machinable.experiment import Experiment
+
 import os
 
 import arrow
@@ -48,6 +55,7 @@ class Storage(Connectable, Element):
             config=self.__model__.config,
             version=self.__model__.version,
             default_group=default_group,
+            lineage=get_lineage(self),
         )
 
     @classmethod

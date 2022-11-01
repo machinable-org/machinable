@@ -4,7 +4,7 @@ from dataclasses import dataclass
 
 import pydantic
 import pytest
-from machinable import Execution, Experiment, Project, Storage
+from machinable import Element, Execution, Experiment, Project, Storage
 from machinable.config import Field, RequiredField
 from machinable.element import (
     Connectable,
@@ -17,7 +17,6 @@ from machinable.element import (
     transfer_to,
 )
 from machinable.errors import ConfigurationError
-from machinable.types import ElementType
 from omegaconf import OmegaConf
 
 
@@ -34,6 +33,26 @@ def test_element_instantiation():
         # prevents circular instantiation
         assert isinstance(Experiment.make("machinable"), Experiment)
         assert isinstance(Experiment.make("machinable.experiment"), Experiment)
+
+
+def test_element_lineage():
+    with Project("./tests/samples/project") as project:
+        experiment = Experiment.instance("basic")
+        assert experiment.lineage == (
+            "machinable.experiment",
+            "machinable.element",
+        )
+        experiment = Experiment.instance("line")
+        assert experiment.lineage == (
+            "dummy",
+            "machinable.experiment",
+            "machinable.element",
+        )
+
+        class T(Element):
+            pass
+
+        assert T().lineage == ("machinable.element",)
 
 
 def test_element_transfer():

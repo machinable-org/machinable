@@ -11,7 +11,13 @@ import sys
 import machinable
 from commandlib import Command
 from machinable import schema
-from machinable.element import Connectable, Element, instantiate, normversion
+from machinable.element import (
+    Connectable,
+    Element,
+    get_lineage,
+    instantiate,
+    normversion,
+)
 from machinable.errors import ConfigurationError
 from machinable.types import VersionType
 from machinable.utils import (
@@ -143,6 +149,7 @@ class Project(Connectable, Element):
             directory=directory,
             name=name,
             version=normversion(version),
+            lineage=get_lineage(self),
         )
         self._parent: Optional[Project] = None
         self._provider: str = "_machinable/project"

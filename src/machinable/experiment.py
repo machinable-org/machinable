@@ -15,6 +15,7 @@ from machinable.element import (
     Element,
     belongs_to,
     defaultversion,
+    get_lineage,
     has_many,
     normversion,
 )
@@ -56,6 +57,7 @@ class Experiment(Element):  # pylint: disable=too-many-public-methods
             config=self.__model__.config,
             version=self.__model__.version,
             seed=seed,
+            lineage=get_lineage(self),
         )
         self._deferred_data = {}
         self._deferred_execution_data = {}

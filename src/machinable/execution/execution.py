@@ -5,7 +5,7 @@ import os
 
 from machinable import schema
 from machinable.collection import ExperimentCollection
-from machinable.element import Element, defaultversion, has_many
+from machinable.element import Element, defaultversion, get_lineage, has_many
 from machinable.experiment import Experiment
 from machinable.project import Project
 from machinable.settings import get_settings
@@ -30,6 +30,7 @@ class Execution(Element):
             version=self.__model__.version,
             resources=resources,
             host_info=Project.get().provider().get_host_info(),
+            lineage=get_lineage(self),
         )
 
     @classmethod

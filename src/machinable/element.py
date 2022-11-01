@@ -324,6 +324,7 @@ class Element(Jsonable):
         self.__model__ = schema.Element(
             module=Element._module_,
             version=normversion(version),
+            lineage=get_lineage(self),
         )
         self.__related__ = {}
         self._config: Optional[DictConfig] = None
@@ -562,6 +563,10 @@ class Element(Jsonable):
         return self.__model__.module
 
     @property
+    def lineage(self) -> Tuple[str, ...]:
+        return self.__model__.lineage
+
+    @property
     def storage_id(self) -> Optional[str]:
         if not self.is_mounted():
             return None
@@ -664,3 +669,12 @@ class Element(Jsonable):
         Do not use to validate the configuration but use validators in the config schema
         that are applied at a later stage.
         """
+
+
+def get_lineage(element: "Element") -> Tuple[str, ...]:
+    return tuple(
+        [
+            obj.module if isinstance(obj, Element) else obj.__module__
+            for obj in element.__class__.__mro__[1:-2]
+        ]
+    )

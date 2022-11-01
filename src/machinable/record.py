@@ -3,7 +3,7 @@ from typing import Any, Dict, Optional, Union
 import copy
 
 from machinable import schema
-from machinable.element import Element, belongs_to
+from machinable.element import Element, belongs_to, get_lineage
 from machinable.errors import StorageError
 from machinable.experiment import Experiment
 from machinable.types import JsonableType, VersionType
@@ -26,6 +26,7 @@ class Record(Element):
             config=self.__model__.config,
             version=self.__model__.version,
             scope=scope,
+            lineage=get_lineage(self),
         )
         self.__related__["experiment"] = experiment
 

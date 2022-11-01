@@ -4,7 +4,7 @@ from datetime import datetime
 
 from machinable import schema
 from machinable.collection import ExperimentCollection
-from machinable.element import Element, has_many
+from machinable.element import Element, get_lineage, has_many
 from machinable.types import VersionType
 
 
@@ -36,6 +36,7 @@ class Group(Element):
             config=self.__model__.config,
             version=self.__model__.version,
             pattern=normgroup(group),
+            lineage=get_lineage(self),
         )
 
     @property

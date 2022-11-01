@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Dict, List, Optional, Union
+from typing import TYPE_CHECKING, Dict, List, Optional, Tuple, Union
 
 from datetime import datetime
 
@@ -21,6 +21,7 @@ class Element(BaseModel):
     module: Optional[str] = None
     version: List[Union[str, Dict]] = []
     config: Optional[Dict] = None
+    lineage: Tuple[str, ...] = ()
 
 
 class Project(Element):
