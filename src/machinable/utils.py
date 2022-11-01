@@ -677,13 +677,6 @@ def unflatten_dict(
     return d
 
 
-def get_machinable_version() -> str:
-    try:
-        return importlib_metadata.version("machinable")
-    except importlib_metadata.PackageNotFoundError:  # pragma: no cover
-        return "unknown"
-
-
 def get_diff(repository: str) -> Optional[str]:
     git = commandlib.Command("git").in_dir(os.path.abspath(repository))
 

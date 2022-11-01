@@ -8,6 +8,7 @@ import platform
 import socket
 import sys
 
+import machinable
 from commandlib import Command
 from machinable import schema
 from machinable.element import Connectable, Element, instantiate, normversion
@@ -17,7 +18,6 @@ from machinable.utils import (
     find_subclass_in_module,
     get_commit,
     get_diff,
-    get_machinable_version,
     get_root_commit,
     import_from_directory,
 )
@@ -306,7 +306,7 @@ class Project(Connectable, Element):
             "python_version": platform.python_version(),
             "user": getpass.getuser(),
             "argv": sys.argv,
-            "machinable_version": get_machinable_version(),
+            "machinable_version": machinable.get_version(),
         }
 
     def on_resolve_element(self, module: str) -> str:

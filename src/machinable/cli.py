@@ -33,7 +33,7 @@ class Cli:
         getattr(self, args.command)()
 
     def version(self):
-        from machinable.utils import get_machinable_version
+        from machinable import get_version as get_machinable_version
 
         print(get_machinable_version())
 

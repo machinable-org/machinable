@@ -2,7 +2,7 @@ import os
 
 import pytest
 from commandlib import Command
-from machinable import utils
+from machinable import get_version, utils
 from machinable.element import Element
 
 
@@ -125,7 +125,7 @@ def test_unflatten_dict():
 
 
 def test_machinable_version():
-    assert isinstance(utils.get_machinable_version(), str)
+    assert isinstance(get_version(), str)
 
 
 def test_git_utils(tmp_path):
