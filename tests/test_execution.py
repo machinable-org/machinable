@@ -65,23 +65,27 @@ def test_execution_resources():
     experiment = Experiment()
     execution = Execution()
     # default resources are empty
-    assert execution.resources(experiment) == {}
+    assert execution.compute_resources(experiment) == {}
+
     # default resources can be declared via a method
-    class T(Experiment):
-        def default_resources(self, execution):
+    class T(Execution):
+        def default_resources(self, experiment):
             return {"1": 2}
 
-    assert execution.resources(T()) == {"1": 2}
+    execution = T()
+    assert execution.compute_resources(experiment) == {"1": 2}
     # default resources are reused
-    experiment.resources({"test": "me"})
-    assert experiment.resources() == {"test": "me"}
+    execution = T(resources={"test": "me"})
+    assert execution.resources() == {"test": "me"}
+    assert execution.compute_resources(experiment) == {"1": 2, "test": "me"}
     # inheritance of default resources
-    assert execution.resources(T(resources={"3": 4})) == {"1": 2, "3": 4}
-    assert execution.resources(
-        T(resources={"3": 4, "_inherit_defaults": False})
-    ) == {"3": 4}
+    execution = T(resources={"3": 4})
+    assert execution.compute_resources(experiment) == {"1": 2, "3": 4}
+    execution = T(resources={"3": 4, "_inherit_defaults": False})
+    assert execution.compute_resources(experiment) == {"3": 4}
     # inherit but ignore commented resources
-    assert execution.resources(T(resources={"3": 4, "#1": None})) == {"3": 4}
+    execution = T(resources={"3": 4, "#1": None})
+    assert execution.compute_resources(experiment) == {"3": 4}
 
 
 def test_local_execution():

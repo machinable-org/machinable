@@ -21,12 +21,14 @@ class Execution(Element):
     def __init__(
         self,
         version: VersionType = None,
+        resources: Optional[Dict] = None,
     ):
         super().__init__(version)
         self.__model__ = schema.Execution(
             module=self.__model__.module,
             config=self.__model__.config,
             version=self.__model__.version,
+            resources=resources,
             host_info=Project.get().provider().get_host_info(),
         )
 
@@ -35,9 +37,12 @@ class Execution(Element):
         cls,
         module: Optional[str] = None,
         version: VersionType = None,
+        resources: Optional[Dict] = None,
     ) -> "Execution":
         module, version = defaultversion(module, version, cls)
-        return super().make(module, version, base_class=Execution)
+        return super().make(
+            module, version, resources=resources, base_class=Execution
+        )
 
     @has_many
     def experiments() -> ExperimentCollection:
@@ -79,31 +84,38 @@ class Execution(Element):
         return self
 
     def commit(self) -> "Execution":
+        # save to storage
         Storage.get().commit(experiments=self.experiments, execution=self)
+        # resolve and save resources
+        for experiment in self.experiments:
+            experiment.save_execution_data(
+                "resources.json", self.compute_resources(experiment)
+            )
+
         return self
 
-    @property
-    def timestamp(self) -> float:
-        return self.__model__.timestamp
+    def resources(self) -> Optional[Dict]:
+        return self.__model__.resources
 
     def canonicalize_resources(self, resources: Dict) -> Dict:
         return resources
 
-    def resources(self, experiment: "Experiment") -> Dict:
-        default_resources = None
-        if hasattr(experiment, "default_resources"):
-            default_resources = experiment.default_resources(execution=self)
+    def default_resources(self, experiment: "Experiment") -> Optional[dict]:
+        """Default resources"""
 
-        if experiment.resources() is None and default_resources is not None:
+    def compute_resources(self, experiment: "Experiment") -> Dict:
+        default_resources = self.default_resources(experiment)
+
+        if not self.resources() and default_resources is not None:
             return self.canonicalize_resources(default_resources)
 
-        if experiment.resources() is not None and default_resources is None:
-            resources = copy.deepcopy(experiment.resources())
+        if self.resources() and not default_resources:
+            resources = copy.deepcopy(self.resources())
             resources.pop("_inherit_defaults", None)
             return self.canonicalize_resources(resources)
 
-        if experiment.resources() is not None and default_resources is not None:
-            resources = copy.deepcopy(experiment.resources())
+        if self.resources() and default_resources:
+            resources = copy.deepcopy(self.resources())
             if resources.pop("_inherit_defaults", True) is False:
                 return self.canonicalize_resources(resources)
 
@@ -167,6 +179,10 @@ class Execution(Element):
 
     def on_dispatch_experiment(self, experiment: "Experiment") -> Any:
         return experiment.dispatch()
+
+    @property
+    def timestamp(self) -> float:
+        return self.__model__.timestamp
 
     @property
     def host_info(self) -> Optional[Dict]:
