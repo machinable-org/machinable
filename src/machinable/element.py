@@ -303,7 +303,9 @@ def instantiate(
 ):
     try:
         Element._module_ = module  # assign project-relative module
-        return class_(version=version, **constructor_kwargs)
+        instance = class_(version=version, **constructor_kwargs)
+        instance.on_instantiate()
+        return instance
     except TypeError as _ex:
         raise MachinableError(
             f"Could not instantiate element {class_.__module__}.{class_.__name__}"
@@ -655,6 +657,9 @@ class Element(Jsonable):
 
     def __str__(self):
         return self.__repr__()
+
+    def on_instantiate(self) -> None:
+        """Event that is invoked whenever the element is instantiated"""
 
     def on_before_configure(self, config: DictConfig) -> None:
         """Configuration event operating on the raw configuration

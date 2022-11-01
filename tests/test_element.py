@@ -34,6 +34,12 @@ def test_element_instantiation():
         assert isinstance(Experiment.make("machinable"), Experiment)
         assert isinstance(Experiment.make("machinable.experiment"), Experiment)
 
+        # on_instantiate
+        assert (
+            Experiment.make("line").msg_set_during_instantiation
+            == "hello world"
+        )
+
 
 def test_element_lineage():
     with Project("./tests/samples/project") as project:
