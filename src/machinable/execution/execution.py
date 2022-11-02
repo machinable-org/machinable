@@ -78,7 +78,6 @@ class Execution(Element):
                 f"Expected experiment, but found: {type(experiment)} {experiment}"
             )
 
-        experiment.__related__["execution"] = self
         self.__related__.setdefault("experiments", ExperimentCollection())
         self.__related__["experiments"].append(experiment)
 
@@ -87,11 +86,13 @@ class Execution(Element):
     def commit(self) -> "Execution":
         # save to storage
         Storage.get().commit(experiments=self.experiments, execution=self)
-        # resolve and save resources
         for experiment in self.experiments:
+            # resolve resources
             experiment.save_execution_data(
                 "resources.json", self.compute_resources(experiment)
             )
+            # relationships
+            experiment.__related__["execution"] = self
 
         return self
 
@@ -143,6 +144,9 @@ class Execution(Element):
 
     def dispatch(self) -> "Execution":
         """Dispatches the execution"""
+        if all(self.experiments.map(lambda x: x.is_finished())):
+            return self
+
         # trigger configuration validation for early failure
         self.experiments.each(lambda x: x.config)
 
