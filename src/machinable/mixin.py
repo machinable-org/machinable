@@ -1,9 +1,14 @@
-from typing import Any, Optional
+from typing import Any, Callable, Optional
 
+from functools import wraps
 from inspect import getattr_static
 
 
 class Mixin:
+    """Mixin base class"""
+
+
+class bind:
     """
     Allows to dynamically extend object instances
 
@@ -68,3 +73,22 @@ class Mixin:
             return output
 
         return bound_method
+
+
+def mixin(f: Callable) -> Any:
+    @property
+    @wraps(f)
+    def _wrapper(self: "Element"):
+        name = f.__name__
+        if name not in self.__mixins__:
+            mixin_class = f(self)
+            if isinstance(mixin_class, str):
+                from machinable.project import Project
+
+                mixin_class = Project.get()._element(mixin_class, Mixin)
+
+            self.__mixins__[name] = bind(self, mixin_class, name)
+
+        return self.__mixins__[name]
+
+    return _wrapper

@@ -13,6 +13,7 @@ from machinable import schema
 from machinable.collection import Collection
 from machinable.config import from_element, match_method, rewrite_config_methods
 from machinable.errors import ConfigurationError, MachinableError
+from machinable.mixin import Mixin
 from machinable.types import ElementType, VersionType
 from machinable.utils import Jsonable, unflatten_dict, update_dict
 from omegaconf import DictConfig, OmegaConf
@@ -25,12 +26,12 @@ def belongs_to(f: Callable) -> Any:
     @property
     @wraps(f)
     def _wrapper(self: "Element"):
-        related_class = f()
-        use_cache = True
-        if isinstance(related_class, tuple):
-            related_class, use_cache = related_class
         name = f.__name__
         if self.__related__.get(name, None) is None and self.is_mounted():
+            related_class = f()
+            use_cache = True
+            if isinstance(related_class, tuple):
+                related_class, use_cache = related_class
             related = self.__model__._storage_instance.retrieve_related(
                 self.__model__._storage_id,
                 f"{self._key.lower()}.{name}",
@@ -54,16 +55,16 @@ def has_many(f: Callable) -> Any:
     @property
     @wraps(f)
     def _wrapper(self: "Element") -> Any:
-        args = f()
-        use_cache = True
-        if len(args) == 2:
-            related_class, collection = args
-        elif len(args) == 3:
-            related_class, collection, use_cache = args
-        else:
-            assert False, "Invalid number of relation arguments"
         name = f.__name__
         if self.__related__.get(name, None) is None and self.is_mounted():
+            args = f()
+            use_cache = True
+            if len(args) == 2:
+                related_class, collection = args
+            elif len(args) == 3:
+                related_class, collection, use_cache = args
+            else:
+                assert False, "Invalid number of relation arguments"
             related = self.__model__._storage_instance.retrieve_related(
                 self.__model__._storage_id,
                 f"{self._key.lower()}.{name}",
@@ -331,7 +332,7 @@ def instantiate(
         ) from _ex
 
 
-class Element(Jsonable):
+class Element(Mixin, Jsonable):
     """Element baseclass"""
 
     _key: Optional[str] = "Element"
@@ -348,6 +349,7 @@ class Element(Jsonable):
             lineage=get_lineage(self),
         )
         self.__related__ = {}
+        self.__mixins__ = {}
         self._config: Optional[DictConfig] = None
         self._cache = {}
 
@@ -688,11 +690,20 @@ class Element(Jsonable):
         that are applied at a later stage.
         """
 
+    def __getattr__(self, name) -> Any:
+        for mixin in self.__mixins__.values():
+            attr = getattr(mixin, name, None)
+            if attr is not None:
+                return attr
+        raise AttributeError(
+            "%r object has no attribute %r" % (self.__class__.__name__, name)
+        )
+
 
 def get_lineage(element: "Element") -> Tuple[str, ...]:
     return tuple(
         [
             obj.module if isinstance(obj, Element) else obj.__module__
-            for obj in element.__class__.__mro__[1:-2]
+            for obj in element.__class__.__mro__[1:-3]
         ]
     )

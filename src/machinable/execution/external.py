@@ -27,7 +27,8 @@ class External(Execution):
         runner: Union[str, List[str]] = "bash"
 
     def on_dispatch_experiment(self, experiment: "Experiment") -> Any:
-        runner = commandlib.Command(*self.runner_command(experiment))
+        runner_cmd = self.runner_command(experiment)
+        runner = commandlib.Command(*runner_cmd)
 
         script = self.header_command(experiment)
 
@@ -39,7 +40,7 @@ class External(Execution):
         os.chmod(script_filepath, st.st_mode | stat.S_IEXEC)
 
         print(
-            f"Running experiment {experiment.experiment_id} script at {script_filepath}"
+            f"Running experiment {experiment.experiment_id} script via {' '.join(runner_cmd)} at {script_filepath}"
         )
         try:
             output = runner(script_filepath).output()

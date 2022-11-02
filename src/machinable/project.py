@@ -245,20 +245,12 @@ class Project(Connectable, Element):
             },
         }
 
-    def element(
-        self,
-        module: str,
-        version: VersionType = None,
-        base_class: Any = None,
-        **constructor_kwargs,
-    ) -> "Element":
+    def _element(self, module: str, base_class: Any = None) -> "Element":
         if base_class is None:
             base_class = Element
 
         # allow overrides
         module = self.provider().on_resolve_element(module)
-
-        path = module
 
         # import project-relative
         module = (
@@ -286,7 +278,22 @@ class Project(Connectable, Element):
                 f"Is it correctly defined in {module.__name__}?"
             )
 
-        return instantiate(path, element_class, version, **constructor_kwargs)
+        return element_class
+
+    def element(
+        self,
+        module: str,
+        version: VersionType = None,
+        base_class: Any = None,
+        **constructor_kwargs,
+    ) -> "Element":
+        element_class = self._element(module, base_class)
+        return instantiate(
+            self.provider().on_resolve_element(module),
+            element_class,
+            version,
+            **constructor_kwargs,
+        )
 
     def get_diff(self) -> Union[str, None]:
         return get_diff(self.path())
