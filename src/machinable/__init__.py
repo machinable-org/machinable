@@ -8,6 +8,7 @@ __all__ = [
     "Storage",
     "Mixin",
     "mixin",
+    "Schedule",
     "cli",
 ]
 __doc__ = """A modular system for machinable research code"""
@@ -21,7 +22,7 @@ else:
 
 from machinable.cli import cli
 from machinable.element import Element
-from machinable.execution.execution import Execution
+from machinable.execution.execution import Execution, Schedule
 from machinable.experiment import Experiment
 from machinable.mixin import Mixin, mixin
 from machinable.project import Project
