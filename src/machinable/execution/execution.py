@@ -4,30 +4,17 @@ import copy
 
 from machinable import schema
 from machinable.collection import ExperimentCollection
-from machinable.element import (
-    Connectable,
-    Element,
-    defaultversion,
-    get_lineage,
-    has_many,
-)
+from machinable.element import Element, defaultversion, get_lineage, has_many
 from machinable.experiment import Experiment
 from machinable.project import Project
+from machinable.schedule import Schedule
 from machinable.settings import get_settings
 from machinable.storage import Storage
 from machinable.types import VersionType
 from machinable.utils import update_dict
 
 
-class Schedule:
-    """Schedule base class"""
-
-    def append(self, execution: "Execution"):
-        """Add an execution to the schedule"""
-        return NotImplemented
-
-
-class Execution(Connectable, Element):
+class Execution(Element):
     _key = "Execution"
     default = get_settings().default_execution
 
@@ -157,10 +144,9 @@ class Execution(Connectable, Element):
 
     def dispatch(self) -> "Execution":
         """Dispatches the execution"""
-        if isinstance(Execution.get(), Schedule):
-            # delegate to connected execution schedule
-            Execution.get().append(self)
-
+        if Schedule.is_connected():
+            # delegate execution to connected scheduler
+            Schedule.get().append(self)
             return self
 
         if all(self.experiments.map(lambda x: x.is_finished())):

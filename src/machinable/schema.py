@@ -11,6 +11,7 @@ from machinable.utils import (
 from pydantic import BaseModel, Field, PrivateAttr
 
 if TYPE_CHECKING:
+    from machinable.execution.execution import Execution as ExecutionElement
     from machinable.storage.storage import Storage
 
 
@@ -64,3 +65,7 @@ class Record(Element):
     scope: str
     current: Dict = {}
     last: Dict = None
+
+
+class Schedule(Element):
+    executions: List["ExecutionElement"] = []

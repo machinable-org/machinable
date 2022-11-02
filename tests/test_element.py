@@ -326,17 +326,25 @@ def test_connectable():
         dummy_1 = Dummy()
         dummy_2 = Dummy()
 
+        assert not Dummy.is_connected()
+        assert not Dummy.is_connected()
+
         with dummy_1:
             assert Dummy.get() is dummy_1
+            assert Dummy.is_connected()
+        assert not Dummy.is_connected()
         assert Dummy.get() is not dummy_1
         assert Dummy.get() is not dummy_2
 
         dummy_1.connect()
+        assert Dummy.is_connected()
         assert Dummy.get() is dummy_1
         with dummy_2:
             assert Dummy.get() is dummy_2
+            assert Dummy.is_connected()
         assert Dummy.get() is dummy_1
         dummy_1.close()
+        assert not Dummy.is_connected()
         assert Dummy.get() is not dummy_1
         assert Dummy.get() is not dummy_2
 
@@ -344,13 +352,12 @@ def test_connectable():
             with dummy_2:
                 with Dummy() as dummy_3:
                     assert Dummy.get() is dummy_3
-                    dummy_3.close()
-                    assert Dummy.get() is not dummy_3
-                    assert Dummy.get() is not dummy_2
-                    assert Dummy.get() is not dummy_1
+                    assert Dummy.is_connected()
+                assert Dummy.is_connected()
                 assert Dummy.get() is dummy_2
             assert Dummy.get() is dummy_1
         assert Dummy.get() is not dummy_1
+        assert not Dummy.is_connected(), mode
 
 
 # sub-class relations

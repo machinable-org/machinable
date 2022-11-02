@@ -22,11 +22,12 @@ else:
 
 from machinable.cli import cli
 from machinable.element import Element
-from machinable.execution.execution import Execution, Schedule
+from machinable.execution.execution import Execution
 from machinable.experiment import Experiment
 from machinable.mixin import Mixin, mixin
 from machinable.project import Project
 from machinable.record import Record
+from machinable.schedule import Schedule
 from machinable.storage import Storage
 
 

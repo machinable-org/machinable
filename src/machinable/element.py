@@ -83,7 +83,7 @@ def has_many(f: Callable) -> Any:
     return _wrapper
 
 
-_CONNECTIONS = {}
+_CONNECTIONS = collections.defaultdict(lambda: [])
 
 
 class Connectable:
@@ -92,63 +92,52 @@ class Connectable:
     __connection__: Optional["Connectable"] = None
 
     @classmethod
+    def is_connected(cls) -> bool:
+        if getattr(cls, "_key", None) is not None:
+            return len(_CONNECTIONS[cls._key]) > 0
+
+        return cls.__connection__ is not None
+
+    @classmethod
     def get(cls) -> "Connectable":
         if getattr(cls, "_key", None) is not None:
-            return _CONNECTIONS.setdefault(cls._key, cls.instance())
+            if len(_CONNECTIONS[cls._key]) > 0:
+                return _CONNECTIONS[cls._key][-1]
+            else:
+                # default
+                return cls.instance()
 
         return cls() if cls.__connection__ is None else cls.__connection__
 
     def connect(self) -> "Connectable":
         if getattr(self, "_key", None) is not None:
-            _CONNECTIONS[self._key] = self
+            _CONNECTIONS[self._key].append(self)
             return self
-
+        self._outer_connection = (  # pylint: disable=attribute-defined-outside-init
+            self.__class__.__connection__
+        )
         self.__class__.__connection__ = self
         return self
 
     def close(self) -> "Connectable":
         if getattr(self, "_key", None) is not None:
-            if _CONNECTIONS.get(self._key, None) is self:
-                del _CONNECTIONS[self._key]
-
+            try:
+                _CONNECTIONS[self._key].pop()
+            except IndexError:
+                pass
             return self
 
         if self.__class__.__connection__ is self:
             self.__class__.__connection__ = None
+        if getattr(self, "_outer_connection", None) is not None:
+            self.__class__.__connection__ = self._outer_connection
         return self
 
     def __enter__(self):
-        if getattr(self, "_key", None) is not None:
-            _CONNECTIONS.setdefault(self._key + "_scopes", [])
-            if self._key in _CONNECTIONS:
-                # store previous context
-                _CONNECTIONS[self._key + "_scopes"].append(
-                    _CONNECTIONS[self._key]
-                )
-            self.connect()
-            return self
-
-        self._outer_connection = (  # pylint: disable=attribute-defined-outside-init
-            self.__class__.__connection__
-        )
-        self.connect()
-        return self
+        return self.connect()
 
     def __exit__(self, exc_type, exc_value, exc_traceback):
-        if getattr(self, "_key", None) is not None:
-            if _CONNECTIONS.get(self._key, None) is self:
-                del _CONNECTIONS[self._key]
-            _CONNECTIONS.setdefault(self._key + "_scopes", [])
-            if len(_CONNECTIONS[self._key + "_scopes"]) > 0:
-                outer = _CONNECTIONS[self._key + "_scopes"].pop()
-                if outer is not None:
-                    _CONNECTIONS[self._key] = outer
-        else:
-
-            if self.__class__.__connection__ is self:
-                self.__class__.__connection__ = None
-            if getattr(self, "_outer_connection", None) is not None:
-                self.__class__.__connection__ = self._outer_connection
+        self.close()
 
 
 class ConfigMethod:
@@ -607,13 +596,6 @@ class Element(Mixin, Jsonable):
         return cls.from_model(
             getattr(storage, f"retrieve_{cls._key.lower()}")(storage_id)
         )
-
-    def find_latest(self, limit=10, since=None):
-        if since is None:
-            condition = {"<=": arrow.now()}
-        else:
-            condition = {">": since}
-        raise NotImplementedError
 
     @classmethod
     def collect(cls, elements) -> Collection:
