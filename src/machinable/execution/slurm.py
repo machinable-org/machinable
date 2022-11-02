@@ -1,9 +1,11 @@
-from typing import Any, Dict, List, Optional
+from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
 import commandlib
 from machinable import errors
 from machinable.execution.external import External
-from machinable.storage import Storage
+
+if TYPE_CHECKING:
+    from machinable.experiment import Experiment
 
 
 class Slurm(External):
@@ -11,10 +13,6 @@ class Slurm(External):
         shebang: str = "#!/usr/bin/env bash"
         python: Optional[str] = None
         runner: str = "sbatch"
-
-    def commit(self):
-        Storage.get().commit(experiments=self.experiments, execution=self)
-        return self
 
     def on_dispatch_experiment(self, experiment: "Experiment") -> Any:
         runner = commandlib.Command(*self.runner_command(experiment))
