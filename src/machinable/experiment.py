@@ -197,11 +197,6 @@ class Experiment(Element):  # pylint: disable=too-many-public-methods
         version: VersionType = None,
         seed: Union[int, None] = None,
     ) -> "Experiment":
-        if not self.is_mounted():
-            raise ConfigurationError(
-                "The experiment you are trying to derive from has not been executed yet"
-            )
-
         experiment = self.make(
             module,
             version,
@@ -218,7 +213,7 @@ class Experiment(Element):  # pylint: disable=too-many-public-methods
         version: VersionType = sentinel,
         seed: Union[int, None] = sentinel,
     ) -> "Experiment":
-
+        
         if module is sentinel:
             module = self.__model__.module
         if version is sentinel:
