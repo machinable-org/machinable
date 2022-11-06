@@ -31,46 +31,35 @@ class bind:
     ```
     """
 
-    def __init__(
-        self, target: Any, mixin_class: Any, attribute: Optional[str] = None
-    ):
-        self._binding = {
-            "controller": target,
-            "class": mixin_class,
-            "attribute": attribute,
-        }
+    def __init__(self, target: Any, mixin_class: Any, name: str):
+        self._binding_mixin_target = target
+        self._binding_mixin_class = mixin_class
+        self._binding_mixin_name = name
 
     def __getattr__(self, item):
         # forward dynamically into mix-in class
-        attribute = getattr(self._binding["class"], item, None)
+        attribute = getattr(self._binding_mixin_class, item, None)
 
         if attribute is None:
             raise AttributeError(
-                f"'{self._binding['class'].__name__}' has no attribute '{item}'"
+                f"'{self._binding_mixin_class.__name__}' has no attribute '{item}'"
             )
 
         if isinstance(attribute, property):
-            return attribute.fget(self._binding["controller"])
+            return attribute.fget(self._binding_mixin_target)
 
         if not callable(attribute):
             return attribute
 
         if isinstance(
-            getattr_static(self._binding["class"], item), staticmethod
+            getattr_static(self._binding_mixin_class, item), staticmethod
         ):
             return attribute
 
         # if attribute is non-static method we decorate it to pass in the controller
 
         def bound_method(*args, **kwargs):
-            # bind mixin instance to controller for mixin self reference
-            if self._binding["attribute"] is not None:
-                self._binding["controller"].__mixin__ = getattr(
-                    self._binding["controller"], self._binding["attribute"]
-                )
-            output = attribute(self._binding["controller"], *args, **kwargs)
-
-            return output
+            return attribute(self._binding_mixin_target, *args, **kwargs)
 
         return bound_method
 
@@ -88,6 +77,9 @@ def mixin(f: Callable) -> Any:
                 mixin_class = Project.get()._element(mixin_class, Mixin)
 
             self.__mixins__[name] = bind(self, mixin_class, name)
+
+        # assign to __mixin__ for reference
+        self.__mixin__ = self.__mixins__[name]
 
         return self.__mixins__[name]
 

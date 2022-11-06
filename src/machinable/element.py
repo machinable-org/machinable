@@ -338,6 +338,7 @@ class Element(Mixin, Jsonable):
             lineage=get_lineage(self),
         )
         self.__related__ = {}
+        self.__mixin__ = None
         self.__mixins__ = {}
         self._config: Optional[DictConfig] = None
         self._cache = {}
@@ -673,10 +674,9 @@ class Element(Mixin, Jsonable):
         """
 
     def __getattr__(self, name) -> Any:
-        for mixin in self.__mixins__.values():
-            attr = getattr(mixin, name, None)
-            if attr is not None:
-                return attr
+        attr = getattr(self.__mixin__, name, None)
+        if attr is not None:
+            return attr
         raise AttributeError(
             "%r object has no attribute %r" % (self.__class__.__name__, name)
         )

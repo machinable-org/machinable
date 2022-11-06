@@ -9,6 +9,10 @@ class Example(Element):
     def test(self):
         return "mixins.extension"
 
+    @mixin
+    def dummy(self):
+        return "dummy"
+
     def say(self) -> str:
         return self.test.hello()
 
