@@ -4,7 +4,7 @@ import pytest
 from machinable import Execution, Experiment, Project, Storage, errors
 
 
-def test_execution():
+def test_execution(tmp_storage):
     assert len(Execution().use([Experiment(), Experiment()]).experiments) == 2
     with pytest.raises(ValueError):
         Execution().use(None)
@@ -30,7 +30,7 @@ def test_execution():
         assert execution.host_info["python_version"].startswith("3")
 
 
-def test_execution_dispatch():
+def test_execution_dispatch(tmp_storage):
     # prevent execution from experiment
     class T(Experiment):
         class Config:
@@ -88,7 +88,7 @@ def test_execution_resources():
     assert execution.compute_resources(experiment) == {"3": 4}
 
 
-def test_local_execution():
+def test_local_execution(tmp_storage):
     Experiment().execute("machinable.execution.local", {"processes": None})
     Experiment().execute("machinable.execution.local", {"processes": 1})
 
@@ -99,11 +99,9 @@ class ExternalExperiment(Experiment):
         self.save_data("test.txt", "hello")
 
 
-def test_external_execution(tmpdir):
-    # tmpdir = "./test"
-    with Storage.filesystem(str(tmpdir)):
-        experiment = ExternalExperiment()
-        experiment.execute("machinable.execution.external", {})
-        time.sleep(0.1)
-        assert experiment.is_finished()
-        assert experiment.load_data("test.txt") == "hello"
+def test_external_execution(tmp_storage):
+    experiment = ExternalExperiment()
+    experiment.execute("machinable.execution.external", {})
+    time.sleep(0.1)
+    assert experiment.is_finished()
+    assert experiment.load_data("test.txt") == "hello"

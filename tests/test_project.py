@@ -16,7 +16,7 @@ def test_project():
     assert Project.get().module == "machinable.project"
 
 
-def test_project_events():
+def test_project_events(tmp_storage):
     project = Project("tests/samples/project").connect()
     # global config
     assert Experiment.instance("dummy", {"a": "global_conf(2)"}).config.a == 2

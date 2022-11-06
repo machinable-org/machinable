@@ -213,7 +213,7 @@ class Experiment(Element):  # pylint: disable=too-many-public-methods
         version: VersionType = sentinel,
         seed: Union[int, None] = sentinel,
     ) -> "Experiment":
-        
+
         if module is sentinel:
             module = self.__model__.module
         if version is sentinel:

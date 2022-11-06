@@ -369,92 +369,68 @@ class CustomExecution(Execution):
     pass
 
 
-def test_element_relations(tmp_path):
-    with Storage.make(
-        "machinable.storage.filesystem", {"directory": str(tmp_path)}
-    ):
-        with Project("./tests/samples/project"):
+def test_element_relations(tmp_storage):
+    with Project("./tests/samples/project"):
 
-            experiment = Experiment().group_as("test/group")
-            execution = Execution().use(experiment)
-            execution.dispatch()
+        experiment = Experiment().group_as("test/group")
+        execution = Execution().use(experiment)
+        execution.dispatch()
 
-            experiment_clone = Experiment.from_storage(experiment.storage_id)
-            assert experiment.experiment_id == experiment_clone.experiment_id
+        experiment_clone = Experiment.from_storage(experiment.storage_id)
+        assert experiment.experiment_id == experiment_clone.experiment_id
 
-            # experiment <-> execution
-            assert int(execution.timestamp) == int(
-                experiment.execution.timestamp
-            )
-            assert (
-                experiment.experiment_id
-                == execution.experiments[0].experiment_id
-            )
-            # group <-> execution
-            assert experiment.group.path == "test/group"
-            assert experiment.group.pattern == "test/group"
-            assert (
-                experiment.group.experiments[0].nickname == experiment.nickname
-            )
+        # experiment <-> execution
+        assert int(execution.timestamp) == int(experiment.execution.timestamp)
+        assert (
+            experiment.experiment_id == execution.experiments[0].experiment_id
+        )
+        # group <-> execution
+        assert experiment.group.path == "test/group"
+        assert experiment.group.pattern == "test/group"
+        assert experiment.group.experiments[0].nickname == experiment.nickname
 
-            # invalidate cache and reconstruct
-            experiment.__related__ = {}
-            execution.__related__ = {}
-            # experiment <-> execution
-            assert int(execution.timestamp) == int(
-                experiment.execution.timestamp
-            )
-            assert (
-                experiment.experiment_id
-                == execution.experiments[0].experiment_id
-            )
-            # group <-> execution
-            assert experiment.group.path == "test/group"
-            assert (
-                experiment.group.experiments[0].nickname == experiment.nickname
-            )
+        # invalidate cache and reconstruct
+        experiment.__related__ = {}
+        execution.__related__ = {}
+        # experiment <-> execution
+        assert int(execution.timestamp) == int(experiment.execution.timestamp)
+        assert (
+            experiment.experiment_id == execution.experiments[0].experiment_id
+        )
+        # group <-> execution
+        assert experiment.group.path == "test/group"
+        assert experiment.group.experiments[0].nickname == experiment.nickname
 
-            experiment = CustomExperiment()
-            execution = CustomExecution().use(experiment)
-            execution.dispatch()
-            experiment.__related__ = {}
-            execution.__related__ = {}
-            experiment.execution == execution
-            experiment.__related__ = {}
-            execution.__related__ = {}
-            execution.experiments[0] == experiment
+        experiment = CustomExperiment()
+        execution = CustomExecution().use(experiment)
+        execution.dispatch()
+        experiment.__related__ = {}
+        execution.__related__ = {}
+        experiment.execution == execution
+        experiment.__related__ = {}
+        execution.__related__ = {}
+        execution.experiments[0] == experiment
 
 
-def test_element_search(tmp_path):
-    with Storage.make(
-        "machinable.storage.filesystem", {"directory": str(tmp_path)}
-    ):
-        with Project("./tests/samples/project"):
-            exp1 = Experiment.make("dummy", {"a": 1}).execute()
-            exp2 = Experiment.make("dummy", {"a": 2}).execute()
-            assert (
-                Experiment.find(exp1.experiment_id).timestamp == exp1.timestamp
-            )
-            assert Experiment.find_by_version("non-existing").empty()
-            assert Experiment.find_by_version("dummy").count() == 2
-            # singleton
-            assert (
-                Experiment.singleton("dummy", {"a": 2}).nickname
-                == exp2.nickname
-            )
-            assert (
-                Experiment.singleton(
-                    "dummy", {"a": 2, "ignore_me_": 3}
-                ).nickname
-                == exp2.nickname
-            )
-            assert (
-                Experiment.singleton("dummy", {"a": 2}).timestamp
-                == exp2.timestamp
-            )
-            n = Experiment.singleton("dummy", {"a": 3}).execute()
-            assert n.nickname != exp2.nickname
-            assert (
-                n.experiment_id
-                == Experiment.singleton("dummy", {"a": 3}).experiment_id
-            )
+def test_element_search(tmp_storage):
+    with Project("./tests/samples/project"):
+        exp1 = Experiment.make("dummy", {"a": 1}).execute()
+        exp2 = Experiment.make("dummy", {"a": 2}).execute()
+        assert Experiment.find(exp1.experiment_id).timestamp == exp1.timestamp
+        assert Experiment.find_by_version("non-existing").empty()
+        assert Experiment.find_by_version("dummy").count() == 2
+        # singleton
+        assert Experiment.singleton("dummy", {"a": 2}).nickname == exp2.nickname
+        assert (
+            Experiment.singleton("dummy", {"a": 2, "ignore_me_": 3}).nickname
+            == exp2.nickname
+        )
+        assert (
+            Experiment.singleton("dummy", {"a": 2}).timestamp == exp2.timestamp
+        )
+        n = Experiment.singleton("dummy", {"a": 3}).execute()
+        assert n.nickname != exp2.nickname
+        assert (
+            n.experiment_id
+            == Experiment.singleton("dummy", {"a": 3}).experiment_id
+        )

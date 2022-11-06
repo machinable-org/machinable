@@ -37,7 +37,7 @@ def test_slurm_execution(tmp_path):
         assert False, "Timeout"
 
 
-def test_slurm_script():
+def test_slurm_script(tmp_storage):
     experiment = SlurmExperiment()
     Storage.get().commit(experiment)
     script = Slurm().code(experiment)

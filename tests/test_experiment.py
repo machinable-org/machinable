@@ -5,7 +5,7 @@ from machinable import Execution, Experiment, Project, Storage, errors, schema
 from machinable.element import Element
 
 
-def test_experiment(tmp_path):
+def test_experiment(tmp_storage, tmp_path):
     p = Project("./tests/samples/project").connect()
     experiment = Experiment.make("dummy")
     assert experiment.module == "dummy"
@@ -110,45 +110,42 @@ def test_experiment(tmp_path):
     p.close()
 
 
-def test_experiment_relations(tmp_path):
-    with Storage.make(
-        "machinable.storage.filesystem", {"directory": str(tmp_path)}
-    ):
-        with Project("./tests/samples/project", name="test-project"):
+def test_experiment_relations(tmp_storage):
+    with Project("./tests/samples/project", name="test-project"):
 
-            experiment = Experiment.instance("basic").group_as("test/group")
-            execution = Execution().use(experiment)
-            execution.dispatch()
+        experiment = Experiment.instance("basic").group_as("test/group")
+        execution = Execution().use(experiment)
+        execution.dispatch()
 
-            assert experiment.project.name() == "test-project"
-            assert experiment.execution.timestamp == execution.timestamp
-            assert experiment.executions[0].timestamp == execution.timestamp
-            assert len(experiment.elements) == 0
+        assert experiment.project.name() == "test-project"
+        assert experiment.execution.timestamp == execution.timestamp
+        assert experiment.executions[0].timestamp == execution.timestamp
+        assert len(experiment.elements) == 0
 
-            with pytest.raises(errors.ConfigurationError):
-                experiment.version("attempt_overwrite")
+        with pytest.raises(errors.ConfigurationError):
+            experiment.version("attempt_overwrite")
 
-            derived = Experiment(derived_from=experiment)
-            assert derived.ancestor is experiment
-            derived_execution = Execution().use(derived).dispatch()
+        derived = Experiment(derived_from=experiment)
+        assert derived.ancestor is experiment
+        derived_execution = Execution().use(derived).dispatch()
 
-            # invalidate cache and reconstruct
-            experiment.__related__ = {}
-            execution.__related__ = {}
-            derived.__related__ = {}
-            derived_execution.__related__ = {}
+        # invalidate cache and reconstruct
+        experiment.__related__ = {}
+        execution.__related__ = {}
+        derived.__related__ = {}
+        derived_execution.__related__ = {}
 
-            assert derived.ancestor.experiment_id == experiment.experiment_id
-            assert derived.ancestor.hello() == "there"
-            assert experiment.derived[0].experiment_id == derived.experiment_id
+        assert derived.ancestor.experiment_id == experiment.experiment_id
+        assert derived.ancestor.hello() == "there"
+        assert experiment.derived[0].experiment_id == derived.experiment_id
 
-            derived = Experiment(derived_from=experiment)
-            Execution().use(derived).dispatch()
-            assert len(experiment.derived) == 2
+        derived = Experiment(derived_from=experiment)
+        Execution().use(derived).dispatch()
+        assert len(experiment.derived) == 2
 
-            assert experiment.derive().experiment_id != experiment.experiment_id
-            derived = experiment.derive(version=experiment.config)
-            Execution().use(derived).dispatch()
+        assert experiment.derive().experiment_id != experiment.experiment_id
+        derived = experiment.derive(version=experiment.config)
+        Execution().use(derived).dispatch()
 
 
 class DataElement(Element):
@@ -159,7 +156,7 @@ class DataElement(Element):
         return "element"
 
 
-def test_experiment_elements():
+def test_experiment_elements(tmp_storage):
     with Project("./tests/samples/project"):
         assert Experiment.singleton("dummy") is not None
         experiment = Experiment.instance("dummy")

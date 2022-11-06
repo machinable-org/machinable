@@ -1,7 +1,7 @@
 from machinable import Execution, Experiment, Project, Schedule
 
 
-def test_schedule():
+def test_schedule(tmp_storage):
     with Project("./tests/samples/project"):
         schedule = Schedule.instance("scheduled")
         assert schedule.test()
