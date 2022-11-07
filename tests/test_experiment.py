@@ -1,5 +1,6 @@
 import os
 
+import commandlib
 import pytest
 from machinable import Execution, Experiment, Project, Storage, errors, schema
 from machinable.element import Element
@@ -182,3 +183,35 @@ def test_experiment_interface(tmp_path):
 
         experiment.dispatch()
         assert len(experiment.load_data("events.json")) == 6
+
+
+class ExportExperiment(Experiment):
+    def on_execute(self):
+        print("Hello world")
+        self.save_data("test_run.json", {"success": True})
+
+
+def test_experiment_export(tmp_storage):
+    experiment = ExportExperiment()
+    script = experiment.to_dispatch_code()
+
+    with pytest.raises(AttributeError):
+        exec(script)
+
+    Execution().use(experiment).commit()
+    assert not experiment.is_started()
+
+    exec(script)
+
+    assert experiment.is_finished()
+    assert experiment.load_data("test_run.json")["success"]
+
+    # inline
+    experiment = ExportExperiment()
+    Execution().use(experiment).commit()
+    script = experiment.to_dispatch_code(inline=True)
+    script_filepath = experiment.save_file("run.sh", script)
+
+    print(commandlib.Command("bash")(script_filepath).output())
+    assert experiment.is_finished()
+    assert experiment.load_data("test_run.json")["success"]

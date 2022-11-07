@@ -22,7 +22,7 @@ else:
 
 from machinable.cli import cli
 from machinable.element import Element
-from machinable.execution.execution import Execution
+from machinable.execution import Execution
 from machinable.experiment import Experiment
 from machinable.mixin import Mixin, mixin
 from machinable.project import Project

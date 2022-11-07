@@ -1,7 +1,8 @@
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
 
-import copy
 import os
+import stat
+import sys
 
 import arrow
 from machinable import errors, schema
@@ -32,10 +33,9 @@ from machinable.utils import (
     sentinel,
     timestamp_to_directory,
 )
-from omegaconf import OmegaConf
 
 if TYPE_CHECKING:
-    from machinable.execution.execution import Execution
+    from machinable.execution import Execution
     from machinable.record import Record
 
 
@@ -115,13 +115,13 @@ class Experiment(Element):  # pylint: disable=too-many-public-methods
 
     @has_many
     def executions() -> "ExecutionCollection":
-        from machinable.execution.execution import Execution
+        from machinable.execution import Execution
 
         return Execution, ExecutionCollection
 
     @belongs_to
     def execution() -> "Execution":
-        from machinable.execution.execution import Execution
+        from machinable.execution import Execution
 
         return Execution, False
 
@@ -260,7 +260,7 @@ class Experiment(Element):  # pylint: disable=too-many-public-methods
         self, module: Union[str, None] = None, version: VersionType = None
     ) -> "Experiment":
         """Executes the experiment"""
-        from machinable.execution.execution import Execution
+        from machinable.execution import Execution
 
         Execution.instance(module, version=version).use(
             experiment=self
@@ -345,9 +345,16 @@ class Experiment(Element):  # pylint: disable=too-many-public-methods
             self._deferred_data[filepath] = data
             return "$deferred"
 
-        return self.__model__._storage_instance.create_file(
+        file = self.__model__._storage_instance.create_file(
             self, filepath, data
         )
+
+        # mark scripts as executable
+        if filepath.endswith(".sh"):
+            st = os.stat(file)
+            os.chmod(file, st.st_mode | stat.S_IEXEC)
+
+        return file
 
     def save_data(self, filepath: str, data: Any) -> str:
         return self.save_file(os.path.join("data", filepath), data)
@@ -578,10 +585,10 @@ class Experiment(Element):  # pylint: disable=too-many-public-methods
     # life cycle
 
     def on_before_dispatch(self) -> Optional[bool]:
-        """Event triggered before the dispatch of the experiment
+        """Event triggered before the dispatch of the experiment"""
 
-        Return False to prevent the dispatch
-        """
+    def on_before_commit(self) -> Optional[bool]:
+        """Event triggered before the commit of the experiment"""
 
     def on_dispatch(self):
         """Lifecycle event triggered at the very beginning of the component dispatch"""
@@ -644,6 +651,25 @@ class Experiment(Element):  # pylint: disable=too-many-public-methods
         # Arguments
         exception: Execution exception
         """
+
+    # exports
+
+    def to_dispatch_code(self, inline: bool = False) -> Optional[str]:
+        storage = Storage.get().as_json().replace('"', '\\"')
+        code = f"""
+        from machinable import Project, Storage, Experiment
+        from machinable.errors import StorageError
+        Project('{Project.get().path()}').connect()
+        Storage.from_json('{storage}').connect()
+        experiment__ = Experiment.find('{self.experiment_id}', timestamp={self.timestamp})
+        experiment__.dispatch()
+        """
+
+        if inline:
+            code = code.replace("\n        ", ";")[1:-1]
+            return f'{sys.executable} -c "{code}"'
+
+        return code.replace("        ", "")[1:-1]
 
     def __repr__(self):
         return f"Experiment [{self.__model__.experiment_id}]"

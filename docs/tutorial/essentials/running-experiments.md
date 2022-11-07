@@ -39,28 +39,12 @@ To replicate or reproduce a experiment, create a new experiment instance with th
 
 ## Execution implementations
 
-Experiments can be executed in different ways. To configure the execution, <Pydoc caption="execute()">machinable.Experiment.execute</Pydoc> adopts the same module convention as <Pydoc>machinable.Experiment.instance</Pydoc>. You can specify the execution implementation that you like to use by its module name and optionally provide configuration options in form of a dictionary:
+Experiments can be executed in different ways. You may, for example, like to run experiments using multiprocessing. To configure the execution, <Pydoc caption="execute()">machinable.Experiment.execute</Pydoc> adopts the same module convention as <Pydoc>machinable.Experiment.instance</Pydoc>. You can specify the execution implementation that you like to use by its module name and optionally provide configuration options in form of a dictionary, for example:
 
 ```python
-experiment.execute('machinable.execution.local', {'processes': 1})
+experiment.execute('myproject.execution.multiprocessing', {'processes': 1})
 ```
 
-Just like in the case of experiments, this will instantiate a <Pydoc>machinable.Execution</Pydoc> class in the module `machinable.execution.local` that will handle the execution; in the above example, the experiment will run isolated using multiprocessing.
+Just like in the case of experiments, this will instantiate a <Pydoc>machinable.Execution</Pydoc> class in the module `myproject.execution.multiprocessing` which will handle the execution.
 
-machinable provides a number of alternative execution implementations out of the box.
-
-For instance, execution using a queue system like [Slurm](https://slurm.schedmd.com/documentation.html) can be as simple as:
-
-```python
-experiment.execute('machinable.execution.slurm')
-```
-
-Delegating the execution to an external runner like [MPI](https://www.open-mpi.org/) may look like this:
-
-```python
-experiment.execute('machinable.execution.external', {
-    'runner': ['mpi', '-n', 4]
-})
-```
-
-Check out the [execution guide](../elements-in-depth/execution.md) to learn more about available options. You may also be interested in implementing a [custom execution](../elements-in-depth/execution.md).
+Check out the [execution guide](../elements-in-depth/execution.md) to learn more about executions. You may also be interested in the [execution examples](../../examples/execution.md) that you may like to use in your projects.

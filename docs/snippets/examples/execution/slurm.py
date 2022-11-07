@@ -1,23 +1,12 @@
-from typing import TYPE_CHECKING, Any, Dict, List, Optional
-
 import commandlib
-from machinable import errors
-from machinable.execution.external import External
-
-if TYPE_CHECKING:
-    from machinable.experiment import Experiment
+from machinable import Execution
 
 
-class Slurm(External):
-    class Config:
-        shebang: str = "#!/usr/bin/env bash"
-        python: Optional[str] = None
-        runner: str = "sbatch"
+class Slurm(Execution):
+    def on_dispatch_experiment(self, experiment):
+        runner = commandlib.Command("sbatch")
 
-    def on_dispatch_experiment(self, experiment: "Experiment") -> Any:
-        runner = commandlib.Command(*self.runner_command(experiment))
-
-        script = self.header_command(experiment)
+        script = "#!/usr/bin/env bash"
 
         resources = experiment.resources()
         if "--job-name" not in resources:
@@ -35,39 +24,30 @@ class Slurm(External):
             sbatch_arguments.append(line)
         script += "\n".join(sbatch_arguments) + "\n"
 
-        script += self.script_body(experiment)
+        script += experiment.to_dispatch_code(inline=True)
 
         # submit to slurm
-        try:
-            output = runner.piped.from_string(script).output().strip()
-            try:
-                job_id = int(output.rsplit(" ", maxsplit=1)[-1])
-            except ValueError:
-                job_id = False
-            print(f"{output} for experiment {experiment.experiment_id}")
-            experiment.save_execution_data(
-                filepath="slurm.json",
-                data={
-                    "job_id": job_id,
-                    "cmd": sbatch_arguments,
-                    "script": script,
-                    "resources": resources,
-                    "project_directory": self.project_directory(experiment),
-                    "project_source": self.project_source(experiment),
-                },
-            )
-            experiment.save_execution_data("recover.sh", script)
-            return job_id
-        except FileNotFoundError as _exception:
-            raise errors.ExecutionFailed(
-                "Slurm sbatch not found."
-            ) from _exception
-        except commandlib.exceptions.CommandExitError as _exception:
-            raise errors.ExecutionFailed(
-                "Could not submit job to Slurm"
-            ) from _exception
 
-    def canonicalize_resources(self, resources: Dict) -> Dict:
+        output = runner.piped.from_string(script).output().strip()
+        try:
+            job_id = int(output.rsplit(" ", maxsplit=1)[-1])
+        except ValueError:
+            job_id = False
+        print(f"{output} for experiment {experiment.experiment_id}")
+
+        # save job information
+        experiment.save_execution_data(
+            filepath="slurm.json",
+            data={
+                "job_id": job_id,
+                "cmd": sbatch_arguments,
+                "script": script,
+            },
+        )
+
+        return job_id
+
+    def canonicalize_resources(self, resources):
         if resources is None:
             return {}
 
@@ -138,6 +118,3 @@ class Slurm(External):
                 canonicalized[prefix + "--" + k] = str(v)
 
         return canonicalized
-
-    def __repr__(self):
-        return "Execution <slurm>"

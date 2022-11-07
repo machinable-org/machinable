@@ -24,9 +24,3 @@ class ExecutionFailed(MachinableError):
     """Execution failed
 
     Bases: MachinableError"""
-
-
-class ExecutionInterrupt(ExecutionFailed):
-    """Execution was interrupted
-
-    Bases: ExecutionFailed"""

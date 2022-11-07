@@ -23,7 +23,7 @@ def test_execution(tmp_storage):
         assert isinstance(execution.timestamp, float)
 
         experiment = Experiment()
-        execution = Execution.local().use(experiment)
+        execution = Execution().use(experiment)
         assert len(execution.experiments) == 1
         execution.dispatch()
 
@@ -86,22 +86,3 @@ def test_execution_resources():
     # inherit but ignore commented resources
     execution = T(resources={"3": 4, "#1": None})
     assert execution.compute_resources(experiment) == {"3": 4}
-
-
-def test_local_execution(tmp_storage):
-    Experiment().execute("machinable.execution.local", {"processes": None})
-    Experiment().execute("machinable.execution.local", {"processes": 1})
-
-
-class ExternalExperiment(Experiment):
-    def on_create(self):
-        print("Hello from the external script")
-        self.save_data("test.txt", "hello")
-
-
-def test_external_execution(tmp_storage):
-    experiment = ExternalExperiment()
-    experiment.execute("machinable.execution.external", {})
-    time.sleep(0.1)
-    assert experiment.is_finished()
-    assert experiment.load_data("test.txt") == "hello"

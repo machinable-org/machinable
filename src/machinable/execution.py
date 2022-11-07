@@ -5,6 +5,7 @@ import copy
 from machinable import schema
 from machinable.collection import ExperimentCollection
 from machinable.element import Element, defaultversion, get_lineage, has_many
+from machinable.errors import ExecutionFailed
 from machinable.experiment import Experiment
 from machinable.project import Project
 from machinable.schedule import Schedule
@@ -48,13 +49,6 @@ class Execution(Element):
     @has_many
     def experiments() -> ExperimentCollection:
         return Experiment, ExperimentCollection
-
-    @classmethod
-    def local(cls, processes: Optional[int] = None) -> "Execution":
-        return cls.make(
-            "machinable.execution.local",
-            version={"processes": processes},
-        )
 
     @classmethod
     def from_model(cls, model: schema.Execution) -> "Execution":
@@ -144,6 +138,9 @@ class Execution(Element):
 
     def dispatch(self) -> "Execution":
         """Dispatches the execution"""
+        if self.on_before_dispatch() is False:
+            return False
+
         if Schedule.is_connected():
             # delegate execution to connected scheduler
             Schedule.get().append(self)
@@ -155,28 +152,40 @@ class Execution(Element):
         # trigger configuration validation for early failure
         self.experiments.each(lambda x: x.config)
 
-        if self.on_before_dispatch() is False:
+        if self.on_before_commit() is False:
             return False
 
         self.commit()
 
-        results = self.on_dispatch()
+        try:
+            results = self.on_dispatch()
 
-        if not isinstance(results, (list, tuple)):
-            results = [results]
+            if not isinstance(results, (list, tuple)):
+                results = [results]
 
-        self.on_after_dispatch(results)
+            self.on_after_dispatch(results)
+        except BaseException as _ex:  # pylint: disable=broad-except
+            raise ExecutionFailed("Execution failed") from _ex
 
         return self
 
     def on_before_dispatch(self) -> Optional[bool]:
-        """Event triggered before engine dispatch of an execution
+        """Event triggered before dispatch of an execution
 
         Return False to prevent the dispatch
         """
         # forward into experiment on_before_dispatch
         for experiment in self.experiments:
             experiment.on_before_dispatch()
+
+    def on_before_commit(self) -> Optional[bool]:
+        """Event triggered before commit of an execution
+
+        Return False to prevent the commit
+        """
+        # forward into experiment on_before_commit
+        for experiment in self.experiments:
+            experiment.on_before_commit()
 
     def on_after_dispatch(self, results: List[Any]) -> None:
         """Event triggered after the dispatch of an execution"""

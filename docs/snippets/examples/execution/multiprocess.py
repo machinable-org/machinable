@@ -1,19 +1,13 @@
-from typing import Any, List, Optional
-
 from multiprocessing import Pool
 
-from machinable.execution import Execution
+from machinable import Execution
 
 
-class Local(Execution):
+class Multiprocess(Execution):
     class Config:
-        processes: Optional[int] = None
+        processes: int = 1
 
-    def on_dispatch(self) -> List[Any]:
-        if self.config.processes is None:
-            # standard execution
-            return super().on_dispatch()
-
+    def on_dispatch(self):
         results = []
         pool = Pool(processes=self.config.processes, maxtasksperchild=1)
         try:
@@ -30,6 +24,3 @@ class Local(Execution):
             pool.terminate()
 
         return results
-
-    def __repr__(self):
-        return "Execution <local>"

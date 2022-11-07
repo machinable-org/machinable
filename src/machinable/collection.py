@@ -1397,7 +1397,7 @@ class ExperimentCollection(ElementCollection):
         self, module: Union[str, None] = None, version: VersionType = None
     ) -> "ExperimentCollection":
         """Executes all experiments in the collection"""
-        from machinable.execution.execution import Execution
+        from machinable.execution import Execution
 
         execution = Execution.make(module, version=version)
 

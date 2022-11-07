@@ -11,7 +11,7 @@ from machinable.utils import (
 from pydantic import BaseModel, Field, PrivateAttr
 
 if TYPE_CHECKING:
-    from machinable.execution.execution import Execution as ExecutionElement
+    from machinable.execution import Execution as ExecutionElement
     from machinable.storage.storage import Storage
 
 

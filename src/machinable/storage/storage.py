@@ -14,7 +14,7 @@ from machinable.settings import get_settings
 from machinable.types import VersionType
 
 if TYPE_CHECKING:
-    from machinable.execution.execution import Execution
+    from machinable.execution import Execution
     from machinable.experiment import Experiment
 
 import os
@@ -34,7 +34,7 @@ from machinable.utils import Jsonable
 
 if TYPE_CHECKING:
     from machinable.element import Element
-    from machinable.execution.execution import Execution
+    from machinable.execution import Execution
     from machinable.experiment import Experiment
 
 
@@ -145,7 +145,7 @@ class Storage(Connectable, Element):
         execution: Union["Execution", schema.Execution],
         experiments: List[Union["Experiment", schema.Experiment]],
     ) -> schema.Execution:
-        from machinable.execution.execution import Execution
+        from machinable.execution import Execution
         from machinable.experiment import Experiment
 
         execution = Execution.model(execution)
