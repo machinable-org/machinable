@@ -464,7 +464,9 @@ class Element(Mixin, Jsonable):
     def singleton(cls, module: str, version: VersionType) -> "Element":
         candidates = cls.find_by_version(module, version, mode="id")
         if candidates:
-            return candidates[0]
+            for candidate in reversed(candidates):
+                if candidate.is_finished():
+                    return candidate
 
         return cls.make(module, version)
 
@@ -678,14 +680,14 @@ class Element(Mixin, Jsonable):
         if attr is not None:
             return attr
         raise AttributeError(
-            "%r object has no attribute %r" % (self.__class__.__name__, name)
+            "{!r} object has no attribute {!r}".format(
+                self.__class__.__name__, name
+            )
         )
 
 
 def get_lineage(element: "Element") -> Tuple[str, ...]:
     return tuple(
-        [
-            obj.module if isinstance(obj, Element) else obj.__module__
-            for obj in element.__class__.__mro__[1:-3]
-        ]
+        obj.module if isinstance(obj, Element) else obj.__module__
+        for obj in element.__class__.__mro__[1:-3]
     )
