@@ -521,7 +521,7 @@ class Experiment(Element):  # pylint: disable=too-many-public-methods
             self.is_active() or self.is_finished()
         )
 
-    def dispatch(self):
+    def dispatch(self) -> Optional[bool]:
         """Execute the interface lifecycle"""
         try:
             if self.is_finished():
@@ -560,10 +560,13 @@ class Experiment(Element):  # pylint: disable=too-many-public-methods
 
             self.on_after_destroy()
 
-            return result
+            self.on_after_dispatch()
         except BaseException as _ex:  # pylint: disable=broad-except
             self.on_failure(exception=_ex)
             self.on_finish(success=False, result=_ex)
+
+            self.on_after_dispatch()
+
             raise errors.ExecutionFailed(
                 f"{self.__class__.__name__} dispatch failed"
             ) from _ex
@@ -651,6 +654,11 @@ class Experiment(Element):  # pylint: disable=too-many-public-methods
         # Arguments
         exception: Execution exception
         """
+
+    def on_after_dispatch(self):
+        """Lifecycle event triggered at the end of the dispatch.
+
+        This is triggered independent of whether the execution has been successful or not."""
 
     # exports
 
