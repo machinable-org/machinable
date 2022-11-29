@@ -249,12 +249,15 @@ class Experiment(Element):  # pylint: disable=too-many-public-methods
         return self.__model__.version
 
     def execute(
-        self, module: Union[str, None] = None, version: VersionType = None
+        self,
+        module: Union[str, None] = None,
+        version: VersionType = None,
+        resources: Optional[Dict] = None,
     ) -> "Experiment":
         """Executes the experiment"""
         from machinable.execution import Execution
 
-        Execution.instance(module, version=version).use(
+        Execution.instance(module, version=version, resources=resources).use(
             experiment=self
         ).dispatch()
 
