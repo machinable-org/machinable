@@ -461,11 +461,17 @@ class Element(Mixin, Jsonable):
         )
 
     @classmethod
-    def singleton(cls, module: str, version: VersionType) -> "Element":
-        candidates = cls.find_by_version(module, version, mode="id")
+    def singleton(
+        cls,
+        module: str,
+        version: VersionType = None,
+        mode: str = "id",
+        predicate=lambda x: x.is_finished(),
+    ) -> "Element":
+        candidates = cls.find_by_version(module, version, mode=mode)
         if candidates:
             for candidate in reversed(candidates):
-                if candidate.is_finished():
+                if predicate(candidate):
                     return candidate
 
         return cls.make(module, version)

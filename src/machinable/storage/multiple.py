@@ -192,7 +192,7 @@ class Multiple(Storage):
         return self._read("_find_experiment", experiment_id, timestamp)
 
     def _find_experiment_by_version(
-        self, module: str, version: VersionType = None, mode: str = "default"
+        self, module: str, version: VersionType = None, mode: str = "exact"
     ) -> List[str]:
         return self._read("_find_experiment_by_version", module, version, mode)
 

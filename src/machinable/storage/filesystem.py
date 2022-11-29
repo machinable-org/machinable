@@ -440,7 +440,7 @@ class Filesystem(Storage):
         return None
 
     def _find_experiment_by_version(
-        self, module: str, version: VersionType = None, mode: str = "default"
+        self, module: str, version: VersionType = None, mode: str = "exact"
     ) -> List[str]:
         self._assert_editable()
         cur = self._db.cursor()
