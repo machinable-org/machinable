@@ -32,7 +32,7 @@ pydantic = "==1.10.1"
 arrow = "^1.2"
 importlib-metadata = {version = "^5.1", python = "<3.8"}
 commandlib = "^0.3.5"
-omegaconf = "^2.2.3"
+omegaconf = "^2.3.0"
 
 
 [tool.poetry.dev-dependencies]

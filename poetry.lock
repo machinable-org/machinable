@@ -289,7 +289,7 @@ python-versions = "*"
 
 [[package]]
 name = "omegaconf"
-version = "2.2.3"
+version = "2.3.0"
 description = "A flexible configuration library"
 category = "main"
 optional = false
@@ -588,7 +588,7 @@ all = []
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.7"
-content-hash = "2837f95a8e91a2134f4d21d0f451d2906c99998f82267995c53534f2a0c74685"
+content-hash = "06772d35d63f3f39157c2e945143f14d1db581cea75aae44beed7f6930944f96"
 
 [metadata.files]
 antlr4-python3-runtime = [
@@ -795,8 +795,8 @@ observable = [
     {file = "observable-1.0.3.tar.gz", hash = "sha256:97fe8e9d8c2a6185cee3661fa5fba9ce38c7ba388894132940cd6a81633626d9"},
 ]
 omegaconf = [
-    {file = "omegaconf-2.2.3-py3-none-any.whl", hash = "sha256:d6f2cbf79a992899eb76c6cb1aedfcf0fe7456a8654382edd5ee0c1b199c0657"},
-    {file = "omegaconf-2.2.3.tar.gz", hash = "sha256:59ff9fba864ffbb5fb710b64e8a9ba37c68fa339a2e2bb4f1b648d6901552523"},
+    {file = "omegaconf-2.3.0-py3-none-any.whl", hash = "sha256:7b4df175cdb08ba400f45cae3bdcae7ba8365db4d165fc65fd04b050ab63b46b"},
+    {file = "omegaconf-2.3.0.tar.gz", hash = "sha256:d5d4b6d29955cc50ad50c46dc269bcd92c6e00f5f90d23ab5fee7bfca4ba4cc7"},
 ]
 packaging = [
     {file = "packaging-21.3-py3-none-any.whl", hash = "sha256:ef103e05f519cdc783ae24ea4e2e0f508a9c99b2d4969652eed6a2e1ea5bd522"},
