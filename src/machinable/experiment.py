@@ -524,7 +524,7 @@ class Experiment(Element):  # pylint: disable=too-many-public-methods
 
             self.on_dispatch()
 
-            if self.is_mounted():
+            if self.on_write_meta_data() is not False and self.is_mounted():
                 self.mark_started()
                 self._events.on("heartbeat", self.update_heartbeat)
                 self._events.heartbeats(seconds=15)
@@ -550,7 +550,7 @@ class Experiment(Element):  # pylint: disable=too-many-public-methods
             self.on_before_destroy()
             self._events.heartbeats(None)
             self.on_destroy()
-            if self.is_mounted():
+            if self.on_write_meta_data() is not False and self.is_mounted():
                 self.update_heartbeat(mark_finished=True)
 
             self.on_after_destroy()
@@ -581,6 +581,12 @@ class Experiment(Element):  # pylint: disable=too-many-public-methods
         return apply_seed(seed)
 
     # life cycle
+
+    def on_write_meta_data(self) -> Optional[bool]:
+        """Event triggered before meta-data such as creation time etc. is written to the storage
+
+        Return False to prevent writing of meta-data
+        """
 
     def on_before_dispatch(self) -> Optional[bool]:
         """Event triggered before the dispatch of the experiment"""
