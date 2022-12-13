@@ -36,7 +36,7 @@ omegaconf = "^2.2.3"
 
 
 [tool.poetry.dev-dependencies]
-isort = "^5.9"
+isort = "^5.11"
 pyupgrade = "^3.2"
 black = "^22"
 pytest = "^7.2"
