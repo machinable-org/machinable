@@ -7,7 +7,6 @@ import pytest
 from machinable import Element, Execution, Experiment, Project, Storage
 from machinable.config import Field, RequiredField
 from machinable.element import (
-    Connectable,
     Element,
     compact,
     defaultversion,
@@ -18,6 +17,7 @@ from machinable.element import (
     transfer_to,
 )
 from machinable.errors import ConfigurationError
+from machinable.utils import Connectable
 from omegaconf import OmegaConf
 
 
@@ -314,15 +314,10 @@ def test_idversion():
 
 
 def test_connectable():
-    for mode in [None, "global"]:
+    class T(Connectable):
+        pass
 
-        class Dummy(Connectable):
-            _key = mode
-
-            @classmethod
-            def instance(cls):
-                return cls()
-
+    for Dummy in [T, Element]:
         dummy_1 = Dummy()
         dummy_2 = Dummy()
 
@@ -343,7 +338,7 @@ def test_connectable():
             assert Dummy.get() is dummy_2
             assert Dummy.is_connected()
         assert Dummy.get() is dummy_1
-        dummy_1.close()
+        dummy_1.disconnect()
         assert not Dummy.is_connected()
         assert Dummy.get() is not dummy_1
         assert Dummy.get() is not dummy_2

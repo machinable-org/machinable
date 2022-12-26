@@ -1,10 +1,10 @@
 from machinable import schema
 from machinable.collection import ExecutionCollection
-from machinable.element import Connectable, Element, get_lineage
+from machinable.element import Element, get_lineage
 from machinable.types import VersionType
 
 
-class Schedule(Connectable, Element):
+class Schedule(Element):
     """Schedule base class"""
 
     _key = "Schedule"

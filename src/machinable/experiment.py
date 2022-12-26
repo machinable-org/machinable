@@ -67,24 +67,6 @@ class Experiment(Element):  # pylint: disable=too-many-public-methods
             self.__related__["ancestor"] = derived_from
         self._events: Events = Events()
 
-    @classmethod
-    def instance(
-        cls,
-        module: Optional[str] = None,
-        version: VersionType = None,
-        seed: Union[int, None] = None,
-        derived_from: Optional["Experiment"] = None,
-    ):
-        module, version = defaultversion(module, version, cls)
-
-        return super().make(
-            module,
-            version,
-            base_class=Experiment,
-            seed=seed,
-            derived_from=derived_from,
-        )
-
     @belongs_to
     def group():
         return Group
@@ -509,6 +491,10 @@ class Experiment(Element):  # pylint: disable=too-many-public-methods
         return (not self.is_finished()) and (
             (arrow.now() - self.heartbeat_at()).seconds < 30
         )
+
+    def is_live(self):
+        """True if active or finished"""
+        return self.is_finished() or is_active()
 
     def is_incomplete(self):
         """Shorthand for is_started() and not (is_active() or is_finished())"""

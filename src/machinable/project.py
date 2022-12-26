@@ -11,13 +11,7 @@ import sys
 import machinable
 from commandlib import Command
 from machinable import schema
-from machinable.element import (
-    Connectable,
-    Element,
-    get_lineage,
-    instantiate,
-    normversion,
-)
+from machinable.element import Element, get_lineage, instantiate, normversion
 from machinable.errors import ConfigurationError
 from machinable.types import VersionType
 from machinable.utils import (
@@ -130,7 +124,7 @@ def fetch_vendors(project: "Project"):
     return vendors
 
 
-class Project(Connectable, Element):
+class Project(Element):
     _key = "Project"
 
     def __init__(

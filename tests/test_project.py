@@ -12,7 +12,7 @@ def test_project():
     project.connect()
     assert Project.get().name() == "test"
     assert Project.get().module == "_machinable.project"
-    project.close()
+    project.disconnect()
     assert Project.get().module == "machinable.project"
 
 
@@ -34,4 +34,4 @@ def test_project_events(tmp_storage):
     info = experiment.load_execution_data("host.json")
     assert info["dummy"] == "data"
 
-    project.close()
+    project.disconnect()
