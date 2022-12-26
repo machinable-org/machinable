@@ -108,7 +108,7 @@ def test_experiment(tmp_storage, tmp_path):
     with pytest.raises(errors.ConfigurationError):
         experiment.version(["modify"])
 
-    p.close()
+    p.disconnect()
 
 
 def test_experiment_relations(tmp_storage):

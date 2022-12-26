@@ -83,63 +83,6 @@ def has_many(f: Callable) -> Any:
     return _wrapper
 
 
-_CONNECTIONS = collections.defaultdict(lambda: [])
-
-
-class Connectable:
-    """Connectable trait"""
-
-    __connection__: Optional["Connectable"] = None
-
-    @classmethod
-    def is_connected(cls) -> bool:
-        if getattr(cls, "_key", None) is not None:
-            return len(_CONNECTIONS[cls._key]) > 0
-
-        return cls.__connection__ is not None
-
-    @classmethod
-    def get(cls) -> "Connectable":
-        if getattr(cls, "_key", None) is not None:
-            if len(_CONNECTIONS[cls._key]) > 0:
-                return _CONNECTIONS[cls._key][-1]
-            else:
-                # default
-                return cls.instance()
-
-        return cls() if cls.__connection__ is None else cls.__connection__
-
-    def connect(self) -> "Connectable":
-        if getattr(self, "_key", None) is not None:
-            _CONNECTIONS[self._key].append(self)
-            return self
-        self._outer_connection = (  # pylint: disable=attribute-defined-outside-init
-            self.__class__.__connection__
-        )
-        self.__class__.__connection__ = self
-        return self
-
-    def close(self) -> "Connectable":
-        if getattr(self, "_key", None) is not None:
-            try:
-                _CONNECTIONS[self._key].pop()
-            except IndexError:
-                pass
-            return self
-
-        if self.__class__.__connection__ is self:
-            self.__class__.__connection__ = None
-        if getattr(self, "_outer_connection", None) is not None:
-            self.__class__.__connection__ = self._outer_connection
-        return self
-
-    def __enter__(self):
-        return self.connect()
-
-    def __exit__(self, exc_type, exc_value, exc_traceback):
-        self.close()
-
-
 class ConfigMethod:
     def __init__(self, element: "Element", prefix="config") -> None:
         self.element = element
@@ -321,6 +264,9 @@ def instantiate(
         ) from _ex
 
 
+_CONNECTIONS = collections.defaultdict(lambda: [])
+
+
 class Element(Mixin, Jsonable):
     """Element baseclass"""
 
@@ -346,20 +292,31 @@ class Element(Mixin, Jsonable):
         Element._module_ = None
 
     @classmethod
+    def get(
+        cls,
+        module: Optional[str] = None,
+        version: VersionType = None,
+        mode: Optional[str] = "id",
+        **kwargs,
+    ) -> "Element":
+        if module is None and version is None:
+            if len(_CONNECTIONS[cls._key]) > 0:
+                return _CONNECTIONS[cls._key][-1]
+
+        if module is None or mode is None:
+            return cls.instance(module, version, **kwargs)
+
+        return cls.singleton(module, version, mode, **kwargs)
+
+    @classmethod
     def make(
         cls,
         module: Optional[str] = None,
         version: VersionType = None,
         base_class: "Element" = None,
-        **constructor_kwargs,
+        **kwargs,
     ) -> "Element":
         if module is None:
-            if (
-                cls.__module__.startswith("machinable.element")
-                and cls.__name__ == "Element"
-            ):
-                raise ValueError("You have to provide a module.")
-
             module = cls.__module__
 
         if base_class is None:
@@ -367,9 +324,7 @@ class Element(Mixin, Jsonable):
 
         # prevent circular instantiation
         if module == "machinable" or module == base_class.__module__:
-            return instantiate(
-                module, base_class, version, **constructor_kwargs
-            )
+            return instantiate(module, base_class, version, **kwargs)
 
         from machinable.project import Project
 
@@ -377,7 +332,7 @@ class Element(Mixin, Jsonable):
             module=module,
             version=version,
             base_class=base_class,
-            **constructor_kwargs,
+            **kwargs,
         )
 
     @classmethod
@@ -385,12 +340,10 @@ class Element(Mixin, Jsonable):
         cls,
         module: Optional[str] = None,
         version: VersionType = None,
-        **constructor_kwargs,
+        **kwargs,
     ) -> "Element":
         module, version = defaultversion(module, version, cls)
-        return cls.make(
-            module, version, base_class=Element, **constructor_kwargs
-        )
+        return cls.make(module, version, base_class=cls, **kwargs)
 
     def mount(self, storage: "Storage", storage_id: Any) -> bool:
         if self.__model__ is None:
@@ -466,15 +419,16 @@ class Element(Mixin, Jsonable):
         module: str,
         version: VersionType = None,
         mode: str = "id",
-        predicate=lambda x: x.is_finished(),
-    ) -> "Element":
+        predicate: Callable = lambda x: x.is_live(),
+        **kwargs,
+    ) -> "Collection[Element]":
         candidates = cls.find_by_version(module, version, mode=mode)
         if candidates:
             for candidate in reversed(candidates):
                 if predicate(candidate):
                     return candidate
 
-        return cls.make(module, version)
+        return cls.make(module, version, **kwargs)
 
     @property
     def config(self) -> DictConfig:
@@ -651,6 +605,27 @@ class Element(Mixin, Jsonable):
     @classmethod
     def unserialize(cls, serialized):
         return cls.from_model(cls.model()(**serialized))
+
+    @classmethod
+    def is_connected(cls) -> bool:
+        return len(_CONNECTIONS[cls._key]) > 0
+
+    def connect(self) -> "Element":
+        _CONNECTIONS[self._key].append(self)
+        return self
+
+    def disconnect(self) -> "Element":
+        try:
+            _CONNECTIONS[self._key].pop()
+        except IndexError:
+            pass
+        return self
+
+    def __enter__(self):
+        return self.connect()
+
+    def __exit__(self, exc_type, exc_value, exc_traceback):
+        self.disconnect()
 
     def __reduce__(self) -> Union[str, Tuple[Any, ...]]:
         return (self.__class__, (), self.serialize())

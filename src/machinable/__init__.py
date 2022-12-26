@@ -9,6 +9,7 @@ __all__ = [
     "Mixin",
     "mixin",
     "Schedule",
+    "get",
     "cli",
 ]
 __doc__ = """A modular system for machinable research code"""
@@ -29,6 +30,16 @@ from machinable.project import Project
 from machinable.record import Record
 from machinable.schedule import Schedule
 from machinable.storage import Storage
+from machinable.types import Optional, VersionType
+
+
+def get(
+    module: Optional[str] = None,
+    version: VersionType = None,
+    mode: Optional[str] = "id",
+    **kwargs,
+) -> Element:
+    return Element.get(module, version, mode, **kwargs)
 
 
 def get_version() -> str:

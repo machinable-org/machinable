@@ -1,13 +1,7 @@
 from typing import TYPE_CHECKING, Any, List, Optional, Union
 
 from machinable import schema
-from machinable.element import (
-    Connectable,
-    Element,
-    defaultversion,
-    get_lineage,
-    normversion,
-)
+from machinable.element import Element, defaultversion, get_lineage, normversion
 from machinable.group import Group
 from machinable.project import Project
 from machinable.settings import get_settings
@@ -38,7 +32,7 @@ if TYPE_CHECKING:
     from machinable.experiment import Experiment
 
 
-class Storage(Connectable, Element):
+class Storage(Element):
     """Storage base class"""
 
     _key = "Storage"

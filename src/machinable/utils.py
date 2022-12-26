@@ -91,6 +91,40 @@ class Jsonable:
         raise NotImplementedError
 
 
+class Connectable:
+    """Connectable trait"""
+
+    __connection__: Optional["Connectable"] = None
+
+    @classmethod
+    def is_connected(cls) -> bool:
+        return cls.__connection__ is not None
+
+    @classmethod
+    def get(cls) -> "Connectable":
+        return cls() if cls.__connection__ is None else cls.__connection__
+
+    def connect(self) -> "Connectable":
+        self._outer_connection = (  # pylint: disable=attribute-defined-outside-init
+            self.__class__.__connection__
+        )
+        self.__class__.__connection__ = self
+        return self
+
+    def disconnect(self) -> "Connectable":
+        if self.__class__.__connection__ is self:
+            self.__class__.__connection__ = None
+        if getattr(self, "_outer_connection", None) is not None:
+            self.__class__.__connection__ = self._outer_connection
+        return self
+
+    def __enter__(self):
+        return self.connect()
+
+    def __exit__(self, exc_type, exc_value, exc_traceback):
+        self.disconnect()
+
+
 def apply_seed(seed=None):
     """Applies a global random seed to the application state.
 
