@@ -10,7 +10,7 @@ class Mpi(Execution):
     def on_dispatch_experiment(self, experiment):
         runner = commandlib.Command(self.config.runner, "-n", self.config.n)
 
-        script_filepath = experiment.save_execution_data(
+        script_filepath = self.save_data(
             "mpi.sh", experiment.to_dispatch_code(inline=True)
         )
 

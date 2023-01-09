@@ -58,6 +58,7 @@ class Filesystem(Storage):
                 """CREATE TABLE executions (
                     id integer PRIMARY KEY,
                     storage_id text NOT NULL,
+                    nickname text,
                     module text,
                     config json,
                     version json,
@@ -74,7 +75,6 @@ class Filesystem(Storage):
                     version json,
                     idversion json,
                     experiment_id text,
-                    nickname text,
                     seed integer,
                     execution_id integer,
                     timestamp integer,
@@ -141,14 +141,16 @@ class Filesystem(Storage):
         cur.execute(
             """INSERT INTO executions (
             storage_id,
+            nickname,
             module,
             config,
             version,
             idversion,
             timestamp
-            ) VALUES (?,?,?,?,?,?)""",
+            ) VALUES (?,?,?,?,?,?,?)""",
             (
                 execution_directory,
+                execution.nickname,
                 execution.module,
                 json.dumps(execution.config),
                 json.dumps(execution.version),
@@ -298,13 +300,12 @@ class Filesystem(Storage):
                 idversion,
                 experiment_id,
                 seed,
-                nickname,
                 seed,
                 timestamp,
                 'group_id',
                 project_id,
                 ancestor_id
-                ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)""",
             (
                 storage_id,
                 experiment.module,
@@ -313,7 +314,6 @@ class Filesystem(Storage):
                 json.dumps(idversion(experiment.version)),
                 experiment.experiment_id,
                 experiment.seed,
-                experiment.nickname,
                 experiment.seed,
                 experiment.timestamp,
                 group_id,
@@ -522,7 +522,7 @@ class Filesystem(Storage):
         self, storage_id: str, relation: str
     ) -> Optional[Union[str, List[str]]]:
         self._assert_editable()
-        if relation == "experiment.execution":
+        if relation == "experiment.launch":
             cur = self._db.cursor()
             row = cur.execute(
                 """SELECT executions.storage_id FROM executions
@@ -616,16 +616,10 @@ class Filesystem(Storage):
                 return row[0]
         return None
 
-    def _create_file(
-        self, experiment_storage_id: str, filepath: str, data: Any
-    ) -> str:
+    def _create_file(self, storage_id: str, filepath: str, data: Any) -> str:
         return save_file(
-            os.path.join(experiment_storage_id, filepath), data, makedirs=True
+            os.path.join(storage_id, filepath), data, makedirs=True
         )
 
-    def _retrieve_file(
-        self, experiment_storage_id: str, filepath: str
-    ) -> Optional[Any]:
-        return load_file(
-            os.path.join(experiment_storage_id, filepath), default=None
-        )
+    def _retrieve_file(self, storage_id: str, filepath: str) -> Optional[Any]:
+        return load_file(os.path.join(storage_id, filepath), default=None)

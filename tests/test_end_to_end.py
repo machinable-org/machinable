@@ -22,7 +22,7 @@ def test_end_to_end_execution(tmp_path):
 
             # resume
             try:
-                experiment.execution.dispatch()
+                experiment.launch.dispatch()
             except errors.ExecutionFailed:
                 pass
             assert len(experiment.records()) == 7

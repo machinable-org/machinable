@@ -3,6 +3,8 @@ from typing import TYPE_CHECKING, Any, Callable, List, Optional, Tuple, Union
 import collections
 import copy
 import json
+import os
+import stat
 from functools import wraps
 
 import arrow
@@ -288,6 +290,7 @@ class Element(Mixin, Jsonable):
         self.__mixins__ = {}
         self._config: Optional[DictConfig] = None
         self._cache = {}
+        self._deferred_data = {}
 
         Element._module_ = None
 
@@ -597,6 +600,54 @@ class Element(Mixin, Jsonable):
     ) -> None:
         cls.default = compact(module, version)
 
+    def local_directory(
+        self, *append: str, create: bool = False
+    ) -> Optional[str]:
+        if not self.is_mounted():
+            return None
+
+        return self.__model__._storage_instance.local_directory(
+            self, *append, create=create
+        )
+
+    def load_file(self, filepath: str, default=None) -> Optional[Any]:
+        if not self.is_mounted():
+            # has write been deferred?
+            if filepath in self._deferred_data:
+                return self._deferred_data[filepath]
+
+            return default
+
+        data = self.__model__._storage_instance.retrieve_file(self, filepath)
+
+        return data if data is not None else default
+
+    def save_file(self, filepath: str, data: Any) -> str:
+        if os.path.isabs(filepath):
+            raise ValueError("Filepath must be relative")
+
+        if not self.is_mounted():
+            # defer writes until element storage creation
+            self._deferred_data[filepath] = data
+            return "$deferred"
+
+        file = self.__model__._storage_instance.create_file(
+            self, filepath, data
+        )
+
+        # mark scripts as executable
+        if filepath.endswith(".sh"):
+            st = os.stat(file)
+            os.chmod(file, st.st_mode | stat.S_IEXEC)
+
+        return file
+
+    def save_data(self, filepath: str, data: Any) -> str:
+        return self.save_file(os.path.join("data", filepath), data)
+
+    def load_data(self, filepath: str, default=None) -> Optional[Any]:
+        return self.load_file(os.path.join("data", filepath), default)
+
     def serialize(self) -> dict:
         # ensure that configuration has been parsed
         assert self.config is not None
@@ -610,22 +661,16 @@ class Element(Mixin, Jsonable):
     def is_connected(cls) -> bool:
         return len(_CONNECTIONS[cls._key]) > 0
 
-    def connect(self) -> "Element":
+    def __enter__(self):
         _CONNECTIONS[self._key].append(self)
         return self
 
-    def disconnect(self) -> "Element":
+    def __exit__(self, *args, **kwargs):
         try:
             _CONNECTIONS[self._key].pop()
         except IndexError:
             pass
         return self
-
-    def __enter__(self):
-        return self.connect()
-
-    def __exit__(self, exc_type, exc_value, exc_traceback):
-        self.disconnect()
 
     def __reduce__(self) -> Union[str, Tuple[Any, ...]]:
         return (self.__class__, (), self.serialize())

@@ -4,7 +4,14 @@ import copy
 
 from machinable import schema
 from machinable.collection import ExperimentCollection
-from machinable.element import Element, defaultversion, get_lineage, has_many
+from machinable.element import (
+    Element,
+    defaultversion,
+    extract,
+    get_lineage,
+    has_many,
+    has_one,
+)
 from machinable.errors import ExecutionFailed
 from machinable.experiment import Experiment
 from machinable.project import Project
@@ -23,6 +30,7 @@ class Execution(Element):
         self,
         version: VersionType = None,
         resources: Optional[Dict] = None,
+        schedule: Union[Schedule, VersionType] = None,
     ):
         super().__init__(version)
         self.__model__ = schema.Execution(
@@ -33,6 +41,10 @@ class Execution(Element):
             host_info=Project.get().provider().get_host_info(),
             lineage=get_lineage(self),
         )
+        if schedule is not None:
+            if not isinstance(schedule, Schedule):
+                schedule = Schedule.get(*extract(schedule))
+            self.__related__["schedule"] = schedule
 
     @classmethod
     def instance(
@@ -46,16 +58,18 @@ class Execution(Element):
             module, version, resources=resources, base_class=Execution
         )
 
+    @has_one
+    def schedule(self) -> "Schedule":
+        return Schedule
+
     @has_many
     def experiments() -> ExperimentCollection:
         return Experiment, ExperimentCollection
 
-    @classmethod
-    def from_model(cls, model: schema.Execution) -> "Execution":
-        return super().from_model(model)
-
-    def use(
-        self, experiment: Union[Experiment, List[Experiment]]
+    def add(
+        self,
+        experiment: Union[Experiment, List[Experiment]],
+        once: bool = False,
     ) -> "Execution":
         """Adds an experiment to the execution
 
@@ -64,7 +78,7 @@ class Execution(Element):
         """
         if isinstance(experiment, (list, tuple)):
             for _experiment in experiment:
-                self.use(_experiment)
+                self.add(_experiment)
             return self
 
         if not isinstance(experiment, Experiment):
@@ -73,6 +87,13 @@ class Execution(Element):
             )
 
         self.__related__.setdefault("experiments", ExperimentCollection())
+
+        if once and self.__related__["experiments"].contains(
+            lambda x: x == experiment
+        ):
+            # already added
+            return self
+
         self.__related__["experiments"].append(experiment)
 
         return self
@@ -82,11 +103,11 @@ class Execution(Element):
         Storage.get().commit(experiments=self.experiments, execution=self)
         for experiment in self.experiments:
             # resolve resources
-            experiment.save_execution_data(
+            experiment.launch.save_data(
                 "resources.json", self.compute_resources(experiment)
             )
             # relationships
-            experiment.__related__["execution"] = self
+            experiment.__related__["launch"] = self
 
         return self
 
@@ -136,14 +157,15 @@ class Execution(Element):
 
         return {}
 
-    def dispatch(self) -> "Execution":
-        """Dispatches the execution"""
-        if self.on_before_dispatch() is False:
-            return False
-
-        if Schedule.is_connected():
+    def __call__(self) -> "Execution":
+        if self.schedule is not None:
             # delegate execution to connected scheduler
-            Schedule.get().append(self)
+            return self
+
+        return self.dispatch()
+
+    def dispatch(self) -> "Execution":
+        if self.on_before_dispatch() is False:
             return self
 
         if all(self.experiments.map(lambda x: x.is_finished())):
@@ -207,8 +229,34 @@ class Execution(Element):
     def host_info(self) -> Optional[Dict]:
         return self.__model__.host_info
 
+    @property
+    def env_info(self) -> Optional[Dict]:
+        return self.load_file("env.json", None)
+
+    @property
+    def nickname(self) -> str:
+        return self.__model__.nickname
+
     def __str__(self) -> str:
         return self.__repr__()
 
     def __repr__(self) -> str:
         return "Execution"
+
+    def __eq__(self, other):
+        return (
+            self.nickname == other.nickname
+            and self.timestamp == other.timestamp
+        )
+
+    def __ne__(self, other):
+        return (
+            self.nickname != other.nickname or self.timestamp != other.timestamp
+        )
+
+    def __exit__(self, *args, **kwargs):
+        if self.schedule:
+            # schedule available, so trigger dispatch
+            self.dispatch()
+
+        super().__exit__()

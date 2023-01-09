@@ -36,7 +36,7 @@ class Slurm(Execution):
         print(f"{output} for experiment {experiment.experiment_id}")
 
         # save job information
-        experiment.save_execution_data(
+        self.save_data(
             filepath="slurm.json",
             data={
                 "job_id": job_id,

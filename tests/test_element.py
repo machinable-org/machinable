@@ -331,14 +331,14 @@ def test_connectable():
         assert Dummy.get() is not dummy_1
         assert Dummy.get() is not dummy_2
 
-        dummy_1.connect()
+        dummy_1.__enter__()
         assert Dummy.is_connected()
         assert Dummy.get() is dummy_1
         with dummy_2:
             assert Dummy.get() is dummy_2
             assert Dummy.is_connected()
         assert Dummy.get() is dummy_1
-        dummy_1.disconnect()
+        dummy_1.__exit__()
         assert not Dummy.is_connected()
         assert Dummy.get() is not dummy_1
         assert Dummy.get() is not dummy_2
@@ -375,7 +375,7 @@ def test_element_relations(tmp_storage):
         assert experiment.experiment_id == experiment_clone.experiment_id
 
         # experiment <-> execution
-        assert int(execution.timestamp) == int(experiment.execution.timestamp)
+        assert int(execution.timestamp) == int(experiment.launch.timestamp)
         assert (
             experiment.experiment_id == execution.experiments[0].experiment_id
         )
@@ -388,7 +388,7 @@ def test_element_relations(tmp_storage):
         experiment.__related__ = {}
         execution.__related__ = {}
         # experiment <-> execution
-        assert int(execution.timestamp) == int(experiment.execution.timestamp)
+        assert int(execution.timestamp) == int(experiment.launch.timestamp)
         assert (
             experiment.experiment_id == execution.experiments[0].experiment_id
         )
@@ -401,7 +401,7 @@ def test_element_relations(tmp_storage):
         execution.dispatch()
         experiment.__related__ = {}
         execution.__related__ = {}
-        experiment.execution == execution
+        experiment.launch == execution
         experiment.__related__ = {}
         execution.__related__ = {}
         execution.experiments[0] == experiment
@@ -429,3 +429,16 @@ def test_element_search(tmp_storage):
             n.experiment_id
             == Experiment.singleton("dummy", {"a": 3}).experiment_id
         )
+
+
+def test_element_interface(tmp_storage):
+    experiment = Experiment()
+    experiment.launch()
+    # save and load
+    experiment.save_file("test.txt", "hello")
+    assert experiment.load_file("test.txt") == "hello"
+    experiment.save_data("floaty", 1.0)
+    assert experiment.load_data("floaty") == "1.0"
+    uncommitted = Element()
+    uncommitted.save_data("test", "deferred")
+    assert uncommitted.load_data("test") == "deferred"

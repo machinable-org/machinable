@@ -38,7 +38,7 @@ def storage_tests(storage: Storage) -> None:
 
     # relationships
     related = storage.retrieve_related(
-        experiments[0]._storage_id, "experiment.execution"
+        experiments[0]._storage_id, "experiment.launch"
     )
     assert int(related.timestamp) == int(execution.timestamp)
     inverse = storage.retrieve_related(
@@ -57,8 +57,8 @@ def storage_tests(storage: Storage) -> None:
         == "test/me"
     )
     assert (
-        storage.retrieve_related("test/me", "group.experiments")[0].nickname
-        == experiments[0].nickname
+        storage.retrieve_related("test/me", "group.experiments")[0].timestamp
+        == experiments[0].timestamp
     )
     assert (
         storage.retrieve_related(
