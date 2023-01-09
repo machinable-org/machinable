@@ -103,7 +103,7 @@ class Execution(Element):
         Storage.get().commit(experiments=self.experiments, execution=self)
         for experiment in self.experiments:
             # resolve resources
-            experiment.launch.save_data(
+            experiment.launch.save_file(
                 "resources.json", self.compute_resources(experiment)
             )
             # relationships

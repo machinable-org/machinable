@@ -29,25 +29,24 @@ class Filesystem(Storage):
     ):
         super().__init__(version=version, default_group=default_group)
         self._db = None
-        self._db_file = None
+
+    @property
+    def sqlite_file(self) -> str:
+        return os.path.join(self.config.directory or "", "storage.sqlite")
+
+    def migrate(self) -> bool:
+        if self._db is not None:
+            # already connected
+            return False
         if self.config.directory is None:
-            return
-        self._prepare_db()
-
-    def _prepare_db(self):
-        os.makedirs(self.config.directory, exist_ok=True)
-        self._db_file = os.path.join(self.config.directory, "storage.sqlite")
-        self._db = sqlite3.connect(self._db_file)
-        self._migrate(self._db)
-
-    def set_model(self, model: schema.Element) -> "Filesystem":
-        super().set_model(model)
-        self._prepare_db()
-        return self
-
-    def _assert_editable(self):
-        if not self._db:
             raise StorageError("No filesystem directory was provided.")
+        os.makedirs(self.config.directory, exist_ok=True)
+        self._db = sqlite3.connect(self.sqlite_file)
+        self._migrate(self._db)
+        return True
+
+    def is_migrated(self):
+        return os.path.isfile(self.sqlite_file)
 
     def _migrate(self, database):
         cur = database.cursor()
@@ -125,7 +124,8 @@ class Filesystem(Storage):
         execution: schema.Execution,
         experiments: List[schema.Experiment],
     ) -> str:
-        self._assert_editable()
+        self.migrate()
+
         suffix = timestamp_to_directory(execution.timestamp)
         for experiment in experiments:
             execution_directory = os.path.join(
@@ -177,7 +177,7 @@ class Filesystem(Storage):
         experiment: schema.Experiment,
         _experiment_db_id: Optional[int] = None,
     ) -> str:
-        self._assert_editable()
+        self.migrate()
 
         # find experiment
         if not _experiment_db_id:
@@ -226,7 +226,8 @@ class Filesystem(Storage):
         project: schema.Project,
         elements: List[schema.Element],
     ) -> str:
-        self._assert_editable()
+        self.migrate()
+
         project = self.create_project(project)
         group = self.create_group(group)
         head, tail = os.path.split(group.path)
@@ -332,7 +333,8 @@ class Filesystem(Storage):
         return storage_id
 
     def _create_group(self, group: schema.Group) -> str:
-        self._assert_editable()
+        self.migrate()
+
         cur = self._db.cursor()
 
         row = cur.execute(
@@ -349,7 +351,7 @@ class Filesystem(Storage):
         return group.path
 
     def _create_project(self, project: schema.Project) -> str:
-        self._assert_editable()
+        self.migrate()
 
         cur = self._db.cursor()
 
@@ -372,6 +374,8 @@ class Filesystem(Storage):
         data: JsonableType,
         scope: str = "default",
     ) -> str:
+        self.migrate()
+
         return save_file(
             os.path.join(experiment._storage_id, "records", f"{scope}.jsonl"),
             data=data,
@@ -381,6 +385,8 @@ class Filesystem(Storage):
     def _mark_started(
         self, experiment: schema.Experiment, timestamp: DatetimeType
     ) -> None:
+        self.migrate()
+
         save_file(
             os.path.join(experiment._storage_id, "started_at"),
             str(timestamp) + "\n",
@@ -394,6 +400,8 @@ class Filesystem(Storage):
         timestamp: DatetimeType,
         mark_finished=False,
     ) -> None:
+        self.migrate()
+
         save_file(
             os.path.join(experiment._storage_id, "heartbeat_at"),
             str(timestamp),
@@ -408,6 +416,9 @@ class Filesystem(Storage):
     def _retrieve_status(
         self, experiment_storage_id: str, field: str
     ) -> Optional[str]:
+        if not self.is_migrated():
+            return None
+
         status = load_file(
             os.path.join(experiment_storage_id, f"{field}_at"), default=None
         )
@@ -421,7 +432,9 @@ class Filesystem(Storage):
     def _find_experiment(
         self, experiment_id: str, timestamp: int = None
     ) -> Optional[str]:
-        self._assert_editable()
+        if not self.is_migrated():
+            return None
+        self.migrate()
         cur = self._db.cursor()
         if timestamp is not None:
             query = cur.execute(
@@ -442,7 +455,9 @@ class Filesystem(Storage):
     def _find_experiment_by_version(
         self, module: str, version: VersionType = None, mode: str = "exact"
     ) -> List[str]:
-        self._assert_editable()
+        if not self.is_migrated():
+            return []
+        self.migrate()
         cur = self._db.cursor()
         if version:
             if mode == "id":
@@ -474,7 +489,7 @@ class Filesystem(Storage):
         )
 
     def _retrieve_group(self, storage_id: str) -> schema.Group:
-        self._assert_editable()
+        self.migrate()
         cur = self._db.cursor()
         row = cur.execute(
             """SELECT `path`, `pattern` FROM groups WHERE `path`=?""",
@@ -483,7 +498,7 @@ class Filesystem(Storage):
         return schema.Group(path=row[0], pattern=row[1])
 
     def _retrieve_project(self, storage_id: str) -> schema.Project:
-        self._assert_editable()
+        self.migrate()
         cur = self._db.cursor()
         row = cur.execute(
             """SELECT `directory`, `name` FROM projects WHERE `name`=?""",
@@ -492,7 +507,7 @@ class Filesystem(Storage):
         return schema.Project(directory=row[0], name=row[1])
 
     def _retrieve_element(self, storage_id: str) -> schema.Element:
-        self._assert_editable()
+        self.migrate()
         cur = self._db.cursor()
         row = cur.execute(
             """SELECT `module`, `config`, `version` FROM elements WHERE `storage_id`=?""",
@@ -521,7 +536,9 @@ class Filesystem(Storage):
     def _find_related(
         self, storage_id: str, relation: str
     ) -> Optional[Union[str, List[str]]]:
-        self._assert_editable()
+        if not self.is_migrated():
+            return None
+        self.migrate()
         if relation == "experiment.launch":
             cur = self._db.cursor()
             row = cur.execute(
