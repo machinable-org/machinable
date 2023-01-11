@@ -68,4 +68,4 @@ class Record(Element):
 
 
 class Schedule(Element):
-    executions: List["ExecutionElement"] = []
+    pass

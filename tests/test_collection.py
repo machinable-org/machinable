@@ -22,7 +22,7 @@ def test_experiment_collection(tmp_storage):
             e.save_data("i", i)
         assert isinstance(collection, ExperimentCollection)
 
-        collection.execute()
+        collection.launch()
         assert all(collection.map(lambda x: x.is_finished()))
 
         assert len(collection.finished()) == 5

@@ -405,9 +405,18 @@ class Element(Mixin, Jsonable):
 
         storage = Storage.get()
 
-        storage_ids = getattr(storage, f"find_{cls._key.lower()}_by_version")(
-            module, version, mode=mode
-        )
+        element_type = cls._key.lower()
+
+        if element_type == "element":
+            # resolve type of element
+            element_type = cls.make(module)._key.lower()
+
+        handler = f"find_{element_type}_by_version"
+
+        if hasattr(storage, handler):
+            storage_ids = getattr(storage, handler)(module, version, mode=mode)
+        else:
+            storage_ids = []
 
         return cls.collect(
             [
@@ -670,7 +679,6 @@ class Element(Mixin, Jsonable):
             _CONNECTIONS[self._key].pop()
         except IndexError:
             pass
-        return self
 
     def __reduce__(self) -> Union[str, Tuple[Any, ...]]:
         return (self.__class__, (), self.serialize())

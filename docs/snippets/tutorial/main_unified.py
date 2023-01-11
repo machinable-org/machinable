@@ -1,6 +1,8 @@
-from machinable import Experiment
+from machinable import get
 
-experiment = Experiment.singleton("montecarlo").execute()
+experiment = get("montecarlo")
+
+experiment.launch()
 
 print(
     f"We need {experiment.samples} samples to approximate"

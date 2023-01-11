@@ -5,9 +5,9 @@
 Once implemented and configured, experiments can be executed by calling <Pydoc caption="execute()">machinable.Experiment.execute</Pydoc>:
 
 ```python
->>> from machinable import Experiment
->>> experiment = Experiment.instance('estimate_gravity')
->>> experiment.execute()
+>>> from machinable import get
+>>> experiment = get('estimate_gravity')
+>>> experiment.launch()
 Assuming height of 52 and time of 0.3
 The gravity on the exoplanet is:  1155.5555555555557
 ```
@@ -42,7 +42,8 @@ To replicate or reproduce a experiment, create a new experiment instance with th
 Experiments can be executed in different ways. You may, for example, like to run experiments using multiprocessing. To configure the execution, <Pydoc caption="execute()">machinable.Experiment.execute</Pydoc> adopts the same module convention as <Pydoc>machinable.Experiment.instance</Pydoc>. You can specify the execution implementation that you like to use by its module name and optionally provide configuration options in form of a dictionary, for example:
 
 ```python
-experiment.execute('myproject.execution.multiprocessing', {'processes': 1})
+with get('myproject.execution.multiprocessing', {'processes': 1}):
+    experiment.launch()
 ```
 
 Just like in the case of experiments, this will instantiate a <Pydoc>machinable.Execution</Pydoc> class in the module `myproject.execution.multiprocessing` which will handle the execution.

@@ -530,6 +530,7 @@ class Storage(Element):
             "experiment.launch": "execution",
             "experiment.executions": "executions",
             "execution.experiments": "experiments",
+            "execution.schedule": "schedule",
             "group.experiments": "experiments",
             "experiment.group": "group",
             "experiment.ancestor": "experiment",
@@ -565,7 +566,7 @@ class Storage(Element):
         raise NotImplementedError
 
     def __repr__(self):
-        return f"Storage <{self.__model__.default_group}>"
+        return f"Storage"
 
     def __str__(self):
         return self.__repr__()

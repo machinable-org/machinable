@@ -23,8 +23,7 @@ def test_storage_interface(tmpdir):
         experiment.save_data("test.txt", "deferral")
         experiment.save_file("test.json", "deferral")
         assert len(experiment._deferred_data) == 2
-
-        execution = Execution().use(experiment)
+        execution = Execution().add(experiment)
         repository.commit(experiment, execution)
 
         assert os.path.isfile(experiment.local_directory("data/test.txt"))

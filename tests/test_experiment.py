@@ -115,7 +115,7 @@ def test_experiment_relations(tmp_storage):
     with Project("./tests/samples/project", name="test-project"):
 
         experiment = Experiment.instance("basic").group_as("test/group")
-        execution = Execution().use(experiment)
+        execution = Execution().add(experiment)
         execution.dispatch()
 
         assert experiment.project.name() == "test-project"
@@ -128,7 +128,7 @@ def test_experiment_relations(tmp_storage):
 
         derived = Experiment(derived_from=experiment)
         assert derived.ancestor is experiment
-        derived_execution = Execution().use(derived).dispatch()
+        derived_execution = Execution().add(derived).dispatch()
 
         # invalidate cache and reconstruct
         experiment.__related__ = {}
@@ -141,12 +141,12 @@ def test_experiment_relations(tmp_storage):
         assert experiment.derived[0].experiment_id == derived.experiment_id
 
         derived = Experiment(derived_from=experiment)
-        Execution().use(derived).dispatch()
+        Execution().add(derived).dispatch()
         assert len(experiment.derived) == 2
 
         assert experiment.derive().experiment_id != experiment.experiment_id
         derived = experiment.derive(version=experiment.config)
-        Execution().use(derived).dispatch()
+        Execution().add(derived).dispatch()
 
 
 class DataElement(Element):
@@ -164,7 +164,7 @@ def test_experiment_elements(tmp_storage):
         dataset = DataElement({"dataset": "cifar"})
         experiment.use(dataset)
         assert experiment.elements[0].config.dataset == "cifar"
-        experiment.execute()
+        experiment.launch()
         experiment.__related__ = {}
         assert experiment.elements[0].config.dataset == "cifar"
         assert experiment.elements[0].hello() == "element"

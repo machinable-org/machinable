@@ -9,11 +9,13 @@ This section is currently under construction
 For instance, execution using a queue system like [Slurm](https://slurm.schedmd.com/documentation.html) may be as simple as:
 
 ```python
-experiment.execute('myproject.execution.slurm')
+with get('myproject.execution.slurm'):
+    experiment.launch()
 ```
 
 Delegating the execution to an external runner like [MPI](https://www.open-mpi.org/) may look like this:
 
 ```python
-experiment.execute('myproject.execution.mpi', {'n': 4})
+with get('myproject.execution.mpi', {'n': 4}):
+    experiment.launch()
 ```

@@ -31,12 +31,6 @@ def test_docs_snippets_tutorial_main_unified(tmp_storage):
 # Examples/execution
 
 
-@pytest.mark.skipif(True, reason="FIX-ME")
-def test_local_execution(tmp_storage):
-    with Project.instance("docs/snippets/examples"):
-        Experiment().execute("execution.multiprocess", {"processes": 1})
-
-
 class ExternalExperiment(Experiment):
     def on_create(self):
         print("Hello from MPI script")
@@ -48,9 +42,11 @@ class ExternalExperiment(Experiment):
     reason="Test requires MPI environment",
 )
 def test_mpi_execution(tmp_storage):
-    with Project.instance("docs/snippets/examples"):
+    with Project.instance("docs/snippets/examples"), Execution.get(
+        "execution.mpi", {}
+    ):
         experiment = ExternalExperiment()
-        experiment.execute("execution.mpi", {})
+        experiment.launch()
         assert experiment.is_finished()
         assert experiment.load_data("test.txt") == "hello"
 
@@ -68,13 +64,13 @@ class SlurmExperiment(Experiment):
 )
 def test_slurm_execution(tmp_storage):
     experiment = SlurmExperiment()
-    with Project.instance("docs/snippets/examples"):
-        experiment.execute(
-            "execution.slurm",
-            resources=json.loads(
-                os.environ.get("MACHINABLE_SLURM_TEST_RESOURCES", "{}")
-            ),
-        )
+    with Project.instance("docs/snippets/examples"), Execution.get(
+        "execution.slurm",
+        resources=json.loads(
+            os.environ.get("MACHINABLE_SLURM_TEST_RESOURCES", "{}")
+        ),
+    ):
+        experiment.launch()
         for _ in range(30):
             if experiment.is_finished():
                 assert "Hello world from Slurm" in experiment.output()

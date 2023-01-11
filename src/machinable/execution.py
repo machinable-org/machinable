@@ -59,7 +59,7 @@ class Execution(Element):
         )
 
     @has_one
-    def schedule(self) -> "Schedule":
+    def schedule() -> "Schedule":
         return Schedule
 
     @has_many

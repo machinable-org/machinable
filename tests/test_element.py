@@ -4,10 +4,9 @@ from dataclasses import dataclass
 
 import pydantic
 import pytest
-from machinable import Element, Execution, Experiment, Project, Storage
+from machinable import Element, Execution, Experiment, Project, Storage, get
 from machinable.config import Field, RequiredField
 from machinable.element import (
-    Element,
     compact,
     defaultversion,
     equalversion,
@@ -19,6 +18,12 @@ from machinable.element import (
 from machinable.errors import ConfigurationError
 from machinable.utils import Connectable
 from omegaconf import OmegaConf
+
+
+def test_element_get():
+    assert isinstance(get(), Element)
+    assert isinstance(get("machinable.storage.filesystem"), Storage)
+    print(get("machinable.storage.filesystem", {"directory": "./test"}))
 
 
 def test_element_instantiation():
@@ -368,7 +373,7 @@ def test_element_relations(tmp_storage):
     with Project("./tests/samples/project"):
 
         experiment = Experiment().group_as("test/group")
-        execution = Execution().use(experiment)
+        execution = Execution().add(experiment)
         execution.dispatch()
 
         experiment_clone = Experiment.from_storage(experiment.storage_id)
@@ -382,7 +387,7 @@ def test_element_relations(tmp_storage):
         # group <-> execution
         assert experiment.group.path == "test/group"
         assert experiment.group.pattern == "test/group"
-        assert experiment.group.experiments[0].nickname == experiment.nickname
+        assert experiment.group.experiments[0].timestamp == experiment.timestamp
 
         # invalidate cache and reconstruct
         experiment.__related__ = {}
@@ -394,10 +399,10 @@ def test_element_relations(tmp_storage):
         )
         # group <-> execution
         assert experiment.group.path == "test/group"
-        assert experiment.group.experiments[0].nickname == experiment.nickname
+        assert experiment.group.experiments[0].timestamp == experiment.timestamp
 
         experiment = CustomExperiment()
-        execution = CustomExecution().use(experiment)
+        execution = CustomExecution().add(experiment)
         execution.dispatch()
         experiment.__related__ = {}
         execution.__related__ = {}
@@ -409,22 +414,27 @@ def test_element_relations(tmp_storage):
 
 def test_element_search(tmp_storage):
     with Project("./tests/samples/project"):
-        exp1 = Experiment.make("dummy", {"a": 1}).execute()
-        exp2 = Experiment.make("dummy", {"a": 2}).execute()
+        exp1 = Experiment.make("dummy", {"a": 1})
+        exp1.launch()
+        exp2 = Experiment.make("dummy", {"a": 2})
+        exp2.launch()
         assert Experiment.find(exp1.experiment_id).timestamp == exp1.timestamp
         assert Experiment.find_by_version("non-existing").empty()
         assert Experiment.find_by_version("dummy").count() == 2
         # singleton
-        assert Experiment.singleton("dummy", {"a": 2}).nickname == exp2.nickname
         assert (
-            Experiment.singleton("dummy", {"a": 2, "ignore_me_": 3}).nickname
-            == exp2.nickname
+            Experiment.singleton("dummy", {"a": 2}).timestamp == exp2.timestamp
+        )
+        assert (
+            Experiment.singleton("dummy", {"a": 2, "ignore_me_": 3}).timestamp
+            == exp2.timestamp
         )
         assert (
             Experiment.singleton("dummy", {"a": 2}).timestamp == exp2.timestamp
         )
-        n = Experiment.singleton("dummy", {"a": 3}).execute()
-        assert n.nickname != exp2.nickname
+        n = Experiment.singleton("dummy", {"a": 3})
+        n.launch()
+        assert n.experiment_id != exp2.experiment_id
         assert (
             n.experiment_id
             == Experiment.singleton("dummy", {"a": 3}).experiment_id

@@ -640,3 +640,6 @@ class Filesystem(Storage):
 
     def _retrieve_file(self, storage_id: str, filepath: str) -> Optional[Any]:
         return load_file(os.path.join(storage_id, filepath), default=None)
+
+    def __repr__(self):
+        return f"FilesystemStorage <{self.config.directory}>"

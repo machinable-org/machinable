@@ -1393,18 +1393,10 @@ class ExperimentCollection(ElementCollection):
             items = ", ".join([repr(item) for item in self.items])
         return f"Experiments ({len(self.items)}) <{items}>"
 
-    def execute(
-        self, module: Union[str, None] = None, version: VersionType = None
-    ) -> "ExperimentCollection":
+    def launch(self) -> "ExperimentCollection":
         """Executes all experiments in the collection"""
-        from machinable.execution import Execution
-
-        execution = Execution.make(module, version=version)
-
         for experiment in self:
-            execution.use(experiment=experiment)
-
-        execution.dispatch()
+            experiment.launch()
 
         return self
 

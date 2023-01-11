@@ -29,13 +29,13 @@ Experiments will now be written to the specified directory.
 To keep things organized, you can group experiments that belong together, for example:
 
 ```python
-from machinable import Experiment
+from machinable import get
 
-gravity = Experiment.instance('estimate_gravity')
+gravity = get('estimate_gravity')
 
 gravity.group_as('%Y/lab-reports')
 
-gravity.execute()
+gravity.launch()
 
 print(gravity.local_directory())
 ```
