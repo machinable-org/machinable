@@ -420,7 +420,9 @@ class Element(Mixin, Jsonable):
 
         return cls.collect(
             [
-                cls.from_storage(storage_id, storage)
+                cls.from_model(
+                    getattr(storage, f"retrieve_{element_type}")(storage_id)
+                )
                 for storage_id in storage_ids
             ]
         )

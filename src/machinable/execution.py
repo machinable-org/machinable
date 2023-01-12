@@ -157,35 +157,31 @@ class Execution(Element):
 
         return {}
 
-    def __call__(self) -> "Execution":
+    def __call__(self) -> None:
         if self.schedule is not None:
             # delegate execution to connected scheduler
-            return self
+            return
 
-        return self.dispatch()
+        if all(self.experiments.map(lambda x: x.is_finished())):
+            return
+
+        self.dispatch()
 
     def dispatch(self) -> "Execution":
         if self.on_before_dispatch() is False:
-            return self
-
-        if all(self.experiments.map(lambda x: x.is_finished())):
             return self
 
         # trigger configuration validation for early failure
         self.experiments.each(lambda x: x.config)
 
         if self.on_before_commit() is False:
-            return False
+            return self
 
         self.commit()
 
         try:
-            results = self.on_dispatch()
-
-            if not isinstance(results, (list, tuple)):
-                results = [results]
-
-            self.on_after_dispatch(results)
+            self.on_dispatch()
+            self.on_after_dispatch()
         except BaseException as _ex:  # pylint: disable=broad-except
             raise ExecutionFailed("Execution failed") from _ex
 
@@ -209,17 +205,12 @@ class Execution(Element):
         for experiment in self.experiments:
             experiment.on_before_commit()
 
-    def on_after_dispatch(self, results: List[Any]) -> None:
+    def on_after_dispatch(self) -> None:
         """Event triggered after the dispatch of an execution"""
 
-    def on_dispatch(self) -> List[Any]:
-        return [
-            self.on_dispatch_experiment(experiment)
-            for experiment in self.experiments
-        ]
-
-    def on_dispatch_experiment(self, experiment: "Experiment") -> Any:
-        return experiment.dispatch()
+    def on_dispatch(self):
+        for experiment in self.experiments:
+            experiment.dispatch()
 
     @property
     def timestamp(self) -> float:
@@ -253,10 +244,3 @@ class Execution(Element):
         return (
             self.nickname != other.nickname or self.timestamp != other.timestamp
         )
-
-    def __exit__(self, *args, **kwargs):
-        if self.schedule:
-            # schedule available, so trigger dispatch
-            self.dispatch()
-
-        super().__exit__()

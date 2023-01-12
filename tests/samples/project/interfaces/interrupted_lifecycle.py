@@ -19,7 +19,5 @@ class InterruptedLifecycle(Experiment):
             if step == 6:
                 raise RuntimeError("Interrupt 2")
 
-        return "done"
-
-    def on_finish(self, success, result):
+    def on_finish(self, success):
         self.save_data("state.json", self.state)

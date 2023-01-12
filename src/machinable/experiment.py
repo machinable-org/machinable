@@ -397,12 +397,15 @@ class Experiment(Element):  # pylint: disable=too-many-public-methods
             self.is_active() or self.is_finished()
         )
 
-    def dispatch(self) -> Optional[bool]:
-        """Execute the interface lifecycle"""
-        try:
-            if self.is_finished():
-                return True
+    def __call__(self) -> None:
+        if self.is_finished():
+            return None
 
+        self.dispatch()
+
+    def dispatch(self) -> "Experiment":
+        """Dispatch the experiment lifecycle"""
+        try:
             self.on_dispatch()
 
             if self.on_write_meta_data() is not False and self.is_mounted():
@@ -423,11 +426,11 @@ class Experiment(Element):  # pylint: disable=too-many-public-methods
 
             # execute
             self.on_before_execute()
-            result = self.on_execute()
+            self.on_execute()
             self.on_after_execute()
 
-            self.on_success(result=result)
-            self.on_finish(success=True, result=result)
+            self.on_success()
+            self.on_finish(success=True)
 
             # destroy
             self.on_before_destroy()
@@ -441,13 +444,15 @@ class Experiment(Element):  # pylint: disable=too-many-public-methods
             self.on_after_dispatch()
         except BaseException as _ex:  # pylint: disable=broad-except
             self.on_failure(exception=_ex)
-            self.on_finish(success=False, result=_ex)
+            self.on_finish(success=False)
 
             self.on_after_dispatch()
 
             raise errors.ExecutionFailed(
                 f"{self.__class__.__name__} dispatch failed"
             ) from _ex
+
+        return self
 
     def set_seed(self, seed: Optional[int] = None) -> bool:
         """Applies a random seed
@@ -517,7 +522,7 @@ class Experiment(Element):  # pylint: disable=too-many-public-methods
     def on_after_destroy(self):
         """Lifecycle event triggered after components destruction"""
 
-    def on_finish(self, success: bool, result: Optional[Any] = None):
+    def on_finish(self, success: bool):
         """Lifecycle event triggered right before the end of the component execution
 
         # Arguments
@@ -525,7 +530,7 @@ class Experiment(Element):  # pylint: disable=too-many-public-methods
         result: Return value of on_execute event
         """
 
-    def on_success(self, result: Optional[Any] = None):
+    def on_success(self):
         """Lifecycle event triggered iff execution finishes successfully
 
         # Arguments
