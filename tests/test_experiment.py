@@ -110,6 +110,15 @@ def test_experiment_launch(tmp_storage):
     with b:
         assert experiment.launch == b
 
+    # no double execution
+    experiment = Experiment()
+
+    with Execution() as execution:
+        experiment.launch()
+        experiment.launch()
+        experiment.launch()
+    assert len(execution.experiments) == 1
+
 
 def test_experiment_relations(tmp_storage):
     with Project("./tests/samples/project", name="test-project"):

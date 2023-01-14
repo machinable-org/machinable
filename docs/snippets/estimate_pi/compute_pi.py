@@ -1,11 +1,11 @@
 from machinable import get
 
-experiment = get("montecarlo", {"trials": 150})
+experiment = get("montecarlo", {"samples": 150})
 
 experiment.launch()
 
 print(
-    f"After {experiment.config.trials} samples, "
+    f"After {experiment.config.samples} samples, "
     f"PI is approximately {experiment.load_data('result.json')['pi']}."
 )
 

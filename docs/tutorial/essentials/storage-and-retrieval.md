@@ -1,3 +1,7 @@
+---
+next: "Continue with the tutorial"
+---
+
 # Storage and retrieval
 
 When you execute experiments, information like the used configuration, the used random seed, etc. are automatically captured and stored. By default, the data is stored in a local folder at `./storage/%Y_%U_%a/{experiment_id}` (e.g. `./storage/2022_40_Sun/MHCYZq`).
@@ -7,22 +11,28 @@ When you execute experiments, information like the used configuration, the used 
 Just like with experiments and execution, you can choose the storage implementation and configuration using the module convention:
 
 ```python
-from machinable import Storage
+from machinable import get
 
-storage = Storage.instance('machinable.storage.filesystem', {
+storage = get('machinable.storage.filesystem', {
   'directory': './my-storage'
 })
 ```
 
-This will instantiate the <Pydoc>machinable.Storage</Pydoc> implementation located in the `machinable.storage.filesystem` module.
+This will instantiate the <Pydoc>machinable.Storage</Pydoc> implementation that is located in the `machinable.storage.filesystem` module.
 
-To use the storage, call the `connect()` method:
+To use the storage, wrap the relevant code in a with-context:
 
 ```python
-storage.connect()
+with storage:
+  experiment.launch()
+
+# or alternatively
+storage.__enter__()
+
+experiment.launch()
 ```
 
-Experiments will now be written to the specified directory.
+Experiments within the context will be written to the specified directory.
 
 ## Organize using groups
 
@@ -51,18 +61,18 @@ When specifying groups, you can use the common [time format codes](https://docs.
 You may also specify a global default group that will be used if no group is set.
 
 ```python
-from machinable import Storage
+from machinable import get
 
-Storage.instance(
+get(
   'machinable.storage.filesystem',
   {'directory': './my-storage'},
   default_group='%Y/lab-reports'
-).connect()
+).__enter__()
 ```
 
 ::: tip Note
 
-The preconfigured default group is `%Y_%U_%a`, e.g. `2022_40_Sun`
+The pre-configured default group is `%Y_%U_%a`, e.g. `2022_40_Sun`
 
 :::
 
@@ -105,31 +115,31 @@ The results become available as a table where each row represents an iteration.
 <tr><td>2022-10-07T23:05:46.942295-05:00</td><td style="text-align: right;">0.1</td><td style="text-align: right;">0</td></tr>
 <tr><td>2022-10-07T23:05:46.944064-05:00</td><td style="text-align: right;">0.1</td><td style="text-align: right;">1</td></tr>
 <tr><td>2022-10-07T23:05:46.946012-05:00</td><td style="text-align: right;">0.1</td><td style="text-align: right;">2</td></tr>
-<tr><td>2022-10-07T23:05:46.947686-05:00</td><td style="text-align: right;">0.1</td><td style="text-align: right;">3</td></tr>
 </tbody>
 </table>
 
-## Retriving experiments
 
-You can retrieve previously executed experiments from the connected storage using their unique experiment ID, for example:
+## Retrieving experiments
 
-```python
->>> from machinable import Experiment
->>> experiment = Experiment.find('tjMFXt')
->>> experiment.finished_at().humanize()
-'21 minutes ago'
-```
-
-## Singletons
-
-Alternatively, and perhaps more importantly, you can look up experiments in a way that mirrors their original instantiation using <Pydoc>machinable.Experiment.singleton</Pydoc>.
+One of the fundamental ideas in the design of machinable's storage is that it allows to retrieve results through the same abstraction that was used to create them. What does this look like for an experiment? Consider the example experiment that computes a gravity estimation of an exoplanet.
 
 ```python
-from machinable import Experiment
+from machinable import get
 
-gravity = Experiment.singleton('estimate_gravity', {'time_dilation': 2.0})
+gravity = get('estimate_gravity', {'time_dilation': 2.0})
 ```
 
-<Pydoc caption="singleton()">machinable.Experiment.singleton</Pydoc> will search and return an experiment of type `estimate_gravity` with a `time_dilation` of `2.0`. If `estimate_gravity` has not been executed with that exact configuration, a new instance of the experiment with `time_dilation=2.0` is returned instead.
+Notably, <Pydoc caption="get()">machinable.get</Pydoc> will automatically search the storage for an experiment of type `estimate_gravity` with a `time_dilation` of `2.0`. If `estimate_gravity` has not been executed with this exact configuration, a new instance of the experiment with `time_dilation=2.0` is returned instead. This means that we can easily retrieve experiments with the same command we initially used to execute them. Consider the following example:
 
-This feature is crucially important for machinable's [unified representation](./unified-representation.md) which we will discuss next.
+```python
+from machinable import get
+
+gravity = get('estimate_gravity', {'time_dilation': 0.5})
+
+if not gravity.is_finished():
+  print("An experiment with this configuration was not found")
+else:
+  print(f"The gravity for a time dilation of 0.5 is {gravity.result}")
+```
+
+This concludes the overview of essential features. You can refer back to individual chapters at any time or continue with the [advanced tutorial sections](../elements-in-depth/overview.md), the [API reference](../../reference/index.md) and the [examples](../../examples/overview.md).
