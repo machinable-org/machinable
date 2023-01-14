@@ -9,6 +9,7 @@ node_modules
 docs/.vitepress/dist
 docs/.vitepress/pydoc.js
 docs/.vitepress/.cache
+docs/.vitepress/cache
 
 # Temporary and binary files
 *~
