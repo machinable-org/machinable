@@ -47,7 +47,7 @@ After covering the essentials, feel free to pick a learning path that suits your
 
 :::tip Installation
 
-We recommend [installing machinable](../installation.md) to try things out while following along.
+We recommend [installing machinable](./installation.md) to try things out while following along.
 
 :::
 

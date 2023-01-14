@@ -1,6 +1,7 @@
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
 
 import os
+import random
 import stat
 import sys
 
@@ -28,7 +29,6 @@ from machinable.storage.storage import Storage
 from machinable.types import DatetimeType, TimestampType, VersionType
 from machinable.utils import (
     Events,
-    apply_seed,
     generate_seed,
     sentinel,
     timestamp_to_directory,
@@ -408,6 +408,8 @@ class Experiment(Element):  # pylint: disable=too-many-public-methods
         try:
             self.on_dispatch()
 
+            self.on_seeding()
+
             if self.on_write_meta_data() is not False and self.is_mounted():
                 self.mark_started()
                 self._events.on("heartbeat", self.update_heartbeat)
@@ -415,9 +417,6 @@ class Experiment(Element):  # pylint: disable=too-many-public-methods
                 self.launch.save_file(
                     "env.json", data=Project.get().provider().get_host_info()
                 )
-
-            if self.on_seeding() is not False:
-                self.set_seed()
 
             # create
             self.on_before_create()
@@ -454,20 +453,6 @@ class Experiment(Element):  # pylint: disable=too-many-public-methods
 
         return self
 
-    def set_seed(self, seed: Optional[int] = None) -> bool:
-        """Applies a random seed
-
-        # Arguments
-        seed: Integer, random seed. If None, self.seed will be used
-
-        To prevent the automatic seeding, you can overwrite
-        the on_seeding event and return False
-        """
-        if seed is None:
-            seed = self.seed
-
-        return apply_seed(seed)
-
     # life cycle
 
     def on_write_meta_data(self) -> Optional[bool]:
@@ -486,10 +471,8 @@ class Experiment(Element):  # pylint: disable=too-many-public-methods
         """Lifecycle event triggered at the very beginning of the component dispatch"""
 
     def on_seeding(self):
-        """Lifecycle event to implement custom seeding
-
-        Return False to prevent the default seeding procedure
-        """
+        """Lifecycle event to implement custom seeding using `self.seed`"""
+        random.seed(self.seed)
 
     def on_before_create(self):
         """Lifecycle event triggered before components creation"""

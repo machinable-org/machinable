@@ -119,47 +119,6 @@ class Connectable:
         return self
 
 
-def apply_seed(seed=None):
-    """Applies a global random seed to the application state.
-
-    In particular, the method seeds Python's random module and numpy, tensorflow and pytorch packages if available.
-
-    Arguments:
-    seed: Int|None, the random seed. Use None to unset seeding
-    """
-    if not isinstance(seed, int):
-        return False
-
-    random.seed(seed)
-
-    try:
-        import numpy as np
-
-        np.random.seed(seed)
-    except ImportError:
-        pass
-
-    try:
-        import tensorflow as tf
-
-        try:
-            tf.random.set_seed(seed)
-        except AttributeError:
-            tf.compat.v1.set_random_seed(seed)
-
-    except ImportError:
-        pass
-
-    try:
-        import torch
-
-        torch.manual_seed(seed)
-    except ImportError:
-        pass
-
-    return True
-
-
 def serialize(obj):
     """JSON serializer for objects not serializable by default json code"""
     if isinstance(obj, DatetimeType):
