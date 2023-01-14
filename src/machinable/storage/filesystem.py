@@ -242,7 +242,9 @@ class Filesystem(Storage):
             )
 
         if derived_from is not None:
-            storage_id = os.path.join(derived_from, "derived", directory)
+            storage_id = os.path.join(
+                derived_from, "derived", experiment.experiment_id
+            )
         else:
             if self.config.directory is not None:
                 storage_id = os.path.join(
