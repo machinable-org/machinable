@@ -9,6 +9,7 @@ from functools import reduce
 from json import dumps
 from pprint import pprint
 
+from machinable.settings import get_settings
 from machinable.types import VersionType
 
 long = int
@@ -1379,6 +1380,46 @@ class ElementCollection(Collection):
     def filter_by_module(self, module):
         return self.filter(lambda x: x.module == module)
 
+    def filter_by_predicate(
+        self,
+        module: str,
+        version: VersionType = None,
+        predicate: str = get_settings().default_predicate,
+        **kwargs,
+    ):
+        from machinable import Element
+
+        try:
+            instance = Element.make(module, version, **kwargs)
+        except ModuleNotFoundError:
+            from machinable.element import equalversion
+
+            # use direct comparison fallback
+            return self.filter(
+                lambda x: bool(
+                    x.module == module and equalversion(x.version(), version)
+                )
+            )
+
+        return self.filter(lambda x: x.matches(instance, predicate))
+
+    def singleton(
+        self,
+        module: str,
+        version: VersionType = None,
+        predicate: str = get_settings().default_predicate,
+        **kwargs,
+    ) -> Union[Any, "Experiment"]:
+        from machinable import Element
+
+        instance = Element.make(module, version, **kwargs)
+
+        for candidate in self:
+            if candidate.matches(instance, predicate):
+                return candidate
+
+        return instance
+
     def __str__(self):
         return f"Elements <{len(self.items)}>"
 
@@ -1411,35 +1452,6 @@ class ExperimentCollection(ElementCollection):
 
     def incomplete(self) -> "ExperimentCollection":
         return self.filter(lambda x: x.is_incomplete())
-
-    def filter_by_version(
-        self, module: str, version: VersionType = None
-    ) -> "ExperimentCollection":
-        from machinable.element import equalversion
-
-        return self.filter(
-            lambda x: (
-                x.__model__.module == module
-                and equalversion(x.version(), version)
-            )
-        )
-
-    def singleton(
-        self,
-        module: str,
-        version: VersionType = None,
-        predicate: Optional[Callable[["Experiment"], bool]] = None,
-        default: Any = None,
-    ) -> Union[Any, "Experiment"]:
-        from machinable.element import equalversion
-
-        return self.filter(
-            lambda x: (
-                x.is_finished()
-                and x.__model__.module == module
-                and equalversion(x.version(), version)
-            )
-        ).first(callback=predicate, default=default)
 
 
 class ExecutionCollection(ElementCollection):

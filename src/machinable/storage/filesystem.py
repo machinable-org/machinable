@@ -1,11 +1,10 @@
-from typing import TYPE_CHECKING, Any, List, Optional, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
 
 import json
 import os
 import sqlite3
 
 from machinable import schema
-from machinable.element import idversion
 from machinable.errors import StorageError
 from machinable.settings import get_settings
 from machinable.storage.storage import Storage
@@ -14,6 +13,10 @@ from machinable.utils import load_file, save_file, timestamp_to_directory
 
 if TYPE_CHECKING:
     from machinable.element import Element
+
+
+def _jn(data: Any) -> str:
+    return json.dumps(data, sort_keys=True, separators=(",", ":"))
 
 
 class Filesystem(Storage):
@@ -61,7 +64,7 @@ class Filesystem(Storage):
                     module text,
                     config json,
                     version json,
-                    idversion json,
+                    predicate json,
                     timestamp real
                 )"""
             )
@@ -72,7 +75,7 @@ class Filesystem(Storage):
                     module text,
                     config json,
                     version json,
-                    idversion json,
+                    predicate json,
                     experiment_id text,
                     seed integer,
                     execution_id integer,
@@ -93,7 +96,7 @@ class Filesystem(Storage):
                     module text,
                     config json,
                     version json,
-                    idversion json,
+                    predicate json,
                     experiment_id integer,
                     FOREIGN KEY (experiment_id) REFERENCES experiments (id)
                 )"""
@@ -145,16 +148,16 @@ class Filesystem(Storage):
             module,
             config,
             version,
-            idversion,
+            predicate,
             timestamp
             ) VALUES (?,?,?,?,?,?,?)""",
             (
                 execution_directory,
                 execution.nickname,
                 execution.module,
-                json.dumps(execution.config),
-                json.dumps(execution.version),
-                json.dumps(idversion(execution.version)),
+                _jn(execution.config),
+                _jn(execution.version),
+                _jn(execution.predicate),
                 execution.timestamp,
             ),
         )
@@ -196,15 +199,15 @@ class Filesystem(Storage):
             module,
             config,
             version,
-            idversion,
+            predicate,
             experiment_id
             ) VALUES (?,?,?,?,?,?)""",
             (
                 None,
                 element.module,
-                json.dumps(element.config),
-                json.dumps(element.version),
-                json.dumps(idversion(element.version)),
+                _jn(element.config),
+                _jn(element.version),
+                _jn(element.predicate),
                 _experiment_db_id,
             ),
         )
@@ -300,7 +303,7 @@ class Filesystem(Storage):
                 module,
                 config,
                 version,
-                idversion,
+                predicate,
                 experiment_id,
                 seed,
                 seed,
@@ -312,9 +315,9 @@ class Filesystem(Storage):
             (
                 storage_id,
                 experiment.module,
-                json.dumps(experiment.config),
-                json.dumps(experiment.version),
-                json.dumps(idversion(experiment.version)),
+                _jn(experiment.config),
+                _jn(experiment.version),
+                _jn(experiment.predicate),
                 experiment.experiment_id,
                 experiment.seed,
                 experiment.seed,
@@ -454,24 +457,25 @@ class Filesystem(Storage):
 
         return None
 
-    def _find_experiment_by_version(
-        self, module: str, version: VersionType = None, mode: str = "exact"
+    def _find_experiment_by_predicate(
+        self, module: str, predicate: Dict
     ) -> List[str]:
         if not self.is_migrated():
             return []
         self.migrate()
         cur = self._db.cursor()
-        if version:
-            if mode == "id":
-                query = cur.execute(
-                    """SELECT storage_id FROM experiments WHERE module=? AND idversion=?""",
-                    (module, json.dumps(idversion(version))),
-                )
-            else:
-                query = cur.execute(
-                    """SELECT storage_id FROM experiments WHERE module=? AND version=?""",
-                    (module, json.dumps(version)),
-                )
+
+        if predicate:
+            keys = ["module=?"]
+            values = [module]
+            for p, v in predicate.items():
+                keys.append(f"json_extract(predicate, '$.{p}')=?")
+                values.append(v if isinstance(v, (str, int, float)) else _jn(v))
+            query = cur.execute(
+                """SELECT storage_id FROM experiments WHERE """
+                + (" AND ".join(keys)),
+                values,
+            )
         else:
             query = cur.execute(
                 """SELECT storage_id FROM experiments WHERE module=?""",

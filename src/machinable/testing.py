@@ -12,9 +12,11 @@ def storage_tests(storage: Storage) -> None:
     pre_execution = schema.Execution()
     experiments = [
         schema.Experiment(
-            module="test.catch_me", version=["~if", {"you": "can"}]
+            module="test.catch_me", predicate={"if": {"you": "can"}}
         ),
-        schema.Experiment(module="test.catch_me", version=["~if"]),
+        schema.Experiment(
+            module="test.catch_me", predicate={"if": {"you": "cannot"}}
+        ),
         schema.Experiment(module="another"),
     ]
     project = schema.Project(directory=".", name="test")
@@ -91,18 +93,20 @@ def storage_tests(storage: Storage) -> None:
         == experiments[0]._storage_id
     )
     assert storage.find_experiment("not-existing") is None
-    # search by version
-    assert len(storage.find_experiment_by_version("non-existing")) == 0
-    assert len(storage.find_experiment_by_version(module="test.catch_me")) == 2
+    # search by predicate
+    assert len(storage.find_experiment_by_predicate("non-existing")) == 0
     assert (
-        storage.find_experiment_by_version(
-            module="test.catch_me", version=["~if", {"you": "can"}]
+        len(storage.find_experiment_by_predicate(module="test.catch_me")) == 2
+    )
+    assert (
+        storage.find_experiment_by_predicate(
+            module="test.catch_me", predicate={"if": {"you": "can"}}
         )[0]
         == experiments[0]._storage_id
     )
     assert (
-        storage.find_experiment_by_version(
-            module="test.catch_me", version=[{"you": "can"}]
+        storage.find_experiment_by_predicate(
+            module="test.catch_me", predicate={"if": "can"}
         )
         == []
     )

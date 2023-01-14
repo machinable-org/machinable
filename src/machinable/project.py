@@ -1,5 +1,5 @@
 import types
-from typing import TYPE_CHECKING, Any, List, Optional, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
 
 import getpass
 import importlib
@@ -332,6 +332,10 @@ class Project(Element):
 
         Return False to prevent the default automatic resolution
         """
+
+    def global_predicates(self) -> Dict:
+        """Project-wide element predicates."""
+        return {}
 
     def __repr__(self) -> str:
         return f"Project({self.__model__.directory})"

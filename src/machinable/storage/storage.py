@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Any, List, Optional, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
 
 from machinable import schema
 from machinable.element import Element, defaultversion, get_lineage, normversion
@@ -94,6 +94,7 @@ class Storage(Element):
                 continue
             # ensure that configuration has been parsed
             assert experiment.config is not None
+            assert experiment.predicate is not None
 
             group = experiment.group
             if group is None:
@@ -511,15 +512,13 @@ class Storage(Element):
     ) -> Optional[str]:
         raise NotImplementedError
 
-    def find_experiment_by_version(
-        self, module: str, version: VersionType = None, mode: str = "exact"
+    def find_experiment_by_predicate(
+        self, module: str, predicate: Optional[Dict] = None
     ) -> List[str]:
-        return self._find_experiment_by_version(
-            module, normversion(version), mode
-        )
+        return self._find_experiment_by_predicate(module, predicate)
 
-    def _find_experiment_by_version(
-        self, module: str, version: VersionType = None, mode: str = "exact"
+    def _find_experiment_by_predicate(
+        self, module: str, predicate: Dict
     ) -> List[str]:
         raise NotImplementedError
 

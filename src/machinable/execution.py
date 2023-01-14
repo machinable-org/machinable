@@ -210,7 +210,7 @@ class Execution(Element):
 
     def on_dispatch(self):
         for experiment in self.experiments:
-            experiment.dispatch()
+            experiment()
 
     @property
     def timestamp(self) -> float:

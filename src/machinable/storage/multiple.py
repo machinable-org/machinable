@@ -191,10 +191,10 @@ class Multiple(Storage):
     ) -> Optional[str]:
         return self._read("_find_experiment", experiment_id, timestamp)
 
-    def _find_experiment_by_version(
-        self, module: str, version: VersionType = None, mode: str = "exact"
+    def _find_experiment_by_predicate(
+        self, module: str, predicate: Dict
     ) -> List[str]:
-        return self._read("_find_experiment_by_version", module, version, mode)
+        return self._read("_find_experiment_by_predicate", module, predicate)
 
     def _find_related(
         self, storage_id: str, relation: str

@@ -2,7 +2,15 @@ import os
 
 import commandlib
 import pytest
-from machinable import Execution, Experiment, Project, Storage, errors, schema
+from machinable import (
+    Execution,
+    Experiment,
+    Project,
+    Storage,
+    errors,
+    get,
+    schema,
+)
 from machinable.element import Element
 
 
@@ -224,3 +232,29 @@ def test_experiment_export(tmp_storage):
     print(commandlib.Command("bash")(script_filepath).output())
     assert experiment.is_finished()
     assert experiment.load_data("test_run.json")["success"]
+
+
+def test_experiment_predicates(tmp_storage):
+    p = Project("./tests/samples/project").__enter__()
+
+    e1 = get("predicate", {"a": 2})
+    e1.launch()
+    e2 = get("predicate", {"ignore_": 3})
+    e2.launch()
+    e3 = get("predicate", {"a": 1})
+    e3.launch()
+
+    # ignore enderscores by default
+    e = get("predicate", {"a": 2, "ignore_": 1})
+    assert e.experiment_id == e1.experiment_id
+    # match enderscore
+    e = get("predicate", {"ignore_": 3}, predicate="config_update_")
+    assert e.experiment_id == e2.experiment_id
+    # custom
+    e = get("predicate", {"a": 1}, predicate="config,test,more")
+    assert e.experiment_id == e3.experiment_id
+    # full config
+    e = get("predicate", {"ignore_": 3}, predicate="config")
+    assert e.experiment_id == e3.experiment_id
+
+    p.__exit__()

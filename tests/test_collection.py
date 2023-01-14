@@ -13,10 +13,15 @@ def test_collect():
     assert isinstance(collect([1, 2]), Collection)
 
 
+class DummyExperiment(Experiment):
+    class Config:
+        m: int = -1
+
+
 def test_experiment_collection(tmp_storage):
     with Project("./tests/samples/project"):
         collection = Experiment.collect(
-            [Experiment({"m": i % 2}) for i in range(5)]
+            [DummyExperiment({"m": i % 2}) for i in range(5)]
         )
         for i, e in enumerate(collection):
             e.save_data("i", i)
@@ -31,23 +36,13 @@ def test_experiment_collection(tmp_storage):
         assert len(collection.incomplete()) == 0
         assert len(collection.started().active()) == 0
 
-        assert len(collection.filter_by_version("non-existent")) == 0
-        assert len(collection.filter_by_version("machinable.experiment")) == 0
-        assert (
-            len(collection.filter_by_version("machinable.experiment", {"m": 0}))
-            == 3
-        )
-        assert (
-            len(collection.filter_by_version("machinable.experiment", {"m": 1}))
-            == 2
-        )
+        assert len(collection.filter_by_predicate("non-existent")) == 0
+        m = "tests.test_collection"
+        assert len(collection.filter_by_predicate(m)) == 0
+        assert len(collection.filter_by_predicate(m, {"m": 0})) == 3
+        assert len(collection.filter_by_predicate(m, {"m": 1})) == 2
 
-        assert (
-            collection.singleton("machinable.experiment", {"m": 1}).load_data(
-                "i"
-            )
-            == "1"
-        )
+        assert collection.singleton(m, {"m": 1}).load_data("i") == "1"
 
 
 class CollectionTestCase(TestCase):
