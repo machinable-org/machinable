@@ -34,6 +34,10 @@ export default defineConfig({
                 link: '/tutorial/introduction'
               },
               {
+                text: 'Background',
+                link: '/idea'
+              },
+              {
                 text: 'Installation',
                 link: '/tutorial/installation'
               }
@@ -42,10 +46,6 @@ export default defineConfig({
           {
             text: 'Essentials',
             items: [
-              {
-                text: 'Quick start',
-                link: '/tutorial/essentials/overview'
-              },
               {
                 text: 'Project structure',
                 link: '/tutorial/essentials/project-structure'
@@ -61,14 +61,6 @@ export default defineConfig({
               {
                 text: 'Storage and retrieval',
                 link: '/tutorial/essentials/storage-and-retrieval'
-              },
-              {
-                text: 'Unified representation',
-                link: '/tutorial/essentials/unified-representation'
-              },
-              {
-                text: 'Next steps',
-                link: '/tutorial/essentials/next-steps'
               }
             ]
           },

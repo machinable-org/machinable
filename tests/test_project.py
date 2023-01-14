@@ -9,15 +9,15 @@ def test_project():
     project = Project("tests/samples/project", name="test")
     assert project.name() == "test"
     assert project.path().endswith("samples/project")
-    project.connect()
+    project.__enter__()
     assert Project.get().name() == "test"
     assert Project.get().module == "_machinable.project"
-    project.disconnect()
+    project.__exit__()
     assert Project.get().module == "machinable.project"
 
 
 def test_project_events(tmp_storage):
-    project = Project("tests/samples/project").connect()
+    project = Project("tests/samples/project").__enter__()
     # global config
     assert Experiment.instance("dummy", {"a": "global_conf(2)"}).config.a == 2
     assert Experiment.instance("dummy", "~global_ver({'a': 3})").config.a == 3
@@ -30,8 +30,8 @@ def test_project_events(tmp_storage):
     )
 
     experiment = Experiment.instance("dummy")
-    experiment.execute()
-    info = experiment.load_execution_data("host.json")
+    experiment.launch()
+    info = experiment.launch.env_info
     assert info["dummy"] == "data"
 
-    project.disconnect()
+    project.__exit__()

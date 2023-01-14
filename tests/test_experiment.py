@@ -7,7 +7,7 @@ from machinable.element import Element
 
 
 def test_experiment(tmp_storage, tmp_path):
-    p = Project("./tests/samples/project").connect()
+    p = Project("./tests/samples/project").__enter__()
     experiment = Experiment.make("dummy")
     assert experiment.module == "dummy"
     assert isinstance(str(experiment), str)
@@ -50,24 +50,13 @@ def test_experiment(tmp_storage, tmp_path):
     assert os.path.isdir(
         experiment.local_directory("non-existing/dir", create=True)
     )
+
     # records
     assert len(experiment.records()) == 0
     record = experiment.record("testing")
     record["test"] = 1
     record.save()
     assert len(experiment.records("testing")) == 1
-
-    # save and load
-    experiment.save_file("test.txt", "hello")
-    assert experiment.load_file("test.txt") == "hello"
-    experiment.save_data("floaty", 1.0)
-    assert experiment.load_data("floaty") == "1.0"
-    uncommitted = Experiment()
-    uncommitted.save_data("test", "deferred")
-    assert uncommitted.load_data("test") == "deferred"
-
-    # resources
-    assert experiment.resources() == {}
 
     # output
     assert experiment.output() is None
@@ -91,35 +80,55 @@ def test_experiment(tmp_storage, tmp_path):
         experiment._assert_editable()
     assert not experiment.is_incomplete()
 
-    # execution data
-    experiment = Experiment()
-    assert (
-        experiment.save_execution_data("test_deferred", "success")
-        == "$deferred"
-    )
-    execution = Execution().use(experiment)
-    execution.dispatch()
-    assert experiment.load_execution_data("test_deferred") == "success"
-    experiment.save_execution_data("test", "data")
-    assert experiment.load_execution_data("test") == "data"
-
     # write protection
     assert experiment.version() == []
     with pytest.raises(errors.ConfigurationError):
         experiment.version(["modify"])
 
-    p.disconnect()
+    p.__exit__()
+
+
+def test_experiment_launch(tmp_storage):
+    experiment = Experiment()
+    assert not experiment.is_mounted()
+    experiment.launch()
+    assert experiment.is_mounted()
+    assert experiment.is_finished()
+
+    # cache and context
+    assert experiment.launch == experiment.launch
+
+    a = Execution()
+    b = Execution()
+    with a:
+        # ignores context, since already mounted
+        assert experiment.launch != a
+
+    experiment = Experiment()
+    with a:
+        assert experiment.launch == a
+    with b:
+        assert experiment.launch == b
+
+    # no double execution
+    experiment = Experiment()
+
+    with Execution() as execution:
+        experiment.launch()
+        experiment.launch()
+        experiment.launch()
+    assert len(execution.experiments) == 1
 
 
 def test_experiment_relations(tmp_storage):
     with Project("./tests/samples/project", name="test-project"):
 
         experiment = Experiment.instance("basic").group_as("test/group")
-        execution = Execution().use(experiment)
+        execution = Execution().add(experiment)
         execution.dispatch()
 
         assert experiment.project.name() == "test-project"
-        assert experiment.execution.timestamp == execution.timestamp
+        assert experiment.launch.timestamp == execution.timestamp
         assert experiment.executions[0].timestamp == execution.timestamp
         assert len(experiment.elements) == 0
 
@@ -128,7 +137,7 @@ def test_experiment_relations(tmp_storage):
 
         derived = Experiment(derived_from=experiment)
         assert derived.ancestor is experiment
-        derived_execution = Execution().use(derived).dispatch()
+        derived_execution = Execution().add(derived).dispatch()
 
         # invalidate cache and reconstruct
         experiment.__related__ = {}
@@ -141,12 +150,12 @@ def test_experiment_relations(tmp_storage):
         assert experiment.derived[0].experiment_id == derived.experiment_id
 
         derived = Experiment(derived_from=experiment)
-        Execution().use(derived).dispatch()
+        Execution().add(derived).dispatch()
         assert len(experiment.derived) == 2
 
         assert experiment.derive().experiment_id != experiment.experiment_id
         derived = experiment.derive(version=experiment.config)
-        Execution().use(derived).dispatch()
+        Execution().add(derived).dispatch()
 
 
 class DataElement(Element):
@@ -164,7 +173,7 @@ def test_experiment_elements(tmp_storage):
         dataset = DataElement({"dataset": "cifar"})
         experiment.use(dataset)
         assert experiment.elements[0].config.dataset == "cifar"
-        experiment.execute()
+        experiment.launch()
         experiment.__related__ = {}
         assert experiment.elements[0].config.dataset == "cifar"
         assert experiment.elements[0].hello() == "element"
@@ -198,7 +207,7 @@ def test_experiment_export(tmp_storage):
     with pytest.raises(AttributeError):
         exec(script)
 
-    Execution().use(experiment).commit()
+    Execution().add(experiment).commit()
     assert not experiment.is_started()
 
     exec(script)
@@ -208,7 +217,7 @@ def test_experiment_export(tmp_storage):
 
     # inline
     experiment = ExportExperiment()
-    Execution().use(experiment).commit()
+    Execution().add(experiment).commit()
     script = experiment.to_dispatch_code(inline=True)
     script_filepath = experiment.save_file("run.sh", script)
 

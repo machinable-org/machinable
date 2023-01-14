@@ -6,19 +6,13 @@ def test_schedule(tmp_storage):
         schedule = Schedule.instance("scheduled")
         assert schedule.test()
 
-        # run conventionally
-        Experiment().execute()
-        assert len(schedule.executions) == 0
-
         dummy = Experiment.make("dummy")
-        with schedule:
-            Experiment().execute()
-            Execution().use(Experiment()).dispatch()
-            dummy.execute()
+        with Execution(schedule=schedule) as execution:
+            deferred = Experiment()
+            deferred.launch()
+            assert not deferred.is_mounted()  # did not yet execute
 
-        assert not dummy.is_mounted()  # did not execute
-
-        assert len(schedule.executions) == 3
-        schedule.dispatch()
-        schedule.reset()
-        assert len(schedule.executions) == 0
+            Experiment().launch()
+        assert not deferred.is_started()
+        execution.dispatch()
+        assert deferred.is_finished()

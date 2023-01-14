@@ -119,12 +119,6 @@ class Storage(Element):
 
         self.create_execution(execution, experiments)
 
-        # write deferred execution data
-        for experiment in experiments:
-            for filepath, data in experiment._deferred_execution_data.items():
-                experiment.save_execution_data(filepath, data)
-            experiment._deferred_execution_data = {}
-
     @classmethod
     def multiple(cls, primary: "Storage", *secondary: "Storage") -> "Storage":
         if len(secondary) == 0:
@@ -156,6 +150,8 @@ class Storage(Element):
             execution=execution, experiments=target_experiments
         )
         assert storage_id is not None
+
+        # todo: write deferred
 
         execution._storage_id = storage_id
         execution._storage_instance = self
@@ -303,18 +299,14 @@ class Storage(Element):
 
     def create_file(
         self,
-        experiment: Union["Experiment", schema.Experiment],
+        element: Union["Element", schema.Element],
         filepath: str,
         data: Any,
     ) -> Optional[Any]:
-        from machinable.experiment import Experiment
+        element = Element.model(element)
+        return self._create_file(element._storage_id, filepath, data)
 
-        experiment = Experiment.model(experiment)
-        return self._create_file(experiment._storage_id, filepath, data)
-
-    def _create_file(
-        self, experiment_storage_id: str, filepath: str, data: Any
-    ) -> str:
+    def _create_file(self, storage_id: str, filepath: str, data: Any) -> str:
         raise NotImplementedError
 
     def retrieve_execution(self, storage_id: str) -> schema.Execution:
@@ -403,16 +395,12 @@ class Storage(Element):
         raise NotImplementedError
 
     def retrieve_file(
-        self, experiment: Union["Experiment", schema.Experiment], filepath: str
+        self, element: Union["Element", schema.Element], filepath: str
     ) -> Optional[Any]:
-        from machinable.experiment import Experiment
+        element = Element.model(element)
+        return self._retrieve_file(element._storage_id, filepath)
 
-        experiment = Experiment.model(experiment)
-        return self._retrieve_file(experiment._storage_id, filepath)
-
-    def _retrieve_file(
-        self, experiment_storage_id: str, filepath: str
-    ) -> Optional[Any]:
+    def _retrieve_file(self, storage_id: str, filepath: str) -> Optional[Any]:
         raise NotImplementedError
 
     def retrieve_output(
@@ -428,24 +416,21 @@ class Storage(Element):
 
     def local_directory(
         self,
-        experiment: Union["Experiment", schema.Experiment],
+        element: Union["Element", schema.Element],
         *append: str,
         create: bool = False,
     ) -> Optional[str]:
-        from machinable.experiment import Experiment
 
-        experiment = Experiment.model(experiment)
+        element = Element.model(element)
 
-        local_directory = self._local_directory(experiment._storage_id, *append)
+        local_directory = self._local_directory(element._storage_id, *append)
 
         if create:
             os.makedirs(local_directory, exist_ok=True)
 
         return local_directory
 
-    def _local_directory(
-        self, experiment_storage_id: str, *append: str
-    ) -> Optional[str]:
+    def _local_directory(self, storage_id: str, *append: str) -> Optional[str]:
         raise NotImplementedError
 
     def mark_started(
@@ -542,9 +527,10 @@ class Storage(Element):
         self, storage_id: str, relation: str
     ) -> Optional[schema.Element]:
         relations = {
-            "experiment.execution": "execution",
+            "experiment.launch": "execution",
             "experiment.executions": "executions",
             "execution.experiments": "experiments",
+            "execution.schedule": "schedule",
             "group.experiments": "experiments",
             "experiment.group": "group",
             "experiment.ancestor": "experiment",
@@ -580,7 +566,7 @@ class Storage(Element):
         raise NotImplementedError
 
     def __repr__(self):
-        return f"Storage <{self.__model__.default_group}>"
+        return f"Storage"
 
     def __str__(self):
         return self.__repr__()

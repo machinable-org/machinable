@@ -11,7 +11,7 @@ class EstimateGravity(Experiment):
   """An experiment to estimate gravity"""
 
   def on_execute(self):
-      time_dilation - 1.0
+      time_dilation = 1.0
       height = 52
       time = 0.3
       g = 2 * height / time ** 2
@@ -24,7 +24,7 @@ When you implement your algorithm, pick an appropriate event and add your code i
 
 The event methods will be called automatically at the appropriate time, so you don't have to call them manually. For example, code placed in the <Pydoc caption="on_failure()">machinable.Experiment.on_failure</Pydoc> event is automatically invoked if an exception occurs.
 
-Feel free to explore all available events in the [reference documentation](../../reference/); in most cases, placing your algorithms in the <Pydoc caption="on_execute()">machinable.Experiment.on_execute</Pydoc> method is the right choice.
+Feel free to explore all available events in the [reference documentation](../../reference/); in most cases, placing your algorithm in the <Pydoc caption="on_execute()">machinable.Experiment.on_execute</Pydoc> method is the right choice.
 
 ::: details Aside: How can I use existing code?
 
@@ -77,14 +77,14 @@ Notably, the `Config` dataclass allows for many advanced features such as valida
 
 ---
 
-To instantiate the experiment with different parameters, you can pass a dictionary as argument to <Pydoc>machinable.Experiment.instance</Pydoc>, for example:
+To instantiate the experiment with different parameters, you can pass a dictionary as argument to <Pydoc>machinable.get</Pydoc>, for example:
 
 ```python
 >>> from machinable import Experiment
->>> gravity = Experiment.instance('estimate_gravity')
+>>> gravity = get('estimate_gravity')
 >>> gravity.config.time_dilation
 1.0
->>> gravity = Experiment.instance('estimate_gravity', {'time_dilation': 2})
+>>> gravity = get('estimate_gravity', {'time_dilation': 2})
 >>> gravity.config.time_dilation
 2.0
 ```
@@ -96,7 +96,7 @@ In the last line, it is worth noting that the `int` 2 was automatically casted t
 As you may have noted above, experiments can be instantiated and accessed without side-effects (e.g. without necessarily triggering the gravity computation). As a result, we can inspect the configuration and catch mistakes like the following typo early:
 
 ```python
->>> gravity = Experiment.instance('estimate_gravity', {'time_diliation': 2})
+>>> gravity = get('estimate_gravity', {'time_diliation': 2})
 >>> gravity.config
 E  ValidationError: 1 validation error for Config
 E  time_diliation

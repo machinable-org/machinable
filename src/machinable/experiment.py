@@ -59,8 +59,6 @@ class Experiment(Element):  # pylint: disable=too-many-public-methods
             seed=seed,
             lineage=get_lineage(self),
         )
-        self._deferred_data = {}
-        self._deferred_execution_data = {}
         if derived_from is not None:
             self.__model__.derived_from_id = derived_from.experiment_id
             self.__model__.derived_from_timestamp = derived_from.timestamp
@@ -93,11 +91,38 @@ class Experiment(Element):  # pylint: disable=too-many-public-methods
 
         return Execution, ExecutionCollection
 
-    @belongs_to
-    def execution() -> "Execution":
+    @property
+    def launch(self) -> "Execution":
         from machinable.execution import Execution
 
-        return Execution, False
+        # cache lookup
+        launch = self.__related__.get("launch", None)
+        if launch is not None:
+            if self.is_mounted():
+                return launch
+            else:
+                # check if cached launch is still applicable
+                if launch == Execution.get():
+                    return launch
+
+        # context lookup
+        related = None
+        if self.is_mounted():
+            related = self.__model__._storage_instance.retrieve_related(
+                self.__model__._storage_id,
+                "experiment.launch",
+            )
+
+        # write to cache
+        if related is not None:
+            self.__related__["launch"] = Execution.from_model(related)
+        else:
+            self.__related__["launch"] = Execution.get()
+
+        # add experiment (this happens once since launch will be cached)
+        self.__related__["launch"].add(self)
+
+        return self.__related__["launch"]
 
     @has_many
     def elements() -> "ElementCollection":
@@ -230,34 +255,6 @@ class Experiment(Element):  # pylint: disable=too-many-public-methods
 
         return self.__model__.version
 
-    def execute(
-        self,
-        module: Union[str, None] = None,
-        version: VersionType = None,
-        resources: Optional[Dict] = None,
-    ) -> "Experiment":
-        """Executes the experiment"""
-        from machinable.execution import Execution
-
-        Execution.instance(module, version=version, resources=resources).use(
-            experiment=self
-        ).dispatch()
-
-        return self
-
-    def save_host_info(self) -> bool:
-        if not self.is_mounted():
-            return False
-
-        if self.execution is None:
-            return False
-
-        self.save_execution_data(
-            "host.json", data=Project.get().provider().get_host_info()
-        )
-
-        return True
-
     def commit(self) -> "Experiment":
         Storage.get().commit(self)
 
@@ -266,16 +263,6 @@ class Experiment(Element):  # pylint: disable=too-many-public-methods
     @property
     def experiment_id(self) -> str:
         return self.__model__.experiment_id
-
-    def local_directory(
-        self, *append: str, create: bool = False
-    ) -> Optional[str]:
-        if not self.is_mounted():
-            return None
-
-        return self.__model__._storage_instance.local_directory(
-            self, *append, create=create
-        )
 
     def records(self, scope="default") -> RecordCollection:
         if not self.is_mounted():
@@ -300,91 +287,6 @@ class Experiment(Element):  # pylint: disable=too-many-public-methods
             self._cache[f"record.{scope}"] = Record(self, scope)
 
         return self._cache[f"record.{scope}"]
-
-    def load_file(self, filepath: str, default=None) -> Optional[Any]:
-        if not self.is_mounted():
-            # has write been deferred?
-            if filepath in self._deferred_data:
-                return self._deferred_data[filepath]
-
-            return default
-
-        data = self.__model__._storage_instance.retrieve_file(self, filepath)
-
-        return data if data is not None else default
-
-    def save_file(self, filepath: str, data: Any) -> str:
-        if os.path.isabs(filepath):
-            raise ValueError("Filepath must be relative")
-
-        if not self.is_mounted():
-            # defer writes until experiment creation
-            self._deferred_data[filepath] = data
-            return "$deferred"
-
-        file = self.__model__._storage_instance.create_file(
-            self, filepath, data
-        )
-
-        # mark scripts as executable
-        if filepath.endswith(".sh"):
-            st = os.stat(file)
-            os.chmod(file, st.st_mode | stat.S_IEXEC)
-
-        return file
-
-    def save_data(self, filepath: str, data: Any) -> str:
-        return self.save_file(os.path.join("data", filepath), data)
-
-    def load_data(self, filepath: str, default=None) -> Optional[Any]:
-        return self.load_file(os.path.join("data", filepath), default)
-
-    def save_execution_data(
-        self,
-        filepath: str,
-        data: Any,
-        defer: bool = False,
-        execution_timestamp: Optional[float] = None,
-    ) -> str:
-        if defer or self.execution is None:
-            # defer writes until next execution creation
-            self._deferred_execution_data[filepath] = data
-            return "$deferred"
-
-        if execution_timestamp is None:
-            execution_timestamp = self.execution.timestamp
-
-        return self.save_file(
-            os.path.join(
-                f"execution-{timestamp_to_directory(execution_timestamp)}/data",
-                filepath,
-            ),
-            data,
-        )
-
-    def load_execution_data(
-        self,
-        filepath: str,
-        default=None,
-        execution_timestamp: Optional[float] = None,
-    ) -> Optional[Any]:
-        if self.execution is None:
-            # has write been deferred?
-            if filepath in self._deferred_execution_data:
-                return self._deferred_execution_data[filepath]
-
-            return default
-
-        if execution_timestamp is None:
-            execution_timestamp = self.execution.timestamp
-
-        return self.load_file(
-            os.path.join(
-                f"execution-{timestamp_to_directory(execution_timestamp)}/data",
-                filepath,
-            ),
-            default,
-        )
 
     def mark_started(
         self, timestamp: Optional[TimestampType] = None
@@ -431,13 +333,6 @@ class Experiment(Element):  # pylint: disable=too-many-public-methods
             self._cache["output"] = output
 
         return output
-
-    def resources(self) -> Optional[Dict]:
-        return self.load_execution_data("resources.json", default={})
-
-    @property
-    def nickname(self) -> str:
-        return self.__model__.nickname
 
     @property
     def seed(self) -> int:
@@ -502,19 +397,24 @@ class Experiment(Element):  # pylint: disable=too-many-public-methods
             self.is_active() or self.is_finished()
         )
 
-    def dispatch(self) -> Optional[bool]:
-        """Execute the interface lifecycle"""
-        try:
-            if self.is_finished():
-                return True
+    def __call__(self) -> None:
+        if self.is_finished():
+            return None
 
+        self.dispatch()
+
+    def dispatch(self) -> "Experiment":
+        """Dispatch the experiment lifecycle"""
+        try:
             self.on_dispatch()
 
             if self.on_write_meta_data() is not False and self.is_mounted():
                 self.mark_started()
                 self._events.on("heartbeat", self.update_heartbeat)
                 self._events.heartbeats(seconds=15)
-                self.save_host_info()
+                self.launch.save_file(
+                    "env.json", data=Project.get().provider().get_host_info()
+                )
 
             if self.on_seeding() is not False:
                 self.set_seed()
@@ -526,11 +426,11 @@ class Experiment(Element):  # pylint: disable=too-many-public-methods
 
             # execute
             self.on_before_execute()
-            result = self.on_execute()
+            self.on_execute()
             self.on_after_execute()
 
-            self.on_success(result=result)
-            self.on_finish(success=True, result=result)
+            self.on_success()
+            self.on_finish(success=True)
 
             # destroy
             self.on_before_destroy()
@@ -544,13 +444,15 @@ class Experiment(Element):  # pylint: disable=too-many-public-methods
             self.on_after_dispatch()
         except BaseException as _ex:  # pylint: disable=broad-except
             self.on_failure(exception=_ex)
-            self.on_finish(success=False, result=_ex)
+            self.on_finish(success=False)
 
             self.on_after_dispatch()
 
             raise errors.ExecutionFailed(
                 f"{self.__class__.__name__} dispatch failed"
             ) from _ex
+
+        return self
 
     def set_seed(self, seed: Optional[int] = None) -> bool:
         """Applies a random seed
@@ -620,7 +522,7 @@ class Experiment(Element):  # pylint: disable=too-many-public-methods
     def on_after_destroy(self):
         """Lifecycle event triggered after components destruction"""
 
-    def on_finish(self, success: bool, result: Optional[Any] = None):
+    def on_finish(self, success: bool):
         """Lifecycle event triggered right before the end of the component execution
 
         # Arguments
@@ -628,7 +530,7 @@ class Experiment(Element):  # pylint: disable=too-many-public-methods
         result: Return value of on_execute event
         """
 
-    def on_success(self, result: Optional[Any] = None):
+    def on_success(self):
         """Lifecycle event triggered iff execution finishes successfully
 
         # Arguments
@@ -654,8 +556,8 @@ class Experiment(Element):  # pylint: disable=too-many-public-methods
         code = f"""
         from machinable import Project, Storage, Experiment
         from machinable.errors import StorageError
-        Project('{Project.get().path()}').connect()
-        Storage.from_json('{storage}').connect()
+        Project('{Project.get().path()}').__enter__()
+        Storage.from_json('{storage}').__enter__()
         experiment__ = Experiment.find('{self.experiment_id}', timestamp={self.timestamp})
         experiment__.dispatch()
         """
@@ -671,3 +573,15 @@ class Experiment(Element):  # pylint: disable=too-many-public-methods
 
     def __str__(self):
         return self.__repr__()
+
+    def __eq__(self, other):
+        return (
+            self.experiment_id == other.experiment_id
+            and self.timestamp == other.timestamp
+        )
+
+    def __ne__(self, other):
+        return (
+            self.experiment_id != other.experiment_id
+            or self.timestamp != other.timestamp
+        )

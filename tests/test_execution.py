@@ -5,9 +5,9 @@ from machinable import Execution, Experiment, Project, Storage, errors
 
 
 def test_execution(tmp_storage):
-    assert len(Execution().use([Experiment(), Experiment()]).experiments) == 2
+    assert len(Execution().add([Experiment(), Experiment()]).experiments) == 2
     with pytest.raises(ValueError):
-        Execution().use(None)
+        Execution().add(None)
     execution = Execution()
     assert (
         Execution.from_model(execution.__model__).timestamp
@@ -18,12 +18,12 @@ def test_execution(tmp_storage):
     assert repr(Execution()) == "Execution"
 
     with Project("./tests/samples/project"):
-        execution = Execution().use(Experiment())
+        execution = Execution().add(Experiment())
         assert len(execution.experiments) == 1
         assert isinstance(execution.timestamp, float)
 
         experiment = Experiment()
-        execution = Execution().use(experiment)
+        execution = Execution().add(experiment)
         assert len(execution.experiments) == 1
         execution.dispatch()
 
@@ -45,16 +45,16 @@ def test_execution_dispatch(tmp_storage):
                 raise RuntimeError("Should not execute")
 
     with pytest.raises(ValueError):
-        T().execute()
+        T().launch()
 
     with pytest.raises(errors.ExecutionFailed):
-        T({"mode": "runtime"}).execute()
+        T({"mode": "runtime"}).launch()
 
     # prevent commit for configuration errors
     with Project("./tests/samples/project"):
         valid = Experiment.make("dummy")
         invalid = Experiment.make("dummy", {"a": []})
-        execution = Execution().use([valid, invalid])
+        execution = Execution().add([valid, invalid])
         with pytest.raises(errors.ConfigurationError):
             execution.dispatch()
         assert not valid.is_mounted()

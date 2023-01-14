@@ -41,7 +41,6 @@ class Experiment(Element):
         default_factory=lambda: int(datetime.now().timestamp())
     )
     seed: int = Field(default_factory=generate_seed)
-    nickname: str = Field(default_factory=generate_nickname)
     derived_from_id: Optional[str] = None
     derived_from_timestamp: Optional[int] = None
 
@@ -58,6 +57,7 @@ class Group(Element):
 class Execution(Element):
     resources: Optional[Dict] = None
     host_info: Optional[Dict] = None
+    nickname: str = Field(default_factory=generate_nickname)
     timestamp: float = Field(default_factory=lambda: datetime.now().timestamp())
 
 
@@ -68,4 +68,4 @@ class Record(Element):
 
 
 class Schedule(Element):
-    executions: List["ExecutionElement"] = []
+    pass

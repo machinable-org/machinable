@@ -8,19 +8,13 @@ class Multiprocess(Execution):
         processes: int = 1
 
     def on_dispatch(self):
-        results = []
         pool = Pool(processes=self.config.processes, maxtasksperchild=1)
         try:
-
-            for result in pool.imap_unordered(
-                self.on_dispatch_experiment,
+            pool.imap_unordered(
+                lambda experiment: experiment(),
                 self.experiments,
-            ):
-                results.append(result)
-
+            )
             pool.close()
             pool.join()
         finally:
             pool.terminate()
-
-        return results

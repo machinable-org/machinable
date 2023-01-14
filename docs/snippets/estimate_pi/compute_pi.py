@@ -1,16 +1,16 @@
-from machinable import Experiment
+from machinable import get
 
-experiment = Experiment.instance("montecarlo", {"trials": 150})
+experiment = get("montecarlo", {"samples": 150})
 
-experiment.execute()
+experiment.launch()
 
 print(
-    f"After {experiment.config.trials} samples, "
+    f"After {experiment.config.samples} samples, "
     f"PI is approximately {experiment.load_data('result.json')['pi']}."
 )
 
 print(
-    f"Experiment <{experiment.nickname}> "
+    f"Experiment <{experiment.launch.nickname}> "
     f"(finished {experiment.finished_at().humanize()}) "
     f"is stored at <{experiment.local_directory()}>"
 )

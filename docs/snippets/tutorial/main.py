@@ -1,5 +1,5 @@
-from machinable import Experiment
+from machinable import get
 
-experiment = Experiment.instance("estimate_gravity")
+experiment = get("estimate_gravity")
 
-experiment.execute()
+experiment.launch()
