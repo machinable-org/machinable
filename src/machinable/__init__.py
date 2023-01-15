@@ -29,6 +29,7 @@ from machinable.mixin import Mixin, mixin
 from machinable.project import Project
 from machinable.record import Record
 from machinable.schedule import Schedule
+from machinable.settings import get_settings
 from machinable.storage import Storage
 from machinable.types import Optional, VersionType
 
@@ -36,10 +37,10 @@ from machinable.types import Optional, VersionType
 def get(
     module: Optional[str] = None,
     version: VersionType = None,
-    mode: Optional[str] = "id",
+    predicate: Optional[str] = get_settings().default_predicate,
     **kwargs,
 ) -> Element:
-    return Element.get(module, version, mode, **kwargs)
+    return Element.get(module, version, predicate, **kwargs)
 
 
 def get_version() -> str:

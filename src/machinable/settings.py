@@ -9,6 +9,7 @@ from pydantic import BaseModel
 
 
 class Settings(BaseModel):
+    default_predicate: Optional[str] = "config"
     default_execution: Optional[List[Union[str, dict]]] = None
     default_storage: List[Union[str, dict]] = [
         "machinable.storage.filesystem",

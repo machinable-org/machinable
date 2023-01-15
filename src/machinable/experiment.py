@@ -48,6 +48,7 @@ class Experiment(Element):  # pylint: disable=too-many-public-methods
         version: VersionType = None,
         seed: Union[int, None] = None,
         derived_from: Optional["Experiment"] = None,
+        elements: Union[None, Element, List[Element]] = None,
     ):
         super().__init__(version=version)
         if seed is None:
@@ -64,6 +65,9 @@ class Experiment(Element):  # pylint: disable=too-many-public-methods
             self.__model__.derived_from_timestamp = derived_from.timestamp
             self.__related__["ancestor"] = derived_from
         self._events: Events = Events()
+        self.__related__["elements"] = ElementCollection()
+        if elements:
+            self.use(elements)
 
     @belongs_to
     def group():
@@ -169,7 +173,6 @@ class Experiment(Element):  # pylint: disable=too-many-public-methods
                 f"Expected element, but found: {type(element)} {element}"
             )
 
-        self.__related__.setdefault("elements", ElementCollection())
         self.__related__["elements"].append(element)
 
         return self
@@ -194,48 +197,14 @@ class Experiment(Element):  # pylint: disable=too-many-public-methods
         self,
         module: Optional[str] = None,
         version: VersionType = None,
-        seed: Union[int, None] = None,
+        predicate: Optional[str] = get_settings().default_predicate,
+        **kwargs,
     ) -> "Experiment":
-        experiment = self.make(
-            module,
-            version,
-            base_class=Experiment,
-            seed=seed,
-            derived_from=self,
-        )
+        if module is None or predicate is None:
+            return self.make(module, version, derived_from=self, **kwargs)
 
-        return experiment
-
-    def derive_modified(
-        self,
-        module: str = sentinel,
-        version: VersionType = sentinel,
-        seed: Union[int, None] = sentinel,
-    ) -> "Experiment":
-
-        if module is sentinel:
-            module = self.__model__.module
-        if version is sentinel:
-            version = self.__model__.version
-        if seed is sentinel:
-            seed = None
-
-        experiment = self.derive(module, version, seed)
-
-        if self.group:
-            experiment.group_as(self.group.clone())
-
-        return experiment
-
-    def derive_singleton(
-        self,
-        module: Optional[str] = None,
-        version: VersionType = None,
-    ):
-        return self.derived.singleton(module, version) or self.make(
-            module,
-            version=version,
-            derived_from=self,
+        return self.derived.singleton(
+            module, version, predicate, derived_from=self, **kwargs
         )
 
     def version(

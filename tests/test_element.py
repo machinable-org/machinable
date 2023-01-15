@@ -419,8 +419,10 @@ def test_element_search(tmp_storage):
         exp2 = Experiment.make("dummy", {"a": 2})
         exp2.launch()
         assert Experiment.find(exp1.experiment_id).timestamp == exp1.timestamp
-        assert Experiment.find_by_version("non-existing").empty()
-        assert Experiment.find_by_version("dummy").count() == 2
+        assert Experiment.find_by_predicate("non-existing").empty()
+        assert (
+            Experiment.find_by_predicate("dummy", predicate=None).count() == 2
+        )
         # singleton
         assert (
             Experiment.singleton("dummy", {"a": 2}).timestamp == exp2.timestamp

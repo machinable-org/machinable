@@ -1,4 +1,13 @@
-from typing import TYPE_CHECKING, Any, Callable, List, Optional, Tuple, Union
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Callable,
+    Dict,
+    List,
+    Optional,
+    Tuple,
+    Union,
+)
 
 import collections
 import copy
@@ -16,6 +25,7 @@ from machinable.collection import Collection
 from machinable.config import from_element, match_method, rewrite_config_methods
 from machinable.errors import ConfigurationError, MachinableError
 from machinable.mixin import Mixin
+from machinable.settings import get_settings
 from machinable.types import ElementType, VersionType
 from machinable.utils import Jsonable, unflatten_dict, update_dict
 from omegaconf import DictConfig, OmegaConf
@@ -101,7 +111,7 @@ class ConfigMethod:
         elif hasattr(Project.get().provider(), method):
             obj = "Project.get().provider()."
         else:
-            raise AttributeError(
+            raise ConfigurationError(
                 f"{self.prefix.title()} method {definition} specified but {type(self.element).__name__}.{method}() does not exist."
             )
 
@@ -230,16 +240,19 @@ def equalversion(a: VersionType, b: VersionType) -> bool:
     )
 
 
+def _filter_enderscores(m: Any):
+    if not isinstance(m, collections.abc.Mapping):
+        return m
+    return {
+        k: _filter_enderscores(v) for k, v in m.items() if not k.endswith("_")
+    }
+
+
 def _idversion_filter(value: Union[str, dict]) -> Union[str, dict, None]:
     if isinstance(value, str) and value.endswith("_"):
         return None
 
-    def _f(m: Any):
-        if not isinstance(m, collections.abc.Mapping):
-            return m
-        return {k: _f(v) for k, v in m.items() if not k.endswith("_")}
-
-    return _f(value)
+    return _filter_enderscores(value)
 
 
 def idversion(version: VersionType) -> VersionType:
@@ -289,27 +302,36 @@ class Element(Mixin, Jsonable):
         self.__mixin__ = None
         self.__mixins__ = {}
         self._config: Optional[DictConfig] = None
+        self._predicate: Optional[DictConfig] = None
         self._cache = {}
         self._deferred_data = {}
 
         Element._module_ = None
 
     @classmethod
+    def set_default(
+        cls,
+        module: Optional[str] = None,
+        version: VersionType = None,
+    ) -> None:
+        cls.default = compact(module, version)
+
+    @classmethod
     def get(
         cls,
         module: Optional[str] = None,
         version: VersionType = None,
-        mode: Optional[str] = "id",
+        predicate: Optional[str] = get_settings().default_predicate,
         **kwargs,
     ) -> "Element":
         if module is None and version is None:
             if len(_CONNECTIONS[cls._key]) > 0:
                 return _CONNECTIONS[cls._key][-1]
 
-        if module is None or mode is None:
+        if module is None or predicate is None:
             return cls.instance(module, version, **kwargs)
 
-        return cls.singleton(module, version, mode, **kwargs)
+        return cls.singleton(module, version, predicate, **kwargs)
 
     @classmethod
     def make(
@@ -398,23 +420,35 @@ class Element(Mixin, Jsonable):
         return cls.collect([cls.find(element_id) for element_id in elements])
 
     @classmethod
-    def find_by_version(
-        cls, module: str, version: VersionType = None, mode: str = "default"
+    def find_by_predicate(
+        cls,
+        module: str,
+        version: VersionType = None,
+        predicate: Optional[str] = get_settings().default_predicate,
+        **kwargs,
     ) -> "Collection":
         from machinable.storage import Storage
 
         storage = Storage.get()
+        try:
+            candidate = cls.make(module, version, **kwargs)
+        except ModuleNotFoundError:
+            return cls.collect([])
 
-        element_type = cls._key.lower()
-
-        if element_type == "element":
-            # resolve type of element
-            element_type = cls.make(module)._key.lower()
-
-        handler = f"find_{element_type}_by_version"
+        element_type = candidate._key.lower()
+        handler = f"find_{element_type}_by_predicate"
 
         if hasattr(storage, handler):
-            storage_ids = getattr(storage, handler)(module, version, mode=mode)
+            if predicate:
+                predicate = OmegaConf.to_container(
+                    OmegaConf.create(
+                        {
+                            p: candidate.predicate[p]
+                            for p in predicate.split(",")
+                        }
+                    )
+                )
+            storage_ids = getattr(storage, handler)(module, predicate)
         else:
             storage_ids = []
 
@@ -432,17 +466,26 @@ class Element(Mixin, Jsonable):
         cls,
         module: str,
         version: VersionType = None,
-        mode: str = "id",
-        predicate: Callable = lambda x: x.is_live(),
+        predicate: Optional[str] = get_settings().default_predicate,
         **kwargs,
     ) -> "Collection[Element]":
-        candidates = cls.find_by_version(module, version, mode=mode)
+        candidates = cls.find_by_predicate(module, version, predicate, **kwargs)
         if candidates:
-            for candidate in reversed(candidates):
-                if predicate(candidate):
-                    return candidate
+            return candidates[-1]
 
         return cls.make(module, version, **kwargs)
+
+    @property
+    def predicate(self) -> DictConfig:
+        if self._predicate is None:
+            if self.__model__.predicate is None:
+                self.__model__.predicate = OmegaConf.to_container(
+                    OmegaConf.create(self.on_predicate())
+                )
+
+            self._predicate = OmegaConf.create(self.__model__.predicate)
+
+        return self._predicate
 
     @property
     def config(self) -> DictConfig:
@@ -595,21 +638,22 @@ class Element(Mixin, Jsonable):
 
         return getattr(schema, cls._key)
 
+    def matches(self, element: "Element", predicate: str) -> bool:
+        predicates = predicate.split(",")
+        for p in predicates:
+            if not equalversion(self.predicate[p], element.predicate[p]):
+                return False
+
+        return True
+
     def set_model(self, model: schema.Element) -> "Element":
         self.__model__ = model
 
         # invalidate cached config
         self._config = None
+        self._predicate = None
 
         return self
-
-    @classmethod
-    def set_default(
-        cls,
-        module: Optional[str] = None,
-        version: VersionType = None,
-    ) -> None:
-        cls.default = compact(module, version)
 
     def local_directory(
         self, *append: str, create: bool = False
@@ -659,7 +703,7 @@ class Element(Mixin, Jsonable):
     def load_data(self, filepath: str, default=None) -> Optional[Any]:
         return self.load_file(os.path.join("data", filepath), default)
 
-    def serialize(self) -> dict:
+    def serialize(self) -> Dict:
         # ensure that configuration has been parsed
         assert self.config is not None
         return self.__model__.dict()
@@ -693,6 +737,27 @@ class Element(Mixin, Jsonable):
 
     def __str__(self):
         return self.__repr__()
+
+    def on_predicate(self) -> Dict:
+        """Event to compute the predicate dictionary of the element
+        where each key presents a predicate that can be used
+        during element lookup"""
+        from machinable.project import Project
+
+        if isinstance(self, Project):
+            project_predicates = self.global_predicates()
+        else:
+            project_predicates = Project.get().provider().global_predicates()
+
+        return {
+            "config_update": _filter_enderscores(self.config._update_),
+            "config_update_": self.config._update_,
+            "config": _filter_enderscores(self.config),
+            "config_": self.config,
+            "version": idversion(self.version()),
+            "version_": self.version(),
+            **project_predicates,
+        }
 
     def on_instantiate(self) -> None:
         """Event that is invoked whenever the element is instantiated"""
