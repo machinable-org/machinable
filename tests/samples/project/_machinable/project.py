@@ -19,5 +19,5 @@ class TestProject(Project):
         info["dummy"] = "data"
         return info
 
-    def global_predicates(self):
+    def global_predicate(self):
         return {"more": 1}

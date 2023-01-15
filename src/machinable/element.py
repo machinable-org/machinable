@@ -265,6 +265,24 @@ def transfer_to(src: "Element", destination: "Element") -> "Element":
     return destination
 
 
+def resolve_custom_predicate(predicate: str, element: "Element"):
+    custom_predicate = element.on_compute_predicate()
+    if custom_predicate:
+        predicate = predicate.replace(
+            "*",
+            ",".join(
+                [
+                    k.replace("*", "")
+                    for k in custom_predicate.keys()
+                    if k.endswith("*")
+                ]
+            ),
+        )
+    return [
+        p.strip() for p in predicate.split(",") if p.strip() not in ("*", "")
+    ]
+
+
 def instantiate(
     module: str, class_: "Element", version: VersionType, **constructor_kwargs
 ):
@@ -450,7 +468,9 @@ class Element(Mixin, Jsonable):
                     OmegaConf.create(
                         {
                             p: candidate.predicate[p]
-                            for p in predicate.split(",")
+                            for p in resolve_custom_predicate(
+                                predicate, candidate
+                            )
                         }
                     )
                 )
@@ -481,12 +501,18 @@ class Element(Mixin, Jsonable):
 
         return cls.make(module, version, **kwargs)
 
+    def on_compute_predicate(self) -> Optional[Dict]:
+        """Event to compute a custom predicate dictionary of the element
+        where each key presents a predicate that can be used
+        during element lookup. Keys marked with a * are automatically
+        matched."""
+
     @property
     def predicate(self) -> DictConfig:
         if self._predicate is None:
             if self.__model__.predicate is None:
                 self.__model__.predicate = OmegaConf.to_container(
-                    OmegaConf.create(self.on_predicate())
+                    OmegaConf.create(self.compute_predicate())
                 )
 
             self._predicate = OmegaConf.create(self.__model__.predicate)
@@ -645,8 +671,7 @@ class Element(Mixin, Jsonable):
         return getattr(schema, cls.kind)
 
     def matches(self, element: "Element", predicate: str) -> bool:
-        predicates = predicate.split(",")
-        for p in predicates:
+        for p in resolve_custom_predicate(predicate, element):
             if not equalversion(self.predicate[p], element.predicate[p]):
                 return False
 
@@ -744,16 +769,15 @@ class Element(Mixin, Jsonable):
     def __str__(self):
         return self.__repr__()
 
-    def on_predicate(self) -> Dict:
-        """Event to compute the predicate dictionary of the element
-        where each key presents a predicate that can be used
-        during element lookup"""
+    def compute_predicate(self) -> Dict:
         from machinable.project import Project
 
+        local_predicate = self.on_compute_predicate() or {}
+
         if isinstance(self, Project):
-            project_predicates = self.global_predicates()
+            project_predicate = self.global_predicate()
         else:
-            project_predicates = Project.get().provider().global_predicates()
+            project_predicate = Project.get().provider().global_predicate()
 
         config = copy.deepcopy(OmegaConf.to_container(self.config))
         raw = config.pop("_raw_")
@@ -767,7 +791,8 @@ class Element(Mixin, Jsonable):
             "config_": config,
             "version": idversion(version),
             "version_": version,
-            **project_predicates,
+            **project_predicate,
+            **{k.replace("*", ""): v for k, v in local_predicate.items()},
         }
 
     def on_instantiate(self) -> None:

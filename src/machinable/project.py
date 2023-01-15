@@ -333,7 +333,7 @@ class Project(Element):
         Return False to prevent the default automatic resolution
         """
 
-    def global_predicates(self) -> Dict:
+    def global_predicate(self) -> Dict:
         """Project-wide element predicates."""
         return {}
 

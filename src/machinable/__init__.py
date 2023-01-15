@@ -10,7 +10,7 @@ __all__ = [
     "mixin",
     "Schedule",
     "get",
-    "cli",
+    "get_settings",
 ]
 __doc__ = """A modular system for machinable research code"""
 

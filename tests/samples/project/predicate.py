@@ -6,9 +6,5 @@ class PredicateExperiment(Experiment):
         a: int = 1
         ignore_: int = 2
 
-    def on_predicate(self):
-        p = super().on_predicate()
-
-        p["test"] = "a"
-
-        return p
+    def on_compute_predicate(self):
+        return {"test": "a"}
