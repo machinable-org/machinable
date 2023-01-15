@@ -231,7 +231,7 @@ class Filesystem(Storage):
         experiment: schema.Experiment,
         group: schema.Group,
         project: schema.Project,
-        elements: List[schema.Element],
+        uses: List[schema.Element],
     ) -> str:
         self.migrate()
 
@@ -277,8 +277,8 @@ class Filesystem(Storage):
         )
 
         save_file(
-            os.path.join(storage_id, "elements.json"),
-            [element.dict() for element in elements],
+            os.path.join(storage_id, "uses.json"),
+            [use.dict() for use in uses],
             makedirs=True,
         )
 
@@ -336,8 +336,8 @@ class Filesystem(Storage):
 
         experiment._storage_id = storage_id
 
-        for element in elements:
-            self._create_element(element, experiment, experiment_id)
+        for use in uses:
+            self._create_element(use, experiment, experiment_id)
 
         return storage_id
 
@@ -571,7 +571,7 @@ class Filesystem(Storage):
                     (storage_id,),
                 ).fetchall()
             ]
-        if relation == "experiment.elements":
+        if relation == "experiment.uses":
             cur = self._db.cursor()
             return [
                 row[0]

@@ -97,10 +97,10 @@ class Multiple(Storage):
         experiment: schema.Experiment,
         group: schema.Group,
         project: schema.Project,
-        elements: List[schema.Element],
+        uses: List[schema.Element],
     ) -> str:
         return self._write(
-            "_create_experiment", experiment, group, project, elements
+            "_create_experiment", experiment, group, project, uses
         )
 
     def _create_element(

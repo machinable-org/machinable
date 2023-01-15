@@ -101,13 +101,11 @@ class Storage(Element):
                 group = Group(self.__model__.default_group)
                 experiment.__related__["group"] = group
 
-            elements = [element for element in experiment.elements or []]
-
             self.create_experiment(
                 experiment=experiment,
                 group=group,
                 project=Project.get(),
-                elements=elements,
+                uses=[element for element in experiment.uses or []],
             )
 
             # write deferred experiment data
@@ -171,18 +169,16 @@ class Storage(Element):
         experiment: schema.Experiment,
         group: schema.Group,
         project: schema.Project,
-        elements: List[Union["Element", schema.Element]],
+        uses: List[Union["Element", schema.Element]],
     ) -> schema.Experiment:
         from machinable.experiment import Experiment
 
         experiment = Experiment.model(experiment)
         group = Group.model(group)
         project = Project.model(project)
-        elements = [Element.model(element) for element in elements]
+        uses = [Element.model(use) for use in uses]
 
-        storage_id = self._create_experiment(
-            experiment, group, project, elements
-        )
+        storage_id = self._create_experiment(experiment, group, project, uses)
         assert storage_id is not None
 
         experiment._storage_id = storage_id
@@ -195,7 +191,7 @@ class Storage(Element):
         experiment: schema.Experiment,
         group: schema.Group,
         project: schema.Project,
-        elements: List[schema.Element],
+        uses: List[schema.Element],
     ) -> str:
         raise NotImplementedError
 
@@ -535,7 +531,7 @@ class Storage(Element):
             "experiment.ancestor": "experiment",
             "experiment.derived": "experiments",
             "experiment.project": "project",
-            "experiment.elements": "elements",
+            "experiment.uses": "elements",
         }
 
         if relation not in relations:

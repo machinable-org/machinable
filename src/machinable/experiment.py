@@ -48,7 +48,7 @@ class Experiment(Element):  # pylint: disable=too-many-public-methods
         version: VersionType = None,
         seed: Union[int, None] = None,
         derived_from: Optional["Experiment"] = None,
-        elements: Union[None, Element, List[Element]] = None,
+        uses: Union[None, Element, List[Element]] = None,
     ):
         super().__init__(version=version)
         if seed is None:
@@ -65,9 +65,9 @@ class Experiment(Element):  # pylint: disable=too-many-public-methods
             self.__model__.derived_from_timestamp = derived_from.timestamp
             self.__related__["ancestor"] = derived_from
         self._events: Events = Events()
-        self.__related__["elements"] = ElementCollection()
-        if elements:
-            self.use(elements)
+        self.__related__["uses"] = ElementCollection()
+        if uses:
+            self.use(uses)
 
     @belongs_to
     def group():
@@ -129,7 +129,7 @@ class Experiment(Element):  # pylint: disable=too-many-public-methods
         return self.__related__["launch"]
 
     @has_many
-    def elements() -> "ElementCollection":
+    def uses() -> "ElementCollection":
         return Element, ElementCollection
 
     @classmethod
@@ -155,25 +155,18 @@ class Experiment(Element):  # pylint: disable=too-many-public-methods
         self._config = None
         self.__model__.config = None
 
-    def use(self, element: Union[Element, List[Element]]) -> "Experiment":
-        """Adds an element to the experiment
-
-        # Arguments
-        element: Element or list of Elements
-        """
+    def use(self, use: Union[Element, List[Element]]) -> "Experiment":
         self._assert_editable()
 
-        if isinstance(element, (list, tuple)):
-            for _element in element:
-                self.use(_element)
+        if isinstance(use, (list, tuple)):
+            for _use in use:
+                self.use(_use)
             return self
 
-        if not isinstance(element, Element):
-            raise ValueError(
-                f"Expected element, but found: {type(element)} {element}"
-            )
+        if not isinstance(use, Element):
+            raise ValueError(f"Expected element, but found: {type(use)} {use}")
 
-        self.__related__["elements"].append(element)
+        self.__related__["uses"].append(use)
 
         return self
 

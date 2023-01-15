@@ -47,7 +47,7 @@ def test_experiment(tmp_storage, tmp_path):
         experiment=schema.Experiment(config={"test": True}),
         group=schema.Group(pattern="", path=""),
         project=schema.Project(directory=".", name="test"),
-        elements=[],
+        uses=[],
     )
 
     experiment = Experiment.from_model(model)
@@ -138,7 +138,7 @@ def test_experiment_relations(tmp_storage):
         assert experiment.project.name() == "test-project"
         assert experiment.launch.timestamp == execution.timestamp
         assert experiment.executions[0].timestamp == execution.timestamp
-        assert len(experiment.elements) == 0
+        assert len(experiment.uses) == 0
 
         with pytest.raises(errors.ConfigurationError):
             experiment.version("attempt_overwrite")
@@ -174,17 +174,17 @@ class DataElement(Element):
         return "element"
 
 
-def test_experiment_elements(tmp_storage):
+def test_experiment_uses(tmp_storage):
     with Project("./tests/samples/project"):
         assert Experiment.singleton("dummy") is not None
         experiment = Experiment.instance("dummy")
         dataset = DataElement({"dataset": "cifar"})
         experiment.use(dataset)
-        assert experiment.elements[0].config.dataset == "cifar"
+        assert experiment.uses[0].config.dataset == "cifar"
         experiment.launch()
         experiment.__related__ = {}
-        assert experiment.elements[0].config.dataset == "cifar"
-        assert experiment.elements[0].hello() == "element"
+        assert experiment.uses[0].config.dataset == "cifar"
+        assert experiment.uses[0].hello() == "element"
 
 
 def test_experiment_interface(tmp_path):
