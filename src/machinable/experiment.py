@@ -509,7 +509,7 @@ class Experiment(Element):  # pylint: disable=too-many-public-methods
 
     # exports
 
-    def to_dispatch_code(self, inline: bool = False) -> Optional[str]:
+    def to_dispatch_code(self, inline: bool = True) -> Optional[str]:
         storage = Storage.get().as_json().replace('"', '\\"')
         code = f"""
         from machinable import Project, Storage, Experiment

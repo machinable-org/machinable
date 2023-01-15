@@ -210,7 +210,7 @@ class ExportExperiment(Experiment):
 
 def test_experiment_export(tmp_storage):
     experiment = ExportExperiment()
-    script = experiment.to_dispatch_code()
+    script = experiment.to_dispatch_code(inline=False)
 
     with pytest.raises(AttributeError):
         exec(script)

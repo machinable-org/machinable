@@ -316,9 +316,11 @@ class Element(Mixin, Jsonable):
     ) -> None:
         cls.default = compact(module, version)
 
-    def as_default(self):
+    def as_default(self) -> "Element":
         cls = getattr(machinable, self.kind, Element)
         cls.set_default(self.__model__.module, self.__model__.version)
+
+        return self
 
     @classmethod
     def get(
