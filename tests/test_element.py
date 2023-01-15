@@ -104,7 +104,7 @@ def test_element_config():
             class Beta:
                 test: Optional[bool] = None
 
-            beta: Beta = Beta()
+            beta: Beta = Field(default_factory=Beta)
             a: int = Field("through_config_method(1)")
             b: Optional[int] = None
             alpha: int = 0
@@ -222,7 +222,7 @@ def test_component_config_schema():
 
     class Nesting(Element):
         class Config:
-            value: Vector = Vector()
+            value: Vector = Field(default_factory=Vector)
 
     schema = Nesting({"value": {"a": 1, "b": 1}})
     assert schema.config.value.a == "1"

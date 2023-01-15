@@ -17,6 +17,9 @@ class Settings(BaseModel):
     ]
     default_experiment: Optional[str] = None
     default_group: Optional[str] = "%Y_%U_%a/"
+    default_schedule: Optional[List[Union[str, dict]]] = [
+        "machinable.schedule.independent"
+    ]
 
 
 def get_settings(file="~/.machinable/settings.json"):

@@ -115,8 +115,8 @@ def test_experiment_launch(tmp_storage):
     experiment = Experiment()
     with a:
         assert experiment.launch == a
-    with b:
-        assert experiment.launch == b
+        with b:
+            assert experiment.launch == b
 
     # no double execution
     experiment = Experiment()

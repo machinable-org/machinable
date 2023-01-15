@@ -233,6 +233,12 @@ class Experiment(Element):  # pylint: disable=too-many-public-methods
     def experiment_id(self) -> str:
         return self.__model__.experiment_id
 
+    @property
+    def resources(self) -> Optional[Dict]:
+        return self.launch.load_file(
+            f"resources-{self.experiment_id}.json", None
+        )
+
     def records(self, scope="default") -> RecordCollection:
         if not self.is_mounted():
             return RecordCollection()
