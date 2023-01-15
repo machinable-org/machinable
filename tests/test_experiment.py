@@ -210,9 +210,9 @@ class ExportExperiment(Experiment):
 
 def test_experiment_export(tmp_storage):
     experiment = ExportExperiment()
-    script = experiment.to_dispatch_code(inline=False)
+    script = experiment.dispatch_code(inline=False)
 
-    with pytest.raises(AttributeError):
+    with pytest.raises(TypeError):
         exec(script)
 
     Execution().add(experiment).commit()
@@ -226,7 +226,7 @@ def test_experiment_export(tmp_storage):
     # inline
     experiment = ExportExperiment()
     Execution().add(experiment).commit()
-    script = experiment.to_dispatch_code(inline=True)
+    script = experiment.dispatch_code(inline=True)
     script_filepath = experiment.save_file("run.sh", script)
 
     print(commandlib.Command("bash")(script_filepath).output())
