@@ -26,6 +26,21 @@ def test_element_get():
     print(get("machinable.storage.filesystem", {"directory": "./test"}))
 
 
+def test_element_defaults():
+    with Project("./tests/samples/project") as project:
+        Experiment.set_default("dummy")
+        assert Experiment.instance().module == "dummy"
+        assert Experiment.make().module == "machinable.experiment"
+
+        hello = Experiment.get("hello")
+        assert hello.module == "hello"
+        hello.as_default()
+        assert Experiment.instance().module == "hello"
+        assert Experiment.make().module == "machinable.experiment"
+        Experiment.default = None
+        assert Experiment.instance().module == "machinable.experiment"
+
+
 def test_element_instantiation():
     with Project("./tests/samples/project") as project:
         with pytest.raises(ModuleNotFoundError):

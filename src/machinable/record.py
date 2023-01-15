@@ -12,7 +12,7 @@ from machinable.types import JsonableType, VersionType
 class Record(Element):
     """Tabular record writer"""
 
-    _key = "Record"
+    kind = "Record"
 
     def __init__(
         self,

@@ -23,7 +23,7 @@ from machinable.utils import sentinel, update_dict
 
 
 class Execution(Element):
-    _key = "Execution"
+    kind = "Execution"
     default = get_settings().default_execution
 
     def __init__(

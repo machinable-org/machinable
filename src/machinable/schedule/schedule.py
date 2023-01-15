@@ -7,7 +7,7 @@ from machinable.types import VersionType
 class Schedule(Element):
     """Schedule base class"""
 
-    _key = "Schedule"
+    kind = "Schedule"
 
     def __init__(self, version: VersionType = None):
         super().__init__(version)

@@ -35,7 +35,7 @@ if TYPE_CHECKING:
 class Storage(Element):
     """Storage base class"""
 
-    _key = "Storage"
+    kind = "Storage"
     default = get_settings().default_storage
 
     def __init__(

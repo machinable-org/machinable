@@ -40,7 +40,7 @@ if TYPE_CHECKING:
 
 
 class Experiment(Element):  # pylint: disable=too-many-public-methods
-    _key = "Experiment"
+    kind = "Experiment"
     default = get_settings().default_experiment
 
     def __init__(

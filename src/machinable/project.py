@@ -125,7 +125,7 @@ def fetch_vendors(project: "Project"):
 
 
 class Project(Element):
-    _key = "Project"
+    kind = "Project"
 
     def __init__(
         self,

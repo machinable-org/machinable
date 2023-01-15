@@ -46,7 +46,7 @@ def belongs_to(f: Callable) -> Any:
                 related_class, use_cache = related_class
             related = self.__model__._storage_instance.retrieve_related(
                 self.__model__._storage_id,
-                f"{self._key.lower()}.{name}",
+                f"{self.kind.lower()}.{name}",
             )
             if related is None:
                 return None
@@ -79,7 +79,7 @@ def has_many(f: Callable) -> Any:
                 assert False, "Invalid number of relation arguments"
             related = self.__model__._storage_instance.retrieve_related(
                 self.__model__._storage_id,
-                f"{self._key.lower()}.{name}",
+                f"{self.kind.lower()}.{name}",
             )
             if related is None:
                 return None
@@ -285,7 +285,7 @@ _CONNECTIONS = collections.defaultdict(lambda: [])
 class Element(Mixin, Jsonable):
     """Element baseclass"""
 
-    _key: Optional[str] = "Element"
+    kind: Optional[str] = "Element"
     default: Optional["Element"] = None
     _module_: Optional[str] = None
 
@@ -316,6 +316,10 @@ class Element(Mixin, Jsonable):
     ) -> None:
         cls.default = compact(module, version)
 
+    def as_default(self):
+        cls = getattr(machinable, self.kind, Element)
+        cls.set_default(self.__model__.module, self.__model__.version)
+
     @classmethod
     def get(
         cls,
@@ -325,8 +329,8 @@ class Element(Mixin, Jsonable):
         **kwargs,
     ) -> "Element":
         if module is None and version is None:
-            if len(_CONNECTIONS[cls._key]) > 0:
-                return _CONNECTIONS[cls._key][-1]
+            if len(_CONNECTIONS[cls.kind]) > 0:
+                return _CONNECTIONS[cls.kind][-1]
 
         if module is None or predicate is None:
             return cls.instance(module, version, **kwargs)
@@ -345,7 +349,7 @@ class Element(Mixin, Jsonable):
             module = cls.__module__
 
         if base_class is None:
-            base_class = getattr(machinable, cls._key, Element)
+            base_class = getattr(machinable, cls.kind, Element)
 
         # prevent circular instantiation
         if module == "machinable" or module == base_class.__module__:
@@ -406,7 +410,7 @@ class Element(Mixin, Jsonable):
 
         storage = Storage.get()
 
-        storage_id = getattr(storage, f"find_{cls._key.lower()}")(
+        storage_id = getattr(storage, f"find_{cls.kind.lower()}")(
             element_id, *args, **kwargs
         )
 
@@ -435,7 +439,7 @@ class Element(Mixin, Jsonable):
         except ModuleNotFoundError:
             return cls.collect([])
 
-        element_type = candidate._key.lower()
+        element_type = candidate.kind.lower()
         handler = f"find_{element_type}_by_predicate"
 
         if hasattr(storage, handler):
@@ -614,7 +618,7 @@ class Element(Mixin, Jsonable):
             storage = Storage.get()
 
         return cls.from_model(
-            getattr(storage, f"retrieve_{cls._key.lower()}")(storage_id)
+            getattr(storage, f"retrieve_{cls.kind.lower()}")(storage_id)
         )
 
     @classmethod
@@ -631,12 +635,12 @@ class Element(Mixin, Jsonable):
             if isinstance(element, cls.model()):
                 return element
 
-            raise ValueError(f"Invalid {cls._key.lower()} model: {element}.")
+            raise ValueError(f"Invalid {cls.kind.lower()} model: {element}.")
 
-        if cls._key is None:
+        if cls.kind is None:
             return schema.Element
 
-        return getattr(schema, cls._key)
+        return getattr(schema, cls.kind)
 
     def matches(self, element: "Element", predicate: str) -> bool:
         predicates = predicate.split(",")
@@ -714,15 +718,15 @@ class Element(Mixin, Jsonable):
 
     @classmethod
     def is_connected(cls) -> bool:
-        return len(_CONNECTIONS[cls._key]) > 0
+        return len(_CONNECTIONS[cls.kind]) > 0
 
     def __enter__(self):
-        _CONNECTIONS[self._key].append(self)
+        _CONNECTIONS[self.kind].append(self)
         return self
 
     def __exit__(self, *args, **kwargs):
         try:
-            _CONNECTIONS[self._key].pop()
+            _CONNECTIONS[self.kind].pop()
         except IndexError:
             pass
 

@@ -25,7 +25,7 @@ def resolve_group(group: str) -> Tuple[str, str]:
 class Group(Element):
     """Group element"""
 
-    _key = "Group"
+    kind = "Group"
 
     def __init__(
         self, group: Optional[str] = None, version: VersionType = None
