@@ -509,7 +509,7 @@ class Experiment(Element):  # pylint: disable=too-many-public-methods
 
     # exports
 
-    def to_dispatch_code(self, inline: bool = True) -> Optional[str]:
+    def dispatch_code(self, inline: bool = True) -> Optional[str]:
         storage = Storage.get().as_json().replace('"', '\\"')
         code = f"""
         from machinable import Project, Storage, Experiment
@@ -517,7 +517,7 @@ class Experiment(Element):  # pylint: disable=too-many-public-methods
         Project('{Project.get().path()}').__enter__()
         Storage.from_json('{storage}').__enter__()
         experiment__ = Experiment.find('{self.experiment_id}', timestamp={self.timestamp})
-        experiment__.dispatch()
+        experiment__()
         """
 
         if inline:
