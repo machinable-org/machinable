@@ -755,13 +755,18 @@ class Element(Mixin, Jsonable):
         else:
             project_predicates = Project.get().provider().global_predicates()
 
+        config = copy.deepcopy(OmegaConf.to_container(self.config))
+        raw = config.pop("_raw_")
+        version = config.pop("_version_")
+        update = config.pop("_update_")
+
         return {
-            "config_update": _filter_enderscores(self.config._update_),
-            "config_update_": self.config._update_,
-            "config": _filter_enderscores(self.config),
-            "config_": self.config,
-            "version": idversion(self.version()),
-            "version_": self.version(),
+            "config_update": _filter_enderscores(update),
+            "config_update_": update,
+            "config": _filter_enderscores(config),
+            "config_": config,
+            "version": idversion(version),
+            "version_": version,
             **project_predicates,
         }
 
