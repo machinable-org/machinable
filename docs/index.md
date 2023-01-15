@@ -86,7 +86,7 @@ features:
 
   <br />
 
-  :arrow_right: [Learn more about machinable's approach](./idea.md)
+  :arrow_right: [Learn more about machinable's approach](./about/approach.md)
 
   </div>
 

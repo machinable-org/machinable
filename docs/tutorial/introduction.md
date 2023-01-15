@@ -1,14 +1,10 @@
----
-next: "Background reading"
----
-
 # Introduction
 
 ## What is machinable?
 
 _machinable_ is a Python API for research code. It provides an object-oriented skeleton that helps you efficiently develop and experiment in a unified interface while handling tedious housekeeping behind the scenes.
 
-The key idea is to unify the running of code and the retrieval of produced results in one abstraction. A detailed discussion of this approach can be found in the [background section](./../idea.md), but here is a minimal example that illustrates the idea.
+The key idea is to unify the running of code and the retrieval of produced results in one abstraction. A detailed discussion of this approach can be found in the [about section](../about/approach.md), but for now, here is a minimal example that illustrates the idea.
 
 _montecarlo\.py_
 

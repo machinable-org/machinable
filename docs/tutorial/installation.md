@@ -11,7 +11,7 @@ machinable currently supports Python 3.7 and higher
 :::
 
 Note that machinable requires the sqlite json1 extension, otherwise, you will likely see the error message:
-`sqlite3.OperationalError: no such function: json_extract`. An easy way to obtain a suitable sqlite version is to install the pysqlite package: 
+`sqlite3.OperationalError: no such function: json_extract`. In this case, an easy way to obtain a suitable sqlite version is to install the pysqlite package: 
 
 
 ```bash

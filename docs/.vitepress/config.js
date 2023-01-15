@@ -22,7 +22,12 @@ export default defineConfig({
         { text: 'Tutorial', link: '/tutorial/introduction' },
         { text: 'Reference', link: '/reference/' },
         { text: 'Examples', link: '/examples/overview' },
-        { text: 'Changelog', link: 'https://github.com/machinable-org/machinable/blob/main/CHANGELOG.md' }
+        { text: 'About', 
+          items: [
+            { text: "Approach", link: '/about/approach' },
+            { text: 'Changelog', link: 'https://github.com/machinable-org/machinable/blob/main/CHANGELOG.md' }
+          ]
+        }
       ],
       sidebar: {
         '/tutorial/': [
@@ -32,10 +37,6 @@ export default defineConfig({
               {
                 text: 'Introduction',
                 link: '/tutorial/introduction'
-              },
-              {
-                text: 'Background',
-                link: '/idea'
               },
               {
                 text: 'Installation',
