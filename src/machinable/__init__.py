@@ -3,6 +3,7 @@ __all__ = [
     "Element",
     "Execution",
     "Experiment",
+    "Interface",
     "Project",
     "Record",
     "Storage",
@@ -32,6 +33,8 @@ from machinable.schedule import Schedule
 from machinable.settings import get_settings
 from machinable.storage import Storage
 from machinable.types import Optional, VersionType
+
+Interface = Experiment  # abstract vs instance alias
 
 
 def get(
