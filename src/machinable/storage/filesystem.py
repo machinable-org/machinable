@@ -2,7 +2,11 @@ from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
 
 import json
 import os
-import sqlite3
+
+try:
+    from pysqlite3 import dbapi2 as sqlite3
+except ModuleNotFoundError:
+    import sqlite3
 
 from machinable import schema
 from machinable.errors import StorageError
