@@ -158,7 +158,7 @@ def test_element_config():
 
             method: str = "hello()"
             argmethod: str = "arghello('world')"
-            nested: Nested = Nested()
+            nested: Nested = Field(default_factory=Nested)
             recursive: str = "recursive_call('test')"
 
         def config_hello(self):
