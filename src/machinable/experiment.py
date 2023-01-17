@@ -23,6 +23,7 @@ from machinable.element import (
 )
 from machinable.errors import ConfigurationError
 from machinable.group import Group
+from machinable.interface import Interface
 from machinable.project import Project
 from machinable.settings import get_settings
 from machinable.storage.storage import Storage
@@ -39,7 +40,7 @@ if TYPE_CHECKING:
     from machinable.record import Record
 
 
-class Experiment(Element):  # pylint: disable=too-many-public-methods
+class Experiment(Interface):  # pylint: disable=too-many-public-methods
     kind = "Experiment"
     default = get_settings().default_experiment
 

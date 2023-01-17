@@ -26,6 +26,7 @@ from machinable.cli import cli
 from machinable.element import Element
 from machinable.execution import Execution
 from machinable.experiment import Experiment
+from machinable.interface import Interface
 from machinable.mixin import Mixin, mixin
 from machinable.project import Project
 from machinable.record import Record
@@ -33,8 +34,6 @@ from machinable.schedule import Schedule
 from machinable.settings import get_settings
 from machinable.storage import Storage
 from machinable.types import Optional, VersionType
-
-Interface = Experiment  # abstract vs instance alias
 
 
 def get(
