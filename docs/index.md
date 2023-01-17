@@ -60,9 +60,9 @@ features:
 
   `python plot_regression_result.py --experiment=run-01`
 
-  ... are distinct and often highly redundant.
+  ... are distinct and often redundant.
 
-  This forces you to worry whether `rate=0.1` was called `run-01` or `run-02`.
+  This means you have to manually keep track by remembering what the experiment with `rate=0.1` was called.
 
   :::
 
@@ -78,9 +78,9 @@ features:
 
   `get("regression", {"rate":0.1, "logs_": True}).launch()`
 
-  ... are distinct but use the exact same abstraction.
+  ... are distinct but use the same abstraction.
   
-  This works as machinable keeps track if you ran `regression` with `rate=0.1` before - no need to worry about names.
+  This means no need to worry about names as machinable automatically keeps track if you ran `rate=0.1` before.
 
   :::
 
