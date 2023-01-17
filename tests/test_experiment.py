@@ -187,21 +187,6 @@ def test_experiment_uses(tmp_storage):
         assert experiment.uses[0].hello() == "element"
 
 
-def test_experiment_interface(tmp_path):
-    with Project("tests/samples/project"):
-        # test dispatch lifecycle
-        experiment = Experiment.make("interfaces.events_check")
-
-        experiment.__model__._storage_instance = Storage.make(
-            "machinable.storage.filesystem",
-            {"directory": str(tmp_path)},
-        )
-        experiment.__model__._storage_id = str(tmp_path)
-
-        experiment.dispatch()
-        assert len(experiment.load_data("events.json")) == 6
-
-
 class ExportExperiment(Experiment):
     def on_execute(self):
         print("Hello world")

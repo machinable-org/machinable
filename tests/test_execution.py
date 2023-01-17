@@ -6,8 +6,6 @@ from machinable import Execution, Experiment, Project, Storage, errors
 
 def test_execution(tmp_storage):
     assert len(Execution().add([Experiment(), Experiment()]).experiments) == 2
-    with pytest.raises(ValueError):
-        Execution().add(None)
     execution = Execution()
     assert (
         Execution.from_model(execution.__model__).timestamp

@@ -203,10 +203,7 @@ def test_element_config():
     assert Dummy().module == "tests.test_element"
     with Project("./tests/samples/project"):
         assert Experiment.instance("dummy").module == "dummy"
-        assert (
-            Experiment.instance("interfaces.events_check").module
-            == "interfaces.events_check"
-        )
+        assert Element.instance("mixins.example").module == "mixins.example"
 
 
 def test_component_config_schema():

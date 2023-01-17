@@ -83,11 +83,6 @@ class Execution(Element):
                 self.add(_experiment)
             return self
 
-        if not isinstance(experiment, Experiment):
-            raise ValueError(
-                f"Expected experiment, but found: {type(experiment)} {experiment}"
-            )
-
         self.__related__.setdefault("experiments", ExperimentCollection())
 
         if once and self.__related__["experiments"].contains(
