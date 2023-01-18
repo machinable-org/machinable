@@ -42,11 +42,10 @@ class ExternalExperiment(Experiment):
     reason="Test requires MPI environment",
 )
 def test_mpi_execution(tmp_storage):
-    with Project.instance("docs/snippets/examples"), Execution.get(
-        "execution.mpi", {}
-    ):
+    with Project.instance("docs/snippets/examples"):
         experiment = ExternalExperiment()
-        experiment.launch()
+        with Execution.get("execution.mpi"):
+            experiment.launch()
         assert experiment.is_finished()
         assert experiment.load_data("test.txt") == "hello"
 

@@ -1,4 +1,5 @@
-import commandlib
+import subprocess
+
 from machinable import Execution
 
 
@@ -9,13 +10,16 @@ class Mpi(Execution):
 
     def on_dispatch(self):
         for experiment in self.experiments:
-            runner = commandlib.Command(self.config.runner, "-n", self.config.n)
-
-            script_filepath = self.save_data(
-                "mpi.sh", experiment.to_dispatch_code(inline=True)
-            )
-
             print(
-                f"Running experiment {experiment.experiment_id} script via MPI at {script_filepath}"
+                subprocess.check_output(
+                    [
+                        self.config.runner,
+                        "-n",
+                        str(self.config.n),
+                        self.save_file(
+                            f"mpi-{experiment.experiment_id}.sh",
+                            experiment.dispatch_code(),
+                        ),
+                    ]
+                ).decode("ascii")
             )
-            print(runner(script_filepath).output())
