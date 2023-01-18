@@ -1,9 +1,9 @@
 from typing import Any, Optional
 
-from machinable import Experiment, errors
+from machinable import Interface, errors
 
 
-class EventsCheck(Experiment):
+class EventsCheck(Interface):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.events = ["on_init"]

@@ -81,15 +81,11 @@ class Storage(Element):
         experiments: Union["Experiment", List["Experiment"]],
         execution: Optional["Execution"] = None,
     ) -> None:
-        from machinable.experiment import Experiment
+        from machinable.interface import Interface
 
-        if isinstance(experiments, Experiment):
+        if isinstance(experiments, Interface):
             experiments = [experiments]
         for experiment in experiments:
-            if not isinstance(experiment, Experiment):
-                raise ValueError(
-                    f"Expected experiment, found: {type(experiment)} {experiment}"
-                )
             if experiment.is_mounted():
                 continue
             # ensure that configuration has been parsed
@@ -133,13 +129,13 @@ class Storage(Element):
         experiments: List[Union["Experiment", schema.Experiment]],
     ) -> schema.Execution:
         from machinable.execution import Execution
-        from machinable.experiment import Experiment
+        from machinable.interface import Interface
 
         execution = Execution.model(execution)
 
         target_experiments = []
         for experiment in experiments:
-            experiment = Experiment.model(experiment)
+            experiment = Interface.model(experiment)
             if self.find_experiment(
                 experiment.experiment_id, experiment.timestamp
             ):
@@ -171,9 +167,9 @@ class Storage(Element):
         project: schema.Project,
         uses: List[Union["Element", schema.Element]],
     ) -> schema.Experiment:
-        from machinable.experiment import Experiment
+        from machinable.interface import Interface
 
-        experiment = Experiment.model(experiment)
+        experiment = Interface.model(experiment)
         group = Group.model(group)
         project = Project.model(project)
         uses = [Element.model(use) for use in uses]
@@ -200,10 +196,10 @@ class Storage(Element):
         element: Union["Element", schema.Element],
         experiment: Union["Experiment", schema.Experiment],
     ) -> schema.Element:
-        from machinable.experiment import Experiment
+        from machinable.interface import Interface
 
         element = Element.model(element)
-        experiment = Experiment.model(experiment)
+        experiment = Interface.model(experiment)
 
         target_experiment = (
             self.find_experiment(experiment.experiment_id, experiment.timestamp)
@@ -266,14 +262,14 @@ class Storage(Element):
         scope: str = "default",
         timestamp: Optional[TimestampType] = None,
     ) -> JsonableType:
-        from machinable.experiment import Experiment
+        from machinable.interface import Interface
 
         if timestamp is None:
             timestamp = arrow.now()
         if isinstance(timestamp, arrow.Arrow):
             timestamp = arrow.get(timestamp)
 
-        experiment = Experiment.model(experiment)
+        experiment = Interface.model(experiment)
 
         if experiment._storage_id is None:
             raise ValueError(
@@ -380,9 +376,9 @@ class Storage(Element):
         experiment: Union["Experiment", schema.Experiment],
         scope: str = "default",
     ) -> List[JsonableType]:
-        from machinable.experiment import Experiment
+        from machinable.interface import Interface
 
-        experiment = Experiment.model(experiment)
+        experiment = Interface.model(experiment)
 
         return self._retrieve_records(experiment._storage_id, scope)
 
@@ -403,9 +399,9 @@ class Storage(Element):
     def retrieve_output(
         self, experiment: Union["Experiment", schema.Experiment]
     ) -> Optional[str]:
-        from machinable.experiment import Experiment
+        from machinable.interface import Interface
 
-        experiment = Experiment.model(experiment)
+        experiment = Interface.model(experiment)
         return self._retrieve_output(experiment._storage_id)
 
     def _retrieve_output(self, experiment_storage_id: str) -> str:
@@ -435,9 +431,9 @@ class Storage(Element):
         experiment: Union["Experiment", schema.Experiment],
         timestamp: Optional[TimestampType] = None,
     ) -> DatetimeType:
-        from machinable.experiment import Experiment
+        from machinable.interface import Interface
 
-        experiment = Experiment.model(experiment)
+        experiment = Interface.model(experiment)
         if timestamp is None:
             timestamp = arrow.now()
         if isinstance(timestamp, arrow.Arrow):
@@ -457,9 +453,9 @@ class Storage(Element):
         timestamp: Union[float, int, DatetimeType, None] = None,
         mark_finished=False,
     ) -> DatetimeType:
-        from machinable.experiment import Experiment
+        from machinable.interface import Interface
 
-        experiment = Experiment.model(experiment)
+        experiment = Interface.model(experiment)
         if timestamp is None:
             timestamp = arrow.now()
         if isinstance(timestamp, arrow.Arrow):
@@ -478,9 +474,9 @@ class Storage(Element):
     def retrieve_status(
         self, experiment: Union["Experiment", schema.Experiment], field: str
     ) -> Optional[DatetimeType]:
-        from machinable.experiment import Experiment
+        from machinable.interface import Interface
 
-        experiment = Experiment.model(experiment)
+        experiment = Interface.model(experiment)
         fields = ["started", "heartbeat", "finished"]
         if field not in fields:
             raise ValueError(f"Invalid field: {field}. Must be on of {fields}")
