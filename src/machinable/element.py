@@ -266,16 +266,19 @@ def transfer_to(src: "Element", destination: "Element") -> "Element":
 
 
 def resolve_custom_predicate(predicate: str, element: "Element"):
-    custom_predicate = element.on_compute_predicate()
-    if custom_predicate:
+    from machinable.project import Project
+
+    custom = element.on_compute_predicate() or {}
+    if isinstance(element, Project):
+        custom.update(element.global_predicate() or {})
+    else:
+        custom.update(Project.get().provider().global_predicate() or {})
+
+    if custom:
         predicate = predicate.replace(
             "*",
             ",".join(
-                [
-                    k.replace("*", "")
-                    for k in custom_predicate.keys()
-                    if k.endswith("*")
-                ]
+                [k.replace("*", "") for k in custom.keys() if k.endswith("*")]
             ),
         )
     return [
@@ -772,12 +775,11 @@ class Element(Mixin, Jsonable):
     def compute_predicate(self) -> Dict:
         from machinable.project import Project
 
-        local_predicate = self.on_compute_predicate() or {}
-
+        custom = self.on_compute_predicate() or {}
         if isinstance(self, Project):
-            project_predicate = self.global_predicate()
+            custom.update(self.global_predicate() or {})
         else:
-            project_predicate = Project.get().provider().global_predicate()
+            custom.update(Project.get().provider().global_predicate() or {})
 
         config = copy.deepcopy(OmegaConf.to_container(self.config))
         raw = config.pop("_raw_")
@@ -791,8 +793,7 @@ class Element(Mixin, Jsonable):
             "config_": config,
             "version": idversion(version),
             "version_": version,
-            **project_predicate,
-            **{k.replace("*", ""): v for k, v in local_predicate.items()},
+            **{k.replace("*", ""): v for k, v in custom.items()},
         }
 
     def on_instantiate(self) -> None:
