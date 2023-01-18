@@ -116,7 +116,8 @@ def test_experiment_launch(tmp_storage):
     with a:
         assert experiment.launch == a
         with b:
-            assert experiment.launch == b
+            assert experiment.launch == a
+            assert Experiment().launch == b
 
     # no double execution
     experiment = Experiment()
@@ -126,6 +127,9 @@ def test_experiment_launch(tmp_storage):
         experiment.launch()
         experiment.launch()
     assert len(execution.experiments) == 1
+
+    experiment = Experiment()
+    assert experiment.launch == experiment.launch
 
 
 def test_experiment_relations(tmp_storage):

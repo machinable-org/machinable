@@ -102,12 +102,7 @@ class Experiment(Element):  # pylint: disable=too-many-public-methods
         # cache lookup
         launch = self.__related__.get("launch", None)
         if launch is not None:
-            if self.is_mounted():
-                return launch
-            else:
-                # check if cached launch is still applicable
-                if launch == Execution.get():
-                    return launch
+            return launch
 
         # context lookup
         related = None
