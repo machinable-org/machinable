@@ -1,13 +1,16 @@
-from machinable import Project, errors, get
+import machinable as ml
+from machinable import errors
 
 
 def test_end_to_end_execution(tmp_path):
-    with get("machinable.storage.filesystem", {"directory": str(tmp_path)}):
-        with Project("./tests/samples/project"):
+    with ml.Storage.make(
+        "machinable.storage.filesystem", {"directory": str(tmp_path)}
+    ):
+        with ml.Project("./tests/samples/project"):
 
-            experiment = get("interfaces.interrupted_lifecycle").group_as(
-                "a/b/c"
-            )
+            experiment = ml.Experiment.make(
+                "interfaces.interrupted_lifecycle"
+            ).group_as("a/b/c")
             try:
                 experiment.launch()
             except errors.ExecutionFailed:

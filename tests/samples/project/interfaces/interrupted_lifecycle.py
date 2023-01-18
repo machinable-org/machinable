@@ -1,7 +1,7 @@
-from machinable import Interface
+from machinable import Experiment
 
 
-class InterruptedLifecycle(Interface):
+class InterruptedLifecycle(Experiment):
     def on_create(self):
         self.state = self.load_data("state.json", {"steps": 0})
 

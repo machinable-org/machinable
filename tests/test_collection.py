@@ -4,8 +4,9 @@
 
 from unittest import TestCase
 
-from machinable import Experiment, Project, Storage
 from machinable.collection import Collection, ExperimentCollection, collect
+from machinable.experiment import Experiment, Project
+from machinable.storage import Storage
 
 
 def test_collect():

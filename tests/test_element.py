@@ -68,14 +68,12 @@ def test_element_lineage():
         experiment = Experiment.instance("basic")
         assert experiment.lineage == (
             "machinable.experiment",
-            "machinable.interface",
             "machinable.element",
         )
         experiment = Experiment.instance("line")
         assert experiment.lineage == (
             "dummy",
             "machinable.experiment",
-            "machinable.interface",
             "machinable.element",
         )
 
@@ -203,7 +201,10 @@ def test_element_config():
     assert Dummy().module == "tests.test_element"
     with Project("./tests/samples/project"):
         assert Experiment.instance("dummy").module == "dummy"
-        assert Element.instance("mixins.example").module == "mixins.example"
+        assert (
+            Experiment.instance("interfaces.events_check").module
+            == "interfaces.events_check"
+        )
 
 
 def test_component_config_schema():

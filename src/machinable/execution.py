@@ -14,7 +14,6 @@ from machinable.element import (
 )
 from machinable.errors import ExecutionFailed
 from machinable.experiment import Experiment
-from machinable.interface import Interface
 from machinable.project import Project
 from machinable.schedule import Schedule
 from machinable.settings import get_settings
@@ -75,13 +74,18 @@ class Execution(Element):
 
     def add(
         self,
-        executable: Union[Interface, List[Interface]],
+        executable: Union[Experiment, List[Experiment]],
         once: bool = False,
     ) -> "Execution":
         if isinstance(executable, (list, tuple)):
             for _executable in executable:
                 self.add(_executable)
             return self
+
+        if not isinstance(executable, Experiment):
+            raise ValueError(
+                f"Expected experiment, but found: {type(executable)} {executable}"
+            )
 
         self.__related__.setdefault("experiments", ExperimentCollection())
 
