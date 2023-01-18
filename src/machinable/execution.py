@@ -14,6 +14,7 @@ from machinable.element import (
 )
 from machinable.errors import ExecutionFailed
 from machinable.experiment import Experiment
+from machinable.interface import Interface
 from machinable.project import Project
 from machinable.schedule import Schedule
 from machinable.settings import get_settings
@@ -68,30 +69,29 @@ class Execution(Element):
     def experiments() -> ExperimentCollection:
         return Experiment, ExperimentCollection
 
+    @property
+    def executables(self) -> "Collection":
+        return self.experiments
+
     def add(
         self,
-        experiment: Union[Experiment, List[Experiment]],
+        executable: Union[Interface, List[Interface]],
         once: bool = False,
     ) -> "Execution":
-        """Adds an experiment to the execution
-
-        # Arguments
-        experiment: Experiment or list of Experiments
-        """
-        if isinstance(experiment, (list, tuple)):
-            for _experiment in experiment:
-                self.add(_experiment)
+        if isinstance(executable, (list, tuple)):
+            for _executable in executable:
+                self.add(_executable)
             return self
 
         self.__related__.setdefault("experiments", ExperimentCollection())
 
         if once and self.__related__["experiments"].contains(
-            lambda x: x == experiment
+            lambda x: x == executable
         ):
             # already added
             return self
 
-        self.__related__["experiments"].append(experiment)
+        self.__related__["experiments"].append(executable)
 
         return self
 
@@ -235,6 +235,9 @@ class Execution(Element):
     @property
     def nickname(self) -> str:
         return self.__model__.nickname
+
+    def __iter__(self):
+        yield from self.executables
 
     def __exit__(self, *args, **kwargs):
         if self.schedule is not None:

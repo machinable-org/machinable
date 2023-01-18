@@ -3,49 +3,46 @@ from machinable import Execution
 
 
 class Slurm(Execution):
-    def on_dispatch_experiment(self, experiment):
+    def on_dispatch(self):
         runner = commandlib.Command("sbatch")
-
         script = "#!/usr/bin/env bash"
+        for experiment in self.experiments:
+            resources = experiment.resources()
+            if "--job-name" not in resources:
+                resources["--job-name"] = f"{experiment.experiment_id}"
+            if "--output" not in resources:
+                resources["--output"] = experiment.local_directory("output.log")
+            if "--open-mode" not in resources:
+                resources["--open-mode"] = "append"
 
-        resources = experiment.resources()
-        if "--job-name" not in resources:
-            resources["--job-name"] = f"{experiment.experiment_id}"
-        if "--output" not in resources:
-            resources["--output"] = experiment.local_directory("output.log")
-        if "--open-mode" not in resources:
-            resources["--open-mode"] = "append"
+            sbatch_arguments = []
+            for k, v in resources.items():
+                line = "#SBATCH " + k
+                if v not in [None, True]:
+                    line += f"={v}"
+                sbatch_arguments.append(line)
+            script += "\n".join(sbatch_arguments) + "\n"
 
-        sbatch_arguments = []
-        for k, v in resources.items():
-            line = "#SBATCH " + k
-            if v not in [None, True]:
-                line += f"={v}"
-            sbatch_arguments.append(line)
-        script += "\n".join(sbatch_arguments) + "\n"
+            script += experiment.dispatch_code()
 
-        script += experiment.to_dispatch_code(inline=True)
+            # submit to slurm
 
-        # submit to slurm
+            output = runner.piped.from_string(script).output().strip()
+            try:
+                job_id = int(output.rsplit(" ", maxsplit=1)[-1])
+            except ValueError:
+                job_id = False
+            print(f"{output} for experiment {experiment.experiment_id}")
 
-        output = runner.piped.from_string(script).output().strip()
-        try:
-            job_id = int(output.rsplit(" ", maxsplit=1)[-1])
-        except ValueError:
-            job_id = False
-        print(f"{output} for experiment {experiment.experiment_id}")
-
-        # save job information
-        self.save_data(
-            filepath="slurm.json",
-            data={
-                "job_id": job_id,
-                "cmd": sbatch_arguments,
-                "script": script,
-            },
-        )
-
-        return job_id
+            # save job information
+            self.save_data(
+                filepath="slurm.json",
+                data={
+                    "job_id": job_id,
+                    "cmd": sbatch_arguments,
+                    "script": script,
+                },
+            )
 
     def canonicalize_resources(self, resources):
         if resources is None:
