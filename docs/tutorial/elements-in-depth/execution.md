@@ -6,7 +6,7 @@ This section is currently under construction
 
 :::
 
-For instance, execution using a queue system like [Slurm](https://slurm.schedmd.com/documentation.html) may be as simple as:
+Using a queue system like [Slurm](https://slurm.schedmd.com/documentation.html) may be as simple as:
 
 ```python
 with get('myproject.execution.slurm'):
@@ -19,3 +19,5 @@ Delegating the execution to an external runner like [MPI](https://www.open-mpi.o
 with get('myproject.execution.mpi', {'n': 4}):
     experiment.launch()
 ```
+
+## Resources

@@ -80,7 +80,7 @@ Notably, the `Config` dataclass allows for many advanced features such as valida
 To instantiate the experiment with different parameters, you can pass a dictionary as argument to <Pydoc>machinable.get</Pydoc>, for example:
 
 ```python
->>> from machinable import Experiment
+>>> from machinable import get
 >>> gravity = get('estimate_gravity')
 >>> gravity.config.time_dilation
 1.0

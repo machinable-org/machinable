@@ -6,6 +6,4 @@ This section is currently under construction
 
 :::
 
-## Resources
-
 ## Derivation

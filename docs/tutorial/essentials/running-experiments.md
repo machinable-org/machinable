@@ -31,7 +31,7 @@ By design, experiment instances can only be executed once. They are automaticall
 1632827863
 ```
 
-Invocations of `launch()` after successful execution, do not trigger another execution since the experiment is already finished. On the other hand, if the execution failed, calling `launch()` will resume the execution with the same random seed.
+Invocations of `launch()` after successful execution, do not trigger another execution since the experiment is already finished. On the other hand, if the execution failed, calling `launch()` will resume the execution with the same configuration.
 
 To replicate or reproduce an experiment, create a new experiment instance with the same configuration. Learn more about [continuing and repeating experiments](../elements-in-depth/experiments.md#derivation).
 

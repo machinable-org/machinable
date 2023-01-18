@@ -195,10 +195,6 @@ class Project(Element):
             else:
                 sys.path.append(self.__model__.directory)
 
-    def __enter__(self) -> "Project":
-        self.add_to_path()
-        return super().__enter__()
-
     def name(self) -> str:
         return self.__model__.name
 
