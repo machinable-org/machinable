@@ -10,7 +10,7 @@ print(
 )
 
 print(
-    f"Experiment <{experiment.launch.nickname}> "
+    f"Experiment <{experiment.execution.nickname}> "
     f"(finished {experiment.finished_at().humanize()}) "
     f"is stored at <{experiment.local_directory()}>"
 )

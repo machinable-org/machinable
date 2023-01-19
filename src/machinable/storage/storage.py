@@ -137,20 +137,13 @@ class Storage(Element):
 
         execution = Execution.model(execution)
 
-        target_experiments = []
-        for experiment in experiments:
-            experiment = Experiment.model(experiment)
-            if self.find_experiment(
-                experiment.experiment_id, experiment.timestamp
-            ):
-                target_experiments.append(experiment)
-
         storage_id = self._create_execution(
-            execution=execution, experiments=target_experiments
+            execution=execution,
+            experiments=[
+                Experiment.model(experiment) for experiment in experiments
+            ],
         )
         assert storage_id is not None
-
-        # todo: write deferred
 
         execution._storage_id = storage_id
         execution._storage_instance = self
@@ -522,7 +515,7 @@ class Storage(Element):
         self, storage_id: str, relation: str
     ) -> Optional[schema.Element]:
         relations = {
-            "experiment.launch": "execution",
+            "experiment.execution": "execution",
             "experiment.executions": "executions",
             "execution.experiments": "experiments",
             "execution.schedule": "schedule",

@@ -22,12 +22,12 @@ def test_end_to_end_execution(tmp_path):
 
             # resume
             try:
-                experiment.launch.dispatch()
+                experiment.launch()
             except errors.ExecutionFailed:
                 pass
             assert len(experiment.records()) == 7
 
-            experiment.launch.dispatch()
+            experiment.launch()
             assert len(experiment.records()) == 10
             assert experiment.is_finished()
 

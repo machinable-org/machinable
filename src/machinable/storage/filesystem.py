@@ -174,7 +174,7 @@ class Filesystem(Storage):
                 WHERE experiment_id=? AND timestamp=?""",
                 (execution_id, experiment.experiment_id, experiment.timestamp),
             )
-        self._db.commit()
+            self._db.commit()
 
         return execution_directory
 
@@ -549,7 +549,7 @@ class Filesystem(Storage):
         if not self.is_migrated():
             return None
         self.migrate()
-        if relation == "experiment.launch":
+        if relation == "experiment.execution":
             cur = self._db.cursor()
             row = cur.execute(
                 """SELECT executions.storage_id FROM executions

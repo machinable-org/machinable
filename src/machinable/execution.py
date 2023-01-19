@@ -48,18 +48,6 @@ class Execution(Element):
                 schedule = Schedule.get(*extract(schedule))
             self.__related__["schedule"] = schedule
 
-    @classmethod
-    def instance(
-        cls,
-        module: Optional[str] = None,
-        version: VersionType = None,
-        resources: Optional[Dict] = None,
-    ) -> "Execution":
-        module, version = defaultversion(module, version, cls)
-        return super().make(
-            module, version, resources=resources, base_class=Execution
-        )
-
     @has_one
     def schedule() -> "Schedule":
         return Schedule
@@ -100,7 +88,12 @@ class Execution(Element):
         return self
 
     def commit(self) -> "Execution":
-        Storage.get().commit(experiments=self.experiments, execution=self)
+        self.on_before_commit()
+
+        # trigger configuration validation for early failure
+        self.executables.each(lambda x: x.config)
+
+        Storage.get().commit(self.executables, self)
 
         return self
 
@@ -115,11 +108,11 @@ class Execution(Element):
     def canonicalize_resources(self, resources: Dict) -> Dict:
         return resources
 
-    def default_resources(self, experiment: "Experiment") -> Optional[dict]:
+    def default_resources(self, executable: "Experiment") -> Optional[dict]:
         """Default resources"""
 
-    def compute_resources(self, experiment: "Experiment") -> Dict:
-        default_resources = self.default_resources(experiment)
+    def compute_resources(self, executable: "Experiment") -> Dict:
+        default_resources = self.default_resources(executable)
 
         if not self.__model__.resources and default_resources is not None:
             return self.canonicalize_resources(default_resources)
@@ -156,41 +149,31 @@ class Execution(Element):
         return {}
 
     def __call__(self) -> None:
-        if not self.experiments:
+        if not self.executables:
             return
 
-        if Execution.is_connected() and self.schedule is not None:
-            # leave execution to connected scheduler
-            return
-
-        if all(self.experiments.map(lambda x: x.is_finished())):
+        if all(self.executables.map(lambda x: x.is_finished())):
             return
 
         self.dispatch()
 
     def dispatch(self) -> "Execution":
-        if not self.experiments:
+        if not self.executables:
             return self
 
         if self.on_before_dispatch() is False:
-            return self
-
-        # trigger configuration validation for early failure
-        self.experiments.each(lambda x: x.config)
-
-        if self.on_before_commit() is False:
             return self
 
         self.commit()
 
         try:
             # compute resources
-            for experiment in self.experiments.filter(
+            for executable in self.executables.filter(
                 lambda e: not e.is_finished()
             ):
                 self.save_file(
-                    f"resources-{experiment.experiment_id}.json",
-                    self.compute_resources(experiment),
+                    f"resources-{executable.experiment_id}.json",
+                    self.compute_resources(executable),
                 )
             self.on_dispatch()
             self.on_after_dispatch()
@@ -204,25 +187,22 @@ class Execution(Element):
 
         Return False to prevent the dispatch
         """
-        # forward into experiment on_before_dispatch
-        for experiment in self.experiments:
-            experiment.on_before_dispatch()
+        # forward into on_before_dispatch
+        for executable in self.executables:
+            executable.on_before_dispatch()
 
     def on_before_commit(self) -> Optional[bool]:
-        """Event triggered before commit of an execution
-
-        Return False to prevent the commit
-        """
-        # forward into experiment on_before_commit
-        for experiment in self.experiments:
-            experiment.on_before_commit()
+        """Event triggered before commit of an execution"""
+        # forward into on_before_commit
+        for executable in self.executables:
+            executable.on_before_commit()
 
     def on_after_dispatch(self) -> None:
         """Event triggered after the dispatch of an execution"""
 
     def on_dispatch(self):
-        for experiment in self.experiments:
-            experiment()
+        for executable in self.executables:
+            executable()
 
     @property
     def timestamp(self) -> float:
@@ -244,8 +224,7 @@ class Execution(Element):
         yield from self.executables
 
     def __exit__(self, *args, **kwargs):
-        if self.schedule is not None:
-            self.dispatch()
+        self()
 
         super().__exit__()
 

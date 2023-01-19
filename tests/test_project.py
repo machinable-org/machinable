@@ -31,7 +31,7 @@ def test_project_events(tmp_storage):
 
     experiment = Experiment.instance("dummy")
     experiment.launch()
-    info = experiment.launch.env_info
+    info = experiment.execution.env_info
     assert info["dummy"] == "data"
 
     project.__exit__()

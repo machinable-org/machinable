@@ -95,33 +95,26 @@ class Experiment(Element):  # pylint: disable=too-many-public-methods
 
         return Execution, ExecutionCollection
 
-    @property
-    def launch(self) -> "Execution":
+    @belongs_to
+    def execution() -> "Execution":
         from machinable.execution import Execution
 
-        # cache lookup
-        launch = self.__related__.get("launch", None)
-        if launch is not None:
-            return launch
+        return Execution, False
 
-        # context lookup
-        related = None
-        if self.is_mounted():
-            related = self.__model__._storage_instance.retrieve_related(
-                self.__model__._storage_id,
-                "experiment.launch",
-            )
+    def launch(self) -> "Experiment":
+        from machinable.execution import Execution
 
-        # write to cache
-        if related is not None:
-            self.__related__["launch"] = Execution.from_model(related)
+        execution = Execution.get()
+
+        execution.add(self)
+
+        if Execution.is_connected():
+            # commit only, defer execution
+            self.commit()
         else:
-            self.__related__["launch"] = Execution.get()
+            execution()
 
-        # add experiment (this happens once since launch will be cached)
-        self.__related__["launch"].add(self)
-
-        return self.__related__["launch"]
+        return self
 
     @has_many
     def uses() -> "ElementCollection":
@@ -213,6 +206,8 @@ class Experiment(Element):  # pylint: disable=too-many-public-methods
         return self.__model__.version
 
     def commit(self) -> "Experiment":
+        self.on_before_commit()
+
         Storage.get().commit(self)
 
         return self
@@ -223,7 +218,9 @@ class Experiment(Element):  # pylint: disable=too-many-public-methods
 
     @property
     def resources(self) -> Optional[Dict]:
-        return self.launch.load_file(
+        if self.execution is None:
+            return None
+        return self.execution.load_file(
             f"resources-{self.experiment_id}.json", None
         )
 
@@ -377,9 +374,11 @@ class Experiment(Element):  # pylint: disable=too-many-public-methods
                 self.mark_started()
                 self._events.on("heartbeat", self.update_heartbeat)
                 self._events.heartbeats(seconds=15)
-                self.launch.save_file(
-                    "env.json", data=Project.get().provider().get_host_info()
-                )
+                if self.execution:
+                    self.execution.save_file(
+                        "env.json",
+                        data=Project.get().provider().get_host_info(),
+                    )
 
             # create
             self.on_before_create()

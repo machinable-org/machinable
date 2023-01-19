@@ -103,33 +103,21 @@ def test_experiment_launch(tmp_storage):
     assert experiment.is_mounted()
     assert experiment.is_finished()
 
-    # cache and context
-    assert experiment.launch == experiment.launch
-
-    a = Execution()
-    b = Execution()
-    with a:
-        # ignores context, since already mounted
-        assert experiment.launch != a
-
+    # multiples
     experiment = Experiment()
-    with a:
-        assert experiment.launch == a
-        with b:
-            assert experiment.launch == a
-            assert Experiment().launch == b
-
-    # no double execution
-    experiment = Experiment()
-
     with Execution() as execution:
         experiment.launch()
         experiment.launch()
         experiment.launch()
-    assert len(execution.experiments) == 1
+    assert len(execution.experiments) == 3
 
-    experiment = Experiment()
-    assert experiment.launch == experiment.launch
+    with Execution():
+        e1 = Experiment().launch()
+        assert not e1.is_started()
+        e2 = Experiment().launch()
+        assert not e2.is_started()
+    assert e1.is_finished()
+    assert e2.is_finished()
 
 
 def test_experiment_relations(tmp_storage):
@@ -140,7 +128,7 @@ def test_experiment_relations(tmp_storage):
         execution.dispatch()
 
         assert experiment.project.name() == "test-project"
-        assert experiment.launch.timestamp == execution.timestamp
+        assert experiment.execution.timestamp == execution.timestamp
         assert experiment.executions[0].timestamp == execution.timestamp
         assert len(experiment.uses) == 0
 

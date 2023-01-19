@@ -10,7 +10,7 @@ def test_schedule(tmp_storage):
         with Execution(schedule=schedule) as execution:
             deferred = Experiment()
             deferred.launch()
-            assert not deferred.is_mounted()  # did not yet execute
+            assert not deferred.is_started()  # did not yet execute
             Experiment().launch()
             assert not deferred.is_started()
         assert deferred.is_finished()

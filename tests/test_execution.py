@@ -65,12 +65,13 @@ def test_execution_context(tmp_storage):
     with Execution(schedule=None) as execution:
         e1 = Experiment()
         e1.launch()
-        assert e1.is_finished()
+        assert not e1.is_finished()
         e2 = Experiment()
         e2.launch()
-        assert len(e2.launch.experiments) == 2
-        assert e1.launch.nickname == e2.launch.nickname
-        assert e2.is_finished()
+        assert len(execution.experiments) == 2
+        assert not e2.is_finished()
+    assert e1.is_finished()
+    assert e2.is_finished()
 
     with Execution():
         e1 = Experiment()
@@ -81,7 +82,7 @@ def test_execution_context(tmp_storage):
         assert not e2.is_finished()
     assert e1.is_finished()
     assert e2.is_finished()
-    assert e1.launch.nickname == e2.launch.nickname
+    assert e1.execution.nickname == e2.execution.nickname
 
 
 def test_execution_resources():
@@ -112,19 +113,20 @@ def test_execution_resources():
 
     # interface
     r = {"test": 1, "a": True}
-    with Execution(resources={}, schedule=None) as execution:
+    with Execution(resources={}) as execution:
         experiment = Experiment()
         assert experiment.resources is None
-        experiment.launch.resources(r)
+        execution.resources(r)
         experiment.launch()
-        assert experiment.resources == r
+    assert experiment.resources == r
 
+    with Execution(resources={}) as execution:
         # experiment is already finished so updating resources has no effect
-        experiment.launch.resources({"a": 2})
+        execution.resources({"a": 2})
         experiment.launch()
         assert experiment.resources["a"] is True
 
         e2 = Experiment()
-        e2.launch.resources({"a": 3})
+        execution.resources({"a": 3})
         e2.launch()
-        e2.resources["a"] = 3
+    assert e2.resources["a"] == 3

@@ -412,7 +412,7 @@ def test_element_relations(tmp_storage):
         assert experiment.experiment_id == experiment_clone.experiment_id
 
         # experiment <-> execution
-        assert int(execution.timestamp) == int(experiment.launch.timestamp)
+        assert int(execution.timestamp) == int(experiment.execution.timestamp)
         assert (
             experiment.experiment_id == execution.experiments[0].experiment_id
         )
@@ -425,7 +425,7 @@ def test_element_relations(tmp_storage):
         experiment.__related__ = {}
         execution.__related__ = {}
         # experiment <-> execution
-        assert int(execution.timestamp) == int(experiment.launch.timestamp)
+        assert int(execution.timestamp) == int(experiment.execution.timestamp)
         assert (
             experiment.experiment_id == execution.experiments[0].experiment_id
         )
@@ -438,7 +438,7 @@ def test_element_relations(tmp_storage):
         execution.dispatch()
         experiment.__related__ = {}
         execution.__related__ = {}
-        experiment.launch == execution
+        experiment.execution == execution
         experiment.__related__ = {}
         execution.__related__ = {}
         execution.experiments[0] == experiment
