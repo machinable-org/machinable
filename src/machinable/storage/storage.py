@@ -410,7 +410,6 @@ class Storage(Element):
         *append: str,
         create: bool = False,
     ) -> Optional[str]:
-
         element = Element.model(element)
 
         local_directory = self._local_directory(element._storage_id, *append)

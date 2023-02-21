@@ -7,7 +7,6 @@ def test_end_to_end_execution(tmp_path):
         "machinable.storage.filesystem", {"directory": str(tmp_path)}
     ):
         with ml.Project("./tests/samples/project"):
-
             experiment = ml.Experiment.make(
                 "interfaces.interrupted_lifecycle"
             ).group_as("a/b/c")

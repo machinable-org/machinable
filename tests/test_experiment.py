@@ -122,7 +122,6 @@ def test_experiment_launch(tmp_storage):
 
 def test_experiment_relations(tmp_storage):
     with Project("./tests/samples/project", name="test-project"):
-
         experiment = Experiment.instance("basic").group_as("test/group")
         execution = Execution().add(experiment)
         execution.dispatch()
