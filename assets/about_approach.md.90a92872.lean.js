@@ -1,1 +1,0 @@
-import{_ as a,o as t,c as e,a as o}from"./app.e791984c.js";const m=JSON.parse(`{"title":"About machinable's approach","description":"","frontmatter":{},"headers":[],"relativePath":"about/approach.md"}`),s={name:"about/approach.md"},c=o("",3),r=[c];function i(n,p,l,d,h,u){return t(),e("div",null,r)}const b=a(s,[["render",i]]);export{m as __pageData,b as default};
