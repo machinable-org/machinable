@@ -492,7 +492,8 @@ class Experiment(Element):  # pylint: disable=too-many-public-methods
     def on_after_dispatch(self):
         """Lifecycle event triggered at the end of the dispatch.
 
-        This is triggered independent of whether the execution has been successful or not."""
+        This is triggered independent of whether the execution has been successful or not.
+        """
 
     # exports
 

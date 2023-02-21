@@ -403,7 +403,6 @@ class CustomExecution(Execution):
 
 def test_element_relations(tmp_storage):
     with Project("./tests/samples/project"):
-
         experiment = Experiment().group_as("test/group")
         execution = Execution().add(experiment)
         execution.dispatch()
