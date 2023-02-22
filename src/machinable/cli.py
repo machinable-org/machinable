@@ -1,7 +1,11 @@
-from typing import Dict
+from typing import TYPE_CHECKING, Dict, List, Optional, Tuple
 
-import argparse
 import sys
+
+from omegaconf import OmegaConf
+
+if TYPE_CHECKING:
+    from machinable.types import ElementType
 
 
 def cli() -> Dict:
@@ -10,47 +14,82 @@ def cli() -> Dict:
     return OmegaConf.to_container(OmegaConf.from_cli())
 
 
-class Cli:
-    def __init__(self, argv=None):
-        if argv is None:
-            argv = sys.argv
-        self.argv = argv
-        parser = argparse.ArgumentParser(
-            description="machinable",
-            usage="""machinable <command> [<args>]
+def parse(args: List) -> Tuple[List["ElementType"], str]:
+    elements = []
+    method = None
+    dotlist = []
+    version = None
+    for arg in args:
+        if "=" in arg:
+            # dotlist
+            if not isinstance(version, list):
+                raise ValueError(f"Update {arg} has to follow a module.")
+            dotlist.append(arg)
+        elif arg.startswith("~"):
+            # version
+            if not isinstance(version, list):
+                raise ValueError(f"Version {arg} has to follow a module.")
+            if len(dotlist) > 0:
+                # parse preceding dotlist
+                version.append(
+                    OmegaConf.to_container(OmegaConf.from_dotlist(dotlist))
+                )
+                dotlist = []
+            version.append(arg)
+        elif arg.startswith("--"):
+            # method
+            method = arg[2:]
+        else:
+            # module
+            if isinstance(version, list):
+                # parse prior version
+                if len(dotlist) > 0:
+                    version.append(
+                        OmegaConf.to_container(OmegaConf.from_dotlist(dotlist))
+                    )
+                    dotlist = []
+                elements[-1].extend(version)
 
-                version    Displays the machinable version
-                vendor     Manage vendor dependencies
-            """,
-        )
-        parser.add_argument("command", help="Command to run")
-        args = parser.parse_args(self.argv[1:2])
+            version = []
+            elements.append([arg])
 
-        if not hasattr(self, args.command):
-            print("Unrecognized command")
-            parser.print_help()
-            exit(1)
-        getattr(self, args.command)()
+    if isinstance(version, list):
+        # parse prior version
+        if len(dotlist) > 0:
+            version.append(
+                OmegaConf.to_container(OmegaConf.from_dotlist(dotlist))
+            )
+            dotlist = []
+        elements[-1].extend(version)
 
-    def version(self):
-        from machinable import get_version as get_machinable_version
-
-        print(get_machinable_version())
-
-    def vendor(self):
-        parser = argparse.ArgumentParser(
-            description="Manage vendor dependencies"
-        )
-
-        parser.add_argument("--project", default="")
-        args = parser.parse_args(self.argv[2:])
-
-        from machinable.project import Project, fetch_vendors
-
-        project = Project(args.project if args.project != "" else None)
-        fetch_vendors(project)
-        print("Dependencies have been successfully fetched")
+    return elements, method
 
 
-if __name__ == "__main__":
-    Cli()
+def main(args: Optional[List] = None):
+    import machinable
+
+    if args is None:
+        args = sys.argv[1:]
+    elements, method = parse(args)
+
+    if len(elements) == 0:
+        if method == "version":
+            version = machinable.get_version()
+            print(version)
+            return version
+
+        return None
+
+    experiment = None
+    for module, *version in elements:
+        element = machinable.get(module, version)
+        element.__enter__()
+        if isinstance(element, machinable.Experiment):
+            experiment = element
+
+    if experiment is None:
+        raise ValueError("You have to provide an experiment")
+
+    target = getattr(experiment, method)
+
+    return target()
