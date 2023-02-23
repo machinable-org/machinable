@@ -90,6 +90,10 @@ def main(args: Optional[List] = None):
     if experiment is None:
         raise ValueError("You have to provide an experiment")
 
+    if method is None:
+        print(experiment)
+        return
+
     target = getattr(experiment, method)
 
     return target()

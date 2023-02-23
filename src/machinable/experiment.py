@@ -402,12 +402,11 @@ class Experiment(Element):  # pylint: disable=too-many-public-methods
 
             self.on_after_destroy()
 
-            self.on_after_dispatch()
+            self.on_after_dispatch(success=True)
         except BaseException as _ex:  # pylint: disable=broad-except
             self.on_failure(exception=_ex)
             self.on_finish(success=False)
-
-            self.on_after_dispatch()
+            self.on_after_dispatch(success=False)
 
             raise errors.ExecutionFailed(
                 f"{self.__class__.__name__} dispatch failed"
@@ -472,15 +471,10 @@ class Experiment(Element):  # pylint: disable=too-many-public-methods
 
         # Arguments
         success: Whether the execution finished sucessfully
-        result: Return value of on_execute event
         """
 
     def on_success(self):
-        """Lifecycle event triggered iff execution finishes successfully
-
-        # Arguments
-        result: Return value of on_execute event
-        """
+        """Lifecycle event triggered iff execution finishes successfully"""
 
     def on_failure(self, exception: errors.MachinableError):
         """Lifecycle event triggered iff the execution finished with an exception
@@ -489,10 +483,13 @@ class Experiment(Element):  # pylint: disable=too-many-public-methods
         exception: Execution exception
         """
 
-    def on_after_dispatch(self):
+    def on_after_dispatch(self, success: bool):
         """Lifecycle event triggered at the end of the dispatch.
 
         This is triggered independent of whether the execution has been successful or not.
+
+        # Arguments
+        success: Whether the execution finished sucessfully
         """
 
     # exports
