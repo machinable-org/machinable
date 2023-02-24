@@ -17,6 +17,9 @@ def test_cli_main(capfd, tmp_storage):
         main(["hello", "name=Test", "--launch"])
         out, err = capfd.readouterr()
         assert out == "Hello Test!\n"
+        main(["hello", "name=Twice", "--launch", "--on_execute"])
+        out, err = capfd.readouterr()
+        assert out == "Hello Twice!\nHello Twice!\n"
 
     assert main([]) == 0
     assert main(["--help"]) == 0
@@ -29,7 +32,7 @@ def test_cli_from_cli():
     assert from_cli(["test", "me"]) == ["test", "me"]
 
 
-def test_cli_parse():
+def test_cli_to_cli():
     assert Experiment().to_cli() == "machinable.experiment"
     assert (
         Experiment(["~test", {"a": {"b": 1}}, "~foo"]).to_cli()

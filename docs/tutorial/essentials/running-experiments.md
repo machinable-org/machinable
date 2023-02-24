@@ -75,6 +75,6 @@ machinable estimate_gravity time_dilation=1.5 --launch
 To use multiprocessing, you can type:
 ```bash
 machinable estimate_gravity time_dilation=1.5 \
-   multiprocess_execution processes=4 --launch
+  multiprocess_execution processes=4 --launch
 ```
 To learn more refer to the [CLI guide](../extra-topics/cli.md).

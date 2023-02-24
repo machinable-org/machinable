@@ -10,7 +10,7 @@ if TYPE_CHECKING:
 
 
 def parse(args: List) -> Tuple[List["ElementType"], str]:
-    method = None
+    methods = []
     elements = []
     dotlist = []
     version = []
@@ -42,7 +42,7 @@ def parse(args: List) -> Tuple[List["ElementType"], str]:
             version.append(arg)
         elif arg.startswith("--"):
             # method
-            method = arg[2:]
+            methods.append(arg[2:])
         else:
             # module
             _push(elements, dotlist, version)
@@ -52,7 +52,7 @@ def parse(args: List) -> Tuple[List["ElementType"], str]:
 
     _push(elements, dotlist, version)
 
-    return elements, method
+    return elements, methods
 
 
 def from_cli(args: Optional[List] = None) -> "VersionType":
@@ -73,9 +73,10 @@ def main(args: Optional[List] = None):
             # user implemented CLI, forward exit code
             return args
 
-    elements, method = parse(args)
+    elements, methods = parse(args)
 
-    if len(elements) == 0:
+    if len(elements) == 0 and len(methods) <= 1:
+        method = methods[0] if len(methods) == 1 else None
         if method == "version":
             version = machinable.get_version()
             print(version)
@@ -102,13 +103,11 @@ def main(args: Optional[List] = None):
     if experiment is None:
         raise ValueError("You have to provide an experiment")
 
-    if method is None:
-        print(experiment)
-        return 0
-
-    # check if cli_{method} exists before falling back on {method}
-    target = getattr(experiment, f"cli_{method}", getattr(experiment, method))
-
-    target()
+    for method in methods:
+        # check if cli_{method} exists before falling back on {method}
+        target = getattr(
+            experiment, f"cli_{method}", getattr(experiment, method)
+        )
+        target()
 
     return 0
