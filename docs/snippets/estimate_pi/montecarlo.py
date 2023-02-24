@@ -20,3 +20,10 @@ class EstimatePi(Experiment):
             "result.json",
             {"count": count, "pi": pi},
         )
+
+    def summary(self):
+        if self.is_finished():
+            print(
+                f"After {self.config.samples} samples, "
+                f"PI is approximately {self.load_data('result.json')['pi']}."
+            )

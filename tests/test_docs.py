@@ -10,12 +10,12 @@ try:
 except ImportError:
     mpi4py = None
 
-from machinable import Execution, Experiment, Project, Storage
+from machinable import Execution, Experiment, Project
 
 
 def test_docs_snippets_estimate_pi(tmp_storage):
     with Project.instance("docs/snippets/estimate_pi"):
-        import docs.snippets.estimate_pi.compute_pi
+        import docs.snippets.estimate_pi.interface
 
 
 def test_docs_snippets_tutorial_main(tmp_storage):

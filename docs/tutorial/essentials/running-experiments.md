@@ -41,9 +41,11 @@ Experiments can be executed in different ways. You may, for example, like to run
 
 To implement an execution, create a module with a class that inherits from the <Pydoc>machinable.Execution</Pydoc> base class, for example:
 
-_multiprocess_execution\.py_
+::: code-group
 
 <<< @/snippets/examples/execution/multiprocess.py
+
+:::
 
 Much like in the case of experiments, the execution class provides a `Config` dataclass and implements the `on_dispatch` event that handles the execution of the given `self.experiments` by calling them within a subprocess (`experiment()`). 
 
@@ -62,3 +64,17 @@ with multiprocessing:
 ```
 
 Check out the [execution guide](../elements-in-depth/execution.md) to learn more about executions. You may also be interested in the [execution examples](../../examples/execution.md) that you may like to use in your projects.
+
+
+## Using the CLI
+
+machinable provides a powerful CLI out of the box that closely mirrors the Python interface. To run an experiment, type its module name and method name, optionally followed by the configuration options, for example:
+```bash
+machinable estimate_gravity time_dilation=1.5 --launch
+```
+To use multiprocessing, you can type:
+```bash
+machinable estimate_gravity time_dilation=1.5 \
+   multiprocess_execution processes=4 --launch
+```
+To learn more refer to the [CLI guide](../extra-topics/cli.md).

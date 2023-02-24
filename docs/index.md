@@ -72,11 +72,11 @@ features:
 
   Running code ...
 
-  `get("regression", {"rate":0.1, "logs_": True}).launch()`
+  `machinable regression rate=0.1 logs_=True --launch`
 
   ... and loading the corresponding results ...
 
-  `get("regression", {"rate":0.1, "logs_": True}).launch()`
+  `machinable regression rate=0.1 logs_=True --plot`
 
   ... are distinct but use the same abstraction.
   

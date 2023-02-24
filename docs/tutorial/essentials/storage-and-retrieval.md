@@ -4,7 +4,30 @@ next: "Continue with the tutorial"
 
 # Storage and retrieval
 
-When you execute experiments, information like the used configuration, the used random seed, etc. are automatically captured and stored. By default, the data is stored in a local folder at `./storage/%Y_%U_%a/{experiment_id}` (e.g. `./storage/2022_40_Sun/MHCYZq`).
+When you execute experiments, information like the used configuration, the used random seed, etc. are automatically captured and stored. 
+
+One of the fundamental ideas in the design of machinable's storage is that it allows to retrieve results through the same abstraction that was used to create them. What does this look like for an experiment? Consider the example experiment that computes a gravity estimation of an exoplanet.
+
+```python
+from machinable import get
+
+gravity = get('estimate_gravity', {'time_dilation': 2.0})
+```
+
+Here, <Pydoc caption="get()">machinable.get</Pydoc> will automatically search the storage for an experiment of type `estimate_gravity` with a `time_dilation` of `2.0`. If `estimate_gravity` has not been executed with this exact configuration, a new instance of the experiment with `time_dilation=2.0` is returned instead. This means that we can easily retrieve experiments with the same command we initially used to execute them. Consider the following example:
+
+```python
+from machinable import get
+
+gravity = get('estimate_gravity', {'time_dilation': 0.5})
+
+if not gravity.is_finished():
+  print("An experiment with this configuration was not found")
+else:
+  print(f"The gravity for a time dilation of 0.5 is {gravity.result}")
+```
+
+By default, the experiment data is stored in a local folder at `./storage/{experiment_id}` (e.g. `./storage/MHCYZq`).
 
 ## Configuring the storage
 
@@ -18,7 +41,7 @@ storage = get('machinable.storage.filesystem', {
 })
 ```
 
-This will instantiate the <Pydoc>machinable.Storage</Pydoc> implementation that is located in the `machinable.storage.filesystem` module.
+This will instantiate the <Pydoc>machinable.Storage</Pydoc> implementation that is located in the `machinable.storage.filesystem` module, namely the default storage that writes all data to a local directory.
 
 To use the storage, wrap the relevant code in a with-context:
 
@@ -32,49 +55,7 @@ storage.__enter__()
 experiment.launch()
 ```
 
-Experiments within the context will be written to the specified directory.
-
-## Organize using groups
-
-To keep things organized, you can group experiments that belong together, for example:
-
-```python
-from machinable import get
-
-gravity = get('estimate_gravity')
-
-gravity.group_as('%Y/lab-reports')
-
-gravity.launch()
-
-print(gravity.local_directory())
-```
-
-`./storage/2022/lab-reports-tjMFXt`
-
-::: tip
-
-When specifying groups, you can use the common [time format codes](https://docs.python.org/3/library/datetime.html#strftime-and-strptime-format-codes) like `%Y` for the year provided by [datetime.date.strftime](https://docs.python.org/3/library/datetime.html#datetime.date.strftime).
-
-:::
-
-You may also specify a global default group that will be used if no group is set.
-
-```python
-from machinable import get
-
-get(
-  'machinable.storage.filesystem',
-  {'directory': './my-storage'},
-  default_group='%Y/lab-reports'
-).__enter__()
-```
-
-::: tip Note
-
-The pre-configured default group is `%Y_%U_%a`, e.g. `2022_40_Sun`
-
-:::
+Experiments within the context will be written to the specified directory `./my-storage`. You are free to use or implement alternative storage that may upload files to the cloud or into a database.
 
 ## Saving and loading data
 
@@ -119,27 +100,45 @@ The results become available as a table where each row represents an iteration.
 </table>
 
 
-## Retrieving experiments
+## Organize using groups
 
-One of the fundamental ideas in the design of machinable's storage is that it allows to retrieve results through the same abstraction that was used to create them. What does this look like for an experiment? Consider the example experiment that computes a gravity estimation of an exoplanet.
-
-```python
-from machinable import get
-
-gravity = get('estimate_gravity', {'time_dilation': 2.0})
-```
-
-Notably, <Pydoc caption="get()">machinable.get</Pydoc> will automatically search the storage for an experiment of type `estimate_gravity` with a `time_dilation` of `2.0`. If `estimate_gravity` has not been executed with this exact configuration, a new instance of the experiment with `time_dilation=2.0` is returned instead. This means that we can easily retrieve experiments with the same command we initially used to execute them. Consider the following example:
+To keep things organized, you can group experiments that belong together, for example:
 
 ```python
 from machinable import get
 
-gravity = get('estimate_gravity', {'time_dilation': 0.5})
+experiment = get('estimate_gravity')
 
-if not gravity.is_finished():
-  print("An experiment with this configuration was not found")
-else:
-  print(f"The gravity for a time dilation of 0.5 is {gravity.result}")
+experiment.group_as('lab-reports/%Y')
+
+>>> experiment.group
+'Group [lab-reports/2023]'
 ```
+
+::: tip
+
+When specifying groups, you can use the common [time format codes](https://docs.python.org/3/library/datetime.html#strftime-and-strptime-format-codes) like `%Y` for the year provided by [datetime.date.strftime](https://docs.python.org/3/library/datetime.html#datetime.date.strftime).
+
+:::
+
+You may also specify a global default group that will be used if no group is set.
+
+```python
+from machinable import get
+
+get(
+  'machinable.storage.filesystem',
+  {'directory': './my-storage'},
+  default_group='lab-reports/%Y'
+).__enter__()
+```
+
+::: tip Note
+
+The pre-configured default group is `%Y_%U_%a`, e.g. `2022_40_Sun`
+
+:::
+
+
 
 This concludes the overview of essential features. You can refer back to individual chapters at any time or continue with the [advanced tutorial sections](../elements-in-depth/overview.md), the [API reference](../../reference/index.md) and the [examples](../../examples/overview.md).

@@ -97,6 +97,10 @@ export default defineConfig({
                 text: 'Collections',
                 link: '/tutorial/extra-topics/collections'
               },
+              {
+                text: 'CLI',
+                link: '/tutorial/extra-topics/cli'
+              },
             ]
           },
         ]

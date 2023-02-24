@@ -31,11 +31,13 @@ class Group(Element):
         self, group: Optional[str] = None, version: VersionType = None
     ):
         super().__init__(version=version)
+        pattern, path = resolve_group(group)
         self.__model__ = schema.Group(
             module=self.__model__.module,
             config=self.__model__.config,
             version=self.__model__.version,
-            pattern=normgroup(group),
+            pattern=pattern,
+            path=path,
             lineage=get_lineage(self),
         )
 
@@ -52,3 +54,6 @@ class Group(Element):
         from machinable.experiment import Experiment
 
         return Experiment, ExperimentCollection, False
+
+    def __repr__(self) -> str:
+        return f"Group [{self.path}]"

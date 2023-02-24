@@ -222,8 +222,6 @@ class Storage(Element):
 
     def create_group(self, group: Union[Group, schema.Group]) -> schema.Group:
         group = Group.model(group)
-        if group.path is None:
-            _, group.path = resolve_group(group.pattern)
 
         storage_id = self._create_group(group)
         assert storage_id is not None
