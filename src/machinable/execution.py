@@ -18,7 +18,7 @@ from machinable.project import Project
 from machinable.schedule import Schedule
 from machinable.settings import get_settings
 from machinable.storage import Storage
-from machinable.types import VersionType
+from machinable.types import ElementType, VersionType
 from machinable.utils import sentinel, update_dict
 
 
@@ -31,7 +31,7 @@ class Execution(Element):
         version: VersionType = None,
         resources: Optional[Dict] = None,
         schedule: Union[
-            Schedule, VersionType
+            Schedule, ElementType, None
         ] = get_settings().default_schedule,
     ):
         super().__init__(version)
@@ -45,7 +45,7 @@ class Execution(Element):
         )
         if schedule is not None:
             if not isinstance(schedule, Schedule):
-                schedule = Schedule.get(*extract(schedule))
+                schedule = Schedule.make(*extract(schedule))
             self.__related__["schedule"] = schedule
 
     @has_one
@@ -164,6 +164,11 @@ class Execution(Element):
         if self.on_before_dispatch() is False:
             return self
 
+        if self.on_verify_schedule() is False:
+            raise ExecutionFailed(
+                "The execution does not support the specified schedule."
+            )
+
         self.commit()
 
         try:
@@ -181,6 +186,12 @@ class Execution(Element):
             raise ExecutionFailed("Execution failed") from _ex
 
         return self
+
+    def on_verify_schedule(self) -> bool:
+        if self.schedule is None:
+            return True
+
+        return False
 
     def on_before_dispatch(self) -> Optional[bool]:
         """Event triggered before dispatch of an execution

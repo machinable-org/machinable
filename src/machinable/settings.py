@@ -5,20 +5,19 @@ import os
 
 from machinable.errors import ConfigurationError
 from machinable.schema import Execution, Experiment
+from machinable.types import ElementType
 from pydantic import BaseModel
 
 
 class Settings(BaseModel):
     default_predicate: Optional[str] = "config,*"
-    default_execution: Optional[List[Union[str, dict]]] = None
+    default_execution: Optional[ElementType] = None
+    default_experiment: Optional[ElementType] = None
+    default_schedule: Optional[ElementType] = None
+    default_group: Optional[str] = "%Y_%U_%a/"
     default_storage: List[Union[str, dict]] = [
         "machinable.storage.filesystem",
         {"directory": "./storage"},
-    ]
-    default_experiment: Optional[str] = None
-    default_group: Optional[str] = "%Y_%U_%a/"
-    default_schedule: Optional[List[Union[str, dict]]] = [
-        "machinable.schedule.independent"
     ]
 
 

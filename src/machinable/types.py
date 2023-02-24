@@ -7,3 +7,4 @@ ElementType = List[Union[str, dict]]
 DatetimeType = Arrow
 TimestampType = Union[float, int, DatetimeType]
 JsonableType = Dict[str, Union[str, float, int, None, DatetimeType]]
+Optional[List[Union[str, dict]]]
