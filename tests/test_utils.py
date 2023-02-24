@@ -63,8 +63,8 @@ def test_filesystem_utils(tmpdir):
     # assert utils.load_file(filepath).sum() == 6
 
     assert utils.load_file("not_existing.txt", default="default") == "default"
-    with pytest.raises(ValueError):
-        utils.save_file("invalid.extension", [])
+    utils.save_file(str(tmpdir / "unsupported.extension"), 0.0)
+    assert utils.load_file(str(tmpdir / "unsupported.extension")) == "0.0"
 
 
 def test_import_from_directory():
