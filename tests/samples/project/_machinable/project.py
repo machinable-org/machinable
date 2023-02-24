@@ -10,9 +10,9 @@ class TestProject(Project):
 
     def on_resolve_element(self, module):
         if module == "@test":
-            return "basic"
+            return "basic", None
 
-        return module
+        return module, None
 
     def get_host_info(self):
         info = super().get_host_info()

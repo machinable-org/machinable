@@ -21,7 +21,7 @@ if sys.version_info >= (3, 8):
 else:
     import importlib_metadata
 
-from machinable.cli import cli
+from machinable.cli import from_cli
 from machinable.element import Element
 from machinable.execution import Execution
 from machinable.experiment import Experiment

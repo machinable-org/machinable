@@ -2,33 +2,37 @@ from typing import TYPE_CHECKING, Dict, List, Optional, Tuple
 
 import sys
 
+from machinable.project import Project
 from omegaconf import OmegaConf
 
 if TYPE_CHECKING:
-    from machinable.types import ElementType
-
-
-def cli() -> Dict:
-    from omegaconf import OmegaConf
-
-    return OmegaConf.to_container(OmegaConf.from_cli())
+    from machinable.types import ElementType, VersionType
 
 
 def parse(args: List) -> Tuple[List["ElementType"], str]:
-    elements = []
     method = None
+    elements = []
     dotlist = []
-    version = None
+    version = []
+
+    def _push(_elements, _dotlist, _version):
+        if len(dotlist) > 0:
+            _version.append(
+                OmegaConf.to_container(OmegaConf.from_dotlist(_dotlist))
+            )
+
+        if len(_version) > 0:
+            if len(_elements) > 0:
+                _elements[-1].extend(_version)
+            else:
+                _elements.append(_version)
+
     for arg in args:
         if "=" in arg:
             # dotlist
-            if not isinstance(version, list):
-                raise ValueError(f"Update {arg} has to follow a module.")
             dotlist.append(arg)
         elif arg.startswith("~"):
             # version
-            if not isinstance(version, list):
-                raise ValueError(f"Version {arg} has to follow a module.")
             if len(dotlist) > 0:
                 # parse preceding dotlist
                 version.append(
@@ -41,44 +45,52 @@ def parse(args: List) -> Tuple[List["ElementType"], str]:
             method = arg[2:]
         else:
             # module
-            if isinstance(version, list):
-                # parse prior version
-                if len(dotlist) > 0:
-                    version.append(
-                        OmegaConf.to_container(OmegaConf.from_dotlist(dotlist))
-                    )
-                    dotlist = []
-                elements[-1].extend(version)
-
+            _push(elements, dotlist, version)
+            dotlist = []
             version = []
             elements.append([arg])
 
-    if isinstance(version, list):
-        # parse prior version
-        if len(dotlist) > 0:
-            version.append(
-                OmegaConf.to_container(OmegaConf.from_dotlist(dotlist))
-            )
-            dotlist = []
-        elements[-1].extend(version)
+    _push(elements, dotlist, version)
 
     return elements, method
+
+
+def from_cli(args: Optional[List] = None) -> "VersionType":
+    if args is None:
+        args = sys.argv[1:]
+
+    elements, _ = parse(args)
+
+    return sum(elements, [])
 
 
 def main(args: Optional[List] = None):
     import machinable
 
     if args is None:
-        args = sys.argv[1:]
+        args = Project.get().provider().on_parse_cli()
+        if isinstance(args, int):
+            # user implemented CLI, forward exit code
+            return args
+
     elements, method = parse(args)
 
     if len(elements) == 0:
         if method == "version":
             version = machinable.get_version()
             print(version)
-            return version
+            return 0
 
-        return None
+        if method == "help" or method is None:
+            print("\nmachinable [element_module...] [version...] --method")
+            print("\nExample:")
+            print(
+                "\tmachinable my_experiment ~ver arg=1 nested.arg=2 --launch\n"
+            )
+            return 0
+
+        print("Invalid argument: ", method)
+        return 128
 
     experiment = None
     for module, *version in elements:
@@ -92,8 +104,11 @@ def main(args: Optional[List] = None):
 
     if method is None:
         print(experiment)
-        return
+        return 0
 
-    target = getattr(experiment, method)
+    # check if cli_{method} exists before falling back on {method}
+    target = getattr(experiment, f"cli_{method}", getattr(experiment, method))
 
-    return target()
+    target()
+
+    return 0
