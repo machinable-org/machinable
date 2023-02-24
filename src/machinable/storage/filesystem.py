@@ -238,10 +238,8 @@ class Filesystem(Storage):
         project = self.create_project(project)
         group = self.create_group(group)
         head, tail = os.path.split(group.path)
-        directory = os.path.join(
-            head,
-            f"{tail}{'-' if tail else ''}{experiment.experiment_id}",
-        )
+        directory = f"{experiment.experiment_id}"
+
         derived_from = None
         if experiment.derived_from_id is not None:
             derived_from = self.find_experiment(
@@ -273,6 +271,12 @@ class Filesystem(Storage):
         save_file(
             os.path.join(storage_id, "project.json"),
             project.dict(),
+            makedirs=True,
+        )
+
+        save_file(
+            os.path.join(storage_id, "group.json"),
+            group.dict(),
             makedirs=True,
         )
 
