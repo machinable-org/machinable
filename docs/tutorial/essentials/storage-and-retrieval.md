@@ -139,6 +139,49 @@ The pre-configured default group is `%Y_%U_%a`, e.g. `2022_40_Sun`
 
 :::
 
+## Advanced search
 
+machinable does not determine what interface you may like to use to query and search experiments. You can implement your custom storage search routines and resort to third-party UIs or libraries that suit your needs. 
 
-This concludes the overview of essential features. You can refer back to individual chapters at any time or continue with the [advanced tutorial sections](../elements-in-depth/overview.md), the [API reference](../../reference/index.md) and the [examples](../../examples/overview.md).
+To illustrate this, let's leverage the library [PyFunctional](https://github.com/EntilZha/PyFunctional) to search our storage.
+
+```python
+>>> from machinable import Storage
+>>> storage = Storage.get()
+>>> storage
+'FilesystemStorage <./storage>'
+```
+
+The filesystem storage provides an SQlite database which we can use as a data source:
+
+```python
+>>> storage.sqlite_file
+'./storage/storage.sqlite'
+>>> from functional import seq
+>>> from functools import partial
+>>> query = partial(seq.sqlite3, storage.sqlite_file)
+```
+
+This allows us to run arbitrary SQL queries like retrieving the 3 most recent experiments:
+
+```python
+>>> recent = query("SELECT * FROM experiments ORDER BY timestamp LIMIT 3").map(lambda x: x[1])
+>>> recent
+['./storage/oPqe2v', './storage/HGtHQu', './storage/HwVO9l']
+```
+Once we find what we are looking for we can always convert back to the regular machinable abstractions using `from_storage`:
+```python
+>>> from machinable import Experiment
+>>> experiments = recent.map(Experiment.from_storage).to_list()
+>>> experiments
+[Experiment [oPqe2v], Experiment [HGtHQu], Experiment [HwVO9l]]
+>>> experiments[0].finished_at().humanize()
+'a month ago'
+```
+Overall, this should allow for a seamless conversion and integration of your preferred experiment management tools.
+
+::: info :student: 
+
+This concludes the overview of the most essential features. You can refer back to individual chapters at any time or continue with the [advanced tutorial sections](../elements-in-depth/overview.md), the [API reference](../../reference/index.md) and the [examples](../../examples/overview.md).
+
+:::

@@ -76,7 +76,7 @@ features:
 
   ... and loading the corresponding results ...
 
-  `machinable regression rate=0.1 logs_=True --plot`
+  `machinable regression rate=0.1 logs_=True --launch --plot`
 
   ... are distinct but use the same abstraction.
   
