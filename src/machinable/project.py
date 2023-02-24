@@ -1,5 +1,5 @@
 import types
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
 
 import getpass
 import importlib
@@ -239,9 +239,6 @@ class Project(Element):
         if base_class is None:
             base_class = Element
 
-        # allow overrides
-        module = self.provider().on_resolve_element(module)
-
         # import project-relative
         module = (
             import_from_directory(
@@ -277,9 +274,12 @@ class Project(Element):
         base_class: Any = None,
         **constructor_kwargs,
     ) -> "Element":
-        element_class = self._element(module, base_class)
+        module, element_class = self.provider().on_resolve_element(module)
+        if not isinstance(element_class, Element):
+            element_class = self._element(module, base_class)
+
         return instantiate(
-            self.provider().on_resolve_element(module),
+            module,
             element_class,
             version,
             **constructor_kwargs,
@@ -313,8 +313,12 @@ class Project(Element):
             "machinable_version": machinable.get_version(),
         }
 
-    def on_resolve_element(self, module: str) -> str:
-        return module
+    def on_resolve_element(self, module: str) -> Tuple[str, Optional[Element]]:
+        """Override element resolution
+
+        Return altered module string or resolved Element class to be used instead.
+        """
+        return module, None
 
     def on_resolve_vendor(
         self, name: str, source: str, target: str
@@ -328,6 +332,13 @@ class Project(Element):
 
         Return False to prevent the default automatic resolution
         """
+
+    def on_parse_cli(self):
+        """Triggered when CLI is invoked.
+
+        You may return a list of modified arguments or implement a fully custom CLI here by returning its exit code.
+        """
+        return sys.argv[1:]
 
     def global_predicate(self) -> Dict:
         """Project-wide element predicates."""
