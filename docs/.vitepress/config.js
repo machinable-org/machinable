@@ -56,8 +56,8 @@ export default defineConfig({
                 link: '/tutorial/essentials/implementing-components'
               },
               {
-                text: 'Running components',
-                link: '/tutorial/essentials/running-components'
+                text: 'Executing experiments',
+                link: '/tutorial/essentials/executing-experiments'
               },
               {
                 text: 'Storage and retrieval',
@@ -69,8 +69,8 @@ export default defineConfig({
             text: 'Elements in-depth',
             items: [
               {
-                text: 'Overview',
-                link: '/tutorial/elements-in-depth/overview'
+                text: 'Elements',
+                link: '/tutorial/elements-in-depth/elements'
               },
               {
                 text: 'Advanced configuration',
