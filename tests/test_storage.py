@@ -74,4 +74,19 @@ def test_multiple_storage(tmpdir):
     storage_tests(storage)
 
     # serialization
+    storage = Storage.make(
+        "machinable.storage.multiple",
+        {
+            "primary": [
+                "machinable.storage.filesystem",
+                {"directory": str(tmpdir / "c")},
+            ],
+            "secondary": [
+                [
+                    "machinable.storage.filesystem",
+                    {"directory": str(tmpdir / "d")},
+                ]
+            ],
+        },
+    )
     storage_tests(Storage.from_json(storage.as_json()))
