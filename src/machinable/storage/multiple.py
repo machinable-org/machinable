@@ -1,8 +1,11 @@
 from typing import Any, Dict, List, Optional, Union
 
+from dataclasses import dataclass
+
 from machinable import schema
+from machinable.config import RequiredField, validator
 from machinable.storage.storage import Storage
-from machinable.types import DatetimeType, JsonableType, VersionType
+from machinable.types import DatetimeType, ElementType, JsonableType
 
 
 class Multiple(Storage):
@@ -12,40 +15,52 @@ class Multiple(Storage):
     Write operation are forwarded to both primary and secondary storages.
     Any return value represents the return value of the primary storage"""
 
-    def __init__(self, primary: Storage, *secondary: Storage):
-        if len(secondary) == 0:
-            raise ValueError("You have to provide multiple storages")
-        self._primary = primary
-        self._secondary = secondary
+    @dataclass
+    class Config:
+        primary: ElementType = RequiredField
+        secondary: List[ElementType] = RequiredField
+
+        @validator("secondary")
+        def at_least_one_secondary(cls, v):
+            if len(v) == 0:
+                raise ValueError(
+                    "You have to provide at least one secondary storage"
+                )
+
+            return v
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._primary = None
+        self._secondary = None
         # maps primary storage ID to equivalent in secondary storages
         self._translation: Dict[str, str] = {}
 
-        super().__init__(version=None)
+    @property
+    def primary(self) -> Storage:
+        if self._primary is None:
+            self._primary = Storage.make(*self.config.primary)
 
-    def serialize(self) -> dict:
-        return {
-            "primary": self._primary.serialize(),
-            "secondary": [
-                secondary.serialize() for secondary in self._secondary
-            ],
-        }
+        return self._primary
 
-    @classmethod
-    def unserialize(cls, serialized: dict) -> "Multiple":
-        return cls(
-            Storage.unserialize(serialized["primary"]),
-            *[Storage.unserialize(s) for s in serialized["secondary"]],
-        )
+    @property
+    def secondary(self) -> Storage:
+        if self._secondary is None:
+            self._secondary = [
+                Storage.make(*spec) for spec in self.config.secondary
+            ]
+
+        return self._secondary
 
     def _read(self, method: str, *args) -> Any:
         # read from primary storage
-        return getattr(self._primary, method)(*args)
+        return getattr(self.primary, method)(*args)
 
     def _write(self, method: str, *args) -> Any:
         # propagate to both primary and all secondary storages
-        primary_result = getattr(self._primary, method)(*args)
+        primary_result = getattr(self.primary, method)(*args)
 
-        for index, secondary in enumerate(self._secondary):
+        for index, secondary in enumerate(self.secondary):
             translated_args = [self._translate_arg(index, arg) for arg in args]
             secondary_result = getattr(secondary, method)(*translated_args)
             # capture mappings between primary and secondary ID
@@ -80,7 +95,7 @@ class Multiple(Storage):
                 translated._storage_id = self._translation[
                     f"{index}:{model.__class__.__name__.lower()}:{model._storage_id}"
                 ]
-                translated._storage_instance = self._secondary[index]
+                translated._storage_instance = self.secondary[index]
             except KeyError as _ex:
                 pass
         return translated
