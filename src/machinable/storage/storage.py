@@ -64,18 +64,6 @@ class Storage(Element):
             module, version, base_class=Storage, default_group=default_group
         )
 
-    @classmethod
-    def filesystem(
-        cls,
-        directory: str,
-        default_group: Optional[str] = get_settings().default_group,
-    ) -> "Storage":
-        return cls.make(
-            "machinable.storage.filesystem",
-            version={"directory": directory},
-            default_group=default_group,
-        )
-
     def commit(
         self,
         experiments: Union["Experiment", List["Experiment"]],
@@ -117,15 +105,6 @@ class Storage(Element):
             return
 
         self.create_execution(execution, experiments)
-
-    @classmethod
-    def multiple(cls, primary: "Storage", *secondary: "Storage") -> "Storage":
-        if len(secondary) == 0:
-            return primary
-
-        from machinable.storage.multiple import Multiple
-
-        return Multiple(primary, *secondary)
 
     def create_execution(
         self,

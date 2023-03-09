@@ -4,7 +4,7 @@
 
 # Unreleased
 
-- No current changes
+- Convert multiple storage into regular element (#426)
 
 # v4.1
 

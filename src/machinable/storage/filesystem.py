@@ -8,6 +8,8 @@ try:
 except ModuleNotFoundError:
     import sqlite3
 
+from dataclasses import dataclass
+
 from machinable import schema
 from machinable.errors import StorageError
 from machinable.settings import get_settings
@@ -24,9 +26,8 @@ def _jn(data: Any) -> str:
 
 
 class Filesystem(Storage):
+    @dataclass
     class Config:
-        """Config annotation"""
-
         directory: Optional[str] = None
 
     def __init__(
