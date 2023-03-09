@@ -48,13 +48,18 @@ def test_filesystem_storage(tmpdir):
 
 
 def test_multiple_storage(tmpdir):
-    # validation
-    with pytest.raises(errors.ConfigurationError):
-        Storage.make(
-            "machinable.storage.multiple", {"primary": [], "secondary": []}
-        ).config
+    storage = Storage.make(
+        "machinable.storage.multiple",
+        {
+            "primary": [
+                "machinable.storage.filesystem",
+                {"directory": str(tmpdir / "0")},
+            ],
+            "secondary": [],
+        },
+    )
+    storage = storage_tests(storage)
 
-    # tests
     storage = Storage.make(
         "machinable.storage.multiple",
         {

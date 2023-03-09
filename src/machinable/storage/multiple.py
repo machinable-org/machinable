@@ -20,15 +20,6 @@ class Multiple(Storage):
         primary: ElementType = RequiredField
         secondary: List[ElementType] = RequiredField
 
-        @validator("secondary")
-        def at_least_one_secondary(cls, v):
-            if len(v) == 0:
-                raise ValueError(
-                    "You have to provide at least one secondary storage"
-                )
-
-            return v
-
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self._primary = None
