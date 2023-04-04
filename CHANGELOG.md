@@ -14,7 +14,7 @@
 
 - Revamped CLI using element version syntax  (#422)
 - Allow arbitrary plain file extensions when saving/loading files
-- Filesystem storage stores groups as JSON files instead within the directory name
+- Filesystem storage captures groups within JSON files rather than directory name
 - Represent independent schedule via `None`
 - Adds Execution.on_verify_schedule to verify execution schedule compatibility
 
