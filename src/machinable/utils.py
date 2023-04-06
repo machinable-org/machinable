@@ -6,7 +6,6 @@ import importlib
 import inspect
 import json
 import os
-import pickle
 import random
 import re
 import string
@@ -16,6 +15,7 @@ from pathlib import Path
 
 import arrow
 import commandlib
+import dill as pickle
 import jsonlines
 import omegaconf
 from baseconv import base62

@@ -124,6 +124,41 @@ def fetch_vendors(project: "Project"):
     return vendors
 
 
+def import_element(
+    directory: str, module: str, base_class: Any = None
+) -> "Element":
+    if base_class is None:
+        base_class = Element
+
+    # import project-relative
+    module = (
+        import_from_directory(
+            module,
+            directory,
+            or_fail=False,
+        )
+        or module
+    )
+
+    # import globally
+    if isinstance(module, str):
+        try:
+            module = importlib.import_module(module)
+        except ModuleNotFoundError as _e:
+            raise ModuleNotFoundError(
+                f"Could not find module '{module}' in project {directory}"
+            ) from _e
+
+    element_class = find_subclass_in_module(module, base_class)
+    if element_class is None:
+        raise ConfigurationError(
+            f"Could not find an element inheriting from the {base_class.__name__} base class. "
+            f"Is it correctly defined in {module.__name__}?"
+        )
+
+    return element_class
+
+
 class Project(Element):
     kind = "Project"
 
@@ -235,48 +270,23 @@ class Project(Element):
             },
         }
 
-    def _element(self, module: str, base_class: Any = None) -> "Element":
-        if base_class is None:
-            base_class = Element
-
-        # import project-relative
-        module = (
-            import_from_directory(
-                module,
-                self.path(),
-                or_fail=False,
-            )
-            or module
-        )
-
-        # import globally
-        if isinstance(module, str):
-            try:
-                module = importlib.import_module(module)
-            except ModuleNotFoundError as _e:
-                raise ModuleNotFoundError(
-                    f"Could not find module '{module}' in project {self.path()}"
-                ) from _e
-
-        element_class = find_subclass_in_module(module, base_class)
-        if element_class is None:
-            raise ConfigurationError(
-                f"Could not find an element inheriting from the {base_class.__name__} base class. "
-                f"Is it correctly defined in {module.__name__}?"
-            )
-
-        return element_class
-
     def element(
         self,
-        module: str,
+        module: Union[str, Element],
         version: VersionType = None,
         base_class: Any = None,
         **constructor_kwargs,
     ) -> "Element":
         module, element_class = self.provider().on_resolve_element(module)
-        if not isinstance(element_class, Element):
-            element_class = self._element(module, base_class)
+
+        if not isinstance(module, str):
+            # interactive session element
+            element_class = module
+            module = "__session__" + element_class.__name__
+        else:
+            # import from project
+            if not isinstance(element_class, Element):
+                element_class = import_element(self.path(), module, base_class)
 
         return instantiate(
             module,
@@ -313,10 +323,12 @@ class Project(Element):
             "machinable_version": machinable.get_version(),
         }
 
-    def on_resolve_element(self, module: str) -> Tuple[str, Optional[Element]]:
+    def on_resolve_element(
+        self, module: Union[str, Element]
+    ) -> Tuple[Union[str, Element], Optional[Element]]:
         """Override element resolution
 
-        Return altered module string or resolved Element class to be used instead.
+        Return altered module and/or resolved Element class to be used instead.
         """
         return module, None
 

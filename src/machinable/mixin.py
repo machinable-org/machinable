@@ -72,9 +72,11 @@ def mixin(f: Callable) -> Any:
         if name not in self.__mixins__:
             mixin_class = f(self)
             if isinstance(mixin_class, str):
-                from machinable.project import Project
+                from machinable.project import Project, import_element
 
-                mixin_class = Project.get()._element(mixin_class, Mixin)
+                mixin_class = import_element(
+                    Project.get().path(), mixin_class, Mixin
+                )
 
             self.__mixins__[name] = bind(self, mixin_class, name)
 

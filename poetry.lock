@@ -216,6 +216,21 @@ tomli = {version = "*", optional = true, markers = "python_full_version <= \"3.1
 toml = ["tomli"]
 
 [[package]]
+name = "dill"
+version = "0.3.6"
+description = "serialize all of python"
+category = "main"
+optional = false
+python-versions = ">=3.7"
+files = [
+    {file = "dill-0.3.6-py3-none-any.whl", hash = "sha256:a07ffd2351b8c678dfc4a856a3005f8067aea51d6ba6c700796a4d9e280f39f0"},
+    {file = "dill-0.3.6.tar.gz", hash = "sha256:e5db55f3687856d8fbdab002ed78544e1c4559a130302693d839dfe8f93f2373"},
+]
+
+[package.extras]
+graph = ["objgraph (>=1.7.2)"]
+
+[[package]]
 name = "distlib"
 version = "0.3.6"
 description = "Distribution utilities"
@@ -835,4 +850,4 @@ all = []
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.7"
-content-hash = "51c48d2b60313d420fb263a5eac514fa6425f1e3c796f6e406cdbf404ee1166b"
+content-hash = "7c2bb64d6f9dba044bf4973ec908016f29632bf90aca07ee5a2e5645dceb49b6"

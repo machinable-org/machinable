@@ -144,6 +144,11 @@ class Filesystem(Storage):
                 execution.dict(),
                 makedirs=True,
             )
+            if execution._dump is not None:
+                save_file(
+                    os.path.join(execution_directory, "execution.p"),
+                    execution._dump,
+                )
 
         cur = self._db.cursor()
         cur.execute(
@@ -268,6 +273,10 @@ class Filesystem(Storage):
             experiment.dict(),
             makedirs=True,
         )
+        if experiment._dump is not None:
+            save_file(
+                os.path.join(storage_id, "experiment.p"), experiment._dump
+            )
 
         save_file(
             os.path.join(storage_id, "project.json"),
@@ -494,14 +503,22 @@ class Filesystem(Storage):
         return [row[0] for row in query.fetchall()]
 
     def _retrieve_execution(self, storage_id: str) -> schema.Execution:
-        return schema.Execution(
+        execution = schema.Execution(
             **load_file(os.path.join(storage_id, "execution.json")),
         )
+        execution._dump = load_file(
+            os.path.join(storage_id, "execution.p"), None
+        )
+        return execution
 
     def _retrieve_experiment(self, storage_id: str) -> schema.Experiment:
-        return schema.Experiment(
+        experiment = schema.Experiment(
             **load_file(os.path.join(storage_id, "experiment.json")),
         )
+        experiment._dump = load_file(
+            os.path.join(storage_id, "experiment.p"), None
+        )
+        return experiment
 
     def _retrieve_group(self, storage_id: str) -> schema.Group:
         self.migrate()

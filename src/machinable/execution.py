@@ -8,6 +8,7 @@ from machinable.element import (
     Element,
     defaultversion,
     extract,
+    get_dump,
     get_lineage,
     has_many,
     has_one,
@@ -43,6 +44,7 @@ class Execution(Element):
             host_info=Project.get().provider().get_host_info(),
             lineage=get_lineage(self),
         )
+        self.__model__._dump = get_dump(self)
         if schedule is not None:
             if not isinstance(schedule, Schedule):
                 schedule = Schedule.make(*extract(schedule))

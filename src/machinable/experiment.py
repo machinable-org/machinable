@@ -17,6 +17,7 @@ from machinable.element import (
     Element,
     belongs_to,
     defaultversion,
+    get_dump,
     get_lineage,
     has_many,
     normversion,
@@ -60,6 +61,7 @@ class Experiment(Element):  # pylint: disable=too-many-public-methods
             seed=seed,
             lineage=get_lineage(self),
         )
+        self.__model__._dump = get_dump(self)
         if derived_from is not None:
             self.__model__.derived_from_id = derived_from.experiment_id
             self.__model__.derived_from_timestamp = derived_from.timestamp
@@ -176,7 +178,7 @@ class Experiment(Element):  # pylint: disable=too-many-public-methods
 
     def derive(
         self,
-        module: Optional[str] = None,
+        module: Union[str, Element, None] = None,
         version: VersionType = None,
         predicate: Optional[str] = get_settings().default_predicate,
         **kwargs,
