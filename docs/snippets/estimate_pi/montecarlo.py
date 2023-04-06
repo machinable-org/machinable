@@ -9,7 +9,7 @@ class EstimatePi(Experiment):
     class Config:
         samples: int = 100
 
-    def on_execute(self):
+    def __call__(self):
         count = 0
         for _ in range(self.config.samples):
             x, y = random(), random()

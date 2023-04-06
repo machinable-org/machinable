@@ -7,7 +7,7 @@ class Multiprocess(Execution):
     class Config:
         processes: int = 1
 
-    def on_dispatch(self):
+    def __call__(self):
         pool = Pool(processes=self.config.processes, maxtasksperchild=1)
         try:
             pool.imap_unordered(

@@ -11,7 +11,7 @@ class EstimateGravity(Experiment):
         time_dilation: float = 1.0
         verbose: bool = True
 
-    def on_execute(self):
+    def __call__(self):
         height = 52
         time = 0.3 * self.config.time_dilation
         if self.config.verbose:

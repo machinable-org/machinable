@@ -8,7 +8,7 @@ class Mpi(Execution):
         runner: str = "mpirun"
         n: int = 1
 
-    def on_dispatch(self):
+    def __call__(self):
         for experiment in self.experiments:
             print(
                 subprocess.check_output(

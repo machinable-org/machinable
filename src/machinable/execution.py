@@ -150,17 +150,11 @@ class Execution(Element):
 
         return {}
 
-    def __call__(self) -> None:
+    def dispatch(self, force: bool = False) -> "Execution":
         if not self.executables:
-            return
+            return self
 
-        if all(self.executables.map(lambda x: x.is_finished())):
-            return
-
-        self.dispatch()
-
-    def dispatch(self) -> "Execution":
-        if not self.executables:
+        if not force and all(self.executables.map(lambda x: x.is_finished())):
             return self
 
         if self.on_before_dispatch() is False:
@@ -182,14 +176,19 @@ class Execution(Element):
                     f"resources-{executable.experiment_id}.json",
                     self.compute_resources(executable),
                 )
-            self.on_dispatch()
+            self.__call__()
             self.on_after_dispatch()
         except BaseException as _ex:  # pylint: disable=broad-except
             raise ExecutionFailed("Execution failed") from _ex
 
         return self
 
+    def __call__(self) -> None:
+        for executable in self.executables:
+            executable.dispatch()
+
     def on_verify_schedule(self) -> bool:
+        """Event to verify compatibility of the schedule"""
         if self.schedule is None:
             return True
 
@@ -213,10 +212,6 @@ class Execution(Element):
     def on_after_dispatch(self) -> None:
         """Event triggered after the dispatch of an execution"""
 
-    def on_dispatch(self):
-        for executable in self.executables:
-            executable()
-
     @property
     def timestamp(self) -> float:
         return self.__model__.timestamp
@@ -237,7 +232,7 @@ class Execution(Element):
         yield from self.executables
 
     def __exit__(self, *args, **kwargs):
-        self()
+        self.dispatch()
 
         super().__exit__()
 

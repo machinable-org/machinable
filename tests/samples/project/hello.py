@@ -8,5 +8,5 @@ class Hello(Experiment):
     class Config:
         name: str = "World"
 
-    def on_execute(self):
+    def __call__(self):
         print(f"Hello {self.config.name}!")

@@ -51,7 +51,7 @@ def test_mpi_execution(tmp_storage):
 
 
 class SlurmExperiment(Experiment):
-    def on_execute(self):
+    def __call__(self):
         print("Hello world from Slurm")
         self.save_data("test_run.json", {"success": True})
 

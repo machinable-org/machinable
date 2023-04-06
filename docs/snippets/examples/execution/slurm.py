@@ -3,7 +3,7 @@ from machinable import Execution
 
 
 class Slurm(Execution):
-    def on_dispatch(self):
+    def __call__(self):
         runner = commandlib.Command("sbatch")
         script = "#!/usr/bin/env bash"
         for experiment in self.experiments:

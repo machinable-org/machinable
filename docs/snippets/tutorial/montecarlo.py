@@ -22,7 +22,7 @@ class EstimatePi(Experiment):
     def samples(self):
         return self.result["samples"]
 
-    def on_execute(self):
+    def __call__(self):
         samples = 10
         while abs(math.pi - self.pi) > self.config.acceptable_error:
             # monte-carlo simulation

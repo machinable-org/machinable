@@ -8,7 +8,7 @@ class EventsCheck(Experiment):
         super().__init__(*args, **kwargs)
         self.events = ["on_init"]
 
-    def on_dispatch(self):
+    def on_before_dispatch(self):
         self.events.append("on_dispatch")
 
     def on_seeding(self):
@@ -23,11 +23,9 @@ class EventsCheck(Experiment):
         assert self.is_started()
         self.events.append("on_create")
 
-    def on_execute(self) -> Any:
+    def __call__(self) -> None:
         assert self.is_active()
         self.events.append("on_execute")
-
-        return "result"
 
     def on_destroy(self):
         self.events.append("on_destroy")

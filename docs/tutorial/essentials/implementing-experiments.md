@@ -10,7 +10,7 @@ from machinable import Experiment
 class EstimateGravity(Experiment):
   """An experiment to estimate gravity"""
 
-  def on_execute(self):
+  def __call__(self):
       time_dilation = 1.0
       height = 52
       time = 0.3
@@ -36,7 +36,7 @@ from machinable import Experiment
 from my_code import existing_implementation
 
 class EstimateGravity(Experiment):
-  def on_execute(self):
+  def __call__(self):
       # call into your existing code without any further changes
       existing_implementation()
 ```
@@ -61,7 +61,7 @@ class EstimateGravity(Experiment):
       time_dilation: float = 1.0
       verbose: bool = True
 
-  def on_execute(self):
+  def __call__(self):
       height = 52
       time = 0.3 * self.config.time_dilation
       if self.config.verbose:

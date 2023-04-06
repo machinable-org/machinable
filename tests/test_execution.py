@@ -40,7 +40,7 @@ def test_execution_dispatch(tmp_storage):
             if self.config.mode == "before":
                 raise ValueError("Prevent execution")
 
-        def on_execute(self):
+        def __call__(self):
             if self.config.mode == "runtime":
                 raise RuntimeError("Should not execute")
 

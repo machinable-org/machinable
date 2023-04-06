@@ -114,7 +114,7 @@ class Experiment(Element):  # pylint: disable=too-many-public-methods
             # commit only, defer execution
             self.commit()
         else:
-            execution()
+            execution.dispatch()
 
         return self
 
@@ -359,16 +359,13 @@ class Experiment(Element):  # pylint: disable=too-many-public-methods
             self.is_active() or self.is_finished()
         )
 
-    def __call__(self) -> None:
-        if self.is_finished():
-            return None
-
-        self.dispatch()
-
-    def dispatch(self) -> "Experiment":
+    def dispatch(self, force: bool = False) -> "Experiment":
         """Dispatch the experiment lifecycle"""
+        if not force and self.is_finished():
+            return self
+
         try:
-            self.on_dispatch()
+            self.on_before_dispatch()
 
             self.on_seeding()
 
@@ -388,9 +385,7 @@ class Experiment(Element):  # pylint: disable=too-many-public-methods
             self.on_after_create()
 
             # execute
-            self.on_before_execute()
-            self.on_execute()
-            self.on_after_execute()
+            self.__call__()
 
             self.on_success()
             self.on_finish(success=True)
@@ -418,55 +413,36 @@ class Experiment(Element):  # pylint: disable=too-many-public-methods
 
     # life cycle
 
+    def __call__(self) -> None:
+        """Main code"""
+
+    def on_before_commit(self) -> Optional[bool]:
+        """Event triggered before the commit of the experiment"""
+
+    def on_before_dispatch(self) -> Optional[bool]:
+        """Event triggered before the dispatch of the experiment"""
+
+    def on_seeding(self):
+        """Lifecycle event to implement custom seeding using `self.seed`"""
+        random.seed(self.seed)
+
     def on_write_meta_data(self) -> Optional[bool]:
         """Event triggered before meta-data such as creation time etc. is written to the storage
 
         Return False to prevent writing of meta-data
         """
 
-    def on_before_dispatch(self) -> Optional[bool]:
-        """Event triggered before the dispatch of the experiment"""
-
-    def on_before_commit(self) -> Optional[bool]:
-        """Event triggered before the commit of the experiment"""
-
-    def on_dispatch(self):
-        """Lifecycle event triggered at the very beginning of the component dispatch"""
-
-    def on_seeding(self):
-        """Lifecycle event to implement custom seeding using `self.seed`"""
-        random.seed(self.seed)
-
     def on_before_create(self):
-        """Lifecycle event triggered before components creation"""
+        """Lifecycle event triggered before experiments creation"""
 
     def on_create(self):
-        """Lifecycle event triggered during components creation"""
+        """Lifecycle event triggered during experiments creation"""
 
     def on_after_create(self):
-        """Lifecycle event triggered after components creation"""
+        """Lifecycle event triggered after experiments creation"""
 
-    def on_before_execute(self):
-        """Lifecycle event triggered before components execution"""
-
-    def on_execute(self) -> Any:
-        """Lifecycle event triggered at components execution"""
-        return True
-
-    def on_after_execute_iteration(self, iteration: int):
-        """Lifecycle event triggered after execution iteration"""
-
-    def on_after_execute(self):
-        """Lifecycle event triggered after execution"""
-
-    def on_before_destroy(self):
-        """Lifecycle event triggered before components destruction"""
-
-    def on_destroy(self):
-        """Lifecycle event triggered at components destruction"""
-
-    def on_after_destroy(self):
-        """Lifecycle event triggered after components destruction"""
+    def on_success(self):
+        """Lifecycle event triggered iff execution finishes successfully"""
 
     def on_finish(self, success: bool):
         """Lifecycle event triggered right before the end of the component execution
@@ -475,8 +451,14 @@ class Experiment(Element):  # pylint: disable=too-many-public-methods
         success: Whether the execution finished sucessfully
         """
 
-    def on_success(self):
-        """Lifecycle event triggered iff execution finishes successfully"""
+    def on_before_destroy(self):
+        """Lifecycle event triggered before experiments destruction"""
+
+    def on_destroy(self):
+        """Lifecycle event triggered at experiments destruction"""
+
+    def on_after_destroy(self):
+        """Lifecycle event triggered after experiments destruction"""
 
     def on_failure(self, exception: errors.MachinableError):
         """Lifecycle event triggered iff the execution finished with an exception
@@ -504,7 +486,7 @@ class Experiment(Element):  # pylint: disable=too-many-public-methods
         Project('{Project.get().path()}').__enter__()
         Storage.from_json('{storage}').__enter__()
         experiment__ = Experiment.find('{self.experiment_id}', timestamp={self.timestamp})
-        experiment__()
+        experiment__.dispatch()
         """
 
         if inline:

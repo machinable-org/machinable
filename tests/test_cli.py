@@ -17,7 +17,7 @@ def test_cli_main(capfd, tmp_storage):
         main(["hello", "name=Test", "--launch"])
         out, err = capfd.readouterr()
         assert out == "Hello Test!\n"
-        main(["hello", "name=Twice", "--launch", "--on_execute"])
+        main(["hello", "name=Twice", "--launch", "--__call__"])
         out, err = capfd.readouterr()
         assert out == "Hello Twice!\nHello Twice!\n"
 

@@ -194,7 +194,7 @@ def test_experiment_interface(tmp_path):
 
 
 class ExportExperiment(Experiment):
-    def on_execute(self):
+    def __call__(self):
         print("Hello world")
         self.save_data("test_run.json", {"success": True})
 
@@ -203,7 +203,7 @@ def test_experiment_export(tmp_storage):
     experiment = ExportExperiment()
     script = experiment.dispatch_code(inline=False)
 
-    with pytest.raises(TypeError):
+    with pytest.raises(AttributeError):
         exec(script)
 
     Execution().add(experiment).commit()
