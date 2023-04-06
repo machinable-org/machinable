@@ -570,8 +570,7 @@ class Element(Mixin, Jsonable):
                     )
 
                     # expose raw config so events and config methods can use it
-                    config_model = from_element(self) or pydantic.BaseModel
-                    raw_config = config_model().dict()
+                    raw_config, config_model = from_element(self)
 
                     self._config = OmegaConf.create(raw_config)
 
@@ -622,7 +621,8 @@ class Element(Mixin, Jsonable):
                     config = OmegaConf.to_container(self._config, resolve=True)
 
                     # enforce schema
-                    config = config_model(**config).dict()
+                    if config_model is not None:
+                        config = config_model(**config).dict()
 
                     # add introspection data
                     config["_raw_"] = raw_config

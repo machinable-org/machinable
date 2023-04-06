@@ -45,21 +45,26 @@ def validator(
     )
 
 
-def from_element(element: "Element") -> Optional[Model]:
+def from_element(element: "Element") -> Tuple[dict, Optional[Model]]:
     if not isclass(element):
         element = element.__class__
 
     if not hasattr(element, "Config"):
-        return None
+        return {}, None
 
-    schema = getattr(element, "Config")
+    config = getattr(element, "Config")
 
+    # free-form
+    if isinstance(config, collections.abc.Mapping):
+        return config, None
+
+    # schema
     class SchemaConf:
         extra = "forbid"
 
-    model = dataclass(config=SchemaConf)(schema).__pydantic_model__
+    model = dataclass(config=SchemaConf)(config).__pydantic_model__
 
-    return model
+    return model().dict(), model
 
 
 def match_method(definition: str) -> Optional[Tuple[str, str]]:

@@ -145,6 +145,18 @@ def test_element_config():
     assert c["a"] == 2
     assert c["b"] == 3
 
+    Dummy.Config = {
+        "beta": {"test": None},
+        "a": "through_config_method(1)",
+        "b": None,
+        "alpha": 0,
+    }
+
+    assert Dummy({"alpha": -1}).config.alpha == -1
+    c = Dummy(({"a": 1}, {"a": 2, "b": 3})).config
+    assert c["a"] == 2
+    assert c["b"] == 3
+
     with pytest.raises(ConfigurationError):
         Dummy("~non-existent").config
 
@@ -205,6 +217,22 @@ def test_element_config():
             Experiment.instance("interfaces.events_check").module
             == "interfaces.events_check"
         )
+
+    # no-schema
+    class NoSchema(Element):
+        pass
+
+    c = NoSchema({"a": 1, "b.c": 2})
+    assert c.config.a == 1
+    assert c.config.b.c == 2
+
+    class NoSchemaDefault(Element):
+        Config = {"a": 0}
+
+    assert NoSchemaDefault().config.a == 0
+    c = NoSchemaDefault({"a": 1, "b.c": 2})
+    assert c.config.a == 1
+    assert c.config.b.c == 2
 
 
 def test_element_config_schema():

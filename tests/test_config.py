@@ -5,14 +5,19 @@ def test_config_from_element():
     class Dummy:
         pass
 
-    assert from_element(Dummy) is None
+    assert from_element(Dummy) == ({}, None)
 
     class HasConf:
         class Config:
             q: int = 1
 
-    assert from_element(HasConf)().q == 1
-    assert from_element(HasConf())().q == 1
+    assert from_element(HasConf)[0]["q"] == 1
+    assert from_element(HasConf())[0]["q"] == 1
+
+    class DictConf:
+        Config = {"a": 2}
+
+    assert from_element(DictConf)[0]["a"] == 2
 
 
 def test_match_method():
