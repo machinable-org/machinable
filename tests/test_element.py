@@ -501,4 +501,4 @@ def test_element_interactive_session(tmp_storage):
     # serialization
     exec(t.dispatch_code(inline=False) + "\nassert experiment__.is_valid()")
     # retrieval
-    assert t.timestamp == get(T).timestamp
+    assert t.experiment_id == get(T).experiment_id

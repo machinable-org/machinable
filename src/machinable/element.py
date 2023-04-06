@@ -403,6 +403,25 @@ class Element(Mixin, Jsonable):
         module, version = defaultversion(module, version, cls)
         return cls.make(module, version, base_class=cls, **kwargs)
 
+    @classmethod
+    def singleton(
+        cls,
+        module: Union[str, "Element"],
+        version: VersionType = None,
+        predicate: Optional[str] = get_settings().default_predicate,
+        **kwargs,
+    ) -> "Collection[Element]":
+        candidates = cls.find_by_predicate(
+            module,
+            version,
+            predicate,
+            **kwargs,
+        )
+        if candidates:
+            return candidates[-1]
+
+        return cls.make(module, version, **kwargs)
+
     def mount(self, storage: "Storage", storage_id: Any) -> bool:
         if self.__model__ is None:
             return False
@@ -462,7 +481,7 @@ class Element(Mixin, Jsonable):
     @classmethod
     def find_by_predicate(
         cls,
-        module: str,
+        module: Union[str, "Element"],
         version: VersionType = None,
         predicate: Optional[str] = get_settings().default_predicate,
         **kwargs,
@@ -490,7 +509,12 @@ class Element(Mixin, Jsonable):
                         }
                     )
                 )
-            storage_ids = getattr(storage, handler)(module, predicate)
+            storage_ids = getattr(storage, handler)(
+                module
+                if isinstance(module, str)
+                else f"__session__{module.__name__}",
+                predicate,
+            )
         else:
             storage_ids = []
 
@@ -502,27 +526,6 @@ class Element(Mixin, Jsonable):
                 for storage_id in storage_ids
             ]
         )
-
-    @classmethod
-    def singleton(
-        cls,
-        module: Union[str, "Element"],
-        version: VersionType = None,
-        predicate: Optional[str] = get_settings().default_predicate,
-        **kwargs,
-    ) -> "Collection[Element]":
-        candidates = cls.find_by_predicate(
-            module
-            if isinstance(module, str)
-            else f"__session__{module.__name__}",
-            version,
-            predicate,
-            **kwargs,
-        )
-        if candidates:
-            return candidates[-1]
-
-        return cls.make(module, version, **kwargs)
 
     def on_compute_predicate(self) -> Optional[Dict]:
         """Event to compute a custom predicate dictionary of the element
