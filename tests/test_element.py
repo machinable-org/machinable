@@ -207,7 +207,7 @@ def test_element_config():
         )
 
 
-def test_component_config_schema():
+def test_element_config_schema():
     class Basic(Element):
         class Config:
             hello: str = ""
@@ -485,3 +485,20 @@ def test_element_interface(tmp_storage):
     uncommitted = Element()
     uncommitted.save_data("test", "deferred")
     assert uncommitted.load_data("test") == "deferred"
+
+
+def test_element_interactive_session(tmp_storage):
+    class T(Experiment):
+        def is_valid(self):
+            return True
+
+    t = get(T)
+    assert t.module == "__session__T"
+    assert t.__model__._dump is not None
+
+    # default launch
+    t.launch()
+    # serialization
+    exec(t.dispatch_code(inline=False) + "\nassert experiment__.is_valid()")
+    # retrieval
+    assert t.experiment_id == get(T).experiment_id

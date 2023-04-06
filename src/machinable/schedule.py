@@ -1,6 +1,6 @@
 from machinable import schema
 from machinable.collection import ExecutionCollection
-from machinable.element import Element, get_lineage
+from machinable.element import Element, get_dump, get_lineage
 from machinable.types import VersionType
 
 
@@ -17,3 +17,4 @@ class Schedule(Element):
             version=self.__model__.version,
             lineage=get_lineage(self),
         )
+        self.__model__._dump = get_dump(self)

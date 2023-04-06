@@ -18,6 +18,7 @@ import stat
 from functools import wraps
 
 import arrow
+import dill as pickle
 import machinable
 import omegaconf
 import pydantic
@@ -320,6 +321,9 @@ class Element(Mixin, Jsonable):
             module=Element._module_,
             version=normversion(version),
             lineage=get_lineage(self),
+            _dump=pickle.dumps(self.__class__)
+            if Element._module_.startswith("__session__")
+            else None,
         )
         self.__related__ = {}
         self.__mixin__ = None
@@ -348,7 +352,7 @@ class Element(Mixin, Jsonable):
     @classmethod
     def get(
         cls,
-        module: Optional[str] = None,
+        module: Union[str, "Element", None] = None,
         version: VersionType = None,
         predicate: Optional[str] = get_settings().default_predicate,
         **kwargs,
@@ -399,6 +403,25 @@ class Element(Mixin, Jsonable):
         module, version = defaultversion(module, version, cls)
         return cls.make(module, version, base_class=cls, **kwargs)
 
+    @classmethod
+    def singleton(
+        cls,
+        module: Union[str, "Element"],
+        version: VersionType = None,
+        predicate: Optional[str] = get_settings().default_predicate,
+        **kwargs,
+    ) -> "Collection[Element]":
+        candidates = cls.find_by_predicate(
+            module,
+            version,
+            predicate,
+            **kwargs,
+        )
+        if candidates:
+            return candidates[-1]
+
+        return cls.make(module, version, **kwargs)
+
     def mount(self, storage: "Storage", storage_id: Any) -> bool:
         if self.__model__ is None:
             return False
@@ -421,7 +444,14 @@ class Element(Mixin, Jsonable):
     def from_model(cls, model: schema.Element) -> "Element":
         if cls.__module__ != model.module:
             # re-instantiate element class
-            instance = cls.make(model.module)
+            if model.module and model.module.startswith("__session__"):
+                if model._dump is None:
+                    raise RuntimeError(
+                        f"Unable to restore element {model.module}"
+                    )
+                instance = cls.make(pickle.loads(model._dump))
+            else:
+                instance = cls.make(model.module)
         else:
             instance = cls()
 
@@ -451,7 +481,7 @@ class Element(Mixin, Jsonable):
     @classmethod
     def find_by_predicate(
         cls,
-        module: str,
+        module: Union[str, "Element"],
         version: VersionType = None,
         predicate: Optional[str] = get_settings().default_predicate,
         **kwargs,
@@ -479,7 +509,12 @@ class Element(Mixin, Jsonable):
                         }
                     )
                 )
-            storage_ids = getattr(storage, handler)(module, predicate)
+            storage_ids = getattr(storage, handler)(
+                module
+                if isinstance(module, str)
+                else f"__session__{module.__name__}",
+                predicate,
+            )
         else:
             storage_ids = []
 
@@ -491,20 +526,6 @@ class Element(Mixin, Jsonable):
                 for storage_id in storage_ids
             ]
         )
-
-    @classmethod
-    def singleton(
-        cls,
-        module: str,
-        version: VersionType = None,
-        predicate: Optional[str] = get_settings().default_predicate,
-        **kwargs,
-    ) -> "Collection[Element]":
-        candidates = cls.find_by_predicate(module, version, predicate, **kwargs)
-        if candidates:
-            return candidates[-1]
-
-        return cls.make(module, version, **kwargs)
 
     def on_compute_predicate(self) -> Optional[Dict]:
         """Event to compute a custom predicate dictionary of the element
@@ -846,3 +867,8 @@ def get_lineage(element: "Element") -> Tuple[str, ...]:
         obj.module if isinstance(obj, Element) else obj.__module__
         for obj in element.__class__.__mro__[1:-3]
     )
+
+
+def get_dump(element: "Element") -> Optional[bytes]:
+    if element.__model__.module.startswith("__session__"):
+        return pickle.dumps(element.__class__)

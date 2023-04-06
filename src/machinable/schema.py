@@ -19,6 +19,7 @@ class Element(BaseModel):
     # morphMany relation to storage
     _storage_id: Optional[str] = PrivateAttr(default=None)
     _storage_instance: Optional["Storage"] = PrivateAttr(default=None)
+    _dump: Optional[bytes] = PrivateAttr(default=None)
     module: Optional[str] = None
     version: List[Union[str, Dict]] = []
     config: Optional[Dict] = None

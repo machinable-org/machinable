@@ -31,11 +31,11 @@ from machinable.record import Record
 from machinable.schedule import Schedule
 from machinable.settings import get_settings
 from machinable.storage import Storage
-from machinable.types import Optional, VersionType
+from machinable.types import Optional, Union, VersionType
 
 
 def get(
-    module: Optional[str] = None,
+    module: Union[str, Element, None] = None,
     version: VersionType = None,
     predicate: Optional[str] = get_settings().default_predicate,
     **kwargs,

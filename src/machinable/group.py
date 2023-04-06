@@ -4,7 +4,7 @@ from datetime import datetime
 
 from machinable import schema
 from machinable.collection import ExperimentCollection
-from machinable.element import Element, get_lineage, has_many
+from machinable.element import Element, get_dump, get_lineage, has_many
 from machinable.types import VersionType
 
 
@@ -40,6 +40,7 @@ class Group(Element):
             path=path,
             lineage=get_lineage(self),
         )
+        self.__model__._dump = get_dump(self)
 
     @property
     def pattern(self) -> str:

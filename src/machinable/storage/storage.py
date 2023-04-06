@@ -1,7 +1,13 @@
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
 
 from machinable import schema
-from machinable.element import Element, defaultversion, get_lineage, normversion
+from machinable.element import (
+    Element,
+    defaultversion,
+    get_dump,
+    get_lineage,
+    normversion,
+)
 from machinable.group import Group
 from machinable.project import Project
 from machinable.settings import get_settings
@@ -51,6 +57,7 @@ class Storage(Element):
             default_group=default_group,
             lineage=get_lineage(self),
         )
+        self.__model__._dump = get_dump(self)
 
     @classmethod
     def instance(
