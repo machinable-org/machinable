@@ -15,6 +15,7 @@ from machinable.element import (
 )
 from machinable.errors import ExecutionFailed
 from machinable.experiment import Experiment
+from machinable.interface import Interface
 from machinable.project import Project
 from machinable.schedule import Schedule
 from machinable.settings import get_settings
@@ -72,9 +73,9 @@ class Execution(Element):
                 self.add(_executable)
             return self
 
-        if not isinstance(executable, Experiment):
+        if not isinstance(executable, Interface):
             raise ValueError(
-                f"Expected experiment, but found: {type(executable)} {executable}"
+                f"Expected interface, but found: {type(executable)} {executable}"
             )
 
         self.__related__.setdefault("experiments", ExperimentCollection())
@@ -150,11 +151,11 @@ class Execution(Element):
 
         return {}
 
-    def dispatch(self, force: bool = False) -> "Execution":
+    def dispatch(self) -> "Execution":
         if not self.executables:
             return self
 
-        if not force and all(self.executables.map(lambda x: x.is_finished())):
+        if all(self.executables.map(lambda x: x.cached())):
             return self
 
         if self.on_before_dispatch() is False:
@@ -169,9 +170,7 @@ class Execution(Element):
 
         try:
             # compute resources
-            for executable in self.executables.filter(
-                lambda e: not e.is_finished()
-            ):
+            for executable in self.executables.filter(lambda e: not e.cached()):
                 self.save_file(
                     f"resources-{executable.experiment_id}.json",
                     self.compute_resources(executable),
@@ -199,15 +198,9 @@ class Execution(Element):
 
         Return False to prevent the dispatch
         """
-        # forward into on_before_dispatch
-        for executable in self.executables:
-            executable.on_before_dispatch()
 
     def on_before_commit(self) -> Optional[bool]:
         """Event triggered before commit of an execution"""
-        # forward into on_before_commit
-        for executable in self.executables:
-            executable.on_before_commit()
 
     def on_after_dispatch(self) -> None:
         """Event triggered after the dispatch of an execution"""

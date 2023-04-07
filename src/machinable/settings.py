@@ -13,6 +13,7 @@ class Settings(BaseModel):
     default_predicate: Optional[str] = "config,*"
     default_execution: Optional[ElementType] = None
     default_experiment: Optional[ElementType] = None
+    default_interface: Optional[ElementType] = None
     default_schedule: Optional[ElementType] = None
     default_group: Optional[str] = "%Y_%U_%a/"
     default_storage: List[Union[str, dict]] = [

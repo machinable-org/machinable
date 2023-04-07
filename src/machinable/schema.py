@@ -35,6 +35,10 @@ class Project(Element):
     host_info: Optional[Dict] = None
 
 
+class Interface(Element):
+    pass
+
+
 class Experiment(Element):
     experiment_id: str = Field(
         default_factory=lambda: encode_experiment_id(generate_experiment_id())

@@ -24,6 +24,7 @@ from machinable.element import (
 )
 from machinable.errors import ConfigurationError
 from machinable.group import Group
+from machinable.interface import Interface
 from machinable.project import Project
 from machinable.settings import get_settings
 from machinable.storage.storage import Storage
@@ -35,12 +36,17 @@ from machinable.utils import (
     timestamp_to_directory,
 )
 
+if sys.version_info >= (3, 11):
+    from typing import Self
+else:
+    from typing_extensions import Self
+
 if TYPE_CHECKING:
     from machinable.execution import Execution
     from machinable.record import Record
 
 
-class Experiment(Element):  # pylint: disable=too-many-public-methods
+class Experiment(Interface):  # pylint: disable=too-many-public-methods
     kind = "Experiment"
     default = get_settings().default_experiment
 
@@ -51,7 +57,7 @@ class Experiment(Element):  # pylint: disable=too-many-public-methods
         derived_from: Optional["Experiment"] = None,
         uses: Union[None, Element, List[Element]] = None,
     ):
-        super().__init__(version=version)
+        super().__init__(version=version, uses=uses)
         if seed is None:
             seed = generate_seed()
         self.__model__ = schema.Experiment(
@@ -67,19 +73,10 @@ class Experiment(Element):  # pylint: disable=too-many-public-methods
             self.__model__.derived_from_timestamp = derived_from.timestamp
             self.__related__["ancestor"] = derived_from
         self._events: Events = Events()
-        self.__related__["uses"] = ElementCollection()
-        if uses:
-            self.use(uses)
 
     @belongs_to
     def group():
         return Group
-
-    @belongs_to
-    def project():
-        from machinable.project import Project
-
-        return Project
 
     @has_many
     def derived() -> ExperimentCollection:
@@ -90,37 +87,6 @@ class Experiment(Element):  # pylint: disable=too-many-public-methods
     def ancestor() -> Optional["Experiment"]:
         """Returns parent experiment or None if experiment is independent"""
         return Experiment
-
-    @has_many
-    def executions() -> "ExecutionCollection":
-        from machinable.execution import Execution
-
-        return Execution, ExecutionCollection
-
-    @belongs_to
-    def execution() -> "Execution":
-        from machinable.execution import Execution
-
-        return Execution, False
-
-    def launch(self) -> "Experiment":
-        from machinable.execution import Execution
-
-        execution = Execution.get()
-
-        execution.add(self)
-
-        if Execution.is_connected():
-            # commit only, defer execution
-            self.commit()
-        else:
-            execution.dispatch()
-
-        return self
-
-    @has_many
-    def uses() -> "ElementCollection":
-        return Element, ElementCollection
 
     @classmethod
     def collect(cls, experiments) -> ExperimentCollection:
@@ -144,21 +110,6 @@ class Experiment(Element):  # pylint: disable=too-many-public-methods
     def _clear_caches(self) -> None:
         self._config = None
         self.__model__.config = None
-
-    def use(self, use: Union[Element, List[Element]]) -> "Experiment":
-        self._assert_editable()
-
-        if isinstance(use, (list, tuple)):
-            for _use in use:
-                self.use(_use)
-            return self
-
-        if not isinstance(use, Element):
-            raise ValueError(f"Expected element, but found: {type(use)} {use}")
-
-        self.__related__["uses"].append(use)
-
-        return self
 
     def group_as(self, group: Union[Group, str]) -> "Experiment":
         # todo: allow group modifications after execution
@@ -217,14 +168,6 @@ class Experiment(Element):  # pylint: disable=too-many-public-methods
     @property
     def experiment_id(self) -> str:
         return self.__model__.experiment_id
-
-    @property
-    def resources(self) -> Optional[Dict]:
-        if self.execution is None:
-            return None
-        return self.execution.load_file(
-            f"resources-{self.experiment_id}.json", None
-        )
 
     def records(self, scope="default") -> RecordCollection:
         if not self.is_mounted():
@@ -359,16 +302,14 @@ class Experiment(Element):  # pylint: disable=too-many-public-methods
             self.is_active() or self.is_finished()
         )
 
-    def dispatch(self, force: bool = False) -> "Experiment":
+    def dispatch(self) -> Self:
         """Dispatch the experiment lifecycle"""
-        if not force and self.is_finished():
-            return self
-
         try:
             self.on_before_dispatch()
 
             self.on_seeding()
 
+            # meta-data
             if self.on_write_meta_data() is not False and self.is_mounted():
                 self.mark_started()
                 self._events.on("heartbeat", self.update_heartbeat)
@@ -379,25 +320,15 @@ class Experiment(Element):  # pylint: disable=too-many-public-methods
                         data=Project.get().provider().get_host_info(),
                     )
 
-            # create
-            self.on_before_create()
-            self.on_create()
-            self.on_after_create()
-
-            # execute
             self.__call__()
 
             self.on_success()
             self.on_finish(success=True)
 
-            # destroy
-            self.on_before_destroy()
+            # finalize meta data
             self._events.heartbeats(None)
-            self.on_destroy()
             if self.on_write_meta_data() is not False and self.is_mounted():
                 self.update_heartbeat(mark_finished=True)
-
-            self.on_after_destroy()
 
             self.on_after_dispatch(success=True)
         except BaseException as _ex:  # pylint: disable=broad-except
@@ -409,12 +340,13 @@ class Experiment(Element):  # pylint: disable=too-many-public-methods
                 f"{self.__class__.__name__} dispatch failed"
             ) from _ex
 
-        return self
+    def cached(self) -> bool:
+        return self.is_finished()
 
     # life cycle
 
     def __call__(self) -> None:
-        """Main code"""
+        """Main event"""
 
     def on_before_commit(self) -> Optional[bool]:
         """Event triggered before the commit of the experiment"""
@@ -432,15 +364,6 @@ class Experiment(Element):  # pylint: disable=too-many-public-methods
         Return False to prevent writing of meta-data
         """
 
-    def on_before_create(self):
-        """Lifecycle event triggered before experiments creation"""
-
-    def on_create(self):
-        """Lifecycle event triggered during experiments creation"""
-
-    def on_after_create(self):
-        """Lifecycle event triggered after experiments creation"""
-
     def on_success(self):
         """Lifecycle event triggered iff execution finishes successfully"""
 
@@ -450,15 +373,6 @@ class Experiment(Element):  # pylint: disable=too-many-public-methods
         # Arguments
         success: Whether the execution finished sucessfully
         """
-
-    def on_before_destroy(self):
-        """Lifecycle event triggered before experiments destruction"""
-
-    def on_destroy(self):
-        """Lifecycle event triggered at experiments destruction"""
-
-    def on_after_destroy(self):
-        """Lifecycle event triggered after experiments destruction"""
 
     def on_failure(self, exception: errors.MachinableError):
         """Lifecycle event triggered iff the execution finished with an exception
@@ -475,25 +389,6 @@ class Experiment(Element):  # pylint: disable=too-many-public-methods
         # Arguments
         success: Whether the execution finished sucessfully
         """
-
-    # exports
-
-    def dispatch_code(self, inline: bool = True) -> Optional[str]:
-        storage = Storage.get().as_json().replace('"', '\\"')
-        code = f"""
-        from machinable import Project, Storage, Experiment
-        from machinable.errors import StorageError
-        Project('{Project.get().path()}').__enter__()
-        Storage.from_json('{storage}').__enter__()
-        experiment__ = Experiment.find('{self.experiment_id}', timestamp={self.timestamp})
-        experiment__.dispatch()
-        """
-
-        if inline:
-            code = code.replace("\n        ", ";")[1:-1]
-            return f'{sys.executable} -c "{code}"'
-
-        return code.replace("        ", "")[1:-1]
 
     def __repr__(self):
         return f"Experiment [{self.__model__.experiment_id}]"

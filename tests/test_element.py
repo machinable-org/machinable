@@ -68,12 +68,14 @@ def test_element_lineage():
         experiment = Experiment.instance("basic")
         assert experiment.lineage == (
             "machinable.experiment",
+            "machinable.interface",
             "machinable.element",
         )
         experiment = Experiment.instance("line")
         assert experiment.lineage == (
             "dummy",
             "machinable.experiment",
+            "machinable.interface",
             "machinable.element",
         )
 

@@ -13,7 +13,6 @@ import collections
 import copy
 import json
 import os
-import shlex
 import stat
 from functools import wraps
 
@@ -22,7 +21,6 @@ import dill as pickle
 import machinable
 import omegaconf
 import pydantic
-from flatten_dict import flatten
 from machinable import schema
 from machinable.collection import Collection
 from machinable.config import from_element, match_method, rewrite_config_methods
@@ -772,21 +770,6 @@ class Element(Mixin, Jsonable):
     @classmethod
     def is_connected(cls) -> bool:
         return len(_CONNECTIONS[cls.kind]) > 0
-
-    def to_cli(self) -> str:
-        cli = [self.module]
-        for v in self.__model__.version:
-            if isinstance(v, str):
-                cli.append(v)
-            else:
-                cli.extend(
-                    [
-                        f"{key}={shlex.quote(str(val))}"
-                        for key, val in flatten(v, reducer="dot").items()
-                    ]
-                )
-
-        return " ".join(cli)
 
     def __enter__(self):
         _CONNECTIONS[self.kind].append(self)

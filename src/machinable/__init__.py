@@ -1,6 +1,7 @@
 """machinable"""
 __all__ = [
     "Element",
+    "Interface",
     "Execution",
     "Experiment",
     "Project",
@@ -25,6 +26,7 @@ from machinable.cli import from_cli
 from machinable.element import Element
 from machinable.execution import Execution
 from machinable.experiment import Experiment
+from machinable.interface import Interface
 from machinable.mixin import Mixin, mixin
 from machinable.project import Project
 from machinable.record import Record
