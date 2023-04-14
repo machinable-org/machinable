@@ -12,6 +12,7 @@ import string
 import sys
 from keyword import iskeyword
 from pathlib import Path
+from uuid import UUID
 
 import arrow
 import commandlib
@@ -37,90 +38,10 @@ from machinable.types import DatetimeType
 from observable import Observable
 
 
-class Events(Observable):
-    def __init__(self) -> None:
-        super().__init__()
-        self._heartbeat = None
-
-    def trigger(self, event: str, *args: Any, **kw: Any) -> list:
-        """Triggers all handlers which are subscribed to an event.
-        Returns True when there were callbacks to execute, False otherwise."""
-        # upstream pending on issue https://github.com/timofurrer/observable/issues/17
-        callbacks = list(self._events.get(event, []))
-        return [callback(*args, **kw) for callback in callbacks]
-
-    def heartbeats(self, seconds=10):
-        if self._heartbeat is not None:
-            self._heartbeat.cancel()
-
-        if seconds is None or int(seconds) == 0:
-            # disable heartbeats
-            return
-
-        def heartbeat():
-            t = threading.Timer(seconds, heartbeat)
-            t.daemon = True
-            t.start()
-            self.trigger("heartbeat")
-            return t
-
-        self._heartbeat = heartbeat()
-
-
-class Jsonable:
-    def as_json(self, stringify=True, **dumps_kwargs):
-        serialized = self.serialize()
-        if stringify:
-            serialized = json.dumps(serialized, **dumps_kwargs)
-        return serialized
-
-    @classmethod
-    def from_json(cls, serialized, **loads_kwargs):
-        if isinstance(serialized, str):
-            serialized = json.loads(serialized, **loads_kwargs)
-        return cls.unserialize(serialized)
-
-    def clone(self):
-        return self.__class__.from_json(self.as_json())
-
-    def serialize(self) -> dict:
-        raise NotImplementedError
-
-    @classmethod
-    def unserialize(cls, serialized: dict) -> Any:
-        raise NotImplementedError
-
-
-class Connectable:
-    """Connectable trait"""
-
-    __connection__: Optional["Connectable"] = None
-
-    @classmethod
-    def is_connected(cls) -> bool:
-        return cls.__connection__ is not None
-
-    @classmethod
-    def get(cls) -> "Connectable":
-        return cls() if cls.__connection__ is None else cls.__connection__
-
-    def __enter__(self):
-        self._outer_connection = (  # pylint: disable=attribute-defined-outside-init
-            self.__class__.__connection__
-        )
-        self.__class__.__connection__ = self
-        return self
-
-    def __exit__(self, *args, **kwargs):
-        if self.__class__.__connection__ is self:
-            self.__class__.__connection__ = None
-        if getattr(self, "_outer_connection", None) is not None:
-            self.__class__.__connection__ = self._outer_connection
-        return self
-
-
 def serialize(obj):
     """JSON serializer for objects not serializable by default json code"""
+    if isinstance(obj, UUID):
+        return obj.hex
     if isinstance(obj, DatetimeType):
         return str(obj)
     if isinstance(obj, (omegaconf.DictConfig, omegaconf.ListConfig)):
@@ -644,3 +565,85 @@ def get_root_commit(repository: str) -> Optional[str]:
         )
     except commandlib.exceptions.CommandError:
         return None
+
+
+class Events(Observable):
+    def __init__(self) -> None:
+        super().__init__()
+        self._heartbeat = None
+
+    def trigger(self, event: str, *args: Any, **kw: Any) -> list:
+        """Triggers all handlers which are subscribed to an event.
+        Returns True when there were callbacks to execute, False otherwise."""
+        # upstream pending on issue https://github.com/timofurrer/observable/issues/17
+        callbacks = list(self._events.get(event, []))
+        return [callback(*args, **kw) for callback in callbacks]
+
+    def heartbeats(self, seconds=10):
+        if self._heartbeat is not None:
+            self._heartbeat.cancel()
+
+        if seconds is None or int(seconds) == 0:
+            # disable heartbeats
+            return
+
+        def heartbeat():
+            t = threading.Timer(seconds, heartbeat)
+            t.daemon = True
+            t.start()
+            self.trigger("heartbeat")
+            return t
+
+        self._heartbeat = heartbeat()
+
+
+class Jsonable:
+    def as_json(self, stringify=True, default=serialize, **dumps_kwargs):
+        serialized = self.serialize()
+        if stringify:
+            serialized = json.dumps(serialized, default=default, **dumps_kwargs)
+        return serialized
+
+    @classmethod
+    def from_json(cls, serialized, **loads_kwargs):
+        if isinstance(serialized, str):
+            serialized = json.loads(serialized, **loads_kwargs)
+        return cls.unserialize(serialized)
+
+    def clone(self):
+        return self.__class__.from_json(self.as_json())
+
+    def serialize(self) -> dict:
+        raise NotImplementedError
+
+    @classmethod
+    def unserialize(cls, serialized: dict) -> Any:
+        raise NotImplementedError
+
+
+class Connectable:
+    """Connectable trait"""
+
+    __connection__: Optional["Connectable"] = None
+
+    @classmethod
+    def is_connected(cls) -> bool:
+        return cls.__connection__ is not None
+
+    @classmethod
+    def get(cls) -> "Connectable":
+        return cls() if cls.__connection__ is None else cls.__connection__
+
+    def __enter__(self):
+        self._outer_connection = (  # pylint: disable=attribute-defined-outside-init
+            self.__class__.__connection__
+        )
+        self.__class__.__connection__ = self
+        return self
+
+    def __exit__(self, *args, **kwargs):
+        if self.__class__.__connection__ is self:
+            self.__class__.__connection__ = None
+        if getattr(self, "_outer_connection", None) is not None:
+            self.__class__.__connection__ = self._outer_connection
+        return self
