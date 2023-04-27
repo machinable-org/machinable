@@ -4,8 +4,6 @@ from datetime import datetime
 from uuid import UUID, uuid4
 
 from machinable.utils import (
-    encode_experiment_id,
-    generate_experiment_id,
     generate_nickname,
     generate_seed,
 )
@@ -17,16 +15,18 @@ if TYPE_CHECKING:
 
 
 class Element(BaseModel):
-    _dump: Optional[bytes] = PrivateAttr(default=None)
+    kind: str = "Element"
     uid: UUID = Field(default_factory=uuid4)
     module: Optional[str] = None
     version: List[Union[str, Dict]] = []
     config: Optional[Dict] = None
     predicate: Optional[Dict] = None
     lineage: Tuple[str, ...] = ()
+    _dump: Optional[bytes] = PrivateAttr(default=None)
 
 
 class Project(Element):
+    kind: str = "Project"
     directory: str
     name: str
     code_version: Optional[Dict] = None
@@ -35,23 +35,19 @@ class Project(Element):
 
 
 class Storage(Element):
+    kind: str = "Storage"
     default_group: Optional[str] = None
 
 
 class Component(Element):
+    kind: str = "Component"
     # morphMany relation to storage
     _storage_id: Optional[str] = PrivateAttr(default=None)
     _storage_instance: Optional["Storage"] = PrivateAttr(default=None)
 
 
 class Interface(Component):
-    pass
-
-
-class Experiment(Interface):
-    experiment_id: str = Field(
-        default_factory=lambda: encode_experiment_id(generate_experiment_id())
-    )
+    kind: str = "Interface"
     timestamp: int = Field(
         default_factory=lambda: int(datetime.now().timestamp())
     )
@@ -59,24 +55,12 @@ class Experiment(Interface):
     derived_from_id: Optional[str] = None
     derived_from_timestamp: Optional[int] = None
 
-
-class Group(Component):
-    pattern: str
-    path: Optional[str] = None
-
-
 class Execution(Element):
+    kind: str = "Execution"
     resources: Optional[Dict] = None
     host_info: Optional[Dict] = None
     nickname: str = Field(default_factory=generate_nickname)
     timestamp: float = Field(default_factory=lambda: datetime.now().timestamp())
 
-
-class Record(Element):
-    scope: str
-    current: Dict = {}
-    last: Dict = None
-
-
 class Schedule(Element):
-    pass
+    kind: str = "Schedule"

@@ -19,7 +19,6 @@ import commandlib
 import dill as pickle
 import jsonlines
 import omegaconf
-from baseconv import base62
 from flatten_dict import unflatten as _unflatten_dict
 
 if sys.version_info >= (3, 8):
@@ -65,69 +64,10 @@ def generate_seed(random_state=None):
     return random_state.randint(0, 2**31 - 1)
 
 
-def as_color(experiment_id: str):
-    return "".join(
-        encode_experiment_id(decode_experiment_id(i) % 16)
-        for i in experiment_id
-    )
-
-
 def timestamp_to_directory(timestamp: float) -> str:
     return (
         arrow.get(timestamp).strftime("%Y-%m-%dT%H%M%S_%f%z").replace("+", "_")
     )
-
-
-def encode_experiment_id(seed, or_fail=True) -> Optional[str]:
-    """Encodes a seed and returns the corresponding experiment ID
-
-    # Arguments
-    seed: int in the range 62^5 <= seed <= 62^6-1
-    or_fail: If True, raises a Value error instead of returning None
-    """
-    try:
-        if not isinstance(seed, int):
-            raise ValueError
-        if 62**5 <= seed <= 62**6 - 1:
-            return base62.encode(seed)
-        raise ValueError
-    except (ValueError, TypeError) as e:
-        if or_fail:
-            raise ValueError(
-                "Seed has to lie in range 62^5 <= seed <= 62^6-1"
-            ) from e
-        return None
-
-
-def decode_experiment_id(experiment_id, or_fail=True) -> Optional[int]:
-    """Decodes a experiment ID into the corresponding seed
-
-    # Arguments
-    experiment_id: The base62 experiment ID
-    or_fail: If True, raises a Value error instead of returning None
-    """
-    try:
-        if not isinstance(experiment_id, str):
-            raise ValueError
-        value = int(base62.decode(experiment_id))
-        if 62**5 <= value <= 62**6 - 1:
-            return value
-        raise ValueError
-    except (ValueError, TypeError) as e:
-        if or_fail:
-            raise ValueError(
-                f"'{experiment_id}' is not a valid experiment ID"
-            ) from e
-        return None
-
-
-def generate_experiment_id(random_state=None) -> int:
-    if random_state is None or isinstance(random_state, int):
-        random_state = random.Random(random_state)
-
-    # ~ 55x10^9 distinct experiment IDs that if represented in base62 are len 6
-    return random_state.randint(62**5, 62**6 - 1)
-
 
 def is_valid_variable_name(name):
     if not isinstance(name, str):

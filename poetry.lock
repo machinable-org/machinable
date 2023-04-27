@@ -617,17 +617,6 @@ pytest = ">=4.6"
 testing = ["fields", "hunter", "process-tests", "pytest-xdist", "six", "virtualenv"]
 
 [[package]]
-name = "python-baseconv"
-version = "1.2.2"
-description = "Convert numbers from base 10 integers to base X strings and back again."
-category = "main"
-optional = false
-python-versions = "*"
-files = [
-    {file = "python-baseconv-1.2.2.tar.gz", hash = "sha256:0539f8bd0464013b05ad62e0a1673f0ac9086c76b43ebf9f833053527cd9931b"},
-]
-
-[[package]]
 name = "python-dateutil"
 version = "2.8.2"
 description = "Extensions to the standard Python datetime module"
@@ -850,4 +839,4 @@ all = []
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.7"
-content-hash = "048dc43d0d53d222eda5976c00d58f7f1c35187202e842529515394504ec8ad4"
+content-hash = "d21891e6d842ec1dd2817e0461f8e83aa3a42dbbc127f4f52d4fa1225bcaf60b"

@@ -419,7 +419,7 @@ def test_connectable():
                 assert Dummy.get() is dummy_2
             assert Dummy.get() is dummy_1
         assert Dummy.get() is not dummy_1
-        assert not Dummy.is_connected(), mode
+        assert not Dummy.is_connected()
 
 
 # sub-class relations

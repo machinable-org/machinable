@@ -24,7 +24,6 @@ include = ["CHANGELOG.md", "src/machinable/py.typed"]
 
 [tool.poetry.dependencies]
 python = "^3.7"
-python-baseconv = "^1.2"
 observable = "^1.0"
 flatten-dict = "^0.4"
 jsonlines = "^3.1"
