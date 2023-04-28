@@ -10,7 +10,7 @@ try:
 except ImportError:
     mpi4py = None
 
-from machinable import Execution, Experiment, Project
+from machinable import Component, Execution, Project
 
 
 def test_docs_snippets_estimate_pi(tmp_storage):
@@ -31,7 +31,7 @@ def test_docs_snippets_tutorial_main_unified(tmp_storage):
 # Examples/execution
 
 
-class ExternalExperiment(Experiment):
+class ExternalComponent(Component):
     def on_create(self):
         print("Hello from MPI script")
         self.save_data("test.txt", "hello")
@@ -43,14 +43,14 @@ class ExternalExperiment(Experiment):
 )
 def test_mpi_execution(tmp_storage):
     with Project.instance("docs/snippets/examples"):
-        experiment = ExternalExperiment()
+        component = ExternalComponent()
         with Execution.get("execution.mpi"):
-            experiment.launch()
-        assert experiment.is_finished()
-        assert experiment.load_data("test.txt") == "hello"
+            component.launch()
+        assert component.is_finished()
+        assert component.load_data("test.txt") == "hello"
 
 
-class SlurmExperiment(Experiment):
+class SlurmComponent(Component):
     def __call__(self):
         print("Hello world from Slurm")
         self.save_data("test_run.json", {"success": True})
@@ -62,18 +62,18 @@ class SlurmExperiment(Experiment):
     reason="Test requires Slurm environment",
 )
 def test_slurm_execution(tmp_storage):
-    experiment = SlurmExperiment()
+    component = SlurmComponent()
     with Project.instance("docs/snippets/examples"), Execution.get(
         "execution.slurm",
         resources=json.loads(
             os.environ.get("MACHINABLE_SLURM_TEST_RESOURCES", "{}")
         ),
     ):
-        experiment.launch()
+        component.launch()
         for _ in range(30):
-            if experiment.is_finished():
-                assert "Hello world from Slurm" in experiment.output()
-                assert experiment.load_data("test_run.json")["success"] is True
+            if component.is_finished():
+                assert "Hello world from Slurm" in component.output()
+                assert component.load_data("test_run.json")["success"] is True
                 return
 
             time.sleep(1)

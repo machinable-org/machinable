@@ -11,8 +11,8 @@ class Multiprocess(Execution):
         pool = Pool(processes=self.config.processes, maxtasksperchild=1)
         try:
             pool.imap_unordered(
-                lambda experiment: experiment(),
-                self.experiments,
+                lambda component: component(),
+                self.components,
             )
             pool.close()
             pool.join()

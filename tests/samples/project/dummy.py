@@ -1,7 +1,7 @@
-from machinable import Experiment
+from machinable import Element
 
 
-class Dummy(Experiment):
+class Dummy(Element):
     class Config:
         a: int = 1
         ignore_me_: int = -1

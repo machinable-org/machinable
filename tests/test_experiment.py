@@ -3,8 +3,8 @@ import os
 import commandlib
 import pytest
 from machinable import (
+    Component,
     Execution,
-    Experiment,
     Project,
     Storage,
     errors,
@@ -14,26 +14,26 @@ from machinable import (
 from machinable.element import Element
 
 
-def test_experiment(tmp_storage, tmp_path):
+def test_component(tmp_storage, tmp_path):
     p = Project("./tests/samples/project").__enter__()
-    experiment = Experiment.make("dummy")
-    assert experiment.module == "dummy"
-    assert isinstance(str(experiment), str)
-    assert isinstance(repr(experiment), str)
-    assert experiment.config.a == 1
+    component = Component.make("dummy")
+    assert component.module == "dummy"
+    assert isinstance(str(component), str)
+    assert isinstance(repr(component), str)
+    assert component.config.a == 1
 
     # version
-    assert experiment.version() == []
-    assert experiment.version("test") == ["test"]
-    assert experiment.version() == ["test"]
-    assert experiment.version("replace", overwrite=True) == ["replace"]
-    experiment.version({"a": -1}, overwrite=True)
-    assert experiment.config.a == -1
-    experiment.version({"a": 1})
-    assert experiment.config.a == 1
+    assert component.version() == []
+    assert component.version("test") == ["test"]
+    assert component.version() == ["test"]
+    assert component.version("replace", overwrite=True) == ["replace"]
+    component.version({"a": -1}, overwrite=True)
+    assert component.config.a == -1
+    component.version({"a": 1})
+    assert component.config.a == 1
 
-    experiment = Experiment.from_model(Experiment.model(experiment))
-    serialized = experiment.serialize()
+    component = Component.from_model(Component.model(component))
+    serialized = component.serialize()
     assert serialized["config"]["a"] == 1
 
     # storage
@@ -43,117 +43,117 @@ def test_experiment(tmp_storage, tmp_path):
     )
 
     execution = schema.Execution()
-    model = storage.create_experiment(
-        experiment=schema.Experiment(config={"test": True}),
+    model = storage.create_component(
+        component=schema.Component(config={"test": True}),
         group=schema.Group(pattern="", path=""),
         project=schema.Project(directory=".", name="test"),
         uses=[],
     )
 
-    experiment = Experiment.from_model(model)
+    component = Component.from_model(model)
 
-    assert experiment.config.test is True
-    assert experiment.experiment_id == model.experiment_id
-    assert experiment.local_directory().startswith(str(tmp_path))
+    assert component.config.test is True
+    assert component.id == model.id
+    assert component.local_directory().startswith(str(tmp_path))
     assert os.path.isdir(
-        experiment.local_directory("non-existing/dir", create=True)
+        component.local_directory("non-existing/dir", create=True)
     )
 
     # records
-    assert len(experiment.records()) == 0
-    record = experiment.record("testing")
+    assert len(component.records()) == 0
+    record = component.record("testing")
     record["test"] = 1
     record.save()
-    assert len(experiment.records("testing")) == 1
+    assert len(component.records("testing")) == 1
 
     # output
-    assert experiment.output() is None
-    experiment.save_file("output.log", "test")
-    assert experiment.output() == "test"
+    assert component.output() is None
+    component.save_file("output.log", "test")
+    assert component.output() == "test"
 
-    assert experiment.output(incremental=True) == "test"
-    experiment.save_file("output.log", "testt")
-    assert experiment.output(incremental=True) == "t"
-    assert experiment.output(incremental=True) == ""
-    experiment.save_file("output.log", "testt more")
-    assert experiment.output(incremental=True) == " more"
+    assert component.output(incremental=True) == "test"
+    component.save_file("output.log", "testt")
+    assert component.output(incremental=True) == "t"
+    assert component.output(incremental=True) == ""
+    component.save_file("output.log", "testt more")
+    assert component.output(incremental=True) == " more"
 
-    experiment.mark_started()
-    assert experiment.is_started()
-    experiment.update_heartbeat()
-    assert experiment.is_active()
-    experiment.update_heartbeat(mark_finished=True)
-    assert experiment.is_finished()
+    component.mark_started()
+    assert component.is_started()
+    component.update_heartbeat()
+    assert component.is_active()
+    component.update_heartbeat(mark_finished=True)
+    assert component.is_finished()
     with pytest.raises(errors.ConfigurationError):
-        experiment._assert_editable()
-    assert not experiment.is_incomplete()
+        component._assert_editable()
+    assert not component.is_incomplete()
 
     # write protection
-    assert experiment.version() == []
+    assert component.version() == []
     with pytest.raises(errors.ConfigurationError):
-        experiment.version(["modify"])
+        component.version(["modify"])
 
     p.__exit__()
 
 
-def test_experiment_launch(tmp_storage):
-    experiment = Experiment()
-    assert not experiment.is_mounted()
-    experiment.launch()
-    assert experiment.is_mounted()
-    assert experiment.is_finished()
+def test_component_launch(tmp_storage):
+    component = Component()
+    assert not component.is_mounted()
+    component.launch()
+    assert component.is_mounted()
+    assert component.is_finished()
 
     # multiples
-    experiment = Experiment()
+    component = Component()
     with Execution() as execution:
-        experiment.launch()
-        experiment.launch()
-        experiment.launch()
-    assert len(execution.experiments) == 3
+        component.launch()
+        component.launch()
+        component.launch()
+    assert len(execution.components) == 3
 
     with Execution():
-        e1 = Experiment().launch()
+        e1 = Component().launch()
         assert not e1.is_started()
-        e2 = Experiment().launch()
+        e2 = Component().launch()
         assert not e2.is_started()
     assert e1.is_finished()
     assert e2.is_finished()
 
 
-def test_experiment_relations(tmp_storage):
+def test_component_relations(tmp_storage):
     with Project("./tests/samples/project", name="test-project"):
-        experiment = Experiment.instance("basic").group_as("test/group")
-        execution = Execution().add(experiment)
+        component = Component.instance("basic").group_as("test/group")
+        execution = Execution().add(component)
         execution.dispatch()
 
-        assert experiment.project.name() == "test-project"
-        assert experiment.execution.timestamp == execution.timestamp
-        assert experiment.executions[0].timestamp == execution.timestamp
-        assert len(experiment.uses) == 0
+        assert component.project.name() == "test-project"
+        assert component.execution.timestamp == execution.timestamp
+        assert component.executions[0].timestamp == execution.timestamp
+        assert len(component.uses) == 0
 
         with pytest.raises(errors.ConfigurationError):
-            experiment.version("attempt_overwrite")
+            component.version("attempt_overwrite")
 
-        derived = Experiment(derived_from=experiment)
-        assert derived.ancestor is experiment
+        derived = Component(derived_from=component)
+        assert derived.ancestor is component
         derived_execution = Execution().add(derived).dispatch()
 
         # invalidate cache and reconstruct
-        experiment.__related__ = {}
+        component.__related__ = {}
         execution.__related__ = {}
         derived.__related__ = {}
         derived_execution.__related__ = {}
 
-        assert derived.ancestor.experiment_id == experiment.experiment_id
+        assert derived.ancestor.id == component.id
         assert derived.ancestor.hello() == "there"
-        assert experiment.derived[0].experiment_id == derived.experiment_id
+        assert component.derived[0].id == derived.id
 
-        derived = Experiment(derived_from=experiment)
+        derived = Component(derived_from=component)
         Execution().add(derived).dispatch()
-        assert len(experiment.derived) == 2
+        assert len(component.derived) == 2
 
-        assert experiment.derive().experiment_id != experiment.experiment_id
-        derived = experiment.derive(version=experiment.config)
+        assert component.derive().id != component.id
+        derived = component.derive(version=component.config)
         Execution().add(derived).dispatch()
 
 
@@ -165,67 +165,67 @@ class DataElement(Element):
         return "element"
 
 
-def test_experiment_uses(tmp_storage):
+def test_component_uses(tmp_storage):
     with Project("./tests/samples/project"):
-        assert Experiment.singleton("dummy") is not None
-        experiment = Experiment.instance("dummy")
+        assert Component.singleton("dummy") is not None
+        component = Component.instance("dummy")
         dataset = DataElement({"dataset": "cifar"})
-        experiment.use(dataset)
-        assert experiment.uses[0].config.dataset == "cifar"
-        experiment.launch()
-        experiment.__related__ = {}
-        assert experiment.uses[0].config.dataset == "cifar"
-        assert experiment.uses[0].hello() == "element"
+        component.use(dataset)
+        assert component.uses[0].config.dataset == "cifar"
+        component.launch()
+        component.__related__ = {}
+        assert component.uses[0].config.dataset == "cifar"
+        assert component.uses[0].hello() == "element"
 
 
-def test_experiment_interface(tmp_path):
+def test_component_interface(tmp_path):
     with Project("tests/samples/project"):
         # test dispatch lifecycle
-        experiment = Experiment.make("interfaces.events_check")
+        component = Component.make("interfaces.events_check")
 
-        experiment.__model__._storage_instance = Storage.make(
+        component.__model__._storage_instance = Storage.make(
             "machinable.storage.filesystem",
             {"directory": str(tmp_path)},
         )
-        experiment.__model__._storage_id = str(tmp_path)
+        component.__model__._storage_id = str(tmp_path)
 
-        experiment.dispatch()
-        assert len(experiment.load_data("events.json")) == 6
+        component.dispatch()
+        assert len(component.load_data("events.json")) == 6
 
 
-class ExportExperiment(Experiment):
+class ExportComponent(Component):
     def __call__(self):
         print("Hello world")
         self.save_data("test_run.json", {"success": True})
 
 
-def test_experiment_export(tmp_storage):
-    experiment = ExportExperiment()
-    script = experiment.dispatch_code(inline=False)
+def test_component_export(tmp_storage):
+    component = ExportComponent()
+    script = component.dispatch_code(inline=False)
 
     with pytest.raises(AttributeError):
         exec(script)
 
-    Execution().add(experiment).commit()
-    assert not experiment.is_started()
+    Execution().add(component).commit()
+    assert not component.is_started()
 
     exec(script)
 
-    assert experiment.is_finished()
-    assert experiment.load_data("test_run.json")["success"]
+    assert component.is_finished()
+    assert component.load_data("test_run.json")["success"]
 
     # inline
-    experiment = ExportExperiment()
-    Execution().add(experiment).commit()
-    script = experiment.dispatch_code(inline=True)
-    script_filepath = experiment.save_file("run.sh", script)
+    component = ExportComponent()
+    Execution().add(component).commit()
+    script = component.dispatch_code(inline=True)
+    script_filepath = component.save_file("run.sh", script)
 
     print(commandlib.Command("bash")(script_filepath).output())
-    assert experiment.is_finished()
-    assert experiment.load_data("test_run.json")["success"]
+    assert component.is_finished()
+    assert component.load_data("test_run.json")["success"]
 
 
-def test_experiment_predicates(tmp_storage):
+def test_component_predicates(tmp_storage):
     p = Project("./tests/samples/project").__enter__()
 
     e1 = get("predicate", {"a": 2})
@@ -237,15 +237,127 @@ def test_experiment_predicates(tmp_storage):
 
     # ignore enderscores by default
     e = get("predicate", {"a": 2, "ignore_": 1})
-    assert e.experiment_id == e1.experiment_id
+    assert e.id == e1.id
     # match enderscore
     e = get("predicate", {"ignore_": 3}, predicate="config_update_")
-    assert e.experiment_id == e2.experiment_id
+    assert e.id == e2.id
     # custom
     e = get("predicate", {"a": 1}, predicate="config,test,more")
-    assert e.experiment_id == e3.experiment_id
+    assert e.id == e3.id
     # full config
     e = get("predicate", {"ignore_": 3}, predicate="config")
-    assert e.experiment_id == e3.experiment_id
+    assert e.id == e3.id
 
     p.__exit__()
+
+
+# # sub-class relations
+# class CustomComponent(Component):
+#     pass
+
+
+# class CustomExecution(Execution):
+#     pass
+
+
+# def test_element_relations(tmp_storage):
+#     with Project("./tests/samples/project"):
+#         component = Component().group_as("test/group")
+#         execution = Execution().add(component)
+#         execution.dispatch()
+
+#         component_clone = Component.from_storage(component.storage_id)
+#         assert component.id == component_clone.id
+
+#         # component <-> execution
+#         assert int(execution.timestamp) == int(component.execution.timestamp)
+#         assert (
+#             component.id == execution.components[0].id
+#         )
+#         # group <-> execution
+#         assert component.group.path == "test/group"
+#         assert component.group.pattern == "test/group"
+#         assert component.group.components[0].timestamp == component.timestamp
+
+#         # invalidate cache and reconstruct
+#         component.__related__ = {}
+#         execution.__related__ = {}
+#         # component <-> execution
+#         assert int(execution.timestamp) == int(component.execution.timestamp)
+#         assert (
+#             component.id == execution.components[0].id
+#         )
+#         # group <-> execution
+#         assert component.group.path == "test/group"
+#         assert component.group.components[0].timestamp == component.timestamp
+
+#         component = CustomComponent()
+#         execution = CustomExecution().add(component)
+#         execution.dispatch()
+#         component.__related__ = {}
+#         execution.__related__ = {}
+#         component.execution == execution
+#         component.__related__ = {}
+#         execution.__related__ = {}
+#         execution.components[0] == component
+
+
+# def test_element_search(tmp_storage):
+#     with Project("./tests/samples/project"):
+#         exp1 = Component.make("dummy", {"a": 1})
+#         exp1.launch()
+#         exp2 = Component.make("dummy", {"a": 2})
+#         exp2.launch()
+#         assert Component.find(exp1.id).timestamp == exp1.timestamp
+#         assert Component.find_by_predicate("non-existing").empty()
+#         assert (
+#             Component.find_by_predicate("dummy", predicate=None).count() == 2
+#         )
+#         # singleton
+#         assert (
+#             Component.singleton("dummy", {"a": 2}).timestamp == exp2.timestamp
+#         )
+#         assert (
+#             Component.singleton("dummy", {"a": 2, "ignore_me_": 3}).timestamp
+#             == exp2.timestamp
+#         )
+#         assert (
+#             Component.singleton("dummy", {"a": 2}).timestamp == exp2.timestamp
+#         )
+#         n = Component.singleton("dummy", {"a": 3})
+#         n.launch()
+#         assert n.id != exp2.id
+#         assert (
+#             n.id
+#             == Component.singleton("dummy", {"a": 3}).id
+#         )
+
+
+# def test_element_interface(tmp_storage):
+#     component = Component()
+#     component.launch()
+#     # save and load
+#     component.save_file("test.txt", "hello")
+#     assert component.load_file("test.txt") == "hello"
+#     component.save_data("floaty", 1.0)
+#     assert component.load_data("floaty") == "1.0"
+#     uncommitted = Element()
+#     uncommitted.save_data("test", "deferred")
+#     assert uncommitted.load_data("test") == "deferred"
+
+
+# def test_element_interactive_session(tmp_storage):
+#     class T(Component):
+#         def is_valid(self):
+#             return True
+
+#     t = get(T)
+#     assert t.module == "__session__T"
+#     assert t.__model__._dump is not None
+
+#     # default launch
+#     t.launch()
+#     # serialization
+#     exec(t.dispatch_code(inline=False) + "\nassert component__.is_valid()")
+#     # retrieval
+#     assert t.id == get(T).id

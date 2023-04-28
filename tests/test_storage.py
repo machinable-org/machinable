@@ -1,7 +1,7 @@
 import os
 
 import pytest
-from machinable import Execution, Experiment, Project, Storage, errors
+from machinable import Component, Execution, Project, Storage, errors
 from machinable.testing import storage_tests
 
 
@@ -21,16 +21,16 @@ def test_storage_interface(tmpdir):
         assert restored.config.directory == str(tmpdir)
 
         # deferred data
-        experiment = Experiment()
-        experiment.save_data("test.txt", "deferral")
-        experiment.save_file("test.json", "deferral")
-        assert len(experiment._deferred_data) == 2
-        execution = Execution().add(experiment)
-        repository.commit(experiment, execution)
+        component = Component()
+        component.save_data("test.txt", "deferral")
+        component.save_file("test.json", "deferral")
+        assert len(component._deferred_data) == 2
+        execution = Execution().add(component)
+        repository.commit(component, execution)
 
-        assert os.path.isfile(experiment.local_directory("data/test.txt"))
-        assert os.path.isfile(experiment.local_directory("test.json"))
-        assert len(experiment._deferred_data) == 0
+        assert os.path.isfile(component.local_directory("data/test.txt"))
+        assert os.path.isfile(component.local_directory("test.json"))
+        assert len(component._deferred_data) == 0
 
 
 def test_storage(tmpdir):

@@ -1,9 +1,9 @@
 from typing import Any, Optional
 
-from machinable import Experiment, errors
+from machinable import Component, errors
 
 
-class EventsCheck(Experiment):
+class EventsCheck(Component):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.events = ["on_init"]

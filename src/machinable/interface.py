@@ -1,148 +1,198 @@
-from __future__ import annotations
+from typing import Any, List, Optional, Union
 
-import shlex
-import sys
+import os
 
-from flatten_dict import flatten
+from machinable.collection import Collection
+from machinable.element import Element, resolve_custom_predicate
 from machinable.settings import get_settings
-
-if sys.version_info >= (3, 11):
-    from typing import Self
-else:
-    from typing_extensions import Self
-
-from machinable import schema
-from machinable.collection import ElementCollection, ExecutionCollection
-from machinable.element import (
-    Element,
-    belongs_to,
-    get_dump,
-    get_lineage,
-    has_many,
-)
-from machinable.project import Project
-from machinable.storage import Storage
+from machinable.types import VersionType
+from omegaconf import OmegaConf
 
 
 class Interface(Element):
     kind = "Interface"
     default = get_settings().default_interface
 
-    def __init__(
-        self,
+    @classmethod
+    def singleton(
+        cls,
+        module: Union[str, "Element"],
         version: VersionType = None,
-        uses: Union[None, Element, List[Element]] = None,
-    ):
-        super().__init__(version=version)
-        self.__model__ = schema.Interface(
-            module=self.__model__.module,
-            config=self.__model__.config,
-            version=self.__model__.version,
-            lineage=get_lineage(self),
+        predicate: Optional[str] = get_settings().default_predicate,
+        **kwargs,
+    ) -> "Collection":
+        candidates = cls.find_by_predicate(
+            module,
+            version,
+            predicate,
+            **kwargs,
         )
-        self.__model__._dump = get_dump(self)
-        self.__related__["uses"] = ElementCollection()
-        if uses:
-            self.use(uses)
+        if candidates:
+            return candidates[-1]
 
-    def to_cli(self) -> str:
-        cli = [self.module]
-        for v in self.__model__.version:
-            if isinstance(v, str):
-                cli.append(v)
-            else:
-                cli.extend(
-                    [
-                        f"{key}={shlex.quote(str(val))}"
-                        for key, val in flatten(v, reducer="dot").items()
-                    ]
+        return cls.make(module, version, **kwargs)
+
+    # def mount(self, storage: "Storage", storage_id: Any) -> bool:
+    #     if self.__model__ is None:
+    #         return False
+
+    #     self.__model__._storage_instance = storage
+    #     self.__model__._storage_id = storage_id
+
+    #     return True
+
+    def is_mounted(self) -> bool:
+        if self.__model__ is None:
+            return False
+
+        return (
+            self.__model__._storage_instance is not None
+            and self.__model__._storage_id is not None
+        )
+
+    @classmethod
+    def find(cls, element_id: str, *args, **kwargs) -> Optional["Element"]:
+        from machinable.storage import Storage
+
+        storage = Storage.get()
+
+        storage_id = getattr(storage, f"find_{cls.kind.lower()}")(
+            element_id, *args, **kwargs
+        )
+
+        if storage_id is None:
+            return None
+
+        return cls.from_storage(storage_id, storage)
+
+    @classmethod
+    def find_many(cls, elements: List[str]) -> "Collection":
+        return cls.collect([cls.find(element_id) for element_id in elements])
+
+    @classmethod
+    def find_by_predicate(
+        cls,
+        module: Union[str, "Element"],
+        version: VersionType = None,
+        predicate: Optional[str] = get_settings().default_predicate,
+        **kwargs,
+    ) -> "Collection":
+        from machinable.storage import Storage
+
+        storage = Storage.get()
+        try:
+            candidate = cls.make(module, version, **kwargs)
+        except ModuleNotFoundError:
+            return cls.collect([])
+
+        element_type = candidate.kind.lower()
+        handler = f"find_{element_type}_by_predicate"
+
+        if hasattr(storage, handler):
+            if predicate:
+                predicate = OmegaConf.to_container(
+                    OmegaConf.create(
+                        {
+                            p: candidate.predicate[p]
+                            for p in resolve_custom_predicate(
+                                predicate, candidate
+                            )
+                        }
+                    )
                 )
-
-        return " ".join(cli)
-
-    @belongs_to
-    def project():
-        from machinable.project import Project
-
-        return Project
-
-    @has_many
-    def uses() -> ElementCollection:
-        return Element, ElementCollection
-
-    @has_many
-    def executions() -> ExecutionCollection:
-        from machinable.execution import Execution
-
-        return Execution, ExecutionCollection
-
-    @belongs_to
-    def execution() -> Execution:
-        from machinable.execution import Execution
-
-        return Execution, False
-
-    def use(self, use: Union[Element, List[Element]]) -> Experiment:
-        self._assert_editable()
-
-        if isinstance(use, (list, tuple)):
-            for _use in use:
-                self.use(_use)
-            return self
-
-        if not isinstance(use, Element):
-            raise ValueError(f"Expected element, but found: {type(use)} {use}")
-
-        self.__related__["uses"].append(use)
-
-        return self
-
-    def launch(self) -> Self:
-        from machinable.execution import Execution
-
-        execution = Execution.get()
-
-        execution.add(self)
-
-        if Execution.is_connected():
-            # commit only, defer execution
-            self.commit()
+            storage_ids = getattr(storage, handler)(
+                module
+                if isinstance(module, str)
+                else f"__session__{module.__name__}",
+                predicate,
+            )
         else:
-            execution.dispatch()
+            storage_ids = []
 
-        return self
+        return cls.collect(
+            [
+                cls.from_model(
+                    getattr(storage, f"retrieve_{element_type}")(storage_id)
+                )
+                for storage_id in storage_ids
+            ]
+        )
 
     @property
-    def resources(self) -> Optional[Dict]:
-        if self.execution is None:
+    def storage_id(self) -> Optional[str]:
+        if not self.is_mounted():
             return None
-        return self.execution.load_file(
-            f"resources-{self.experiment_id}.json", None
+
+        return self.__model__._storage_id
+
+    @property
+    def storage_instance(self) -> Optional["Storage"]:
+        if not self.is_mounted():
+            return None
+
+        return self.__model__._storage_instance
+
+    @classmethod
+    def from_storage(cls, storage_id, storage=None) -> "Element":
+        if storage is None:
+            from machinable.storage import Storage
+
+            storage = Storage.get()
+
+        return cls.from_model(
+            getattr(storage, f"retrieve_{cls.kind.lower()}")(storage_id)
         )
 
-    def dispatch() -> Self:
-        self.__call__()
-        return self
+    def directory(self, *append: str) -> Optional[str]:
+        if not self.is_mounted():
+            return None
 
-    def cached(self) -> bool:
-        return False
+        return self.__model__._storage_instance.path(self, *append)
 
-    def __call__(self) -> None:
-        """Main code"""
+    def local_directory(
+        self, *append: str, create: bool = False
+    ) -> Optional[str]:
+        if not self.is_mounted():
+            return None
 
-    def dispatch_code(self, inline: bool = True) -> Optional[str]:
-        storage = Storage.get().as_json().replace('"', '\\"')
-        code = f"""
-        from machinable import Project, Storage, Experiment
-        from machinable.errors import StorageError
-        Project('{Project.get().path()}').__enter__()
-        Storage.from_json('{storage}').__enter__()
-        experiment__ = Experiment.find('{self.experiment_id}', timestamp={self.timestamp})
-        experiment__.dispatch()
-        """
+        return self.__model__._storage_instance.local_directory(
+            self, *append, create=create
+        )
 
-        if inline:
-            code = code.replace("\n        ", ";")[1:-1]
-            return f'{sys.executable} -c "{code}"'
+    def load_file(self, filepath: str, default=None) -> Optional[Any]:
+        if not self.is_mounted():
+            # has write been deferred?
+            if filepath in self._deferred_data:
+                return self._deferred_data[filepath]
 
-        return code.replace("        ", "")[1:-1]
+            return default
+
+        data = self.__model__._storage_instance.retrieve_file(self, filepath)
+
+        return data if data is not None else default
+
+    def save_file(self, filepath: str, data: Any) -> str:
+        if os.path.isabs(filepath):
+            raise ValueError("Filepath must be relative")
+
+        if not self.is_mounted():
+            # defer writes until element storage creation
+            self._deferred_data[filepath] = data
+            return "$deferred"
+
+        file = self.__model__._storage_instance.create_file(
+            self, filepath, data
+        )
+
+        # mark scripts as executable
+        if filepath.endswith(".sh"):
+            st = os.stat(file)
+            os.chmod(file, st.st_mode | stat.S_IEXEC)
+
+        return file
+
+    def save_data(self, filepath: str, data: Any) -> str:
+        return self.save_file(os.path.join("data", filepath), data)
+
+    def load_data(self, filepath: str, default=None) -> Optional[Any]:
+        return self.load_file(os.path.join("data", filepath), default)

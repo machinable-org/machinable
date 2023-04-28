@@ -3,9 +3,9 @@ from typing import Any, Dict, Optional, Union
 import copy
 
 from machinable import schema
+from machinable.component import Component
 from machinable.element import Element, belongs_to, get_dump, get_lineage
 from machinable.errors import StorageError
-from machinable.experiment import Experiment
 from machinable.types import JsonableType, VersionType
 
 
@@ -16,7 +16,7 @@ class Record(Element):
 
     def __init__(
         self,
-        experiment: Experiment,
+        component: Component,
         scope: str = "default",
         version: VersionType = None,
     ):
@@ -29,11 +29,11 @@ class Record(Element):
             lineage=get_lineage(self),
         )
         self.__model__._dump = get_dump(self)
-        self.__related__["experiment"] = experiment
+        self.__related__["component"] = component
 
     @belongs_to
-    def experiment() -> Experiment:
-        return Experiment
+    def component() -> Component:
+        return Component
 
     @property
     def scope(self) -> str:
@@ -87,9 +87,9 @@ class Record(Element):
         # Returns
         The row data
         """
-        if not self.experiment.is_mounted():
+        if not self.component.is_mounted():
             raise StorageError(
-                "The experiment has not been written to storage yet."
+                "The component has not been written to storage yet."
             )
 
         data = copy.deepcopy(self.__model__.current)
@@ -100,8 +100,8 @@ class Record(Element):
         if len(data) == 0 and not force:
             return {}
 
-        return self.experiment.__model__._storage_instance.create_record(
-            experiment=self.experiment.__model__,
+        return self.component.__model__._storage_instance.create_record(
+            component=self.component.__model__,
             data=data,
             scope=self.__model__.scope,
         )

@@ -9,7 +9,7 @@ class Mpi(Execution):
         n: int = 1
 
     def __call__(self):
-        for experiment in self.experiments:
+        for component in self.components:
             print(
                 subprocess.check_output(
                     [
@@ -17,8 +17,8 @@ class Mpi(Execution):
                         "-n",
                         str(self.config.n),
                         self.save_file(
-                            f"mpi-{experiment.experiment_id}.sh",
-                            experiment.dispatch_code(),
+                            f"mpi-{component.id}.sh",
+                            component.dispatch_code(),
                         ),
                     ]
                 ).decode("ascii")

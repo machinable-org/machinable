@@ -3,7 +3,7 @@ from typing import Any, Optional, Tuple, Union
 from datetime import datetime
 
 from machinable import schema
-from machinable.collection import ExperimentCollection
+from machinable.collection import ComponentCollection
 from machinable.element import Element, get_dump, get_lineage, has_many
 from machinable.types import VersionType
 
@@ -51,10 +51,10 @@ class Group(Element):
         return self.__model__.path
 
     @has_many
-    def experiments() -> ExperimentCollection:
-        from machinable.experiment import Experiment
+    def components() -> ComponentCollection:
+        from machinable.component import Component
 
-        return Experiment, ExperimentCollection, False
+        return Component, ComponentCollection, False
 
     def __repr__(self) -> str:
         return f"Group [{self.path}]"

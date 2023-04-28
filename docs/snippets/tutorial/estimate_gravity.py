@@ -1,10 +1,10 @@
 from dataclasses import dataclass
 
-from machinable import Experiment
+from machinable import Component
 
 
-class EstimateGravity(Experiment):
-    """An experiment to estimate gravity"""
+class EstimateGravity(Component):
+    """An component to estimate gravity"""
 
     @dataclass
     class Config:

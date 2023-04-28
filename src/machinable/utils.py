@@ -69,6 +69,7 @@ def timestamp_to_directory(timestamp: float) -> str:
         arrow.get(timestamp).strftime("%Y-%m-%dT%H%M%S_%f%z").replace("+", "_")
     )
 
+
 def is_valid_variable_name(name):
     if not isinstance(name, str):
         return False

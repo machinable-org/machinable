@@ -1,5 +1,5 @@
 import pytest
-from machinable import Execution, Experiment, Project, Schedule, errors
+from machinable import Component, Execution, Project, Schedule, errors
 
 
 class Supported(Execution):
@@ -15,11 +15,11 @@ def test_schedule(tmp_storage):
         # execution does not support schedule
         with pytest.raises(errors.ExecutionFailed):
             with Execution(schedule=schedule) as execution:
-                Experiment().launch()
+                Component().launch()
 
         # execution supports schedule
         with Supported(schedule=["scheduled"]) as execution:
-            experiment = Experiment().launch()
-            assert not experiment.is_finished()
-        assert experiment.is_finished()
+            component = Component().launch()
+            assert not component.is_finished()
+        assert component.is_finished()
         assert execution.schedule.test()

@@ -4,7 +4,6 @@ import json
 import os
 
 from machinable.errors import ConfigurationError
-from machinable.schema import Execution, Experiment
 from machinable.types import ElementType
 from pydantic import BaseModel
 
@@ -12,7 +11,7 @@ from pydantic import BaseModel
 class Settings(BaseModel):
     default_predicate: Optional[str] = "config,*"
     default_execution: Optional[ElementType] = None
-    default_experiment: Optional[ElementType] = None
+    default_component: Optional[ElementType] = None
     default_interface: Optional[ElementType] = None
     default_schedule: Optional[ElementType] = None
     default_group: Optional[str] = "%Y_%U_%a/"

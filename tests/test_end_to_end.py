@@ -7,27 +7,27 @@ def test_end_to_end_execution(tmp_path):
         "machinable.storage.filesystem", {"directory": str(tmp_path)}
     ):
         with ml.Project("./tests/samples/project"):
-            experiment = ml.Experiment.make(
+            component = ml.Component.make(
                 "interfaces.interrupted_lifecycle"
             ).group_as("a/b/c")
             try:
-                experiment.launch()
+                component.launch()
             except errors.ExecutionFailed:
                 pass
 
-            assert experiment.is_started()
-            assert not experiment.is_finished()
-            assert len(experiment.records()) == 3
+            assert component.is_started()
+            assert not component.is_finished()
+            assert len(component.records()) == 3
 
             # resume
             try:
-                experiment.launch()
+                component.launch()
             except errors.ExecutionFailed:
                 pass
-            assert len(experiment.records()) == 7
+            assert len(component.records()) == 7
 
-            experiment.launch()
-            assert len(experiment.records()) == 10
-            assert experiment.is_finished()
+            component.launch()
+            assert len(component.records()) == 10
+            assert component.is_finished()
 
-            assert [r["step"] for r in experiment.records()] == list(range(10))
+            assert [r["step"] for r in component.records()] == list(range(10))

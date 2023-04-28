@@ -55,9 +55,9 @@ class Multiple(Storage):
             translated_args = [self._translate_arg(index, arg) for arg in args]
             secondary_result = getattr(secondary, method)(*translated_args)
             # capture mappings between primary and secondary ID
-            if method == "_create_experiment":
+            if method == "_create_component":
                 self._translation[
-                    f"{index}:experiment:{primary_result}"
+                    f"{index}:component:{primary_result}"
                 ] = secondary_result
             elif method == "_create_execution":
                 self._translation[
@@ -65,7 +65,7 @@ class Multiple(Storage):
                 ] = secondary_result
                 for pri, sec in zip(args[1], translated_args[1]):
                     self._translation[
-                        f"{index}:experiment:{pri._storage_id}"
+                        f"{index}:component:{pri._storage_id}"
                     ] = sec._storage_id
 
         return primary_result
@@ -94,27 +94,25 @@ class Multiple(Storage):
     def _create_execution(
         self,
         execution: schema.Execution,
-        experiments: List[schema.Experiment],
+        components: List[schema.Component],
     ) -> str:
-        return self._write("_create_execution", execution, experiments)
+        return self._write("_create_execution", execution, components)
 
-    def _create_experiment(
+    def _create_component(
         self,
-        experiment: schema.Experiment,
+        component: schema.Component,
         group: schema.Group,
         project: schema.Project,
         uses: List[schema.Element],
     ) -> str:
-        return self._write(
-            "_create_experiment", experiment, group, project, uses
-        )
+        return self._write("_create_component", component, group, project, uses)
 
     def _create_element(
         self,
         element: schema.Element,
-        experiment: schema.Experiment,
+        component: schema.Component,
     ) -> str:
-        return self._write("_create_element", element, experiment)
+        return self._write("_create_element", element, component)
 
     def _create_group(self, group: schema.Group) -> str:
         return self._write("_create_group", group)
@@ -124,32 +122,30 @@ class Multiple(Storage):
 
     def _create_record(
         self,
-        experiment: schema.Experiment,
+        component: schema.Component,
         data: JsonableType,
         scope: str = "default",
     ) -> str:
-        return self._write("_create_record", experiment, data, scope)
+        return self._write("_create_record", component, data, scope)
 
     def _create_file(
-        self, experiment_storage_id: str, filepath: str, data: Any
+        self, component_storage_id: str, filepath: str, data: Any
     ) -> str:
-        return self._write(
-            "_create_file", experiment_storage_id, filepath, data
-        )
+        return self._write("_create_file", component_storage_id, filepath, data)
 
     def _mark_started(
-        self, experiment: schema.Experiment, timestamp: DatetimeType
+        self, component: schema.Component, timestamp: DatetimeType
     ) -> None:
-        return self._write("_mark_started", experiment, timestamp)
+        return self._write("_mark_started", component, timestamp)
 
     def _update_heartbeat(
         self,
-        experiment: schema.Experiment,
+        component: schema.Component,
         timestamp: DatetimeType,
         mark_finished=False,
     ) -> None:
         return self._write(
-            "_update_heartbeat", experiment, timestamp, mark_finished
+            "_update_heartbeat", component, timestamp, mark_finished
         )
 
     # reads
@@ -157,8 +153,8 @@ class Multiple(Storage):
     def _retrieve_execution(self, storage_id: str) -> schema.Execution:
         return self._read("_retrieve_execution", storage_id)
 
-    def _retrieve_experiment(self, storage_id: str) -> schema.Experiment:
-        return self._read("_retrieve_experiment", storage_id)
+    def _retrieve_component(self, storage_id: str) -> schema.Component:
+        return self._read("_retrieve_component", storage_id)
 
     def _retrieve_element(self, storage_id: str) -> schema.Element:
         raise self._read("_retrieve_element", storage_id)
@@ -170,37 +166,37 @@ class Multiple(Storage):
         return self._read("_retrieve_project", storage_id)
 
     def _retrieve_records(
-        self, experiment_storage_id: str, scope: str
+        self, component_storage_id: str, scope: str
     ) -> List[JsonableType]:
-        return self._read("_retrieve_records", experiment_storage_id, scope)
+        return self._read("_retrieve_records", component_storage_id, scope)
 
     def _retrieve_file(
-        self, experiment_storage_id: str, filepath: str
+        self, component_storage_id: str, filepath: str
     ) -> Optional[Any]:
-        return self._read("_retrieve_file", experiment_storage_id, filepath)
+        return self._read("_retrieve_file", component_storage_id, filepath)
 
-    def _retrieve_output(self, experiment_storage_id: str) -> str:
-        return self._read("_retrieve_output", experiment_storage_id)
+    def _retrieve_output(self, component_storage_id: str) -> str:
+        return self._read("_retrieve_output", component_storage_id)
 
     def _local_directory(
-        self, experiment_storage_id: str, *append: str
+        self, component_storage_id: str, *append: str
     ) -> Optional[str]:
-        return self._read("_local_directory", experiment_storage_id, *append)
+        return self._read("_local_directory", component_storage_id, *append)
 
     def _retrieve_status(
-        self, experiment_storage_id: str, field: str
+        self, component_storage_id: str, field: str
     ) -> Optional[str]:
-        return self._read("_retrieve_status", experiment_storage_id, field)
+        return self._read("_retrieve_status", component_storage_id, field)
 
-    def _find_experiment(
-        self, experiment_id: str, timestamp: float = None
+    def _find_component(
+        self, component_id: str, timestamp: float = None
     ) -> Optional[str]:
-        return self._read("_find_experiment", experiment_id, timestamp)
+        return self._read("_find_component", component_id, timestamp)
 
-    def _find_experiment_by_predicate(
+    def _find_component_by_predicate(
         self, module: str, predicate: Dict
     ) -> List[str]:
-        return self._read("_find_experiment_by_predicate", module, predicate)
+        return self._read("_find_component_by_predicate", module, predicate)
 
     def _find_related(
         self, storage_id: str, relation: str
@@ -208,6 +204,6 @@ class Multiple(Storage):
         return self._read("_find_related", storage_id, relation)
 
     def _retrieve_file(
-        self, experiment_storage_id: str, filepath: str
+        self, component_storage_id: str, filepath: str
     ) -> Optional[Any]:
-        return self._read("_retrieve_file", experiment_storage_id, filepath)
+        return self._read("_retrieve_file", component_storage_id, filepath)

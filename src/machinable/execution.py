@@ -3,7 +3,8 @@ from typing import Any, Dict, List, Optional, Union
 import copy
 
 from machinable import schema
-from machinable.collection import ExperimentCollection
+from machinable.collection import ComponentCollection
+from machinable.component import Component
 from machinable.element import (
     Element,
     defaultversion,
@@ -14,7 +15,6 @@ from machinable.element import (
     has_one,
 )
 from machinable.errors import ExecutionFailed
-from machinable.experiment import Experiment
 from machinable.interface import Interface
 from machinable.project import Project
 from machinable.schedule import Schedule
@@ -56,16 +56,16 @@ class Execution(Element):
         return Schedule
 
     @has_many
-    def experiments() -> ExperimentCollection:
-        return Experiment, ExperimentCollection
+    def components() -> ComponentCollection:
+        return Component, ComponentCollection
 
     @property
     def executables(self) -> "Collection":
-        return self.experiments
+        return self.components
 
     def add(
         self,
-        executable: Union[Experiment, List[Experiment]],
+        executable: Union[Component, List[Component]],
         once: bool = False,
     ) -> "Execution":
         if isinstance(executable, (list, tuple)):
@@ -78,15 +78,15 @@ class Execution(Element):
                 f"Expected interface, but found: {type(executable)} {executable}"
             )
 
-        self.__related__.setdefault("experiments", ExperimentCollection())
+        self.__related__.setdefault("components", ComponentCollection())
 
-        if once and self.__related__["experiments"].contains(
+        if once and self.__related__["components"].contains(
             lambda x: x == executable
         ):
             # already added
             return self
 
-        self.__related__["experiments"].append(executable)
+        self.__related__["components"].append(executable)
 
         return self
 
@@ -111,10 +111,10 @@ class Execution(Element):
     def canonicalize_resources(self, resources: Dict) -> Dict:
         return resources
 
-    def default_resources(self, executable: "Experiment") -> Optional[dict]:
+    def default_resources(self, executable: "Component") -> Optional[dict]:
         """Default resources"""
 
-    def compute_resources(self, executable: "Experiment") -> Dict:
+    def compute_resources(self, executable: "Component") -> Dict:
         default_resources = self.default_resources(executable)
 
         if not self.__model__.resources and default_resources is not None:
@@ -172,7 +172,7 @@ class Execution(Element):
             # compute resources
             for executable in self.executables.filter(lambda e: not e.cached()):
                 self.save_file(
-                    f"resources-{executable.experiment_id}.json",
+                    f"resources-{executable.id}.json",
                     self.compute_resources(executable),
                 )
             self.__call__()

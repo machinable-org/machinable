@@ -13,6 +13,7 @@ from commandlib import Command
 from machinable import schema
 from machinable.element import Element, get_lineage, instantiate, normversion
 from machinable.errors import ConfigurationError
+from machinable.interface import Interface
 from machinable.types import VersionType
 from machinable.utils import (
     find_subclass_in_module,
@@ -159,7 +160,7 @@ def import_element(
     return element_class
 
 
-class Project(Element):
+class Project(Interface):
     kind = "Project"
 
     def __init__(

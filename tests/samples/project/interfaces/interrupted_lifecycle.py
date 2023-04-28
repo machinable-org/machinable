@@ -1,7 +1,7 @@
-from machinable import Experiment
+from machinable import Component
 
 
-class InterruptedLifecycle(Experiment):
+class InterruptedLifecycle(Component):
     def on_create(self):
         self.state = self.load_data("state.json", {"steps": 0})
 

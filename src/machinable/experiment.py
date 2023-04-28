@@ -8,9 +8,9 @@ import sys
 import arrow
 from machinable import errors, schema
 from machinable.collection import (
+    ComponentCollection,
     ElementCollection,
     ExecutionCollection,
-    ExperimentCollection,
     RecordCollection,
 )
 from machinable.element import (
@@ -46,21 +46,21 @@ if TYPE_CHECKING:
     from machinable.record import Record
 
 
-class Experiment(Interface):  # pylint: disable=too-many-public-methods
-    kind = "Experiment"
-    default = get_settings().default_experiment
+class Component(Interface):  # pylint: disable=too-many-public-methods
+    kind = "Component"
+    default = get_settings().default_component
 
     def __init__(
         self,
         version: VersionType = None,
         seed: Union[int, None] = None,
-        derived_from: Optional["Experiment"] = None,
+        derived_from: Optional["Component"] = None,
         uses: Union[None, Element, List[Element]] = None,
     ):
         super().__init__(version=version, uses=uses)
         if seed is None:
             seed = generate_seed()
-        self.__model__ = schema.Experiment(
+        self.__model__ = schema.Component(
             module=self.__model__.module,
             config=self.__model__.config,
             version=self.__model__.version,
@@ -69,7 +69,7 @@ class Experiment(Interface):  # pylint: disable=too-many-public-methods
         )
         self.__model__._dump = get_dump(self)
         if derived_from is not None:
-            self.__model__.derived_from_id = derived_from.experiment_id
+            self.__model__.derived_from_id = derived_from.id
             self.__model__.derived_from_timestamp = derived_from.timestamp
             self.__related__["ancestor"] = derived_from
         self._events: Events = Events()
@@ -79,22 +79,22 @@ class Experiment(Interface):  # pylint: disable=too-many-public-methods
         return Group
 
     @has_many
-    def derived() -> ExperimentCollection:
-        """Returns a collection of derived experiments"""
-        return Experiment, ExperimentCollection, False
+    def derived() -> ComponentCollection:
+        """Returns a collection of derived components"""
+        return Component, ComponentCollection, False
 
     @belongs_to
-    def ancestor() -> Optional["Experiment"]:
-        """Returns parent experiment or None if experiment is independent"""
-        return Experiment
+    def ancestor() -> Optional["Component"]:
+        """Returns parent component or None if component is independent"""
+        return Component
 
     @classmethod
-    def collect(cls, experiments) -> ExperimentCollection:
-        """Returns a collection of experiments"""
-        return ExperimentCollection(experiments)
+    def collect(cls, components) -> ComponentCollection:
+        """Returns a collection of components"""
+        return ComponentCollection(components)
 
     @classmethod
-    def from_model(cls, model: schema.Experiment) -> "Experiment":
+    def from_model(cls, model: schema.Component) -> "Component":
         return super().from_model(model)
 
     def __reduce__(self) -> Union[str, Tuple[Any, ...]]:
@@ -103,15 +103,15 @@ class Experiment(Interface):  # pylint: disable=too-many-public-methods
     def _assert_editable(self):
         if self.is_mounted():
             raise ConfigurationError(
-                "Experiment can not be modified as it has already been executed. "
-                "Use .derive() or Experiment(derived_from) to derive a modified experiment."
+                "Component can not be modified as it has already been executed. "
+                "Use .derive() or Component(derived_from) to derive a modified component."
             )
 
     def _clear_caches(self) -> None:
         self._config = None
         self.__model__.config = None
 
-    def group_as(self, group: Union[Group, str]) -> "Experiment":
+    def group_as(self, group: Union[Group, str]) -> "Component":
         # todo: allow group modifications after execution
         self._assert_editable()
 
@@ -121,8 +121,8 @@ class Experiment(Interface):  # pylint: disable=too-many-public-methods
             raise ValueError(
                 f"Expected group, but found: {type(group)} {group}"
             )
-        group.__related__.setdefault("experiments", ExperimentCollection())
-        group.__related__["experiments"].append(self)
+        group.__related__.setdefault("components", ComponentCollection())
+        group.__related__["components"].append(self)
         self.__related__["group"] = group
 
         return self
@@ -133,7 +133,7 @@ class Experiment(Interface):  # pylint: disable=too-many-public-methods
         version: VersionType = None,
         predicate: Optional[str] = get_settings().default_predicate,
         **kwargs,
-    ) -> "Experiment":
+    ) -> "Component":
         if module is None or predicate is None:
             return self.make(module, version, derived_from=self, **kwargs)
 
@@ -158,16 +158,12 @@ class Experiment(Interface):  # pylint: disable=too-many-public-methods
 
         return self.__model__.version
 
-    def commit(self) -> "Experiment":
+    def commit(self) -> "Component":
         self.on_before_commit()
 
         Storage.get().commit(self)
 
         return self
-
-    @property
-    def experiment_id(self) -> str:
-        return self.__model__.experiment_id
 
     def records(self, scope="default") -> RecordCollection:
         if not self.is_mounted():
@@ -303,7 +299,7 @@ class Experiment(Interface):  # pylint: disable=too-many-public-methods
         )
 
     def dispatch(self) -> Self:
-        """Dispatch the experiment lifecycle"""
+        """Dispatch the component lifecycle"""
         try:
             self.on_before_dispatch()
 
@@ -349,10 +345,10 @@ class Experiment(Interface):  # pylint: disable=too-many-public-methods
         """Main event"""
 
     def on_before_commit(self) -> Optional[bool]:
-        """Event triggered before the commit of the experiment"""
+        """Event triggered before the commit of the component"""
 
     def on_before_dispatch(self) -> Optional[bool]:
-        """Event triggered before the dispatch of the experiment"""
+        """Event triggered before the dispatch of the component"""
 
     def on_seeding(self):
         """Lifecycle event to implement custom seeding using `self.seed`"""
@@ -391,19 +387,13 @@ class Experiment(Interface):  # pylint: disable=too-many-public-methods
         """
 
     def __repr__(self):
-        return f"Experiment [{self.__model__.experiment_id}]"
+        return f"Component [{self.__model__.id}]"
 
     def __str__(self):
         return self.__repr__()
 
     def __eq__(self, other):
-        return (
-            self.experiment_id == other.experiment_id
-            and self.timestamp == other.timestamp
-        )
+        return self.id == other.id and self.timestamp == other.timestamp
 
     def __ne__(self, other):
-        return (
-            self.experiment_id != other.experiment_id
-            or self.timestamp != other.timestamp
-        )
+        return self.id != other.id or self.timestamp != other.timestamp

@@ -2,10 +2,10 @@ import math
 from dataclasses import dataclass
 from random import random
 
-from machinable import Experiment
+from machinable import Component
 
 
-class EstimatePi(Experiment):
+class EstimatePi(Component):
     @dataclass
     class Config:
         acceptable_error: float = 0.01

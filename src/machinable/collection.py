@@ -18,7 +18,7 @@ basestring = str
 
 
 if TYPE_CHECKING:
-    from machinable.experiment import Experiment
+    from machinable.component import Component
 
 
 def _get_value(val):
@@ -1409,7 +1409,7 @@ class ElementCollection(Collection):
         version: VersionType = None,
         predicate: str = get_settings().default_predicate,
         **kwargs,
-    ) -> Union[Any, "Experiment"]:
+    ) -> Union[Any, "Component"]:
         from machinable import Element
 
         instance = Element.make(module, version, **kwargs)
@@ -1424,7 +1424,7 @@ class ElementCollection(Collection):
         return f"Elements <{len(self.items)}>"
 
 
-class ExperimentCollection(ElementCollection):
+class ComponentCollection(ElementCollection):
     def __str__(self):
         if len(self.items) > 15:
             items = ", ".join([repr(item) for item in self.items[:5]])
@@ -1432,25 +1432,25 @@ class ExperimentCollection(ElementCollection):
             items += ", ".join([repr(item) for item in self.items[-5:]])
         else:
             items = ", ".join([repr(item) for item in self.items])
-        return f"Experiments ({len(self.items)}) <{items}>"
+        return f"Components ({len(self.items)}) <{items}>"
 
-    def launch(self) -> "ExperimentCollection":
-        """Executes all experiments in the collection"""
-        for experiment in self:
-            experiment.launch()
+    def launch(self) -> "ComponentCollection":
+        """Executes all components in the collection"""
+        for component in self:
+            component.launch()
 
         return self
 
-    def finished(self) -> "ExperimentCollection":
+    def finished(self) -> "ComponentCollection":
         return self.filter(lambda x: x.is_finished())
 
-    def started(self) -> "ExperimentCollection":
+    def started(self) -> "ComponentCollection":
         return self.filter(lambda x: x.is_started())
 
-    def active(self) -> "ExperimentCollection":
+    def active(self) -> "ComponentCollection":
         return self.filter(lambda x: x.is_active())
 
-    def incomplete(self) -> "ExperimentCollection":
+    def incomplete(self) -> "ComponentCollection":
         return self.filter(lambda x: x.is_incomplete())
 
 

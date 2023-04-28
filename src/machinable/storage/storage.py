@@ -15,13 +15,13 @@ from machinable.types import VersionType
 
 if TYPE_CHECKING:
     from machinable.execution import Execution
-    from machinable.experiment import Experiment
+    from machinable.component import Component
 
 import os
 
 import arrow
 from machinable import schema
-from machinable.collection import ExperimentCollection
+from machinable.collection import ComponentCollection
 from machinable.group import Group, resolve_group
 from machinable.project import Project
 from machinable.types import (
@@ -33,9 +33,9 @@ from machinable.types import (
 from machinable.utils import Jsonable
 
 if TYPE_CHECKING:
+    from machinable.component import Component
     from machinable.element import Element
     from machinable.execution import Execution
-    from machinable.experiment import Experiment
 
 
 class Storage(Element):
@@ -73,61 +73,59 @@ class Storage(Element):
 
     def commit(
         self,
-        experiments: Union["Experiment", List["Experiment"]],
+        components: Union["Component", List["Component"]],
         execution: Optional["Execution"] = None,
     ) -> None:
-        from machinable.experiment import Experiment
+        from machinable.component import Component
 
-        if isinstance(experiments, Experiment):
-            experiments = [experiments]
-        for experiment in experiments:
-            if not isinstance(experiment, Experiment):
+        if isinstance(components, Component):
+            components = [components]
+        for component in components:
+            if not isinstance(component, Component):
                 raise ValueError(
-                    f"Expected experiment, found: {type(experiment)} {experiment}"
+                    f"Expected component, found: {type(component)} {component}"
                 )
-            if experiment.is_mounted():
+            if component.is_mounted():
                 continue
             # ensure that configuration has been parsed
-            assert experiment.config is not None
-            assert experiment.predicate is not None
+            assert component.config is not None
+            assert component.predicate is not None
 
-            group = experiment.group
+            group = component.group
             if group is None:
                 group = Group(self.__model__.default_group)
-                experiment.__related__["group"] = group
+                component.__related__["group"] = group
 
-            self.create_experiment(
-                experiment=experiment,
+            self.create_component(
+                component=component,
                 group=group,
                 project=Project.get(),
-                uses=[element for element in experiment.uses or []],
+                uses=[element for element in component.uses or []],
             )
 
-            # write deferred experiment data
-            for filepath, data in experiment._deferred_data.items():
-                experiment.save_file(filepath, data)
-            experiment._deferred_data = {}
+            # write deferred component data
+            for filepath, data in component._deferred_data.items():
+                component.save_file(filepath, data)
+            component._deferred_data = {}
 
         if execution is None or execution.is_mounted():
             return
 
-        self.create_execution(execution, experiments)
+        self.create_execution(execution, components)
 
     def create_execution(
         self,
         execution: Union["Execution", schema.Execution],
-        experiments: List[Union["Experiment", schema.Experiment]],
+        components: List[Union["Component", schema.Component]],
     ) -> schema.Execution:
+        from machinable.component import Component
         from machinable.execution import Execution
-        from machinable.experiment import Experiment
 
         execution = Execution.model(execution)
 
         storage_id = self._create_execution(
             execution=execution,
-            experiments=[
-                Experiment.model(experiment) for experiment in experiments
-            ],
+            components=[Component.model(component) for component in components],
         )
         assert storage_id is not None
 
@@ -139,35 +137,35 @@ class Storage(Element):
     def _create_execution(
         self,
         execution: schema.Execution,
-        experiments: List[schema.Experiment],
+        components: List[schema.Component],
     ) -> str:
         raise NotImplementedError
 
-    def create_experiment(
+    def create_component(
         self,
-        experiment: schema.Experiment,
+        component: schema.Component,
         group: schema.Group,
         project: schema.Project,
         uses: List[Union["Element", schema.Element]],
-    ) -> schema.Experiment:
-        from machinable.experiment import Experiment
+    ) -> schema.Component:
+        from machinable.component import Component
 
-        experiment = Experiment.model(experiment)
+        component = Component.model(component)
         group = Group.model(group)
         project = Project.model(project)
         uses = [Element.model(use) for use in uses]
 
-        storage_id = self._create_experiment(experiment, group, project, uses)
+        storage_id = self._create_component(component, group, project, uses)
         assert storage_id is not None
 
-        experiment._storage_id = storage_id
-        experiment._storage_instance = self
+        component._storage_id = storage_id
+        component._storage_instance = self
 
-        return experiment
+        return component
 
-    def _create_experiment(
+    def _create_component(
         self,
-        experiment: schema.Experiment,
+        component: schema.Component,
         group: schema.Group,
         project: schema.Project,
         uses: List[schema.Element],
@@ -177,20 +175,19 @@ class Storage(Element):
     def create_element(
         self,
         element: Union["Element", schema.Element],
-        experiment: Union["Experiment", schema.Experiment],
+        component: Union["Component", schema.Component],
     ) -> schema.Element:
-        from machinable.experiment import Experiment
+        from machinable.component import Component
 
         element = Element.model(element)
-        experiment = Experiment.model(experiment)
+        component = Component.model(component)
 
-        target_experiment = (
-            self.find_experiment(experiment.experiment_id, experiment.timestamp)
-            or experiment
+        target_component = (
+            self.find_component(component.id, component.timestamp) or component
         )
 
         storage_id = self._create_element(
-            element=element, experiment=target_experiment
+            element=element, component=target_component
         )
         assert storage_id is not None
 
@@ -202,7 +199,7 @@ class Storage(Element):
     def _create_element(
         self,
         element: schema.Element,
-        experiment: schema.Experiment,
+        component: schema.Component,
     ) -> str:
         raise NotImplementedError
 
@@ -238,34 +235,32 @@ class Storage(Element):
 
     def create_record(
         self,
-        experiment: Union["Experiment", schema.Experiment],
+        component: Union["Component", schema.Component],
         data: JsonableType,
         scope: str = "default",
         timestamp: Optional[TimestampType] = None,
     ) -> JsonableType:
-        from machinable.experiment import Experiment
+        from machinable.component import Component
 
         if timestamp is None:
             timestamp = arrow.now()
         if isinstance(timestamp, arrow.Arrow):
             timestamp = arrow.get(timestamp)
 
-        experiment = Experiment.model(experiment)
+        component = Component.model(component)
 
-        if experiment._storage_id is None:
-            raise ValueError(
-                f"Experiment {experiment.experiment_id} does not exist"
-            )
+        if component._storage_id is None:
+            raise ValueError(f"Component {component.id} does not exist")
 
         record = {**data, "__timestamp": str(timestamp)}
 
-        self._create_record(experiment, record, scope)
+        self._create_record(component, record, scope)
 
         return record
 
     def _create_record(
         self,
-        experiment: schema.Experiment,
+        component: schema.Component,
         data: JsonableType,
         scope: str = "default",
     ) -> str:
@@ -300,21 +295,21 @@ class Storage(Element):
     def _retrieve_execution(self, storage_id: str) -> schema.Execution:
         raise NotImplementedError
 
-    def retrieve_experiment(self, storage_id: str) -> schema.Experiment:
-        experiment = self._retrieve_experiment(storage_id)
-        experiment._storage_id = storage_id
-        experiment._storage_instance = self
+    def retrieve_component(self, storage_id: str) -> schema.Component:
+        component = self._retrieve_component(storage_id)
+        component._storage_id = storage_id
+        component._storage_instance = self
 
-        return experiment
+        return component
 
-    def retrieve_experiments(
+    def retrieve_components(
         self, storage_ids: List[str]
-    ) -> List[schema.Experiment]:
+    ) -> List[schema.Component]:
         return [
-            self.retrieve_experiment(storage_id) for storage_id in storage_ids
+            self.retrieve_component(storage_id) for storage_id in storage_ids
         ]
 
-    def _retrieve_experiment(self, storage_id: str) -> schema.Experiment:
+    def _retrieve_component(self, storage_id: str) -> schema.Component:
         raise NotImplementedError
 
     def retrieve_group(self, storage_id: str) -> schema.Group:
@@ -354,17 +349,17 @@ class Storage(Element):
 
     def retrieve_records(
         self,
-        experiment: Union["Experiment", schema.Experiment],
+        component: Union["Component", schema.Component],
         scope: str = "default",
     ) -> List[JsonableType]:
-        from machinable.experiment import Experiment
+        from machinable.component import Component
 
-        experiment = Experiment.model(experiment)
+        component = Component.model(component)
 
-        return self._retrieve_records(experiment._storage_id, scope)
+        return self._retrieve_records(component._storage_id, scope)
 
     def _retrieve_records(
-        self, experiment_storage_id: str, scope: str
+        self, component_storage_id: str, scope: str
     ) -> List[JsonableType]:
         raise NotImplementedError
 
@@ -378,14 +373,14 @@ class Storage(Element):
         raise NotImplementedError
 
     def retrieve_output(
-        self, experiment: Union["Experiment", schema.Experiment]
+        self, component: Union["Component", schema.Component]
     ) -> Optional[str]:
-        from machinable.experiment import Experiment
+        from machinable.component import Component
 
-        experiment = Experiment.model(experiment)
-        return self._retrieve_output(experiment._storage_id)
+        component = Component.model(component)
+        return self._retrieve_output(component._storage_id)
 
-    def _retrieve_output(self, experiment_storage_id: str) -> str:
+    def _retrieve_output(self, component_storage_id: str) -> str:
         raise NotImplementedError
 
     def local_directory(
@@ -408,59 +403,59 @@ class Storage(Element):
 
     def mark_started(
         self,
-        experiment: Union["Experiment", schema.Experiment],
+        component: Union["Component", schema.Component],
         timestamp: Optional[TimestampType] = None,
     ) -> DatetimeType:
-        from machinable.experiment import Experiment
+        from machinable.component import Component
 
-        experiment = Experiment.model(experiment)
+        component = Component.model(component)
         if timestamp is None:
             timestamp = arrow.now()
         if isinstance(timestamp, arrow.Arrow):
             timestamp = arrow.get(timestamp)
-        self._mark_started(experiment, timestamp)
+        self._mark_started(component, timestamp)
 
         return timestamp
 
     def _mark_started(
-        self, experiment: schema.Experiment, timestamp: DatetimeType
+        self, component: schema.Component, timestamp: DatetimeType
     ) -> None:
         raise NotImplementedError
 
     def update_heartbeat(
         self,
-        experiment: Union["Experiment", schema.Experiment],
+        component: Union["Component", schema.Component],
         timestamp: Union[float, int, DatetimeType, None] = None,
         mark_finished=False,
     ) -> DatetimeType:
-        from machinable.experiment import Experiment
+        from machinable.component import Component
 
-        experiment = Experiment.model(experiment)
+        component = Component.model(component)
         if timestamp is None:
             timestamp = arrow.now()
         if isinstance(timestamp, arrow.Arrow):
             timestamp = arrow.get(timestamp)
-        self._update_heartbeat(experiment, timestamp, mark_finished)
+        self._update_heartbeat(component, timestamp, mark_finished)
         return timestamp
 
     def _update_heartbeat(
         self,
-        experiment: schema.Experiment,
+        component: schema.Component,
         timestamp: DatetimeType,
         mark_finished=False,
     ) -> None:
         raise NotImplementedError
 
     def retrieve_status(
-        self, experiment: Union["Experiment", schema.Experiment], field: str
+        self, component: Union["Component", schema.Component], field: str
     ) -> Optional[DatetimeType]:
-        from machinable.experiment import Experiment
+        from machinable.component import Component
 
-        experiment = Experiment.model(experiment)
+        component = Component.model(component)
         fields = ["started", "heartbeat", "finished"]
         if field not in fields:
             raise ValueError(f"Invalid field: {field}. Must be on of {fields}")
-        status = self._retrieve_status(experiment._storage_id, field)
+        status = self._retrieve_status(component._storage_id, field)
         if status is None:
             return None
 
@@ -470,26 +465,26 @@ class Storage(Element):
             return None
 
     def _retrieve_status(
-        self, experiment_storage_id: str, field: str
+        self, component_storage_id: str, field: str
     ) -> Optional[str]:
         raise NotImplementedError
 
-    def find_experiment(
-        self, experiment_id: str, timestamp: int = None
+    def find_component(
+        self, component_id: str, timestamp: int = None
     ) -> Optional[str]:
-        return self._find_experiment(experiment_id, timestamp)
+        return self._find_component(component_id, timestamp)
 
-    def _find_experiment(
-        self, experiment_id: str, timestamp: int = None
+    def _find_component(
+        self, component_id: str, timestamp: int = None
     ) -> Optional[str]:
         raise NotImplementedError
 
-    def find_experiment_by_predicate(
+    def find_component_by_predicate(
         self, module: str, predicate: Optional[Dict] = None
     ) -> List[str]:
-        return self._find_experiment_by_predicate(module, predicate)
+        return self._find_component_by_predicate(module, predicate)
 
-    def _find_experiment_by_predicate(
+    def _find_component_by_predicate(
         self, module: str, predicate: Dict
     ) -> List[str]:
         raise NotImplementedError
@@ -498,16 +493,16 @@ class Storage(Element):
         self, storage_id: str, relation: str
     ) -> Optional[schema.Element]:
         relations = {
-            "experiment.execution": "execution",
-            "experiment.executions": "executions",
-            "execution.experiments": "experiments",
+            "component.execution": "execution",
+            "component.executions": "executions",
+            "execution.components": "components",
             "execution.schedule": "schedule",
-            "group.experiments": "experiments",
-            "experiment.group": "group",
-            "experiment.ancestor": "experiment",
-            "experiment.derived": "experiments",
-            "experiment.project": "project",
-            "experiment.uses": "elements",
+            "group.components": "components",
+            "component.group": "group",
+            "component.ancestor": "component",
+            "component.derived": "components",
+            "component.project": "project",
+            "component.uses": "elements",
         }
 
         if relation not in relations:
@@ -532,7 +527,7 @@ class Storage(Element):
         raise NotImplementedError
 
     def _retrieve_file(
-        self, experiment_storage_id: str, filepath: str
+        self, component_storage_id: str, filepath: str
     ) -> Optional[Any]:
         raise NotImplementedError
 

@@ -1,10 +1,11 @@
 from typing import Optional
 
 from dataclasses import dataclass
+from uuid import uuid4
 
 import pydantic
 import pytest
-from machinable import Element, Execution, Experiment, Project, Storage, get
+from machinable import Element, Execution, Project, Storage, get
 from machinable.config import Field, RequiredField
 from machinable.element import (
     compact,
@@ -15,6 +16,7 @@ from machinable.element import (
     normversion,
     resolve_custom_predicate,
     transfer_to,
+    uuid_to_id,
 )
 from machinable.errors import ConfigurationError
 from machinable.utils import Connectable
@@ -29,53 +31,46 @@ def test_element_get():
 
 def test_element_defaults():
     with Project("./tests/samples/project") as project:
-        Experiment.set_default("dummy")
-        assert Experiment.instance().module == "dummy"
-        assert Experiment.make().module == "machinable.experiment"
+        Element.set_default("dummy")
+        assert Element.instance().module == "dummy"
+        assert Element.make().module == "machinable.element"
 
-        hello = Experiment.get("hello")
-        assert hello.module == "hello"
-        hello.as_default()
-        assert Experiment.instance().module == "hello"
-        assert Experiment.make().module == "machinable.experiment"
-        Experiment.default = None
-        assert Experiment.instance().module == "machinable.experiment"
+        dummy = Element.make("dummy")
+        assert dummy.module == "dummy"
+        dummy.as_default()
+        assert Element.instance().module == "dummy"
+        assert Element.make().module == "machinable.element"
+        Element.default = None
+        assert Element.instance().module == "machinable.element"
 
 
 def test_element_instantiation():
     with Project("./tests/samples/project") as project:
         with pytest.raises(ModuleNotFoundError):
-            project.element("non.existing", Experiment)
+            project.element("non.existing", Element)
         with pytest.raises(ConfigurationError):
-            project.element("empty", Experiment)
-        experiment = project.element("basic")
-        assert experiment.hello() == "there"
-        from_model = Experiment.from_model(experiment.__model__)
+            project.element("empty", Element)
+        element = project.element("basic")
+        assert element.hello() == "there"
+        from_model = Element.from_model(element.__model__)
         assert from_model.hello() == "there"
         # prevents circular instantiation
-        assert isinstance(Experiment.make("machinable"), Experiment)
-        assert isinstance(Experiment.make("machinable.experiment"), Experiment)
+        assert isinstance(Element.make("machinable"), Element)
+        assert isinstance(Element.make("machinable.element"), Element)
 
         # on_instantiate
         assert (
-            Experiment.make("line").msg_set_during_instantiation
-            == "hello world"
+            Element.make("line").msg_set_during_instantiation == "hello world"
         )
 
 
 def test_element_lineage():
     with Project("./tests/samples/project") as project:
-        experiment = Experiment.instance("basic")
-        assert experiment.lineage == (
-            "machinable.experiment",
-            "machinable.interface",
-            "machinable.element",
-        )
-        experiment = Experiment.instance("line")
-        assert experiment.lineage == (
+        element = Element.instance("basic")
+        assert element.lineage == ("machinable.element",)
+        element = Element.instance("line")
+        assert element.lineage == (
             "dummy",
-            "machinable.experiment",
-            "machinable.interface",
             "machinable.element",
         )
 
@@ -86,11 +81,11 @@ def test_element_lineage():
 
 
 def test_element_transfer():
-    src = Experiment("dummy")
-    target = Experiment("test")
-    assert src.experiment_id != target.experiment_id
+    src = Element("dummy")
+    target = Element("test")
+    assert src.id != target.id
     transfered = transfer_to(src, target)
-    assert transfered.experiment_id == transfered.experiment_id
+    assert transfered.id == transfered.id
 
 
 def test_element_config():
@@ -214,11 +209,7 @@ def test_element_config():
     # module
     assert Dummy().module == "tests.test_element"
     with Project("./tests/samples/project"):
-        assert Experiment.instance("dummy").module == "dummy"
-        assert (
-            Experiment.instance("interfaces.events_check").module
-            == "interfaces.events_check"
-        )
+        assert Element.instance("dummy").module == "dummy"
 
     # no-schema
     class NoSchema(Element):
@@ -319,11 +310,11 @@ def test_extract():
 
 
 def test_defaultversion():
-    assert defaultversion("test", ["example"], Experiment) == (
+    assert defaultversion("test", ["example"], Element) == (
         "test",
         ["example"],
     )
-    assert defaultversion(None, None, Experiment) == (None, [])
+    assert defaultversion(None, None, Element) == (None, [])
 
 
 def test_equalversion():
@@ -380,6 +371,10 @@ def test_resolve_custom_predicate():
     assert resolve_custom_predicate("t,*", T({"a": "1"})) == ["t"]
 
 
+def test_uuid_to_id():
+    assert len(uuid_to_id(uuid4())) == 6
+
+
 def test_connectable():
     class T(Connectable):
         pass
@@ -420,115 +415,3 @@ def test_connectable():
             assert Dummy.get() is dummy_1
         assert Dummy.get() is not dummy_1
         assert not Dummy.is_connected()
-
-
-# sub-class relations
-class CustomExperiment(Experiment):
-    pass
-
-
-class CustomExecution(Execution):
-    pass
-
-
-def test_element_relations(tmp_storage):
-    with Project("./tests/samples/project"):
-        experiment = Experiment().group_as("test/group")
-        execution = Execution().add(experiment)
-        execution.dispatch()
-
-        experiment_clone = Experiment.from_storage(experiment.storage_id)
-        assert experiment.experiment_id == experiment_clone.experiment_id
-
-        # experiment <-> execution
-        assert int(execution.timestamp) == int(experiment.execution.timestamp)
-        assert (
-            experiment.experiment_id == execution.experiments[0].experiment_id
-        )
-        # group <-> execution
-        assert experiment.group.path == "test/group"
-        assert experiment.group.pattern == "test/group"
-        assert experiment.group.experiments[0].timestamp == experiment.timestamp
-
-        # invalidate cache and reconstruct
-        experiment.__related__ = {}
-        execution.__related__ = {}
-        # experiment <-> execution
-        assert int(execution.timestamp) == int(experiment.execution.timestamp)
-        assert (
-            experiment.experiment_id == execution.experiments[0].experiment_id
-        )
-        # group <-> execution
-        assert experiment.group.path == "test/group"
-        assert experiment.group.experiments[0].timestamp == experiment.timestamp
-
-        experiment = CustomExperiment()
-        execution = CustomExecution().add(experiment)
-        execution.dispatch()
-        experiment.__related__ = {}
-        execution.__related__ = {}
-        experiment.execution == execution
-        experiment.__related__ = {}
-        execution.__related__ = {}
-        execution.experiments[0] == experiment
-
-
-def test_element_search(tmp_storage):
-    with Project("./tests/samples/project"):
-        exp1 = Experiment.make("dummy", {"a": 1})
-        exp1.launch()
-        exp2 = Experiment.make("dummy", {"a": 2})
-        exp2.launch()
-        assert Experiment.find(exp1.experiment_id).timestamp == exp1.timestamp
-        assert Experiment.find_by_predicate("non-existing").empty()
-        assert (
-            Experiment.find_by_predicate("dummy", predicate=None).count() == 2
-        )
-        # singleton
-        assert (
-            Experiment.singleton("dummy", {"a": 2}).timestamp == exp2.timestamp
-        )
-        assert (
-            Experiment.singleton("dummy", {"a": 2, "ignore_me_": 3}).timestamp
-            == exp2.timestamp
-        )
-        assert (
-            Experiment.singleton("dummy", {"a": 2}).timestamp == exp2.timestamp
-        )
-        n = Experiment.singleton("dummy", {"a": 3})
-        n.launch()
-        assert n.experiment_id != exp2.experiment_id
-        assert (
-            n.experiment_id
-            == Experiment.singleton("dummy", {"a": 3}).experiment_id
-        )
-
-
-def test_element_interface(tmp_storage):
-    experiment = Experiment()
-    experiment.launch()
-    # save and load
-    experiment.save_file("test.txt", "hello")
-    assert experiment.load_file("test.txt") == "hello"
-    experiment.save_data("floaty", 1.0)
-    assert experiment.load_data("floaty") == "1.0"
-    uncommitted = Element()
-    uncommitted.save_data("test", "deferred")
-    assert uncommitted.load_data("test") == "deferred"
-
-
-def test_element_interactive_session(tmp_storage):
-    class T(Experiment):
-        def is_valid(self):
-            return True
-
-    t = get(T)
-    assert t.module == "__session__T"
-    assert t.__model__._dump is not None
-
-    # default launch
-    t.launch()
-    # serialization
-    exec(t.dispatch_code(inline=False) + "\nassert experiment__.is_valid()")
-    # retrieval
-    assert t.experiment_id == get(T).experiment_id

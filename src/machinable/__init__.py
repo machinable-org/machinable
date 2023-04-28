@@ -3,7 +3,7 @@ __all__ = [
     "Element",
     "Interface",
     "Execution",
-    "Experiment",
+    "Component",
     "Project",
     "Record",
     "Storage",
@@ -23,9 +23,9 @@ else:
     import importlib_metadata
 
 from machinable.cli import from_cli
+from machinable.component import Component
 from machinable.element import Element
 from machinable.execution import Execution
-from machinable.experiment import Experiment
 from machinable.interface import Interface
 from machinable.mixin import Mixin, mixin
 from machinable.project import Project

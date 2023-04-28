@@ -1,7 +1,7 @@
-from machinable import Experiment
+from machinable import Component
 
 
-class PredicateExperiment(Experiment):
+class PredicateComponent(Component):
     class Config:
         a: int = 1
         ignore_: int = 2

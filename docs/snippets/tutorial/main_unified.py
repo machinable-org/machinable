@@ -1,11 +1,11 @@
 from machinable import get
 
-experiment = get("montecarlo")
+component = get("montecarlo")
 
-experiment.launch()
+component.launch()
 
 print(
-    f"We need {experiment.samples} samples to approximate"
-    f" PI as {experiment.pi}"
-    f" (< {experiment.config.acceptable_error} error)"
+    f"We need {component.samples} samples to approximate"
+    f" PI as {component.pi}"
+    f" (< {component.config.acceptable_error} error)"
 )

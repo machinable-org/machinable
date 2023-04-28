@@ -1,15 +1,15 @@
-from machinable import Experiment, Record, Storage
+from machinable import Component, Record, Storage
 
 
 def test_record(tmp_path):
-    experiment = Experiment("test")
-    experiment.__model__._storage_instance = Storage.make(
+    component = Component("test")
+    component.__model__._storage_instance = Storage.make(
         "machinable.storage.filesystem",
         {"directory": str(tmp_path)},
     )
-    experiment.__model__._storage_id = str(tmp_path)
+    component.__model__._storage_id = str(tmp_path)
 
-    record = Record(experiment)
+    record = Record(component)
     assert record.scope == "default"
     assert record.current == {}
     assert record.last is None
@@ -27,5 +27,5 @@ def test_record(tmp_path):
     record.save()
     assert (
         record.last["test"]
-        == experiment.load_file("records/default.jsonl")[0]["test"]
+        == component.load_file("records/default.jsonl")[0]["test"]
     )

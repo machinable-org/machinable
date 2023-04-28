@@ -15,6 +15,7 @@ import json
 import os
 import stat
 from functools import wraps
+from uuid import UUID
 
 import arrow
 import dill as pickle
@@ -32,7 +33,7 @@ from machinable.utils import Jsonable, unflatten_dict, update_dict
 from omegaconf import DictConfig, OmegaConf
 
 if TYPE_CHECKING:
-    from machinable.storage import Storage
+    from machinable.collection import Collection
 
 
 def belongs_to(f: Callable) -> Any:
@@ -266,6 +267,17 @@ def transfer_to(src: "Element", destination: "Element") -> "Element":
     return destination
 
 
+def uuid_to_id(uuid: UUID) -> str:
+    alphabet = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
+
+    # convert uuid hex to base 62 of length 6
+    result = ""
+    for i in range(0, 6 * 2, 2):
+        result += alphabet[int(uuid.hex[i : i + 2], 16) % 62]
+
+    return result
+
+
 def resolve_custom_predicate(predicate: str, element: "Element"):
     from machinable.project import Project
 
@@ -332,6 +344,14 @@ class Element(Mixin, Jsonable):
         self._deferred_data = {}
 
         Element._module_ = None
+
+    @property
+    def uuid(self) -> UUID:
+        return self.__model__.uuid
+
+    @property
+    def id(self) -> str:
+        return uuid_to_id(self.uuid)
 
     @classmethod
     def set_default(
@@ -408,35 +428,9 @@ class Element(Mixin, Jsonable):
         version: VersionType = None,
         predicate: Optional[str] = get_settings().default_predicate,
         **kwargs,
-    ) -> "Collection[Element]":
-        candidates = cls.find_by_predicate(
-            module,
-            version,
-            predicate,
-            **kwargs,
-        )
-        if candidates:
-            return candidates[-1]
-
+    ) -> "Element":
+        # no-op as elements do not have a storage representation
         return cls.make(module, version, **kwargs)
-
-    def mount(self, storage: "Storage", storage_id: Any) -> bool:
-        if self.__model__ is None:
-            return False
-
-        self.__model__._storage_instance = storage
-        self.__model__._storage_id = storage_id
-
-        return True
-
-    def is_mounted(self) -> bool:
-        if self.__model__ is None:
-            return False
-
-        return (
-            self.__model__._storage_instance is not None
-            and self.__model__._storage_id is not None
-        )
 
     @classmethod
     def from_model(cls, model: schema.Element) -> "Element":
@@ -456,74 +450,6 @@ class Element(Mixin, Jsonable):
         instance.set_model(model)
 
         return instance
-
-    @classmethod
-    def find(cls, element_id: str, *args, **kwargs) -> Optional["Element"]:
-        from machinable.storage import Storage
-
-        storage = Storage.get()
-
-        storage_id = getattr(storage, f"find_{cls.kind.lower()}")(
-            element_id, *args, **kwargs
-        )
-
-        if storage_id is None:
-            return None
-
-        return cls.from_storage(storage_id, storage)
-
-    @classmethod
-    def find_many(cls, elements: List[str]) -> "Collection":
-        return cls.collect([cls.find(element_id) for element_id in elements])
-
-    @classmethod
-    def find_by_predicate(
-        cls,
-        module: Union[str, "Element"],
-        version: VersionType = None,
-        predicate: Optional[str] = get_settings().default_predicate,
-        **kwargs,
-    ) -> "Collection":
-        from machinable.storage import Storage
-
-        storage = Storage.get()
-        try:
-            candidate = cls.make(module, version, **kwargs)
-        except ModuleNotFoundError:
-            return cls.collect([])
-
-        element_type = candidate.kind.lower()
-        handler = f"find_{element_type}_by_predicate"
-
-        if hasattr(storage, handler):
-            if predicate:
-                predicate = OmegaConf.to_container(
-                    OmegaConf.create(
-                        {
-                            p: candidate.predicate[p]
-                            for p in resolve_custom_predicate(
-                                predicate, candidate
-                            )
-                        }
-                    )
-                )
-            storage_ids = getattr(storage, handler)(
-                module
-                if isinstance(module, str)
-                else f"__session__{module.__name__}",
-                predicate,
-            )
-        else:
-            storage_ids = []
-
-        return cls.collect(
-            [
-                cls.from_model(
-                    getattr(storage, f"retrieve_{element_type}")(storage_id)
-                )
-                for storage_id in storage_ids
-            ]
-        )
 
     def on_compute_predicate(self) -> Optional[Dict]:
         """Event to compute a custom predicate dictionary of the element
@@ -648,31 +574,6 @@ class Element(Mixin, Jsonable):
     def lineage(self) -> Tuple[str, ...]:
         return self.__model__.lineage
 
-    @property
-    def storage_id(self) -> Optional[str]:
-        if not self.is_mounted():
-            return None
-
-        return self.__model__._storage_id
-
-    @property
-    def storage_instance(self) -> Optional["Storage"]:
-        if not self.is_mounted():
-            return None
-
-        return self.__model__._storage_instance
-
-    @classmethod
-    def from_storage(cls, storage_id, storage=None) -> "Element":
-        if storage is None:
-            from machinable.storage import Storage
-
-            storage = Storage.get()
-
-        return cls.from_model(
-            getattr(storage, f"retrieve_{cls.kind.lower()}")(storage_id)
-        )
-
     @classmethod
     def collect(cls, elements) -> Collection:
         """Returns a collection of the element type"""
@@ -710,54 +611,6 @@ class Element(Mixin, Jsonable):
 
         return self
 
-    def local_directory(
-        self, *append: str, create: bool = False
-    ) -> Optional[str]:
-        if not self.is_mounted():
-            return None
-
-        return self.__model__._storage_instance.local_directory(
-            self, *append, create=create
-        )
-
-    def load_file(self, filepath: str, default=None) -> Optional[Any]:
-        if not self.is_mounted():
-            # has write been deferred?
-            if filepath in self._deferred_data:
-                return self._deferred_data[filepath]
-
-            return default
-
-        data = self.__model__._storage_instance.retrieve_file(self, filepath)
-
-        return data if data is not None else default
-
-    def save_file(self, filepath: str, data: Any) -> str:
-        if os.path.isabs(filepath):
-            raise ValueError("Filepath must be relative")
-
-        if not self.is_mounted():
-            # defer writes until element storage creation
-            self._deferred_data[filepath] = data
-            return "$deferred"
-
-        file = self.__model__._storage_instance.create_file(
-            self, filepath, data
-        )
-
-        # mark scripts as executable
-        if filepath.endswith(".sh"):
-            st = os.stat(file)
-            os.chmod(file, st.st_mode | stat.S_IEXEC)
-
-        return file
-
-    def save_data(self, filepath: str, data: Any) -> str:
-        return self.save_file(os.path.join("data", filepath), data)
-
-    def load_data(self, filepath: str, default=None) -> Optional[Any]:
-        return self.load_file(os.path.join("data", filepath), default)
-
     def serialize(self) -> Dict:
         # ensure that configuration has been parsed
         assert self.config is not None
@@ -770,28 +623,6 @@ class Element(Mixin, Jsonable):
     @classmethod
     def is_connected(cls) -> bool:
         return len(_CONNECTIONS[cls.kind]) > 0
-
-    def __enter__(self):
-        _CONNECTIONS[self.kind].append(self)
-        return self
-
-    def __exit__(self, *args, **kwargs):
-        try:
-            _CONNECTIONS[self.kind].pop()
-        except IndexError:
-            pass
-
-    def __reduce__(self) -> Union[str, Tuple[Any, ...]]:
-        return (self.__class__, (), self.serialize())
-
-    def __getstate__(self):
-        return self.serialize()
-
-    def __setstate__(self, state):
-        self.__model__ = self.__class__.model()(**state)
-
-    def __str__(self):
-        return self.__repr__()
 
     def compute_predicate(self) -> Dict:
         from machinable.project import Project
@@ -843,6 +674,28 @@ class Element(Mixin, Jsonable):
                 self.__class__.__name__, name
             )
         )
+
+    def __enter__(self):
+        _CONNECTIONS[self.kind].append(self)
+        return self
+
+    def __exit__(self, *args, **kwargs):
+        try:
+            _CONNECTIONS[self.kind].pop()
+        except IndexError:
+            pass
+
+    def __reduce__(self) -> Union[str, Tuple[Any, ...]]:
+        return (self.__class__, (), self.serialize())
+
+    def __getstate__(self):
+        return self.serialize()
+
+    def __setstate__(self, state):
+        self.__model__ = self.__class__.model()(**state)
+
+    def __str__(self):
+        return self.__repr__()
 
 
 def get_lineage(element: "Element") -> Tuple[str, ...]:

@@ -74,14 +74,14 @@ class Filesystem(Storage):
                 )"""
             )
             cur.execute(
-                """CREATE TABLE experiments (
+                """CREATE TABLE components (
                     id integer PRIMARY KEY,
                     storage_id text NOT NULL,
                     module text,
                     config json,
                     version json,
                     predicate json,
-                    experiment_id text,
+                    component_id text,
                     seed integer,
                     execution_id integer,
                     timestamp integer,
@@ -91,7 +91,7 @@ class Filesystem(Storage):
                     FOREIGN KEY (group_id) REFERENCES groups (id)
                     FOREIGN KEY (project_id) REFERENCES projects (id)
                     FOREIGN KEY (execution_id) REFERENCES executions (id)
-                    FOREIGN KEY (ancestor_id) REFERENCES experiments (id)
+                    FOREIGN KEY (ancestor_id) REFERENCES components (id)
                 )"""
             )
             cur.execute(
@@ -102,8 +102,8 @@ class Filesystem(Storage):
                     config json,
                     version json,
                     predicate json,
-                    experiment_id integer,
-                    FOREIGN KEY (experiment_id) REFERENCES experiments (id)
+                    component_id integer,
+                    FOREIGN KEY (component_id) REFERENCES components (id)
                 )"""
             )
             cur.execute(
@@ -130,14 +130,14 @@ class Filesystem(Storage):
     def _create_execution(
         self,
         execution: schema.Execution,
-        experiments: List[schema.Experiment],
+        components: List[schema.Component],
     ) -> str:
         self.migrate()
 
         suffix = timestamp_to_directory(execution.timestamp)
-        for experiment in experiments:
+        for component in components:
             execution_directory = os.path.join(
-                experiment._storage_id, f"execution-{suffix}"
+                component._storage_id, f"execution-{suffix}"
             )
             save_file(
                 os.path.join(execution_directory, "execution.json"),
@@ -173,12 +173,12 @@ class Filesystem(Storage):
         )
         self._db.commit()
         execution_id = cur.lastrowid
-        for experiment in experiments:
+        for component in components:
             cur.execute(
-                """UPDATE experiments SET
+                """UPDATE components SET
                 execution_id=?
-                WHERE experiment_id=? AND timestamp=?""",
-                (execution_id, experiment.experiment_id, experiment.timestamp),
+                WHERE component_id=? AND timestamp=?""",
+                (execution_id, component.id, component.timestamp),
             )
             self._db.commit()
 
@@ -187,20 +187,20 @@ class Filesystem(Storage):
     def _create_element(
         self,
         element: schema.Element,
-        experiment: schema.Experiment,
-        _experiment_db_id: Optional[int] = None,
+        component: schema.Component,
+        _component_db_id: Optional[int] = None,
     ) -> str:
         self.migrate()
 
-        # find experiment
-        if not _experiment_db_id:
-            _experiment_db_id = cur.execute(
-                """SELECT id FROM experiments WHERE experiment_id=? AND timestamp=?""",
-                (experiment.experiment_id, experiment.timestamp),
+        # find component
+        if not _component_db_id:
+            _component_db_id = cur.execute(
+                """SELECT id FROM components WHERE component_id=? AND timestamp=?""",
+                (component.id, component.timestamp),
             ).fetchone()
-            if not _experiment_db_id:
-                raise StorageError("Invalid experiment")
-            _experiment_db_id = _experiment_db_id[0]
+            if not _component_db_id:
+                raise StorageError("Invalid component")
+            _component_db_id = _component_db_id[0]
 
         cur = self._db.cursor()
         cur.execute(
@@ -210,7 +210,7 @@ class Filesystem(Storage):
             config,
             version,
             predicate,
-            experiment_id
+            component_id
             ) VALUES (?,?,?,?,?,?)""",
             (
                 None,
@@ -218,7 +218,7 @@ class Filesystem(Storage):
                 _jn(element.config),
                 _jn(element.version),
                 _jn(element.predicate),
-                _experiment_db_id,
+                _component_db_id,
             ),
         )
         self._db.commit()
@@ -232,9 +232,9 @@ class Filesystem(Storage):
 
         return storage_id
 
-    def _create_experiment(
+    def _create_component(
         self,
-        experiment: schema.Experiment,
+        component: schema.Component,
         group: schema.Group,
         project: schema.Project,
         uses: List[schema.Element],
@@ -244,39 +244,35 @@ class Filesystem(Storage):
         project = self.create_project(project)
         group = self.create_group(group)
         head, tail = os.path.split(group.path)
-        directory = f"{experiment.experiment_id}"
+        directory = f"{component.id}"
 
         derived_from = None
-        if experiment.derived_from_id is not None:
-            derived_from = self.find_experiment(
-                experiment.derived_from_id, experiment.derived_from_timestamp
+        if component.derived_from_id is not None:
+            derived_from = self.find_component(
+                component.derived_from_id, component.derived_from_timestamp
             )
 
         if derived_from is not None:
-            storage_id = os.path.join(
-                derived_from, "derived", experiment.experiment_id
-            )
+            storage_id = os.path.join(derived_from, "derived", component.id)
         else:
             if self.config.directory is not None:
                 storage_id = os.path.join(
                     os.path.abspath(self.config.directory), directory
                 )
             else:
-                if not isinstance(experiment._storage_id, str):
+                if not isinstance(component._storage_id, str):
                     raise StorageError(
-                        "Can not write the experiment as no storage directory was provided."
+                        "Can not write the component as no storage directory was provided."
                     )
-                storage_id = experiment._storage_id
+                storage_id = component._storage_id
 
         save_file(
-            os.path.join(storage_id, "experiment.json"),
-            experiment.dict(),
+            os.path.join(storage_id, "component.json"),
+            component.dict(),
             makedirs=True,
         )
-        if experiment._dump is not None:
-            save_file(
-                os.path.join(storage_id, "experiment.p"), experiment._dump
-            )
+        if component._dump is not None:
+            save_file(os.path.join(storage_id, "component.p"), component._dump)
 
         save_file(
             os.path.join(storage_id, "project.json"),
@@ -298,8 +294,8 @@ class Filesystem(Storage):
 
         cur = self._db.cursor()
         ancestor_id = cur.execute(
-            """SELECT id FROM experiments WHERE experiment_id=? AND timestamp=?""",
-            (experiment.derived_from_id, experiment.derived_from_timestamp),
+            """SELECT id FROM components WHERE component_id=? AND timestamp=?""",
+            (component.derived_from_id, component.derived_from_timestamp),
         ).fetchone()
         if ancestor_id:
             ancestor_id = ancestor_id[0]
@@ -316,13 +312,13 @@ class Filesystem(Storage):
         if project_id:
             project_id = project_id[0]
         cur.execute(
-            """INSERT INTO experiments(
+            """INSERT INTO components(
                 storage_id,
                 module,
                 config,
                 version,
                 predicate,
-                experiment_id,
+                component_id,
                 seed,
                 seed,
                 timestamp,
@@ -332,26 +328,26 @@ class Filesystem(Storage):
                 ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)""",
             (
                 storage_id,
-                experiment.module,
-                _jn(experiment.config),
-                _jn(experiment.version),
-                _jn(experiment.predicate),
-                experiment.experiment_id,
-                experiment.seed,
-                experiment.seed,
-                experiment.timestamp,
+                component.module,
+                _jn(component.config),
+                _jn(component.version),
+                _jn(component.predicate),
+                component.id,
+                component.seed,
+                component.seed,
+                component.timestamp,
                 group_id,
                 project_id,
                 ancestor_id,
             ),
         )
         self._db.commit()
-        experiment_id = cur.lastrowid
+        component_id = cur.lastrowid
 
-        experiment._storage_id = storage_id
+        component._storage_id = storage_id
 
         for use in uses:
-            self._create_element(use, experiment, experiment_id)
+            self._create_element(use, component, component_id)
 
         return storage_id
 
@@ -393,25 +389,25 @@ class Filesystem(Storage):
 
     def _create_record(
         self,
-        experiment: schema.Experiment,
+        component: schema.Component,
         data: JsonableType,
         scope: str = "default",
     ) -> str:
         self.migrate()
 
         return save_file(
-            os.path.join(experiment._storage_id, "records", f"{scope}.jsonl"),
+            os.path.join(component._storage_id, "records", f"{scope}.jsonl"),
             data=data,
             mode="a",
         )
 
     def _mark_started(
-        self, experiment: schema.Experiment, timestamp: DatetimeType
+        self, component: schema.Component, timestamp: DatetimeType
     ) -> None:
         self.migrate()
 
         save_file(
-            os.path.join(experiment._storage_id, "started_at"),
+            os.path.join(component._storage_id, "started_at"),
             str(timestamp) + "\n",
             # starting event can occur multiple times
             mode="a",
@@ -419,31 +415,31 @@ class Filesystem(Storage):
 
     def _update_heartbeat(
         self,
-        experiment: schema.Experiment,
+        component: schema.Component,
         timestamp: DatetimeType,
         mark_finished=False,
     ) -> None:
         self.migrate()
 
         save_file(
-            os.path.join(experiment._storage_id, "heartbeat_at"),
+            os.path.join(component._storage_id, "heartbeat_at"),
             str(timestamp),
             mode="w",
         )
         if mark_finished:
             save_file(
-                os.path.join(experiment._storage_id, "finished_at"),
+                os.path.join(component._storage_id, "finished_at"),
                 str(timestamp),
             )
 
     def _retrieve_status(
-        self, experiment_storage_id: str, field: str
+        self, component_storage_id: str, field: str
     ) -> Optional[str]:
         if not self.is_migrated():
             return None
 
         status = load_file(
-            os.path.join(experiment_storage_id, f"{field}_at"), default=None
+            os.path.join(component_storage_id, f"{field}_at"), default=None
         )
         if status is None:
             return None
@@ -452,8 +448,8 @@ class Filesystem(Storage):
             return status.strip("\n").split("\n")[-1]
         return status
 
-    def _find_experiment(
-        self, experiment_id: str, timestamp: int = None
+    def _find_component(
+        self, component_id: str, timestamp: int = None
     ) -> Optional[str]:
         if not self.is_migrated():
             return None
@@ -461,13 +457,13 @@ class Filesystem(Storage):
         cur = self._db.cursor()
         if timestamp is not None:
             query = cur.execute(
-                """SELECT storage_id FROM experiments WHERE experiment_id=? AND timestamp=?""",
-                (experiment_id, timestamp),
+                """SELECT storage_id FROM components WHERE component_id=? AND timestamp=?""",
+                (component_id, timestamp),
             )
         else:
             query = cur.execute(
-                """SELECT storage_id FROM experiments WHERE experiment_id=?""",
-                (experiment_id,),
+                """SELECT storage_id FROM components WHERE component_id=?""",
+                (component_id,),
             )
         result = query.fetchone()
         if result:
@@ -475,7 +471,7 @@ class Filesystem(Storage):
 
         return None
 
-    def _find_experiment_by_predicate(
+    def _find_component_by_predicate(
         self, module: str, predicate: Dict
     ) -> List[str]:
         if not self.is_migrated():
@@ -490,13 +486,13 @@ class Filesystem(Storage):
                 keys.append(f"json_extract(predicate, '$.{p}')=?")
                 values.append(v if isinstance(v, (str, int, float)) else _jn(v))
             query = cur.execute(
-                """SELECT storage_id FROM experiments WHERE """
+                """SELECT storage_id FROM components WHERE """
                 + (" AND ".join(keys)),
                 values,
             )
         else:
             query = cur.execute(
-                """SELECT storage_id FROM experiments WHERE module=?""",
+                """SELECT storage_id FROM components WHERE module=?""",
                 (module,),
             )
 
@@ -511,14 +507,14 @@ class Filesystem(Storage):
         )
         return execution
 
-    def _retrieve_experiment(self, storage_id: str) -> schema.Experiment:
-        experiment = schema.Experiment(
-            **load_file(os.path.join(storage_id, "experiment.json")),
+    def _retrieve_component(self, storage_id: str) -> schema.Component:
+        component = schema.Component(
+            **load_file(os.path.join(storage_id, "component.json")),
         )
-        experiment._dump = load_file(
-            os.path.join(storage_id, "experiment.p"), None
+        component._dump = load_file(
+            os.path.join(storage_id, "component.p"), None
         )
-        return experiment
+        return component
 
     def _retrieve_group(self, storage_id: str) -> schema.Group:
         self.migrate()
@@ -550,20 +546,20 @@ class Filesystem(Storage):
         )
 
     def _retrieve_records(
-        self, experiment_storage_id: str, scope: str
+        self, component_storage_id: str, scope: str
     ) -> List[JsonableType]:
         return load_file(
-            os.path.join(experiment_storage_id, "records", f"{scope}.jsonl"),
+            os.path.join(component_storage_id, "records", f"{scope}.jsonl"),
             default=[],
         )
 
-    def _retrieve_output(self, experiment_storage_id: str) -> str:
-        return self._retrieve_file(experiment_storage_id, "output.log")
+    def _retrieve_output(self, component_storage_id: str) -> str:
+        return self._retrieve_file(component_storage_id, "output.log")
 
     def _local_directory(
-        self, experiment_storage_id: str, *append: str
+        self, component_storage_id: str, *append: str
     ) -> Optional[str]:
-        return os.path.join(experiment_storage_id, *append)
+        return os.path.join(component_storage_id, *append)
 
     def _find_related(
         self, storage_id: str, relation: str
@@ -571,94 +567,94 @@ class Filesystem(Storage):
         if not self.is_migrated():
             return None
         self.migrate()
-        if relation == "experiment.execution":
+        if relation == "component.execution":
             cur = self._db.cursor()
             row = cur.execute(
                 """SELECT executions.storage_id FROM executions
-                LEFT JOIN experiments ON experiments.execution_id = executions.id
-                WHERE experiments.storage_id=?""",
+                LEFT JOIN components ON components.execution_id = executions.id
+                WHERE components.storage_id=?""",
                 (storage_id,),
             ).fetchone()
             if row:
                 return row[0]
             return None
-        if relation == "experiment.executions":
+        if relation == "component.executions":
             cur = self._db.cursor()
             return [
                 row[0]
                 for row in cur.execute(
                     """SELECT executions.storage_id FROM executions
-                LEFT JOIN experiments ON experiments.execution_id = executions.id
-                WHERE experiments.storage_id=?""",
+                LEFT JOIN components ON components.execution_id = executions.id
+                WHERE components.storage_id=?""",
                     (storage_id,),
                 ).fetchall()
             ]
-        if relation == "experiment.uses":
+        if relation == "component.uses":
             cur = self._db.cursor()
             return [
                 row[0]
                 for row in cur.execute(
                     """SELECT elements.storage_id FROM elements
-                LEFT JOIN experiments ON elements.experiment_id = experiments.id
-                WHERE experiments.storage_id=?""",
+                LEFT JOIN components ON elements.id = components.id
+                WHERE components.storage_id=?""",
                     (storage_id,),
                 ).fetchall()
             ]
-        if relation == "execution.experiments":
+        if relation == "execution.components":
             cur = self._db.cursor()
             return [
                 row[0]
                 for row in cur.execute(
-                    """SELECT experiments.storage_id FROM experiments
-                LEFT JOIN executions ON experiments.execution_id = executions.id
+                    """SELECT components.storage_id FROM components
+                LEFT JOIN executions ON components.execution_id = executions.id
                 WHERE executions.storage_id=?""",
                     (storage_id,),
                 ).fetchall()
             ]
-        if relation == "group.experiments":
+        if relation == "group.components":
             cur = self._db.cursor()
             return [
                 row[0]
                 for row in cur.execute(
-                    """SELECT experiments.storage_id FROM experiments
-                LEFT JOIN groups ON experiments.group_id = groups.id
+                    """SELECT components.storage_id FROM components
+                LEFT JOIN groups ON components.group_id = groups.id
                 WHERE groups.path=?""",
                     (storage_id,),
                 ).fetchall()
             ]
-        if relation == "experiment.group":
+        if relation == "component.group":
             cur = self._db.cursor()
             row = cur.execute(
-                """SELECT groups.path FROM experiments
-                LEFT JOIN groups ON experiments.group_id = groups.id
-                WHERE experiments.storage_id=?""",
+                """SELECT groups.path FROM components
+                LEFT JOIN groups ON components.group_id = groups.id
+                WHERE components.storage_id=?""",
                 (storage_id,),
             ).fetchone()
             if row:
                 return row[0]
-        if relation == "experiment.derived":
+        if relation == "component.derived":
             cur = self._db.cursor()
             return [
                 row[0]
                 for row in cur.execute(
-                    """SELECT storage_id FROM experiments WHERE ancestor_id=(SELECT id FROM experiments WHERE storage_id=?)""",
+                    """SELECT storage_id FROM components WHERE ancestor_id=(SELECT id FROM components WHERE storage_id=?)""",
                     (storage_id,),
                 ).fetchall()
             ]
-        if relation == "experiment.ancestor":
+        if relation == "component.ancestor":
             cur = self._db.cursor()
             row = cur.execute(
-                """SELECT e.storage_id FROM experiments e INNER JOIN experiments m ON m.ancestor_id=e.id WHERE m.storage_id=?""",
+                """SELECT e.storage_id FROM components e INNER JOIN components m ON m.ancestor_id=e.id WHERE m.storage_id=?""",
                 (storage_id,),
             ).fetchone()
             if row:
                 return row[0]
-        if relation == "experiment.project":
+        if relation == "component.project":
             cur = self._db.cursor()
             row = cur.execute(
-                """SELECT projects.name FROM experiments
-                LEFT JOIN projects ON experiments.project_id = projects.id
-                WHERE experiments.storage_id=?""",
+                """SELECT projects.name FROM components
+                LEFT JOIN projects ON components.project_id = projects.id
+                WHERE components.storage_id=?""",
                 (storage_id,),
             ).fetchone()
             if row:

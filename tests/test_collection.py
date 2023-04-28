@@ -4,8 +4,9 @@
 
 from unittest import TestCase
 
-from machinable.collection import Collection, ExperimentCollection, collect
-from machinable.experiment import Experiment, Project
+from machinable.collection import Collection, ComponentCollection, collect
+from machinable.component import Component
+from machinable.project import Project
 from machinable.storage import Storage
 
 
@@ -13,19 +14,19 @@ def test_collect():
     assert isinstance(collect([1, 2]), Collection)
 
 
-class DummyExperiment(Experiment):
+class DummyComponent(Component):
     class Config:
         m: int = -1
 
 
-def test_experiment_collection(tmp_storage):
+def test_component_collection(tmp_storage):
     with Project("./tests/samples/project"):
-        collection = Experiment.collect(
-            [DummyExperiment({"m": i % 2}) for i in range(5)]
+        collection = Component.collect(
+            [DummyComponent({"m": i % 2}) for i in range(5)]
         )
         for i, e in enumerate(collection):
             e.save_data("i", i)
-        assert isinstance(collection, ExperimentCollection)
+        assert isinstance(collection, ComponentCollection)
 
         collection.launch()
         assert all(collection.map(lambda x: x.is_finished()))

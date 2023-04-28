@@ -1,4 +1,4 @@
-# Experiments
+# Components
 
 ::: warning Coming soon
 

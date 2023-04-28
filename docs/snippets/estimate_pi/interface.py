@@ -1,10 +1,10 @@
 from machinable import get
 
-experiment = get("montecarlo", {"samples": 150})
-# Imports experiment in `montecarlo.py` with samples=150;
-# if an experiment with this configuration exists, it
+component = get("montecarlo", {"samples": 150})
+# Imports component in `montecarlo.py` with samples=150;
+# if an component with this configuration exists, it
 # is automatically reloaded.
-experiment.launch()
-# Executes the experiment unless it's already been computed
-experiment.summary()
+component.launch()
+# Executes the component unless it's already been computed
+component.summary()
 # >>> After 150 samples, PI is approximately 3.1466666666666665.

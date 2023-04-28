@@ -1,7 +1,7 @@
-from machinable import Experiment
+from machinable import Element
 
 
-class TestView(Experiment):
+class Basic(Element):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self._state = None
