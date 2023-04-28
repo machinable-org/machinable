@@ -5,7 +5,7 @@ from machinable import Component, Execution, Project, Storage, errors
 
 
 def test_execution(tmp_storage):
-    assert len(Execution().add([Component(), Component()]).components) == 2
+    assert len(Execution().add([Component(), Component()]).executables) == 2
     with pytest.raises(ValueError):
         Execution().add(None)
     execution = Execution()
@@ -19,12 +19,12 @@ def test_execution(tmp_storage):
 
     with Project("./tests/samples/project"):
         execution = Execution().add(Component())
-        assert len(execution.components) == 1
+        assert len(execution.executables) == 1
         assert isinstance(execution.timestamp, float)
 
         component = Component()
         execution = Execution().add(component)
-        assert len(execution.components) == 1
+        assert len(execution.executables) == 1
         execution.dispatch()
 
         assert execution.host_info["python_version"].startswith("3")

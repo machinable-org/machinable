@@ -244,16 +244,16 @@ class Filesystem(Storage):
         project = self.create_project(project)
         group = self.create_group(group)
         head, tail = os.path.split(group.path)
-        directory = f"{component.id}"
+        directory = f"{component.uuid.hex}"
 
         derived_from = None
-        if component.derived_from_id is not None:
-            derived_from = self.find_component(
-                component.derived_from_id, component.derived_from_timestamp
-            )
+        if component.derived_from is not None:
+            derived_from = self.find_component(component.derived_from)
 
         if derived_from is not None:
-            storage_id = os.path.join(derived_from, "derived", component.id)
+            storage_id = os.path.join(
+                derived_from, "derived", component.uuid.hex
+            )
         else:
             if self.config.directory is not None:
                 storage_id = os.path.join(
@@ -294,8 +294,8 @@ class Filesystem(Storage):
 
         cur = self._db.cursor()
         ancestor_id = cur.execute(
-            """SELECT id FROM components WHERE component_id=? AND timestamp=?""",
-            (component.derived_from_id, component.derived_from_timestamp),
+            """SELECT id FROM components WHERE component_id=?""",
+            (component.derived_from,),
         ).fetchone()
         if ancestor_id:
             ancestor_id = ancestor_id[0]

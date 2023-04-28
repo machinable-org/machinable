@@ -21,7 +21,7 @@ from machinable import get
 
 gravity = get('estimate_gravity', {'time_dilation': 0.5})
 
-if not gravity.is_finished():
+if not gravity.execution.is_finished():
   print("An component with this configuration was not found")
 else:
   print(f"The gravity for a time dilation of 0.5 is {gravity.result}")

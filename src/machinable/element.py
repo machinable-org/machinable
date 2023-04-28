@@ -29,7 +29,7 @@ from machinable.errors import ConfigurationError, MachinableError
 from machinable.mixin import Mixin
 from machinable.settings import get_settings
 from machinable.types import ElementType, VersionType
-from machinable.utils import Jsonable, unflatten_dict, update_dict
+from machinable.utils import Jsonable, sentinel, unflatten_dict, update_dict
 from omegaconf import DictConfig, OmegaConf
 
 if TYPE_CHECKING:
@@ -353,6 +353,32 @@ class Element(Mixin, Jsonable):
     def id(self) -> str:
         return uuid_to_id(self.uuid)
 
+    @belongs_to
+    def project():
+        from machinable.project import Project
+
+        return Project
+
+    def version(
+        self, version: VersionType = sentinel, overwrite: bool = False
+    ) -> List[Union[str, dict]]:
+        if version is sentinel:
+            return self.__model__.version
+
+        if self.mounted():
+            raise MachinableError(
+                f"Cannot change version of mounted element {self}"
+            )
+
+        if overwrite:
+            self.__model__.version = normversion(version)
+        else:
+            self.__model__.version.extend(normversion(version))
+
+        self._clear_caches()
+
+        return self.__model__.version
+
     @classmethod
     def set_default(
         cls,
@@ -665,15 +691,19 @@ class Element(Mixin, Jsonable):
         that are applied at a later stage.
         """
 
-    def __getattr__(self, name) -> Any:
-        attr = getattr(self.__mixin__, name, None)
-        if attr is not None:
-            return attr
-        raise AttributeError(
-            "{!r} object has no attribute {!r}".format(
-                self.__class__.__name__, name
-            )
-        )
+    def _clear_caches(self) -> None:
+        self._config = None
+        self.__model__.config = None
+
+    # def __getattr__(self, name) -> Any:
+    #     attr = getattr(self.__mixin__, name, None)
+    #     if attr is not None:
+    #         return attr
+    #     raise AttributeError(
+    #         "{!r} object has no attribute {!r}".format(
+    #             self.__class__.__name__, name
+    #         )
+    #     )
 
     def __enter__(self):
         _CONNECTIONS[self.kind].append(self)
@@ -694,8 +724,17 @@ class Element(Mixin, Jsonable):
     def __setstate__(self, state):
         self.__model__ = self.__class__.model()(**state)
 
+    def __repr__(self):
+        return f"{self.kind} [{self.id}]"
+
     def __str__(self):
         return self.__repr__()
+
+    def __eq__(self, other):
+        return self.uuid.hex == other.uuid.hex
+
+    def __ne__(self, other):
+        return self.uuid.hex != other.uuid.hex
 
 
 def get_lineage(element: "Element") -> Tuple[str, ...]:

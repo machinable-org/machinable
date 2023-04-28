@@ -15,7 +15,7 @@ The gravity on the exoplanet is:  1155.5555555555557
 If the execution is successful, the component is marked as finished.
 
 ```python
->>> component.is_finished()
+>>> component.execution.is_finished()
 True
 ```
 

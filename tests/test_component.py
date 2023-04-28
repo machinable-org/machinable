@@ -83,7 +83,7 @@ def test_component(tmp_storage, tmp_path):
     component.update_heartbeat()
     assert component.is_active()
     component.update_heartbeat(mark_finished=True)
-    assert component.is_finished()
+    assert component.execution.is_finished()
     with pytest.raises(errors.ConfigurationError):
         component._assert_editable()
     assert not component.is_incomplete()
@@ -118,6 +118,12 @@ def test_component_launch(tmp_storage):
         assert not e2.is_started()
     assert e1.is_finished()
     assert e2.is_finished()
+
+    class Example(Component):
+        def __call__(self):
+            print("hello world")
+
+    get(Example).launch()
 
 
 def test_component_relations(tmp_storage):

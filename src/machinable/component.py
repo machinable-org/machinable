@@ -2,10 +2,10 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, List, Optional, Union
 
-import shlex
+import random
 import sys
 
-from flatten_dict import flatten
+from machinable.group import Group
 from machinable.settings import get_settings
 
 if sys.version_info >= (3, 11):
@@ -13,15 +13,10 @@ if sys.version_info >= (3, 11):
 else:
     from typing_extensions import Self
 
-from machinable import schema
-from machinable.collection import ElementCollection, ExecutionCollection
-from machinable.element import (
-    Element,
-    belongs_to,
-    get_dump,
-    get_lineage,
-    has_many,
-)
+from typing import Dict
+
+from machinable.collection import ComponentCollection, ExecutionCollection
+from machinable.element import Element, belongs_to, has_many
 from machinable.interface import Interface
 from machinable.project import Project
 from machinable.storage import Storage
@@ -33,49 +28,7 @@ if TYPE_CHECKING:
 
 class Component(Interface):
     kind = "Component"
-    default = get_settings().default_interface
-
-    def __init__(
-        self,
-        version: VersionType = None,
-        uses: Union[None, Element, List[Element]] = None,
-    ):
-        super().__init__(version=version)
-        self.__model__ = schema.Interface(
-            module=self.__model__.module,
-            config=self.__model__.config,
-            version=self.__model__.version,
-            lineage=get_lineage(self),
-        )
-        self.__model__._dump = get_dump(self)
-        self.__related__["uses"] = ElementCollection()
-        if uses:
-            self.use(uses)
-
-    def to_cli(self) -> str:
-        cli = [self.module]
-        for v in self.__model__.version:
-            if isinstance(v, str):
-                cli.append(v)
-            else:
-                cli.extend(
-                    [
-                        f"{key}={shlex.quote(str(val))}"
-                        for key, val in flatten(v, reducer="dot").items()
-                    ]
-                )
-
-        return " ".join(cli)
-
-    @belongs_to
-    def project():
-        from machinable.project import Project
-
-        return Project
-
-    @has_many
-    def uses() -> ElementCollection:
-        return Element, ElementCollection
+    default = get_settings().default_component
 
     @has_many
     def executions() -> ExecutionCollection:
@@ -88,21 +41,6 @@ class Component(Interface):
         from machinable.execution import Execution
 
         return Execution, False
-
-    def use(self, use: Union[Element, List[Element]]) -> Component:
-        self._assert_editable()
-
-        if isinstance(use, (list, tuple)):
-            for _use in use:
-                self.use(_use)
-            return self
-
-        if not isinstance(use, Element):
-            raise ValueError(f"Expected element, but found: {type(use)} {use}")
-
-        self.__related__["uses"].append(use)
-
-        return self
 
     def launch(self) -> Self:
         from machinable.execution import Execution
@@ -119,21 +57,73 @@ class Component(Interface):
 
         return self
 
+    @classmethod
+    def collect(cls, components) -> "ComponentCollection":
+        """Returns a collection of components"""
+        return ComponentCollection(components)
+
     @property
     def resources(self) -> Optional[Dict]:
         if self.execution is None:
             return None
         return self.execution.load_file(f"resources-{self.id}.json", None)
 
-    def dispatch() -> Self:
-        self.__call__()
-        return self
+    def dispatch(self) -> Self:
+        """Dispatch the component lifecycle"""
+        try:
+            self.on_before_dispatch()
+
+            self.on_seeding()
+
+            # meta-data
+            if self.on_write_meta_data() is not False and self.is_mounted():
+                self.mark_started()
+                self._events.on("heartbeat", self.update_heartbeat)
+                self._events.heartbeats(seconds=15)
+                if self.execution:
+                    self.execution.save_file(
+                        "env.json",
+                        data=Project.get().provider().get_host_info(),
+                    )
+
+            self.__call__()
+
+            self.on_success()
+            self.on_finish(success=True)
+
+            # finalize meta data
+            self._events.heartbeats(None)
+            if self.on_write_meta_data() is not False and self.is_mounted():
+                self.update_heartbeat(mark_finished=True)
+
+            self.on_after_dispatch(success=True)
+        except BaseException as _ex:  # pylint: disable=broad-except
+            self.on_failure(exception=_ex)
+            self.on_finish(success=False)
+            self.on_after_dispatch(success=False)
+
+            raise errors.ExecutionFailed(
+                f"{self.__class__.__name__} dispatch failed"
+            ) from _ex
 
     def cached(self) -> bool:
-        return False
+        if self.execution is None:
+            return False
+        return self.execution.is_finished()
 
-    def __call__(self) -> None:
-        """Main code"""
+    def derive(
+        self,
+        module: Union[str, Element, None] = None,
+        version: VersionType = None,
+        predicate: Optional[str] = get_settings().default_predicate,
+        **kwargs,
+    ) -> "Component":
+        if module is None or predicate is None:
+            return self.make(module, version, derived_from=self, **kwargs)
+
+        return self.derived.singleton(
+            module, version, predicate, derived_from=self, **kwargs
+        )
 
     def dispatch_code(self, inline: bool = True) -> Optional[str]:
         storage = Storage.get().as_json().replace('"', '\\"')
@@ -151,3 +141,94 @@ class Component(Interface):
             return f'{sys.executable} -c "{code}"'
 
         return code.replace("        ", "")[1:-1]
+
+    # life cycle
+
+    def __call__(self) -> None:
+        """Main event"""
+
+    def on_before_commit(self) -> Optional[bool]:
+        """Event triggered before the commit of the component"""
+
+    def on_before_dispatch(self) -> Optional[bool]:
+        """Event triggered before the dispatch of the component"""
+
+    def on_seeding(self):
+        """Lifecycle event to implement custom seeding using `self.seed`"""
+        random.seed(self.seed)
+
+    def on_write_meta_data(self) -> Optional[bool]:
+        """Event triggered before meta-data such as creation time etc. is written to the storage
+
+        Return False to prevent writing of meta-data
+        """
+
+    def on_success(self):
+        """Lifecycle event triggered iff execution finishes successfully"""
+
+    def on_finish(self, success: bool):
+        """Lifecycle event triggered right before the end of the component execution
+
+        # Arguments
+        success: Whether the execution finished sucessfully
+        """
+
+    def on_failure(self, exception: errors.MachinableError):
+        """Lifecycle event triggered iff the execution finished with an exception
+
+        # Arguments
+        exception: Execution exception
+        """
+
+    def on_after_dispatch(self, success: bool):
+        """Lifecycle event triggered at the end of the dispatch.
+
+        This is triggered independent of whether the execution has been successful or not.
+
+        # Arguments
+        success: Whether the execution finished sucessfully
+        """
+
+    def group_as(self, group: Union[Group, str]) -> "Component":
+        # todo: allow group modifications after execution
+        self._assert_editable()
+
+        if isinstance(group, str):
+            group = Group(group)
+        if not isinstance(group, Group):
+            raise ValueError(
+                f"Expected group, but found: {type(group)} {group}"
+            )
+        group.__related__.setdefault("components", ComponentCollection())
+        group.__related__["components"].append(self)
+        self.__related__["group"] = group
+
+        return self
+
+    @belongs_to
+    def group():
+        return Group
+
+    def records(self, scope="default") -> RecordCollection:
+        if not self.is_mounted():
+            return RecordCollection()
+
+        if f"records.{scope}" in self._cache:
+            return self._cache[f"records.{scope}"]
+
+        records = RecordCollection(
+            self.__model__._storage_instance.retrieve_records(self, scope)
+        )
+
+        if self.is_finished():
+            self._cache[f"records.{scope}"] = records
+
+        return records
+
+    def record(self, scope="default") -> "Record":
+        from machinable.record import Record
+
+        if f"record.{scope}" not in self._cache:
+            self._cache[f"record.{scope}"] = Record(self, scope)
+
+        return self._cache[f"record.{scope}"]

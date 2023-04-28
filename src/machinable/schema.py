@@ -32,9 +32,7 @@ class Interface(Element):
     timestamp: int = Field(
         default_factory=lambda: int(datetime.now().timestamp())
     )
-    seed: int = Field(default_factory=generate_seed)
-    derived_from_id: Optional[str] = None
-    derived_from_timestamp: Optional[int] = None
+    derived_from: Optional[UUID] = None
     # morphMany relation to storage
     _storage_id: Optional[str] = PrivateAttr(default=None)
     _storage_instance: Optional["Storage"] = PrivateAttr(default=None)
@@ -55,6 +53,7 @@ class Project(Interface):
 
 class Execution(Interface):
     kind: str = "Execution"
+    seed: int = Field(default_factory=generate_seed)
     resources: Optional[Dict] = None
     host_info: Optional[Dict] = None
     nickname: str = Field(default_factory=generate_nickname)
@@ -65,6 +64,12 @@ class Schedule(Interface):
     kind: str = "Schedule"
 
 
-Component = Component
-Group = Element
-Record = Element
+class Group(Interface):
+    pattern: str
+    path: Optional[str] = None
+
+
+class Record(Interface):
+    scope: str
+    current: Dict = {}
+    last: Dict = None

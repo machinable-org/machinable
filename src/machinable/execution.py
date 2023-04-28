@@ -2,6 +2,7 @@ from typing import Any, Dict, List, Optional, Union
 
 import copy
 
+import arrow
 from machinable import schema
 from machinable.collection import ComponentCollection
 from machinable.component import Component
@@ -20,11 +21,16 @@ from machinable.project import Project
 from machinable.schedule import Schedule
 from machinable.settings import get_settings
 from machinable.storage import Storage
-from machinable.types import ElementType, VersionType
-from machinable.utils import sentinel, update_dict
+from machinable.types import (
+    DatetimeType,
+    ElementType,
+    TimestampType,
+    VersionType,
+)
+from machinable.utils import Events, generate_seed, sentinel, update_dict
 
 
-class Execution(Element):
+class Execution(Interface):
     kind = "Execution"
     default = get_settings().default_execution
 
@@ -32,16 +38,20 @@ class Execution(Element):
         self,
         version: VersionType = None,
         resources: Optional[Dict] = None,
+        seed: Union[int, None] = None,
         schedule: Union[
             Schedule, ElementType, None
         ] = get_settings().default_schedule,
     ):
         super().__init__(version)
+        if seed is None:
+            seed = generate_seed()
         self.__model__ = schema.Execution(
             module=self.__model__.module,
             config=self.__model__.config,
             version=self.__model__.version,
             resources=resources,
+            seed=seed,
             host_info=Project.get().provider().get_host_info(),
             lineage=get_lineage(self),
         )
@@ -50,18 +60,23 @@ class Execution(Element):
             if not isinstance(schedule, Schedule):
                 schedule = Schedule.make(*extract(schedule))
             self.__related__["schedule"] = schedule
+        self._events: Events = Events()
+
+    @property
+    def seed(self) -> int:
+        return self.__model__.seed
+
+    @property
+    def timestamp(self) -> int:
+        return self.__model__.timestamp
 
     @has_one
     def schedule() -> "Schedule":
         return Schedule
 
     @has_many
-    def components() -> ComponentCollection:
+    def executables() -> ComponentCollection:
         return Component, ComponentCollection
-
-    @property
-    def executables(self) -> "Collection":
-        return self.components
 
     def add(
         self,
@@ -73,20 +88,15 @@ class Execution(Element):
                 self.add(_executable)
             return self
 
-        if not isinstance(executable, Interface):
-            raise ValueError(
-                f"Expected interface, but found: {type(executable)} {executable}"
-            )
+        self.__related__.setdefault("executables", ComponentCollection())
 
-        self.__related__.setdefault("components", ComponentCollection())
-
-        if once and self.__related__["components"].contains(
+        if once and self.__related__["executables"].contains(
             lambda x: x == executable
         ):
             # already added
             return self
 
-        self.__related__["components"].append(executable)
+        self.__related__["executables"].append(executable)
 
         return self
 
@@ -206,10 +216,6 @@ class Execution(Element):
         """Event triggered after the dispatch of an execution"""
 
     @property
-    def timestamp(self) -> float:
-        return self.__model__.timestamp
-
-    @property
     def host_info(self) -> Optional[Dict]:
         return self.__model__.host_info
 
@@ -220,6 +226,107 @@ class Execution(Element):
     @property
     def nickname(self) -> str:
         return self.__model__.nickname
+
+    def mark_started(
+        self, timestamp: Optional[TimestampType] = None
+    ) -> Optional[DatetimeType]:
+        if self.is_finished():
+            return None
+        return self.__model__._storage_instance.mark_started(self, timestamp)
+
+    def update_heartbeat(
+        self,
+        timestamp: Union[float, int, DatetimeType, None] = None,
+        mark_finished=False,
+    ) -> Optional[DatetimeType]:
+        if self.is_finished():
+            return None
+        self.__model__._storage_instance.update_heartbeat(
+            self, timestamp, mark_finished
+        )
+
+    def output(self, incremental: bool = False) -> Optional[str]:
+        """Returns the output log"""
+        if not self.is_mounted():
+            return None
+        if incremental:
+            read_length = self._cache.get("output_read_length", 0)
+            if read_length == -1:
+                return ""
+            output = self.__model__._storage_instance.retrieve_output(self)
+            if output is None:
+                return None
+
+            if self.is_finished():
+                self._cache["output_read_length"] = -1
+            else:
+                self._cache["output_read_length"] = len(output)
+            return output[read_length:]
+
+        if "output" in self._cache:
+            return self._cache["output"]
+
+        output = self.__model__._storage_instance.retrieve_output(self)
+
+        if self.is_finished():
+            self._cache["output"] = output
+
+        return output
+
+    def created_at(self) -> Optional[DatetimeType]:
+        if self.timestamp is None:
+            return None
+
+        return arrow.get(self.timestamp)
+
+    def started_at(self) -> Optional[DatetimeType]:
+        """Returns the starting time"""
+        if not self.is_mounted():
+            return None
+        return self.__model__._storage_instance.retrieve_status(self, "started")
+
+    def heartbeat_at(self):
+        """Returns the last heartbeat time"""
+        if not self.is_mounted():
+            return None
+        return self.__model__._storage_instance.retrieve_status(
+            self, "heartbeat"
+        )
+
+    def finished_at(self):
+        """Returns the finishing time"""
+        if not self.is_mounted():
+            return None
+        return self.__model__._storage_instance.retrieve_status(
+            self, "finished"
+        )
+
+    def is_finished(self):
+        """True if finishing time has been written"""
+        return bool(self.finished_at())
+
+    def is_started(self):
+        """True if starting time has been written"""
+        return bool(self.started_at())
+
+    def is_active(self):
+        """True if not finished and last heartbeat occurred less than 30 seconds ago"""
+        if not self.heartbeat_at():
+            return False
+
+        return (not self.is_finished()) and (
+            (arrow.now() - self.heartbeat_at()).seconds < 30
+        )
+
+    def is_live(self):
+        """True if active or finished"""
+        return self.is_finished() or self.is_active()
+
+    def is_incomplete(self):
+        """Shorthand for is_started() and not (is_active() or is_finished())"""
+        return self.is_started() and not (
+            self.is_active() or self.is_finished()
+        )
 
     def __iter__(self):
         yield from self.executables

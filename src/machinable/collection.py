@@ -1441,18 +1441,6 @@ class ComponentCollection(ElementCollection):
 
         return self
 
-    def finished(self) -> "ComponentCollection":
-        return self.filter(lambda x: x.is_finished())
-
-    def started(self) -> "ComponentCollection":
-        return self.filter(lambda x: x.is_started())
-
-    def active(self) -> "ComponentCollection":
-        return self.filter(lambda x: x.is_active())
-
-    def incomplete(self) -> "ComponentCollection":
-        return self.filter(lambda x: x.is_incomplete())
-
 
 class ExecutionCollection(ElementCollection):
     def status(self, status="started"):
@@ -1465,6 +1453,18 @@ class ExecutionCollection(ElementCollection):
             return self.filter(lambda item: getattr(item, "is_" + status)())
         except AttributeError as _ex:
             raise ValueError(f"Invalid status field: {status}") from _ex
+
+    def finished(self) -> "ExecutionCollection":
+        return self.filter(lambda x: x.is_finished())
+
+    def started(self) -> "ExecutionCollection":
+        return self.filter(lambda x: x.is_started())
+
+    def active(self) -> "ExecutionCollection":
+        return self.filter(lambda x: x.is_active())
+
+    def incomplete(self) -> "ExecutionCollection":
+        return self.filter(lambda x: x.is_incomplete())
 
     def __str__(self):
         return f"Executions <{len(self.items)}>"
