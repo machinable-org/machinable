@@ -1,6 +1,12 @@
 from typing import Any, Dict, List, Optional, Union
 
 import copy
+import sys
+
+if sys.version_info >= (3, 11):
+    from typing import Self
+else:
+    from typing_extensions import Self
 
 import arrow
 from machinable import schema
@@ -12,11 +18,9 @@ from machinable.element import (
     extract,
     get_dump,
     get_lineage,
-    has_many,
-    has_one,
 )
 from machinable.errors import ExecutionFailed
-from machinable.interface import Interface
+from machinable.interface import Interface, has_many, has_one
 from machinable.project import Project
 from machinable.schedule import Schedule
 from machinable.settings import get_settings
@@ -47,12 +51,12 @@ class Execution(Interface):
         if seed is None:
             seed = generate_seed()
         self.__model__ = schema.Execution(
+            kind=self.kind,
             module=self.__model__.module,
             config=self.__model__.config,
             version=self.__model__.version,
             resources=resources,
             seed=seed,
-            host_info=Project.get().provider().get_host_info(),
             lineage=get_lineage(self),
         )
         self.__model__._dump = get_dump(self)
@@ -76,19 +80,17 @@ class Execution(Interface):
 
     @has_many
     def executables() -> ComponentCollection:
-        return Component, ComponentCollection
+        return Component
 
     def add(
         self,
         executable: Union[Component, List[Component]],
         once: bool = False,
-    ) -> "Execution":
+    ) -> Self:
         if isinstance(executable, (list, tuple)):
             for _executable in executable:
                 self.add(_executable)
             return self
-
-        self.__related__.setdefault("executables", ComponentCollection())
 
         if once and self.__related__["executables"].contains(
             lambda x: x == executable
@@ -97,16 +99,6 @@ class Execution(Interface):
             return self
 
         self.__related__["executables"].append(executable)
-
-        return self
-
-    def commit(self) -> "Execution":
-        self.on_before_commit()
-
-        # trigger configuration validation for early failure
-        self.executables.each(lambda x: x.config)
-
-        Storage.get().commit(self.executables, self)
 
         return self
 
@@ -161,7 +153,7 @@ class Execution(Interface):
 
         return {}
 
-    def dispatch(self) -> "Execution":
+    def dispatch(self) -> Self:
         if not self.executables:
             return self
 
@@ -185,6 +177,9 @@ class Execution(Interface):
                     f"resources-{executable.id}.json",
                     self.compute_resources(executable),
                 )
+            self.save_file(
+                "host.json", Project.get().provider().get_host_info()
+            )
             self.__call__()
             self.on_after_dispatch()
         except BaseException as _ex:  # pylint: disable=broad-except
@@ -217,7 +212,7 @@ class Execution(Interface):
 
     @property
     def host_info(self) -> Optional[Dict]:
-        return self.__model__.host_info
+        return self.load_file("host.json", None)
 
     @property
     def env_info(self) -> Optional[Dict]:
@@ -336,19 +331,5 @@ class Execution(Interface):
 
         super().__exit__()
 
-    def __str__(self) -> str:
-        return self.__repr__()
-
     def __repr__(self) -> str:
         return "Execution"
-
-    def __eq__(self, other):
-        return (
-            self.nickname == other.nickname
-            and self.timestamp == other.timestamp
-        )
-
-    def __ne__(self, other):
-        return (
-            self.nickname != other.nickname or self.timestamp != other.timestamp
-        )

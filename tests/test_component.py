@@ -59,13 +59,6 @@ def test_component(tmp_storage, tmp_path):
         component.local_directory("non-existing/dir", create=True)
     )
 
-    # records
-    assert len(component.records()) == 0
-    record = component.record("testing")
-    record["test"] = 1
-    record.save()
-    assert len(component.records("testing")) == 1
-
     # output
     assert component.output() is None
     component.save_file("output.log", "test")

@@ -1424,7 +1424,11 @@ class ElementCollection(Collection):
         return f"Elements <{len(self.items)}>"
 
 
-class ComponentCollection(ElementCollection):
+class InterfaceCollection(ElementCollection):
+    pass
+
+
+class ComponentCollection(InterfaceCollection):
     def __str__(self):
         if len(self.items) > 15:
             items = ", ".join([repr(item) for item in self.items[:5]])
@@ -1468,19 +1472,3 @@ class ExecutionCollection(ElementCollection):
 
     def __str__(self):
         return f"Executions <{len(self.items)}>"
-
-
-class RecordCollection(ElementCollection):
-    def as_dataframe(self):
-        """Returns collection as Pandas dataframe"""
-        import pandas
-
-        data = (
-            {k: [row[k] for row in self._items] for k in self._items[0].keys()}
-            if len(self._items) > 0
-            else {}
-        )
-        return pandas.DataFrame.from_dict(data)
-
-    def __str__(self):
-        return f"Records <{len(self.items)}>"

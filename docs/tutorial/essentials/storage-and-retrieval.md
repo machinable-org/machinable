@@ -71,34 +71,6 @@ gravity.save_data('results.p', results)                   # pickled
 'a string'
 ```
 
-### Records
-
-Components also provide an interface for tabular logging, that is, storing recurring data points for different iterations.
-
-```python
-record = gravity.record()
-
-for iteration in range(3):
-    record['iteration'] = iteration
-    record['accuracy'] = 0.1
-    # save at the end of the iteration to start a new row
-    record.save()
-```
-
-The results become available as a table where each row represents an iteration.
-
-```
->>> gravity.records().as_table()
-```
-
-<table>
-<tbody>
-<tr><td>2022-10-07T23:05:46.942295-05:00</td><td style="text-align: right;">0.1</td><td style="text-align: right;">0</td></tr>
-<tr><td>2022-10-07T23:05:46.944064-05:00</td><td style="text-align: right;">0.1</td><td style="text-align: right;">1</td></tr>
-<tr><td>2022-10-07T23:05:46.946012-05:00</td><td style="text-align: right;">0.1</td><td style="text-align: right;">2</td></tr>
-</tbody>
-</table>
-
 
 ## Organize using groups
 

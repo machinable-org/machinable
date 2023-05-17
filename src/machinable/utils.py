@@ -2,6 +2,13 @@ import types
 from types import ModuleType
 from typing import Any, Callable, List, Mapping, Optional, Tuple, Union
 
+import sys
+
+if sys.version_info >= (3, 11):
+    from typing import Self
+else:
+    from typing_extensions import Self
+
 import importlib
 import inspect
 import json
@@ -35,10 +42,13 @@ import threading
 
 from machinable.types import DatetimeType
 from observable import Observable
+from pydantic import BaseModel
 
 
 def serialize(obj):
     """JSON serializer for objects not serializable by default json code"""
+    if isinstance(obj, BaseModel):
+        return obj.dict()
     if isinstance(obj, UUID):
         return obj.hex
     if isinstance(obj, DatetimeType):
@@ -575,14 +585,14 @@ class Connectable:
     def get(cls) -> "Connectable":
         return cls() if cls.__connection__ is None else cls.__connection__
 
-    def __enter__(self):
+    def __enter__(self) -> Self:
         self._outer_connection = (  # pylint: disable=attribute-defined-outside-init
             self.__class__.__connection__
         )
         self.__class__.__connection__ = self
         return self
 
-    def __exit__(self, *args, **kwargs):
+    def __exit__(self, *args, **kwargs) -> Self:
         if self.__class__.__connection__ is self:
             self.__class__.__connection__ = None
         if getattr(self, "_outer_connection", None) is not None:

@@ -1,7 +1,7 @@
 from typing import TYPE_CHECKING, Dict, List, Optional, Tuple, Union
 
 from datetime import datetime
-from uuid import UUID, uuid4
+from uuid import uuid4
 
 from machinable.utils import generate_nickname, generate_seed
 from pydantic import BaseModel, Field, PrivateAttr
@@ -12,30 +12,27 @@ if TYPE_CHECKING:
 
 
 class Element(BaseModel):
+    uuid: str = Field(default_factory=lambda: uuid4().hex)
     kind: str = "Element"
-    uuid: UUID = Field(default_factory=uuid4)
     module: Optional[str] = None
     version: List[Union[str, Dict]] = []
     config: Optional[Dict] = None
     predicate: Optional[Dict] = None
     lineage: Tuple[str, ...] = ()
-    _dump: Optional[bytes] = PrivateAttr(default=None)
 
 
 class Storage(Element):
     kind: str = "Storage"
-    default_group: Optional[str] = None
+
+
+class Index(Element):
+    kind: str = "Index"
 
 
 class Interface(Element):
     kind: str = "Interface"
-    timestamp: int = Field(
-        default_factory=lambda: int(datetime.now().timestamp())
-    )
-    derived_from: Optional[UUID] = None
-    # morphMany relation to storage
-    _storage_id: Optional[str] = PrivateAttr(default=None)
-    _storage_instance: Optional["Storage"] = PrivateAttr(default=None)
+    _dump: Optional[bytes] = PrivateAttr(default=None)
+    _relations: Dict = PrivateAttr(default_factory=dict)
 
 
 class Component(Interface):
@@ -65,11 +62,6 @@ class Schedule(Interface):
 
 
 class Group(Interface):
+    kind: str = "Group"
     pattern: str
     path: Optional[str] = None
-
-
-class Record(Interface):
-    scope: str
-    current: Dict = {}
-    last: Dict = None

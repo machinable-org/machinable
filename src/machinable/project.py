@@ -176,6 +176,7 @@ class Project(Interface):
         if name is None:
             name = os.path.basename(directory)
         self.__model__ = schema.Project(
+            kind=self.kind,
             directory=directory,
             name=name,
             version=normversion(version),
@@ -357,5 +358,5 @@ class Project(Interface):
         """Project-wide element predicates."""
         return {}
 
-    def __repr__(self) -> str:
-        return f"Project({self.__model__.directory})"
+    # def __repr__(self) -> str:
+    #     return f"Project({self.__model__.directory})"

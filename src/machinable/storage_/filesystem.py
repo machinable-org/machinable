@@ -244,16 +244,14 @@ class Filesystem(Storage):
         project = self.create_project(project)
         group = self.create_group(group)
         head, tail = os.path.split(group.path)
-        directory = f"{component.uuid.hex}"
+        directory = f"{component.uuid}"
 
         derived_from = None
         if component.derived_from is not None:
             derived_from = self.find_component(component.derived_from)
 
         if derived_from is not None:
-            storage_id = os.path.join(
-                derived_from, "derived", component.uuid.hex
-            )
+            storage_id = os.path.join(derived_from, "derived", component.uuid)
         else:
             if self.config.directory is not None:
                 storage_id = os.path.join(

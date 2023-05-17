@@ -307,6 +307,10 @@ def test_extract():
         extract([{"invalid"}, "test"])
     with pytest.raises(ValueError):
         extract([])
+    assert extract(OmegaConf.create(["test", {"test": 1}])) == (
+        "test",
+        [{"test": 1}],
+    )
 
 
 def test_defaultversion():

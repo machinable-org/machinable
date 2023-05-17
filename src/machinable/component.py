@@ -16,8 +16,8 @@ else:
 from typing import Dict
 
 from machinable.collection import ComponentCollection, ExecutionCollection
-from machinable.element import Element, belongs_to, has_many
-from machinable.interface import Interface
+from machinable.element import Element
+from machinable.interface import Interface, belongs_to, has_many
 from machinable.project import Project
 from machinable.storage import Storage
 from machinable.types import VersionType
@@ -31,16 +31,16 @@ class Component(Interface):
     default = get_settings().default_component
 
     @has_many
-    def executions() -> ExecutionCollection:
+    def executions() -> Optional[ExecutionCollection["Execution"]]:
         from machinable.execution import Execution
 
-        return Execution, ExecutionCollection
+        return Execution
 
-    @belongs_to
+    @belongs_to(cached=False)
     def execution() -> "Execution":
         from machinable.execution import Execution
 
-        return Execution, False
+        return Execution
 
     def launch(self) -> Self:
         from machinable.execution import Execution
@@ -189,7 +189,7 @@ class Component(Interface):
         success: Whether the execution finished sucessfully
         """
 
-    def group_as(self, group: Union[Group, str]) -> "Component":
+    def group_as(self, group: Union[Group, str]) -> Self:
         # todo: allow group modifications after execution
         self._assert_editable()
 
@@ -199,7 +199,6 @@ class Component(Interface):
             raise ValueError(
                 f"Expected group, but found: {type(group)} {group}"
             )
-        group.__related__.setdefault("components", ComponentCollection())
         group.__related__["components"].append(self)
         self.__related__["group"] = group
 
@@ -208,27 +207,3 @@ class Component(Interface):
     @belongs_to
     def group():
         return Group
-
-    def records(self, scope="default") -> RecordCollection:
-        if not self.is_mounted():
-            return RecordCollection()
-
-        if f"records.{scope}" in self._cache:
-            return self._cache[f"records.{scope}"]
-
-        records = RecordCollection(
-            self.__model__._storage_instance.retrieve_records(self, scope)
-        )
-
-        if self.is_finished():
-            self._cache[f"records.{scope}"] = records
-
-        return records
-
-    def record(self, scope="default") -> "Record":
-        from machinable.record import Record
-
-        if f"record.{scope}" not in self._cache:
-            self._cache[f"record.{scope}"] = Record(self, scope)
-
-        return self._cache[f"record.{scope}"]

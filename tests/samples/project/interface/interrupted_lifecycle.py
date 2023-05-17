@@ -6,12 +6,8 @@ class InterruptedLifecycle(Component):
         self.state = self.load_data("state.json", {"steps": 0})
 
     def __call__(self):
-        record = self.record()
         for step in range(self.state["steps"], 10):
-            # some computatation
-            record["step"] = step
             self.state["steps"] = step + 1
-            record.save()
 
             if step == 2:
                 raise RuntimeError("Interrupt 1")

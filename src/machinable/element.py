@@ -1,21 +1,16 @@
-from typing import (
-    TYPE_CHECKING,
-    Any,
-    Callable,
-    Dict,
-    List,
-    Optional,
-    Tuple,
-    Union,
-)
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
 
 import collections
 import copy
 import json
 import os
 import stat
-from functools import wraps
-from uuid import UUID
+import sys
+
+if sys.version_info >= (3, 11):
+    from typing import Self
+else:
+    from typing_extensions import Self
 
 import arrow
 import dill as pickle
@@ -34,67 +29,6 @@ from omegaconf import DictConfig, OmegaConf
 
 if TYPE_CHECKING:
     from machinable.collection import Collection
-
-
-def belongs_to(f: Callable) -> Any:
-    @property
-    @wraps(f)
-    def _wrapper(self: "Element"):
-        name = f.__name__
-        if self.__related__.get(name, None) is None and self.is_mounted():
-            related_class = f()
-            use_cache = True
-            if isinstance(related_class, tuple):
-                related_class, use_cache = related_class
-            related = self.__model__._storage_instance.retrieve_related(
-                self.__model__._storage_id,
-                f"{self.kind.lower()}.{name}",
-            )
-            if related is None:
-                return None
-            element = related_class.from_model(related)
-            if not use_cache:
-                return element
-            self.__related__[name] = element
-
-        return self.__related__.get(name, None)
-
-    return _wrapper
-
-
-has_one = belongs_to
-
-
-def has_many(f: Callable) -> Any:
-    @property
-    @wraps(f)
-    def _wrapper(self: "Element") -> Any:
-        name = f.__name__
-        if self.__related__.get(name, None) is None and self.is_mounted():
-            args = f()
-            use_cache = True
-            if len(args) == 2:
-                related_class, collection = args
-            elif len(args) == 3:
-                related_class, collection, use_cache = args
-            else:
-                assert False, "Invalid number of relation arguments"
-            related = self.__model__._storage_instance.retrieve_related(
-                self.__model__._storage_id,
-                f"{self.kind.lower()}.{name}",
-            )
-            if related is None:
-                return None
-            collected = collection(
-                [related_class.from_model(r) for r in related]
-            )
-            if not use_cache:
-                return collected
-            self.__related__[name] = collected
-
-        return self.__related__.get(name, None)
-
-    return _wrapper
 
 
 class ConfigMethod:
@@ -215,9 +149,12 @@ def extract(
     if isinstance(compact_element, str):
         return compact_element, None
 
+    if isinstance(compact_element, omegaconf.listconfig.ListConfig):
+        compact_element = list(compact_element)
+
     if not isinstance(compact_element, (list, tuple)):
         raise ValueError(
-            f"Invalid component defintion. Expected list or str but found {compact_element}"
+            f"Invalid component defintion. Expected list or str but found {type(compact_element)}: {compact_element}"
         )
 
     if len(compact_element) == 0:
@@ -267,13 +204,13 @@ def transfer_to(src: "Element", destination: "Element") -> "Element":
     return destination
 
 
-def uuid_to_id(uuid: UUID) -> str:
+def uuid_to_id(uuid: str) -> str:
     alphabet = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
 
     # convert uuid hex to base 62 of length 6
     result = ""
     for i in range(0, 6 * 2, 2):
-        result += alphabet[int(uuid.hex[i : i + 2], 16) % 62]
+        result += alphabet[int(uuid[i : i + 2], 16) % 62]
 
     return result
 
@@ -328,6 +265,7 @@ class Element(Mixin, Jsonable):
         if Element._module_ is None:
             Element._module_ = self.__module__
         self.__model__ = schema.Element(
+            kind=self.kind,
             module=Element._module_,
             version=normversion(version),
             lineage=get_lineage(self),
@@ -335,29 +273,21 @@ class Element(Mixin, Jsonable):
             if Element._module_.startswith("__session__")
             else None,
         )
-        self.__related__ = {}
         self.__mixin__ = None
         self.__mixins__ = {}
         self._config: Optional[DictConfig] = None
         self._predicate: Optional[DictConfig] = None
         self._cache = {}
-        self._deferred_data = {}
 
         Element._module_ = None
 
     @property
-    def uuid(self) -> UUID:
+    def uuid(self) -> str:
         return self.__model__.uuid
 
     @property
     def id(self) -> str:
         return uuid_to_id(self.uuid)
-
-    @belongs_to
-    def project():
-        from machinable.project import Project
-
-        return Project
 
     def version(
         self, version: VersionType = sentinel, overwrite: bool = False
@@ -387,7 +317,7 @@ class Element(Mixin, Jsonable):
     ) -> None:
         cls.default = compact(module, version)
 
-    def as_default(self) -> "Element":
+    def as_default(self) -> Self:
         cls = getattr(machinable, self.kind, Element)
         cls.set_default(self.__model__.module, self.__model__.version)
 
@@ -628,7 +558,7 @@ class Element(Mixin, Jsonable):
 
         return True
 
-    def set_model(self, model: schema.Element) -> "Element":
+    def set_model(self, model: schema.Element) -> Self:
         self.__model__ = model
 
         # invalidate cached config
@@ -705,7 +635,7 @@ class Element(Mixin, Jsonable):
     #         )
     #     )
 
-    def __enter__(self):
+    def __enter__(self) -> Self:
         _CONNECTIONS[self.kind].append(self)
         return self
 
@@ -731,10 +661,10 @@ class Element(Mixin, Jsonable):
         return self.__repr__()
 
     def __eq__(self, other):
-        return self.uuid.hex == other.uuid.hex
+        return self.uuid == other.uuid
 
     def __ne__(self, other):
-        return self.uuid.hex != other.uuid.hex
+        return self.uuid != other.uuid
 
 
 def get_lineage(element: "Element") -> Tuple[str, ...]:

@@ -5,7 +5,7 @@ import os
 
 from machinable.errors import ConfigurationError
 from machinable.types import ElementType
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class Settings(BaseModel):
@@ -15,10 +15,8 @@ class Settings(BaseModel):
     default_interface: Optional[ElementType] = None
     default_schedule: Optional[ElementType] = None
     default_group: Optional[str] = "%Y_%U_%a/"
-    default_storage: List[Union[str, dict]] = [
-        "machinable.storage.filesystem",
-        {"directory": "./storage"},
-    ]
+    default_storage: Optional[ElementType] = None
+    default_index: Optional[ElementType] = ["machinable.index"]
 
 
 def get_settings(file="~/.machinable/settings.json"):

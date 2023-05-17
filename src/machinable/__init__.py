@@ -5,7 +5,6 @@ __all__ = [
     "Execution",
     "Component",
     "Project",
-    "Record",
     "Storage",
     "Mixin",
     "mixin",
@@ -29,7 +28,6 @@ from machinable.execution import Execution
 from machinable.interface import Interface
 from machinable.mixin import Mixin, mixin
 from machinable.project import Project
-from machinable.record import Record
 from machinable.schedule import Schedule
 from machinable.settings import get_settings
 from machinable.storage import Storage
