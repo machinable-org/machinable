@@ -8,6 +8,10 @@ def _is_migrated(db):
     return db.cursor().execute("PRAGMA user_version;").fetchone()[0] == 1
 
 
+def _matches(q, v):
+    return set([v.uuid for v in q]) == set([v.uuid for v in v])
+
+
 def test_index_migrate():
     db = sqlite3.connect(":memory:")
     index.migrate(db)
@@ -52,19 +56,17 @@ def test_index_create_relation(setup=False):
         schema.Interface(),
     )
     assert all([i.commit(v) for v in [v1, v2, v3, v4]])
-    i.create_relation(v1.kind, v1.uuid, v2.uuid, "test_one", "has_one")
-    i.create_relation(
-        v1.kind, v1.uuid, [v3.uuid, v4.uuid], "test_many", "has_many"
-    )
-    i.create_relation(v2.kind, v2.uuid, v1.uuid, "reverse_one", "belongs_to")
-    i.create_relation(v3.kind, v3.uuid, v1.uuid, "reverse_many", "belongs_to")
-    i.create_relation(v4.kind, v4.uuid, v1.uuid, "reverse_many", "belongs_to")
+    i.create_relation("test_one", v1.uuid, v2.uuid)
+    i.create_relation("test_one", v1.uuid, v2.uuid)  # duplicate
+    i.create_relation("test_many", v1.uuid, [v2.uuid, v3.uuid, v4.uuid])
+    i.create_relation("test_many_to_many", v1.uuid, [v2.uuid, v3.uuid])
+    i.create_relation("test_many_to_many", v2.uuid, [v3.uuid, v4.uuid])
 
     if setup:
         return i, v1, v2, v3, v4
 
     assert (
-        len(i.db.cursor().execute("SELECT * FROM 'relations';").fetchall()) == 6
+        len(i.db.cursor().execute("SELECT * FROM 'relations';").fetchall()) == 8
     )
 
     i.db.close()
@@ -108,24 +110,27 @@ def test_index_find_by_predicate():
 def test_index_find_related():
     i, v1, v2, v3, v4 = test_index_create_relation(setup=True)
 
-    q = i.find_related(v1.kind, v1.uuid, "test_one", "has_one")
+    q = i.find_related("test_one", v1.uuid)
     assert len(q) == 1
     assert q[0] == v2
+    q = i.find_related("test_one", v2.uuid, inverse=True)
+    assert len(q) == 1
+    assert q[0] == v1
 
-    q = i.find_related(v1.kind, v1.uuid, "test_many", "has_many")
+    q = i.find_related("test_many", v1.uuid)
+    assert len(q) == 3
+    assert _matches(q, [v2, v3, v4])
+
+    q = i.find_related("test_many", v2.uuid, inverse=True)
+    assert len(q) == 1
+    assert q[0] == v1
+
+    q = i.find_related("test_many_to_many", v1.uuid)
     assert len(q) == 2
-    assert set([q[0].uuid, q[1].uuid]) == set([v3.uuid, v4.uuid])
+    assert _matches(q, [v2, v3])
 
-    q = i.find_related(v2.kind, v2.uuid, "reverse_one", "belongs_to")
-    assert len(q) == 1
-    assert q[0] == v1
-
-    q = i.find_related(v3.kind, v3.uuid, "reverse_many", "belongs_to")
-    assert len(q) == 1
-    assert q[0] == v1
-
-    q = i.find_related(v4.kind, v4.uuid, "reverse_many", "belongs_to")
-    assert len(q) == 1
-    assert q[0] == v1
+    q = i.find_related("test_many_to_many", v3.uuid, inverse=True)
+    assert len(q) == 2
+    assert _matches(q, [v1, v2])
 
     i.db.close()

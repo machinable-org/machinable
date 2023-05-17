@@ -83,21 +83,23 @@ def relation(relation_type: str) -> Any:
 
 
 class Relation:
-    direction: str = "outgoing"
+    inverse: bool = False
+    multiple: bool = False
 
     def __init__(
         self,
         fn,
         cached: bool = True,
-        collection: Union[bool, Collection] = False,
+        collection: Optional[Collection] = None,
         key: Optional[str] = None,
     ) -> None:
         self.fn = fn
         self.cached = cached
         self.collection = collection
+        self.key = key
+
         self.cls = None
         self._related_cls = None
-        self._key = key
 
     @property
     def related_cls(self) -> "Interface":
@@ -106,25 +108,14 @@ class Relation:
         return self._related_cls
 
     @property
-    def type_name(self) -> str:
-        return self.__class__.__name__.lower()
-
-    @property
     def name(self) -> str:
-        return self.fn.__name__
-
-    @property
-    def key(self) -> str:
-        if self._key is None:
-            if self.direction == "outgoing":
-                self._key = f"{self.cls.kind}.{self.related_cls.kind}"
-            else:
-                self._key = f"{self.related_cls.kind}.{self.cls.kind}"
-
-        return self._key
+        if not self.inverse:
+            return f"{self.cls.kind}.{self.related_cls.kind}.{self.key or 'default'}"
+        else:
+            return f"{self.related_cls.kind}.{self.cls.kind}.{self.key or 'default'}"
 
     def collect(self, elements: List["Interface"]) -> Collection:
-        if self.collection is True:
+        if self.collection is None:
             return self.related_cls.collect(elements)
         return self.collection(elements)
 
@@ -134,34 +125,29 @@ class Relation:
 
     def __get__(self, instance, owner):
         if (
-            instance._relation_cache[self.name] is not True
+            not instance._relation_cache.get(self.fn.__name__, None)
             and instance.is_mounted()
         ):
             index = Storage.get().index
             if index is None:
                 return None
 
-            related = index.find_related(uuid=instance.uuid, relation=self.key)
+            related = index.find_related(
+                relation=self.name, uuid=instance.uuid, inverse=self.inverse
+            )
 
-            if self.collection is False:
-                if related:
-                    related = self.related_cls.from_model(related[0])
-                else:
-                    related = None
+            if self.multiple is False:
+                instance.__related__[self.fn.__name__] = (
+                    self.related_cls.from_model(related[0]) if related else None
+                )
             else:
-                related = self.collect(
+                instance.__related__[self.fn.__name__] = self.collect(
                     [self.related_cls.from_model(r) for r in related or []]
                 )
 
-            instance._relation_cache[self.name] = self.cached
+            instance._relation_cache[self.fn.__name__] = self.cached
 
-            instance.__related__[self.name] = related
-
-        return instance.__related__[self.name]
-
-
-class BelongsTo(Relation):
-    direction = "reverse"
+        return instance.__related__[self.fn.__name__]
 
 
 class HasOne(Relation):
@@ -169,27 +155,38 @@ class HasOne(Relation):
 
 
 class HasMany(Relation):
-    pass
+    multiple = True
 
 
-def relation(cls: Relation, multiple: bool = False) -> Any:
-    def _relation(
+class BelongsTo(Relation):
+    inverse = True
+
+
+class BelongsToMany(Relation):
+    inverse = True
+    multiple = True
+
+
+def _relation(cls: Relation) -> Any:
+    def _wrapper(
         f: Optional[Callable] = None,
         *,
         cached: bool = True,
-        collection: Union[bool, Collection] = multiple,
+        collection: Optional[Collection] = None,
+        key: Optional[str] = None,
     ) -> Any:
         if f is None:
-            return partial(cls, cached=cached, collection=collection)
+            return partial(cls, cached=cached, collection=collection, key=key)
 
-        return cls(f, cached=cached, collection=collection)
+        return cls(f, cached=cached, collection=collection, key=key)
 
-    return _relation
+    return _wrapper
 
 
-belongs_to = relation(BelongsTo)
-has_one = relation(HasOne)
-has_many = relation(HasMany, multiple=True)
+belongs_to = _relation(BelongsTo)
+has_one = _relation(HasOne)
+has_many = _relation(HasMany)
+belongs_to_many = _relation(BelongsToMany)
 
 
 class Interface(Element):
@@ -217,8 +214,7 @@ class Interface(Element):
         self.__related__ = {}
         self._relation_cache = {}
         for name, relation in self.__relations__.items():
-            self._relation_cache[name] = False
-            if relation.collection is not False:
+            if relation.multiple:
                 self.__related__[name] = relation.collect([])
             else:
                 self.__related__[name] = None
@@ -385,7 +381,7 @@ class Interface(Element):
         save_file(os.path.join(directory, "model.json"), self.__model__)
         if relations:
             for k, v in self.__related__.items():
-                if isinstance(v, Interface):
+                if hasattr(v, "uuid"):
                     save_file(os.path.join(directory, "related", k), v.uuid)
                 elif v is not None:
                     for i in v:

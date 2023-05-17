@@ -136,14 +136,14 @@ class Index(Element):
 
     def create_relation(
         self,
+        relation: str,
         uuid: str,
         related_uuid: Union[str, List[str]],
-        relation: str,
         priority: int = 0,
     ) -> None:
         if isinstance(related_uuid, (list, tuple)):
             for r in related_uuid:
-                self.create_relation(uuid, r, relation, priority)
+                self.create_relation(relation, uuid, r, priority)
             return
 
         cur = self.db.cursor()
@@ -155,15 +155,15 @@ class Index(Element):
             return
         cur.execute(
             """INSERT INTO 'relations' (
+                relation,
                 uuid,
                 related_uuid,
-                relation,
                 priority
             ) VALUES (?,?,?,?)""",
             (
+                relation,
                 uuid,
                 related_uuid,
-                relation,
                 priority,
             ),
         )
@@ -201,15 +201,25 @@ class Index(Element):
         return [interface_row_factory(cur, row) for row in query.fetchall()]
 
     def find_related(
-        self, uuid: str, relation: str
+        self, relation: str, uuid: str, inverse: bool = False
     ) -> Union[None, List[schema.Interface]]:
         cur = self.db.cursor()
-        rows = cur.execute(
-            """SELECT * FROM 'index' WHERE uuid IN 
-                (
-                SELECT related_uuid FROM relations WHERE uuid=? AND relation=?
-                )
-            """,
-            (uuid, relation),
-        ).fetchall()
+        if not inverse:
+            rows = cur.execute(
+                """SELECT * FROM 'index' WHERE uuid IN 
+                    (
+                    SELECT related_uuid FROM relations WHERE uuid=? AND relation=?
+                    )
+                """,
+                (uuid, relation),
+            ).fetchall()
+        else:
+            rows = cur.execute(
+                """SELECT * FROM 'index' WHERE uuid IN 
+                    (
+                    SELECT uuid FROM relations WHERE related_uuid=? AND relation=?
+                    )
+                """,
+                (uuid, relation),
+            ).fetchall()
         return [interface_row_factory(cur, row) for row in rows or []]

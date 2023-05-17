@@ -75,21 +75,20 @@ class Storage(Element):
         # if newly created, commit to index and remotes
         if not self.index.find(interface.uuid):
             self.on_commit(interface)
-            if self.index.commit(interface.__model__):
-                for k, v in interface.__related__.items():
-                    # todo: how do we handle correct reverse insertation?
-                    if hasattr(v, "uuid"):
-                        self.index.create_relation(
-                            interface.uuid,
-                            v.commit().uuid,
-                            interface.__relations__[k].key,
-                        )
-                    elif v is not None:
-                        self.index.create_relation(
-                            interface.uuid,
-                            [i.commit().uuid for i in v],
-                            interface.__relations__[k].key,
-                        )
+            self.index.commit(interface.__model__)
+            for k, v in interface.__related__.items():
+                if v is None:
+                    continue
+                r = interface.__relations__[k]
+                if not r.multiple:
+                    v = [v]
+
+                for u in [i.commit().uuid for i in v]:
+                    if r.inverse:
+                        self.index.create_relation(r.name, u, interface.uuid)
+                    else:
+                        self.index.create_relation(r.name, interface.uuid, u)
+
             for remote in self.remotes:
                 remote.commit(interface)
             return True
