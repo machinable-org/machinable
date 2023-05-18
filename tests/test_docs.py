@@ -34,7 +34,7 @@ def test_docs_snippets_tutorial_main_unified(tmp_storage):
 class ExternalComponent(Component):
     def on_create(self):
         print("Hello from MPI script")
-        self.save_data("test.txt", "hello")
+        self.save_file("test.txt", "hello")
 
 
 @pytest.mark.skipif(
@@ -47,13 +47,13 @@ def test_mpi_execution(tmp_storage):
         with Execution.get("execution.mpi"):
             component.launch()
         assert component.is_finished()
-        assert component.load_data("test.txt") == "hello"
+        assert component.load_file("test.txt") == "hello"
 
 
 class SlurmComponent(Component):
     def __call__(self):
         print("Hello world from Slurm")
-        self.save_data("test_run.json", {"success": True})
+        self.save_file("test_run.json", {"success": True})
 
 
 @pytest.mark.skipif(
@@ -73,7 +73,7 @@ def test_slurm_execution(tmp_storage):
         for _ in range(30):
             if component.is_finished():
                 assert "Hello world from Slurm" in component.output()
-                assert component.load_data("test_run.json")["success"] is True
+                assert component.load_file("test_run.json")["success"] is True
                 return
 
             time.sleep(1)

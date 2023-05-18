@@ -6,8 +6,6 @@ from machinable import Component, Execution, Project, Storage, errors
 
 def test_execution(tmp_storage):
     assert len(Execution().add([Component(), Component()]).executables) == 2
-    with pytest.raises(ValueError):
-        Execution().add(None)
     execution = Execution()
     assert (
         Execution.from_model(execution.__model__).timestamp
@@ -34,6 +32,7 @@ def test_execution_dispatch(tmp_storage):
     # prevent execution from component
     class T(Component):
         class Config:
+            a: int = 1
             mode: str = "before"
 
         def on_before_dispatch(self):
@@ -44,7 +43,7 @@ def test_execution_dispatch(tmp_storage):
             if self.config.mode == "runtime":
                 raise RuntimeError("Should not execute")
 
-    with pytest.raises(ValueError):
+    with pytest.raises(errors.ExecutionFailed):
         T().launch()
 
     with pytest.raises(errors.ExecutionFailed):
@@ -52,8 +51,8 @@ def test_execution_dispatch(tmp_storage):
 
     # prevent commit for configuration errors
     with Project("./tests/samples/project"):
-        valid = Component.make("dummy")
-        invalid = Component.make("dummy", {"a": []})
+        valid = T()
+        invalid = T({"a": []})
         execution = Execution().add([valid, invalid])
         with pytest.raises(errors.ConfigurationError):
             execution.dispatch()
@@ -65,23 +64,23 @@ def test_execution_context(tmp_storage):
     with Execution(schedule=None) as execution:
         e1 = Component()
         e1.launch()
-        assert not e1.is_finished()
+        assert e1.execution is None
         e2 = Component()
         e2.launch()
-        assert len(execution.components) == 2
-        assert not e2.is_finished()
-    assert e1.is_finished()
-    assert e2.is_finished()
+        assert len(execution.executables) == 2
+        assert e2.execution is None
+    assert e1.execution.is_finished()
+    assert e2.execution.is_finished()
 
     with Execution():
         e1 = Component()
         e1.launch()
         e2 = Component()
         e2.launch()
-        assert not e1.is_finished()
-        assert not e2.is_finished()
-    assert e1.is_finished()
-    assert e2.is_finished()
+        assert e1.execution is None
+        assert e2.execution is None
+    assert e1.execution.is_finished()
+    assert e2.execution.is_finished()
     assert e1.execution.nickname == e2.execution.nickname
 
 

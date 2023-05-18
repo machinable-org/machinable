@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 from typing import TYPE_CHECKING, Any, List, Optional, Union
 
 import random
@@ -15,6 +13,7 @@ else:
 
 from typing import Dict
 
+from machinable import errors
 from machinable.collection import ComponentCollection, ExecutionCollection
 from machinable.element import Element
 from machinable.interface import Interface, belongs_to, has_many
@@ -31,7 +30,7 @@ class Component(Interface):
     default = get_settings().default_component
 
     @has_many
-    def executions() -> Optional[ExecutionCollection["Execution"]]:
+    def executions() -> ExecutionCollection:
         from machinable.execution import Execution
 
         return Execution
@@ -73,36 +72,17 @@ class Component(Interface):
         try:
             self.on_before_dispatch()
 
-            self.on_seeding()
-
-            # meta-data
-            if self.on_write_meta_data() is not False and self.is_mounted():
-                self.mark_started()
-                self._events.on("heartbeat", self.update_heartbeat)
-                self._events.heartbeats(seconds=15)
-                if self.execution:
-                    self.execution.save_file(
-                        "env.json",
-                        data=Project.get().provider().get_host_info(),
-                    )
-
             self.__call__()
 
             self.on_success()
             self.on_finish(success=True)
-
-            # finalize meta data
-            self._events.heartbeats(None)
-            if self.on_write_meta_data() is not False and self.is_mounted():
-                self.update_heartbeat(mark_finished=True)
 
             self.on_after_dispatch(success=True)
         except BaseException as _ex:  # pylint: disable=broad-except
             self.on_failure(exception=_ex)
             self.on_finish(success=False)
             self.on_after_dispatch(success=False)
-
-            raise errors.ExecutionFailed(
+            raise errors.ComponentException(
                 f"{self.__class__.__name__} dispatch failed"
             ) from _ex
 
@@ -153,16 +133,6 @@ class Component(Interface):
     def on_before_dispatch(self) -> Optional[bool]:
         """Event triggered before the dispatch of the component"""
 
-    def on_seeding(self):
-        """Lifecycle event to implement custom seeding using `self.seed`"""
-        random.seed(self.seed)
-
-    def on_write_meta_data(self) -> Optional[bool]:
-        """Event triggered before meta-data such as creation time etc. is written to the storage
-
-        Return False to prevent writing of meta-data
-        """
-
     def on_success(self):
         """Lifecycle event triggered iff execution finishes successfully"""
 
@@ -173,7 +143,7 @@ class Component(Interface):
         success: Whether the execution finished sucessfully
         """
 
-    def on_failure(self, exception: errors.MachinableError):
+    def on_failure(self, exception: Exception) -> None:
         """Lifecycle event triggered iff the execution finished with an exception
 
         # Arguments
@@ -191,7 +161,7 @@ class Component(Interface):
 
     def group_as(self, group: Union[Group, str]) -> Self:
         # todo: allow group modifications after execution
-        self._assert_editable()
+        # todo: self._assert_editable()
 
         if isinstance(group, str):
             group = Group(group)
@@ -199,8 +169,8 @@ class Component(Interface):
             raise ValueError(
                 f"Expected group, but found: {type(group)} {group}"
             )
-        group.__related__["components"].append(self)
-        self.__related__["group"] = group
+        group.push_related("components", self)
+        self.push_related("group", group)
 
         return self
 

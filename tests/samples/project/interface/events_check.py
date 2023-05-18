@@ -29,7 +29,7 @@ class EventsCheck(Component):
 
     def on_destroy(self):
         self.events.append("on_destroy")
-        self.save_data("events.json", self.events)
+        self.save_file("events.json", self.events)
 
     def on_failure(self, exception: errors.MachinableError):
         assert False

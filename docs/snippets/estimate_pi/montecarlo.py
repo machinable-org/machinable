@@ -16,7 +16,7 @@ class EstimatePi(Component):
             count += int((x**2 + y**2) <= 1)
         pi = 4 * count / self.config.samples
 
-        self.save_data(
+        self.save_file(
             "result.json",
             {"count": count, "pi": pi},
         )
@@ -25,5 +25,5 @@ class EstimatePi(Component):
         if self.execution.is_finished():
             print(
                 f"After {self.config.samples} samples, "
-                f"PI is approximately {self.load_data('result.json')['pi']}."
+                f"PI is approximately {self.load_file('result.json')['pi']}."
             )

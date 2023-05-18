@@ -22,6 +22,11 @@ def test_interface_to_directory(tmp_path):
     )
 
 
+def test_interface_from_directory(tmp_path):
+    i = Interface().to_directory(str(tmp_path / "test"))
+    assert Interface.from_directory(str(tmp_path / "test")).uuid == i.uuid
+
+
 def test_interface_relations(tmp_storage):
     class C(Interface):
         @belongs_to(cached=False)

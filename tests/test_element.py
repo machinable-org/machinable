@@ -25,8 +25,7 @@ from omegaconf import OmegaConf
 
 def test_element_get():
     assert isinstance(get(), Element)
-    assert isinstance(get("machinable.storage.filesystem"), Storage)
-    print(get("machinable.storage.filesystem", {"directory": "./test"}))
+    assert isinstance(get("machinable.storage"), Storage)
 
 
 def test_element_defaults():
@@ -376,7 +375,7 @@ def test_resolve_custom_predicate():
 
 
 def test_uuid_to_id():
-    assert len(uuid_to_id(uuid4())) == 6
+    assert len(uuid_to_id(uuid4().hex)) == 6
 
 
 def test_connectable():

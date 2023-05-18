@@ -101,10 +101,7 @@ class Storage(Element):
 
     def retrieve(
         self, uuid: str, target_directory: Optional[str] = None
-    ) -> Optional[bool]:
-        if not self.index.find(uuid):
-            return None
-
+    ) -> bool:
         local_directory = self.local_directory(uuid)
         if target_directory is None:
             target_directory = local_directory
@@ -112,7 +109,11 @@ class Storage(Element):
         if not os.path.exists(local_directory):
             available = False
             for remote in self.remotes:
-                if remote.retrieve(uuid, local_directory):
+                if (
+                    remote.index
+                    and remote.index.find(uuid)
+                    and remote.retrieve(uuid, local_directory)
+                ):
                     available = True
                     break
 

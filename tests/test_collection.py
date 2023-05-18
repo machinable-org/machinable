@@ -25,7 +25,7 @@ def test_component_collection(tmp_storage):
             [DummyComponent({"m": i % 2}) for i in range(5)]
         )
         for i, e in enumerate(collection):
-            e.save_data("i", i)
+            e.save_file("i", i)
         assert isinstance(collection, ComponentCollection)
 
         collection.launch()
@@ -43,7 +43,7 @@ def test_component_collection(tmp_storage):
         assert len(collection.filter_by_predicate(m, {"m": 0})) == 3
         assert len(collection.filter_by_predicate(m, {"m": 1})) == 2
 
-        assert collection.singleton(m, {"m": 1}).load_data("i") == "1"
+        assert collection.singleton(m, {"m": 1}).load_file("i") == "1"
 
 
 class CollectionTestCase(TestCase):

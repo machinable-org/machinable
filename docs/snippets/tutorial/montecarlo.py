@@ -12,7 +12,7 @@ class EstimatePi(Component):
 
     @property
     def result(self):
-        return self.load_data("result.json", default={"samples": 0, "pi": 0})
+        return self.load_file("result.json", default={"samples": 0, "pi": 0})
 
     @property
     def pi(self):
@@ -32,7 +32,7 @@ class EstimatePi(Component):
                 count += int((x**2 + y**2) <= 1)
             pi = 4 * count / samples
 
-            self.save_data(
+            self.save_file(
                 "result.json",
                 {"samples": samples, "pi": pi},
             )

@@ -1,6 +1,7 @@
 from typing import Any, Dict, List, Optional, Union
 
 import copy
+import random
 import sys
 
 if sys.version_info >= (3, 11):
@@ -9,7 +10,7 @@ else:
     from typing_extensions import Self
 
 import arrow
-from machinable import schema
+from machinable import errors, schema
 from machinable.collection import ComponentCollection
 from machinable.component import Component
 from machinable.element import (
@@ -31,7 +32,14 @@ from machinable.types import (
     TimestampType,
     VersionType,
 )
-from machinable.utils import Events, generate_seed, sentinel, update_dict
+from machinable.utils import (
+    Events,
+    generate_seed,
+    load_file,
+    save_file,
+    sentinel,
+    update_dict,
+)
 
 
 class Execution(Interface):
@@ -98,7 +106,15 @@ class Execution(Interface):
             # already added
             return self
 
-        self.__related__["executables"].append(executable)
+        self.push_related("executables", executable)
+
+        return self
+
+    def commit(self) -> Self:
+        # ensure that configuration is parsed
+        self.executables.map(lambda x: x.config and x.predicate)
+
+        Storage.get().commit(self)
 
         return self
 
@@ -180,8 +196,25 @@ class Execution(Interface):
             self.save_file(
                 "host.json", Project.get().provider().get_host_info()
             )
+            self.on_seeding()
+
+            # meta-data
+            if self.on_write_meta_data() is not False and self.is_mounted():
+                self.mark_started()
+                self._events.on("heartbeat", self.update_heartbeat)
+                self._events.heartbeats(seconds=15)
+                self.save_file(
+                    "env.json",
+                    data=Project.get().provider().get_host_info(),
+                )
+
             self.__call__()
             self.on_after_dispatch()
+
+            # finalize meta data
+            self._events.heartbeats(None)
+            if self.on_write_meta_data() is not False and self.is_mounted():
+                self.update_heartbeat(mark_finished=True)
         except BaseException as _ex:  # pylint: disable=broad-except
             raise ExecutionFailed("Execution failed") from _ex
 
@@ -210,6 +243,16 @@ class Execution(Interface):
     def on_after_dispatch(self) -> None:
         """Event triggered after the dispatch of an execution"""
 
+    def on_seeding(self):
+        """Lifecycle event to implement custom seeding using `self.seed`"""
+        random.seed(self.seed)
+
+    def on_write_meta_data(self) -> Optional[bool]:
+        """Event triggered before meta-data such as creation time etc. is written to the storage
+
+        Return False to prevent writing of meta-data
+        """
+
     @property
     def host_info(self) -> Optional[Dict]:
         return self.load_file("host.json", None)
@@ -227,7 +270,20 @@ class Execution(Interface):
     ) -> Optional[DatetimeType]:
         if self.is_finished():
             return None
-        return self.__model__._storage_instance.mark_started(self, timestamp)
+
+        if timestamp is None:
+            timestamp = arrow.now()
+        if isinstance(timestamp, arrow.Arrow):
+            timestamp = arrow.get(timestamp)
+
+        save_file(
+            self.local_directory("started_at"),
+            str(timestamp) + "\n",
+            # starting event can occur multiple times
+            mode="a",
+        )
+
+        return timestamp
 
     def update_heartbeat(
         self,
@@ -236,9 +292,24 @@ class Execution(Interface):
     ) -> Optional[DatetimeType]:
         if self.is_finished():
             return None
-        self.__model__._storage_instance.update_heartbeat(
-            self, timestamp, mark_finished
+        if timestamp is None:
+            timestamp = arrow.now()
+
+        if isinstance(timestamp, arrow.Arrow):
+            timestamp = arrow.get(timestamp)
+
+        save_file(
+            self.local_directory("heartbeat_at"),
+            str(timestamp),
+            mode="w",
         )
+        if mark_finished:
+            save_file(
+                self.local_directory("finished_at"),
+                str(timestamp),
+            )
+
+        return timestamp
 
     def output(self, incremental: bool = False) -> Optional[str]:
         """Returns the output log"""
@@ -248,7 +319,7 @@ class Execution(Interface):
             read_length = self._cache.get("output_read_length", 0)
             if read_length == -1:
                 return ""
-            output = self.__model__._storage_instance.retrieve_output(self)
+            output = load_file(self.local_directory("output.log"), None)
             if output is None:
                 return None
 
@@ -261,7 +332,7 @@ class Execution(Interface):
         if "output" in self._cache:
             return self._cache["output"]
 
-        output = self.__model__._storage_instance.retrieve_output(self)
+        output = load_file(self.local_directory("output.log"), None)
 
         if self.is_finished():
             self._cache["output"] = output
@@ -278,23 +349,35 @@ class Execution(Interface):
         """Returns the starting time"""
         if not self.is_mounted():
             return None
-        return self.__model__._storage_instance.retrieve_status(self, "started")
+        return self._retrieve_status("started")
 
     def heartbeat_at(self):
         """Returns the last heartbeat time"""
         if not self.is_mounted():
             return None
-        return self.__model__._storage_instance.retrieve_status(
-            self, "heartbeat"
-        )
+        return self._retrieve_status("heartbeat")
 
     def finished_at(self):
         """Returns the finishing time"""
         if not self.is_mounted():
             return None
-        return self.__model__._storage_instance.retrieve_status(
-            self, "finished"
-        )
+        return self._retrieve_status("finished")
+
+    def _retrieve_status(self, field: str) -> Optional[DatetimeType]:
+        fields = ["started", "heartbeat", "finished"]
+        if field not in fields:
+            raise ValueError(f"Invalid field: {field}. Must be on of {fields}")
+        status = load_file(self.local_directory(f"{field}_at"), default=None)
+        if status is None:
+            return None
+        if field == "started":
+            # can have multiple rows, return latest
+            status = status.strip("\n").split("\n")[-1]
+
+        try:
+            return arrow.get(status)
+        except arrow.ParserError:
+            return None
 
     def is_finished(self):
         """True if finishing time has been written"""

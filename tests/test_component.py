@@ -195,7 +195,7 @@ def test_component_interface(tmp_path):
 class ExportComponent(Component):
     def __call__(self):
         print("Hello world")
-        self.save_data("test_run.json", {"success": True})
+        self.save_file("test_run.json", {"success": True})
 
 
 def test_component_export(tmp_storage):
@@ -211,7 +211,7 @@ def test_component_export(tmp_storage):
     exec(script)
 
     assert component.is_finished()
-    assert component.load_data("test_run.json")["success"]
+    assert component.load_file("test_run.json")["success"]
 
     # inline
     component = ExportComponent()
@@ -221,7 +221,7 @@ def test_component_export(tmp_storage):
 
     print(commandlib.Command("bash")(script_filepath).output())
     assert component.is_finished()
-    assert component.load_data("test_run.json")["success"]
+    assert component.load_file("test_run.json")["success"]
 
 
 def test_component_predicates(tmp_storage):

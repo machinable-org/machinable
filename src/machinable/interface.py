@@ -31,57 +31,6 @@ from machinable.utils import load_file, save_file
 from omegaconf import OmegaConf
 
 
-def relation(relation_type: str) -> Any:
-    def _relation(f: Callable) -> Any:
-        @property
-        @wraps(f)
-        def _wrapper(
-            self: "Element",
-        ) -> Union["Interface", InterfaceCollection]:
-            relation_name = f.__name__
-            if (
-                self.__related__.get(relation_name, None) is None
-                and self.is_mounted()
-            ):
-                if relation_type != "has_many":
-                    related_class = f()
-                    use_cache = True
-                    if isinstance(related_class, tuple):
-                        related_class, use_cache = related_class
-                else:
-                    args = f()
-                    use_cache = True
-                    if len(args) == 2:
-                        related_class, collection = args
-                    elif len(args) == 3:
-                        related_class, collection, use_cache = args
-                    else:
-                        assert False, "Invalid number of relation arguments"
-                related = Index.retrieve_related(
-                    uuid=self.uuid,
-                    kind=self.kind,
-                    relation_name=relation_name,
-                    relation_type=relation_type,
-                )
-                if related is None:
-                    return None
-                if relation_type != "has_many":
-                    retrieved = related_class.from_model(related)
-                else:
-                    retrieved = collection(
-                        [related_class.from_model(r) for r in related]
-                    )
-                if not use_cache:
-                    return retrieved
-                self.__related__[relation_name] = retrieved
-
-            return self.__related__.get(relation_name, None)
-
-        return _wrapper
-
-    return _relation
-
-
 class Relation:
     inverse: bool = False
     multiple: bool = False
@@ -128,24 +77,28 @@ class Relation:
             not instance._relation_cache.get(self.fn.__name__, None)
             and instance.is_mounted()
         ):
-            index = Storage.get().index
-            if index is None:
+            storage = Storage.get()
+            if storage.index is None:
                 return None
 
-            related = index.find_related(
+            related = storage.index.find_related(
                 relation=self.name, uuid=instance.uuid, inverse=self.inverse
             )
 
-            if self.multiple is False:
-                instance.__related__[self.fn.__name__] = (
-                    self.related_cls.from_model(related[0]) if related else None
-                )
-            else:
-                instance.__related__[self.fn.__name__] = self.collect(
-                    [self.related_cls.from_model(r) for r in related or []]
-                )
+            if related is not None:
+                related = [
+                    Interface.from_directory(storage.local_directory(r.uuid))
+                    for r in related
+                    if storage.retrieve(r.uuid)
+                ]
+
+                if self.multiple is False:
+                    related = related[0] if len(related) > 0 else None
+                else:
+                    related = self.collect(related)
 
             instance._relation_cache[self.fn.__name__] = self.cached
+            instance.__related__[self.fn.__name__] = related
 
         return instance.__related__[self.fn.__name__]
 
@@ -220,9 +173,17 @@ class Interface(Element):
                 self.__related__[name] = None
         if uses:
             self.use(uses)
-        self.__related__["ancestor"] = derived_from
+        self.push_related("ancestor", derived_from)
 
         self._deferred_data = {}
+
+    def push_related(self, key: str, value: "Interface") -> None:
+        # todo: check for editablility
+        if self.__relations__[key].multiple:
+            self.__related__[key].append(value)
+        else:
+            self.__related__[key] = value
+        self._relation_cache[key] = True
 
     def commit(self) -> Self:
         Storage.get().commit(self)
@@ -272,7 +233,7 @@ class Interface(Element):
                 self.use(_use)
             return self
 
-        self.__related__["uses"].append(use)
+        self.push_related("uses", use)
 
         return self
 
@@ -307,16 +268,18 @@ class Interface(Element):
 
         storage = Storage.get()
 
-        # storage.index.find(uuid)
-
-        if directory is None:
+        if not (
+            storage.index
+            and storage.index.find(uuid)
+            and storage.retrieve(uuid)
+        ):
             return None
 
-        return cls.from_directory(directory)
+        return cls.from_directory(storage.local_directory(uuid))
 
     @classmethod
-    def find_many(cls, elements: List[str]) -> "Collection":
-        return cls.collect([cls.find(element_id) for element_id in elements])
+    def find_many(cls, uuids: List[str]) -> "Collection":
+        return cls.collect([cls.find(uuid) for uuid in uuids])
 
     @classmethod
     def find_by_predicate(
@@ -326,44 +289,32 @@ class Interface(Element):
         predicate: Optional[str] = get_settings().default_predicate,
         **kwargs,
     ) -> "Collection":
-        from machinable.storage import Storage
-
-        storage = Storage.get()
         try:
             candidate = cls.make(module, version, **kwargs)
         except ModuleNotFoundError:
             return cls.collect([])
 
-        element_type = candidate.kind.lower()
-        handler = f"find_{element_type}_by_predicate"
-
-        if hasattr(storage, handler):
-            if predicate:
-                predicate = OmegaConf.to_container(
-                    OmegaConf.create(
-                        {
-                            p: candidate.predicate[p]
-                            for p in resolve_custom_predicate(
-                                predicate, candidate
-                            )
-                        }
-                    )
+        if predicate:
+            predicate = OmegaConf.to_container(
+                OmegaConf.create(
+                    {
+                        p: candidate.predicate[p]
+                        for p in resolve_custom_predicate(predicate, candidate)
+                    }
                 )
-            storage_ids = getattr(storage, handler)(
-                module
-                if isinstance(module, str)
-                else f"__session__{module.__name__}",
-                predicate,
             )
-        else:
-            storage_ids = []
+
+        from machinable.storage import Storage
 
         return cls.collect(
             [
-                cls.from_model(
-                    getattr(storage, f"retrieve_{element_type}")(storage_id)
+                cls.from_model(interface)
+                for interface in Storage.get().index.find_by_predicate(
+                    module
+                    if isinstance(module, str)
+                    else f"__session__{module.__name__}",
+                    predicate,
                 )
-                for storage_id in storage_ids
             ]
         )
 
@@ -374,9 +325,16 @@ class Interface(Element):
         Note that this does not verify the integrity of the directory.
         In particular, the interface may be missing or not be indexed.
         """
-        return cls.from_model(load_file(os.path.join(directory, "model.json")))
+        data = load_file(os.path.join(directory, "model.json"))
 
-    def to_directory(self, directory: str, relations=True) -> None:
+        model = getattr(schema, data["kind"], None)
+        if model is None:
+            # TODO: users should have an option to register custom interface types
+            raise ValueError(f"Invalid interface kind: {model['kind']}")
+
+        return cls.from_model(model(**data))
+
+    def to_directory(self, directory: str, relations=True) -> Self:
         save_file(os.path.join(directory, ".machinable"), self.__model__.uuid)
         save_file(os.path.join(directory, "model.json"), self.__model__)
         if relations:
@@ -390,6 +348,8 @@ class Interface(Element):
                             i.uuid + "\n",
                             mode="a",
                         )
+
+        return self
 
     def local_directory(
         self, *append: str, create: bool = False

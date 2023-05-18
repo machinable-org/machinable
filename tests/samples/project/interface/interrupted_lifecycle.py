@@ -2,10 +2,10 @@ from machinable import Component
 
 
 class InterruptedLifecycle(Component):
-    def on_create(self):
-        self.state = self.load_data("state.json", {"steps": 0})
-
     def __call__(self):
+        self.local_directory("data", create=True)
+        self.state = self.load_file("data/state.json", {"steps": 0})
+
         for step in range(self.state["steps"], 10):
             self.state["steps"] = step + 1
 
@@ -16,4 +16,4 @@ class InterruptedLifecycle(Component):
                 raise RuntimeError("Interrupt 2")
 
     def on_finish(self, success):
-        self.save_data("state.json", self.state)
+        self.save_file("data/state.json", self.state)
