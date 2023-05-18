@@ -33,7 +33,6 @@ from machinable.types import (
     VersionType,
 )
 from machinable.utils import (
-    Events,
     generate_seed,
     load_file,
     save_file,
@@ -72,7 +71,6 @@ class Execution(Interface):
             if not isinstance(schedule, Schedule):
                 schedule = Schedule.make(*extract(schedule))
             self.__related__["schedule"] = schedule
-        self._events: Events = Events()
 
     @property
     def seed(self) -> int:
@@ -196,25 +194,9 @@ class Execution(Interface):
             self.save_file(
                 "host.json", Project.get().provider().get_host_info()
             )
-            self.on_seeding()
-
-            # meta-data
-            if self.on_write_meta_data() is not False and self.is_mounted():
-                self.mark_started()
-                self._events.on("heartbeat", self.update_heartbeat)
-                self._events.heartbeats(seconds=15)
-                self.save_file(
-                    "env.json",
-                    data=Project.get().provider().get_host_info(),
-                )
 
             self.__call__()
             self.on_after_dispatch()
-
-            # finalize meta data
-            self._events.heartbeats(None)
-            if self.on_write_meta_data() is not False and self.is_mounted():
-                self.update_heartbeat(mark_finished=True)
         except BaseException as _ex:  # pylint: disable=broad-except
             raise ExecutionFailed("Execution failed") from _ex
 
@@ -242,16 +224,6 @@ class Execution(Interface):
 
     def on_after_dispatch(self) -> None:
         """Event triggered after the dispatch of an execution"""
-
-    def on_seeding(self):
-        """Lifecycle event to implement custom seeding using `self.seed`"""
-        random.seed(self.seed)
-
-    def on_write_meta_data(self) -> Optional[bool]:
-        """Event triggered before meta-data such as creation time etc. is written to the storage
-
-        Return False to prevent writing of meta-data
-        """
 
     @property
     def host_info(self) -> Optional[Dict]:

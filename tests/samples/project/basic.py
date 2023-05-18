@@ -1,7 +1,7 @@
-from machinable import Element
+from machinable import Component
 
 
-class Basic(Element):
+class Basic(Component):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self._state = None

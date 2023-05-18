@@ -1,6 +1,6 @@
 import os
 
-from machinable import Interface, Project
+from machinable import Interface, Project, get
 from machinable.collection import ComponentCollection
 from machinable.interface import belongs_to, belongs_to_many, has_many, has_one
 from machinable.utils import load_file
@@ -100,3 +100,32 @@ def test_interface_relations(tmp_storage):
 def test_interface_commit(tmp_storage):
     with Project("./tests/samples/project"):
         Interface.make("interface.dummy").commit()
+
+
+def tes_interface_save_file(tmp_storage):
+    component = Interface().commit()
+    # save and load
+    component.save_file("test.txt", "hello")
+    assert component.load_file("test.txt") == "hello"
+    component.save_file("floaty", 1.0)
+    assert component.load_file("floaty") == "1.0"
+    uncommitted = Interface()
+    uncommitted.save_file("test", "deferred")
+    assert uncommitted.load_data("test") == "deferred"
+
+
+def test_element_interactive_session(tmp_storage):
+    class T(Interface):
+        def is_valid(self):
+            return True
+
+    t = get(T)
+    assert t.module == "__session__T"
+    assert t.__model__._dump is not None
+
+    # default launch
+    t.launch()
+    # serialization
+    exec(t.dispatch_code(inline=False) + "\nassert component__.is_valid()")
+    # retrieval
+    assert t.id == get(T).id

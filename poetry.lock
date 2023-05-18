@@ -410,18 +410,6 @@ files = [
 setuptools = "*"
 
 [[package]]
-name = "observable"
-version = "1.0.3"
-description = "minimalist event system"
-category = "main"
-optional = false
-python-versions = "*"
-files = [
-    {file = "observable-1.0.3-py2.py3-none-any.whl", hash = "sha256:955a721a225fe3a1df28b58c0d7add38e08cd49afd88d14669b2884410f47d10"},
-    {file = "observable-1.0.3.tar.gz", hash = "sha256:97fe8e9d8c2a6185cee3661fa5fba9ce38c7ba388894132940cd6a81633626d9"},
-]
-
-[[package]]
 name = "omegaconf"
 version = "2.3.0"
 description = "A flexible configuration library"
@@ -839,4 +827,4 @@ all = []
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.7"
-content-hash = "d21891e6d842ec1dd2817e0461f8e83aa3a42dbbc127f4f52d4fa1225bcaf60b"
+content-hash = "6bb95b2b8415e299f99189ccfcf026243f9503dce3a80c31ca6d02e59756e907"

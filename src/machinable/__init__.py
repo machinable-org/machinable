@@ -39,8 +39,8 @@ def get(
     version: VersionType = None,
     predicate: Optional[str] = get_settings().default_predicate,
     **kwargs,
-) -> Element:
-    return Element.get(module, version, predicate, **kwargs)
+) -> Interface:
+    return Interface.get(module, version, predicate, **kwargs)
 
 
 def get_version() -> str:

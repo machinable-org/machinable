@@ -2,6 +2,7 @@ from typing import TYPE_CHECKING, Any, List, Optional, Union
 
 import random
 import sys
+import threading
 
 from machinable.group import Group
 from machinable.settings import get_settings
@@ -72,10 +73,46 @@ class Component(Interface):
         try:
             self.on_before_dispatch()
 
+            self.on_seeding()
+
+            # meta-data
+            writes_meta_data = (
+                self.on_write_meta_data() is not False
+                and self.is_mounted()
+                and self.execution is not None
+            )
+            if writes_meta_data:
+                self.execution.mark_started()
+                self.save_file(
+                    "env.json",
+                    data=Project.get().provider().get_host_info(),
+                )
+
+            def beat():
+                t = threading.Timer(15, beat)
+                t.daemon = True
+                t.start()
+                self.on_heartbeat()
+                if (
+                    self.on_write_meta_data() is not False
+                    and self.is_mounted()
+                    and self.execution is not None
+                ):
+                    self.execution.update_heartbeat()
+                return t
+
+            heartbeat = beat()
+
             self.__call__()
 
             self.on_success()
             self.on_finish(success=True)
+
+            if writes_meta_data:
+                self.execution.update_heartbeat(mark_finished=True)
+
+            if heartbeat is not None:
+                heartbeat.cancel()
 
             self.on_after_dispatch(success=True)
         except BaseException as _ex:  # pylint: disable=broad-except
@@ -112,7 +149,7 @@ class Component(Interface):
         from machinable.errors import StorageError
         Project('{Project.get().path()}').__enter__()
         Storage.from_json('{storage}').__enter__()
-        component__ = Component.find('{self.id}', timestamp={self.timestamp})
+        component__ = Component.find('{self.uuid}')
         component__.dispatch()
         """
 
@@ -158,6 +195,20 @@ class Component(Interface):
         # Arguments
         success: Whether the execution finished sucessfully
         """
+
+    def on_seeding(self):
+        """Lifecycle event to implement custom seeding using `self.seed`"""
+        if self.execution:
+            random.seed(self.execution.seed)
+
+    def on_write_meta_data(self) -> Optional[bool]:
+        """Event triggered before meta-data such as creation time etc. is written to the storage
+
+        Return False to prevent writing of meta-data
+        """
+
+    def on_heartbeat(self) -> None:
+        """Event triggered on heartbeat every 15 seconds"""
 
     def group_as(self, group: Union[Group, str]) -> Self:
         # todo: allow group modifications after execution
