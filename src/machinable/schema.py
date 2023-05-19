@@ -32,7 +32,6 @@ class Index(Element):
 class Interface(Element):
     kind: str = "Interface"
     _dump: Optional[bytes] = PrivateAttr(default=None)
-    _relations: Dict = PrivateAttr(default_factory=dict)
 
 
 class Component(Interface):
@@ -41,18 +40,12 @@ class Component(Interface):
 
 class Project(Interface):
     kind: str = "Project"
-    directory: str
-    name: str
-    code_version: Optional[Dict] = None
-    code_diff: Optional[str] = None
-    host_info: Optional[Dict] = None
 
 
 class Execution(Interface):
     kind: str = "Execution"
     seed: int = Field(default_factory=generate_seed)
     resources: Optional[Dict] = None
-    host_info: Optional[Dict] = None
     nickname: str = Field(default_factory=generate_nickname)
     timestamp: float = Field(default_factory=lambda: datetime.now().timestamp())
 

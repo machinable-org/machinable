@@ -14,10 +14,10 @@ else:
 
 from typing import Dict
 
-from machinable import errors
+from machinable import errors, schema
 from machinable.collection import ComponentCollection, ExecutionCollection
-from machinable.element import Element
-from machinable.interface import Interface, belongs_to, has_many
+from machinable.element import Element, get_dump, get_lineage
+from machinable.interface import Interface, belongs_to, belongs_to_many
 from machinable.project import Project
 from machinable.storage import Storage
 from machinable.types import VersionType
@@ -30,13 +30,33 @@ class Component(Interface):
     kind = "Component"
     default = get_settings().default_component
 
-    @has_many
+    def __init__(
+        self,
+        version: VersionType = None,
+        uses: Union[None, "Interface", List["Interface"]] = None,
+        derived_from: Optional["Interface"] = None,
+    ):
+        super().__init__(version=version, uses=uses, derived_from=derived_from)
+        self.__model__ = schema.Component(
+            kind=self.kind,
+            module=self.__model__.module,
+            config=self.__model__.config,
+            version=self.__model__.version,
+            lineage=get_lineage(self),
+        )
+        self.__model__._dump = get_dump(self)
+
+    @belongs_to
+    def group():
+        return Group
+
+    @belongs_to_many(key="execution_history")
     def executions() -> ExecutionCollection:
         from machinable.execution import Execution
 
         return Execution
 
-    @belongs_to(cached=False)
+    @belongs_to(key="execution_history", cached=False)
     def execution() -> "Execution":
         from machinable.execution import Execution
 
@@ -84,7 +104,7 @@ class Component(Interface):
             if writes_meta_data:
                 self.execution.mark_started()
                 self.save_file(
-                    "env.json",
+                    "host.json",
                     data=Project.get().provider().get_host_info(),
                 )
 
@@ -122,6 +142,10 @@ class Component(Interface):
             raise errors.ComponentException(
                 f"{self.__class__.__name__} dispatch failed"
             ) from _ex
+
+    @property
+    def host_info(self) -> Optional[Dict]:
+        return self.load_file("host.json", None)
 
     def cached(self) -> bool:
         if self.execution is None:
@@ -224,7 +248,3 @@ class Component(Interface):
         self.push_related("group", group)
 
         return self
-
-    @belongs_to
-    def group():
-        return Group

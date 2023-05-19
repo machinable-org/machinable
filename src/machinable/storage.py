@@ -91,6 +91,7 @@ class Storage(Element):
 
             for remote in self.remotes:
                 remote.commit(interface)
+
             return True
 
         return False

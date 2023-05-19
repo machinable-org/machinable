@@ -295,7 +295,7 @@ class Element(Mixin, Jsonable):
         if version is sentinel:
             return self.__model__.version
 
-        if self.mounted():
+        if hasattr(self, "is_mounted") and self.is_mounted():
             raise MachinableError(
                 f"Cannot change version of mounted element {self}"
             )
@@ -625,15 +625,15 @@ class Element(Mixin, Jsonable):
         self._config = None
         self.__model__.config = None
 
-    # def __getattr__(self, name) -> Any:
-    #     attr = getattr(self.__mixin__, name, None)
-    #     if attr is not None:
-    #         return attr
-    #     raise AttributeError(
-    #         "{!r} object has no attribute {!r}".format(
-    #             self.__class__.__name__, name
-    #         )
-    #     )
+    def __getattr__(self, name) -> Any:
+        attr = getattr(self.__mixin__, name, None)
+        if attr is not None:
+            return attr
+        raise AttributeError(
+            "{!r} object has no attribute {!r}".format(
+                self.__class__.__name__, name
+            )
+        )
 
     def __enter__(self) -> Self:
         _CONNECTIONS[self.kind].append(self)

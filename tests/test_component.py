@@ -14,7 +14,7 @@ from machinable import (
 from machinable.element import Element
 
 
-def test_component(tmp_storage, tmp_path):
+def test_component(tmp_storage):
     p = Project("./tests/samples/project").__enter__()
     component = Component.make("dummy")
     assert component.module == "dummy"
@@ -36,54 +36,10 @@ def test_component(tmp_storage, tmp_path):
     serialized = component.serialize()
     assert serialized["config"]["a"] == 1
 
-    # storage
-    storage = Storage.make(
-        "machinable.storage.filesystem",
-        {"directory": str(tmp_path)},
-    )
-
-    execution = schema.Execution()
-    model = storage.create_component(
-        component=schema.Component(config={"test": True}),
-        group=schema.Group(pattern="", path=""),
-        project=schema.Project(directory=".", name="test"),
-        uses=[],
-    )
-
-    component = Component.from_model(model)
-
-    assert component.config.test is True
-    assert component.id == model.id
-    assert component.local_directory().startswith(str(tmp_path))
-    assert os.path.isdir(
-        component.local_directory("non-existing/dir", create=True)
-    )
-
-    # output
-    assert component.output() is None
-    component.save_file("output.log", "test")
-    assert component.output() == "test"
-
-    assert component.output(incremental=True) == "test"
-    component.save_file("output.log", "testt")
-    assert component.output(incremental=True) == "t"
-    assert component.output(incremental=True) == ""
-    component.save_file("output.log", "testt more")
-    assert component.output(incremental=True) == " more"
-
-    component.mark_started()
-    assert component.is_started()
-    component.update_heartbeat()
-    assert component.is_active()
-    component.update_heartbeat(mark_finished=True)
-    assert component.execution.is_finished()
-    with pytest.raises(errors.ConfigurationError):
-        component._assert_editable()
-    assert not component.is_incomplete()
-
     # write protection
+    component = Component.make("dummy").commit()
     assert component.version() == []
-    with pytest.raises(errors.ConfigurationError):
+    with pytest.raises(errors.MachinableError):
         component.version(["modify"])
 
     p.__exit__()
@@ -106,11 +62,11 @@ def test_component_launch(tmp_storage):
 
     with Execution():
         e1 = Component().launch()
-        assert not e1.is_started()
+        assert e1.execution is None
         e2 = Component().launch()
-        assert not e2.is_started()
-    assert e1.is_finished()
-    assert e2.is_finished()
+        assert e2.execution is None
+    assert e1.execution.is_finished()
+    assert e2.execution.is_finished()
 
     class Example(Component):
         def __call__(self):
@@ -120,17 +76,17 @@ def test_component_launch(tmp_storage):
 
 
 def test_component_relations(tmp_storage):
-    with Project("./tests/samples/project", name="test-project"):
+    with Project("./tests/samples/project"):
         component = Component.instance("basic").group_as("test/group")
         execution = Execution().add(component)
         execution.dispatch()
 
-        assert component.project.name() == "test-project"
+        assert component.project.name() == "project"
         assert component.execution.timestamp == execution.timestamp
         assert component.executions[0].timestamp == execution.timestamp
         assert len(component.uses) == 0
 
-        with pytest.raises(errors.ConfigurationError):
+        with pytest.raises(errors.MachinableError):
             component.version("attempt_overwrite")
 
         derived = Component(derived_from=component)
@@ -139,9 +95,13 @@ def test_component_relations(tmp_storage):
 
         # invalidate cache and reconstruct
         component.__related__ = {}
+        component._relation_cache = {}
         execution.__related__ = {}
+        execution._relation_cache = {}
         derived.__related__ = {}
+        derived._relation_cache = {}
         derived_execution.__related__ = {}
+        derived_execution._relation_cache = {}
 
         assert derived.ancestor.id == component.id
         assert derived.ancestor.hello() == "there"
@@ -228,3 +188,20 @@ def test_component_predicates(tmp_storage):
     assert e == e3
 
     p.__exit__()
+
+
+def test_component_interactive_session(tmp_storage):
+    class T(Component):
+        def is_valid(self):
+            return True
+
+    t = get(T)
+    assert t.module == "__session__T"
+    assert t.__model__._dump is not None
+
+    # default launch
+    t.launch()
+    # serialization
+    exec(t.dispatch_code(inline=False) + "\nassert component__.is_valid()")
+    # retrieval
+    assert t == get(T)

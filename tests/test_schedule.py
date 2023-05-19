@@ -20,6 +20,6 @@ def test_schedule(tmp_storage):
         # execution supports schedule
         with Supported(schedule=["scheduled"]) as execution:
             component = Component().launch()
-            assert not component.is_finished()
-        assert component.is_finished()
+            assert component.execution is None
+        assert component.execution.is_finished()
         assert execution.schedule.test()

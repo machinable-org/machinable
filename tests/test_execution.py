@@ -27,6 +27,27 @@ def test_execution(tmp_storage):
 
         assert execution.host_info["python_version"].startswith("3")
 
+        # output
+        execution = Execution().commit()
+        assert execution.output() is None
+        execution.save_file("output.log", "test")
+        assert execution.output() == "test"
+
+        assert execution.output(incremental=True) == "test"
+        execution.save_file("output.log", "testt")
+        assert execution.output(incremental=True) == "t"
+        assert execution.output(incremental=True) == ""
+        execution.save_file("output.log", "testt more")
+        assert execution.output(incremental=True) == " more"
+
+        execution.mark_started()
+        assert execution.is_started()
+        execution.update_heartbeat()
+        assert execution.is_active()
+        execution.update_heartbeat(mark_finished=True)
+        assert execution.is_finished()
+        assert not execution.is_incomplete()
+
 
 def test_execution_dispatch(tmp_storage):
     # prevent execution from component

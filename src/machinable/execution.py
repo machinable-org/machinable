@@ -84,7 +84,7 @@ class Execution(Interface):
     def schedule() -> "Schedule":
         return Schedule
 
-    @has_many
+    @has_many(key="execution_history")
     def executables() -> ComponentCollection:
         return Component
 
@@ -230,10 +230,6 @@ class Execution(Interface):
         return self.load_file("host.json", None)
 
     @property
-    def env_info(self) -> Optional[Dict]:
-        return self.load_file("env.json", None)
-
-    @property
     def nickname(self) -> str:
         return self.__model__.nickname
 
@@ -291,7 +287,7 @@ class Execution(Interface):
             read_length = self._cache.get("output_read_length", 0)
             if read_length == -1:
                 return ""
-            output = load_file(self.local_directory("output.log"), None)
+            output = self.load_file("output.log", None)
             if output is None:
                 return None
 
@@ -304,7 +300,7 @@ class Execution(Interface):
         if "output" in self._cache:
             return self._cache["output"]
 
-        output = load_file(self.local_directory("output.log"), None)
+        output = self.load_file("output.log", None)
 
         if self.is_finished():
             self._cache["output"] = output

@@ -1,9 +1,14 @@
 import os
 
-from machinable import Interface, Project, get
+from machinable import Interface, Project, Schedule, get
 from machinable.collection import ComponentCollection
 from machinable.interface import belongs_to, belongs_to_many, has_many, has_one
 from machinable.utils import load_file
+
+
+def test_interface_get():
+    assert isinstance(get(), Interface)
+    assert isinstance(get("machinable.schedule"), Schedule)
 
 
 def test_interface_to_directory(tmp_path):
@@ -27,34 +32,37 @@ def test_interface_from_directory(tmp_path):
     assert Interface.from_directory(str(tmp_path / "test")).uuid == i.uuid
 
 
+class C(Interface):
+    @belongs_to(cached=False)
+    def one_b():
+        return B
+
+    @belongs_to_many(key="test")
+    def many_a():
+        return A
+
+
+class B(Interface):
+    @belongs_to
+    def one_a():
+        return A
+
+    @has_one
+    def one_c():
+        return C
+
+
+class A(Interface):
+    @has_many(collection=ComponentCollection)
+    def many_b():
+        return B
+
+    @has_many(key="test")
+    def many_c():
+        return C
+
+
 def test_interface_relations(tmp_storage):
-    class C(Interface):
-        @belongs_to(cached=False)
-        def one_b():
-            return B
-
-        @belongs_to_many(key="test")
-        def many_a():
-            return A
-
-    class B(Interface):
-        @belongs_to
-        def one_a():
-            return A
-
-        @has_one
-        def one_c():
-            return C
-
-    class A(Interface):
-        @has_many(collection=ComponentCollection)
-        def many_b():
-            return B
-
-        @has_many(key="test")
-        def many_c():
-            return C
-
     a1, a2 = A(), A()
     b1, b2 = B(), B()
     c = C()
@@ -63,7 +71,8 @@ def test_interface_relations(tmp_storage):
     assert len(a1.many_b) == 0
 
     # has many
-    a2.__related__["many_b"] = [b1, b2]
+    a2.push_related("many_b", b1)
+    a2.push_related("many_b", b2)
     a2.commit()
     assert len(a2.many_b) == 2
     assert isinstance(a2.many_b, ComponentCollection)
@@ -77,7 +86,7 @@ def test_interface_relations(tmp_storage):
     assert b2.one_a == a2
 
     # has one
-    c.__related__["one_b"] = b1
+    c.push_related("one_b", b1)
     c.commit()
     assert c.one_b == b1
     assert c.one_b.one_a == a2
@@ -85,16 +94,18 @@ def test_interface_relations(tmp_storage):
 
     # many to many
     c1, c2 = C(), C()
-    c1.__related__["many_a"] = [a1, a2]
+    c1.push_related("many_a", a1)
+    c1.push_related("many_a", a2)
     c1.commit()
-    c2.__related__["many_a"] = [a1, a2]
+    c2.push_related("many_a", a1)
+    c2.push_related("many_a", a2)
     c2.commit()
     c1._relation_cached = {}
     c2._relation_cached = {}
     assert len(c1.many_a) == 2
     assert len(c2.many_a) == 2
     a1._relation_cached = {}
-    assert set([v.uuid for v in a1.many_c]) == set([c1.uuid, c2.uuid])
+    assert {v.uuid for v in a1.many_c} == {c1.uuid, c2.uuid}
 
 
 def test_interface_commit(tmp_storage):
@@ -112,20 +123,3 @@ def tes_interface_save_file(tmp_storage):
     uncommitted = Interface()
     uncommitted.save_file("test", "deferred")
     assert uncommitted.load_data("test") == "deferred"
-
-
-def test_element_interactive_session(tmp_storage):
-    class T(Interface):
-        def is_valid(self):
-            return True
-
-    t = get(T)
-    assert t.module == "__session__T"
-    assert t.__model__._dump is not None
-
-    # default launch
-    t.launch()
-    # serialization
-    exec(t.dispatch_code(inline=False) + "\nassert component__.is_valid()")
-    # retrieval
-    assert t.id == get(T).id

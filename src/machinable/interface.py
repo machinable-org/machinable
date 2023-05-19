@@ -188,6 +188,11 @@ class Interface(Element):
     def commit(self) -> Self:
         Storage.get().commit(self)
 
+        # write deferred files
+        for filepath, data in self._deferred_data.items():
+            self.save_file(filepath, data)
+        self._deferred_data = {}
+
         return self
 
     @belongs_to
@@ -308,7 +313,7 @@ class Interface(Element):
 
         return cls.collect(
             [
-                cls.from_model(interface)
+                cls.find(interface.uuid)
                 for interface in Storage.get().index.find_by_predicate(
                     module
                     if isinstance(module, str)
@@ -332,11 +337,17 @@ class Interface(Element):
             # TODO: users should have an option to register custom interface types
             raise ValueError(f"Invalid interface kind: {model['kind']}")
 
-        return cls.from_model(model(**data))
+        interface = model(**data)
+        if interface.module.startswith("__session__"):
+            interface._dump = load_file(os.path.join(directory, "dump.p"), None)
+
+        return cls.from_model(interface)
 
     def to_directory(self, directory: str, relations=True) -> Self:
         save_file(os.path.join(directory, ".machinable"), self.__model__.uuid)
         save_file(os.path.join(directory, "model.json"), self.__model__)
+        if self.__model__._dump is not None:
+            save_file(os.path.join(directory, "dump.p"), self.__model__._dump)
         if relations:
             for k, v in self.__related__.items():
                 if hasattr(v, "uuid"):

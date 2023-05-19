@@ -68,6 +68,7 @@ def load(database: str, create=False) -> sqlite3.Connection:
     if database.startswith("sqlite:///"):
         database = database[10:]
     if ":memory:" not in database:
+        database = os.path.expanduser(database)
         if not os.path.isfile(database):
             if not create:
                 raise FileNotFoundError(

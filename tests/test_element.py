@@ -5,7 +5,7 @@ from uuid import uuid4
 
 import pydantic
 import pytest
-from machinable import Element, Execution, Project, Storage, get
+from machinable import Element, Project
 from machinable.config import Field, RequiredField
 from machinable.element import (
     compact,
@@ -21,11 +21,6 @@ from machinable.element import (
 from machinable.errors import ConfigurationError
 from machinable.utils import Connectable
 from omegaconf import OmegaConf
-
-
-def test_element_get():
-    assert isinstance(get(), Element)
-    assert isinstance(get("machinable.storage"), Storage)
 
 
 def test_element_defaults():
@@ -66,10 +61,16 @@ def test_element_instantiation():
 def test_element_lineage():
     with Project("./tests/samples/project") as project:
         element = Element.instance("basic")
-        assert element.lineage == ("machinable.element",)
+        assert element.lineage == (
+            "machinable.component",
+            "machinable.interface",
+            "machinable.element",
+        )
         element = Element.instance("line")
         assert element.lineage == (
             "dummy",
+            "machinable.component",
+            "machinable.interface",
             "machinable.element",
         )
 

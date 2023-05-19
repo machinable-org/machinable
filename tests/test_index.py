@@ -9,7 +9,7 @@ def _is_migrated(db):
 
 
 def _matches(q, v):
-    return set([v.uuid for v in q]) == set([v.uuid for v in v])
+    return {v.uuid for v in q} == {v.uuid for v in v}
 
 
 def test_index_migrate():
