@@ -207,7 +207,7 @@ class Index(Element):
         cur = self.db.cursor()
         if not inverse:
             rows = cur.execute(
-                """SELECT * FROM 'index' WHERE uuid IN 
+                """SELECT * FROM 'index' WHERE uuid IN
                     (
                     SELECT related_uuid FROM relations WHERE uuid=? AND relation=?
                     )
@@ -216,7 +216,7 @@ class Index(Element):
             ).fetchall()
         else:
             rows = cur.execute(
-                """SELECT * FROM 'index' WHERE uuid IN 
+                """SELECT * FROM 'index' WHERE uuid IN
                     (
                     SELECT uuid FROM relations WHERE related_uuid=? AND relation=?
                     )
