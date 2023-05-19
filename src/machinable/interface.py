@@ -23,11 +23,9 @@ from machinable.element import (
     get_lineage,
     resolve_custom_predicate,
 )
-from machinable.index import Index
 from machinable.settings import get_settings
-from machinable.storage import Storage
 from machinable.types import VersionType
-from machinable.utils import load_file, save_file
+from machinable.utils import is_directory_version, load_file, save_file
 from omegaconf import OmegaConf
 
 
@@ -77,6 +75,8 @@ class Relation:
             not instance._relation_cache.get(self.fn.__name__, None)
             and instance.is_mounted()
         ):
+            from machinable.storage import Storage
+
             storage = Storage.get()
             if storage.index is None:
                 return None
@@ -145,7 +145,10 @@ belongs_to_many = _relation(BelongsToMany)
 class Interface(Element):
     kind = "Interface"
     default = get_settings().default_interface
-    __relations__: Dict[str, Relation] = {}  # relationship information
+    # class level relationship information
+    # note that the actual data is kept
+    # in the __related__ object propery
+    __relations__: Dict[str, Relation] = {}
 
     def __init__(
         self,
@@ -186,6 +189,8 @@ class Interface(Element):
         self._relation_cache[key] = True
 
     def commit(self) -> Self:
+        from machinable.storage import Storage
+
         Storage.get().commit(self)
 
         # write deferred files
@@ -250,6 +255,12 @@ class Interface(Element):
         predicate: Optional[str] = get_settings().default_predicate,
         **kwargs,
     ) -> "Collection":
+        if module in [
+            "machinable.storage",
+            "machinable.project",
+        ] and is_directory_version(version):
+            # interpret as shortcut for directory
+            version = {"directory": version}
         candidates = cls.find_by_predicate(
             module,
             version,
@@ -365,6 +376,8 @@ class Interface(Element):
     def local_directory(
         self, *append: str, create: bool = False
     ) -> Optional[str]:
+        from machinable.storage import Storage
+
         return Storage.get().local_directory(self.uuid, *append, create=create)
 
     def load_file(self, filepath: str, default=None) -> Optional[Any]:

@@ -6,8 +6,9 @@ from dataclasses import dataclass
 
 from machinable import schema
 from machinable.config import Field
-from machinable.element import Element, extract, get_lineage
+from machinable.element import extract, get_lineage
 from machinable.index import Index
+from machinable.interface import Interface
 from machinable.settings import get_settings
 from machinable.types import ElementType, VersionType
 
@@ -15,14 +16,14 @@ if TYPE_CHECKING:
     from machinable.interface import Interface
 
 
-class Storage(Element):
+class Storage(Interface):
     kind = "Storage"
     default = get_settings().default_storage
 
     @dataclass
     class Config:
         directory: str = "./storage"
-        remotes: Optional[List[ElementType]] = None
+        remotes: Union[None, ElementType, List[ElementType]] = None
         index: Optional[ElementType] = Field(
             default_factory=lambda: get_settings().default_index
         )
@@ -53,9 +54,14 @@ class Storage(Element):
     @property
     def remotes(self):
         if self._remotes is None:
-            self._remotes = [
-                Storage.make(*spec) for spec in self.config.remotes or []
-            ]
+            if self.config.remotes is None or len(self.config.remotes) == 0:
+                self._remotes = []
+            else:
+                remotes = self.config.remotes
+                if isinstance(remotes[0], str):
+                    remotes = [remotes]
+
+                self._remotes = [Storage.make(*spec) for spec in remotes]
 
         return self._remotes
 

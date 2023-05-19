@@ -23,6 +23,7 @@ from machinable.utils import (
     get_diff,
     get_root_commit,
     import_from_directory,
+    is_directory_version,
 )
 
 if TYPE_CHECKING:
@@ -177,7 +178,7 @@ class Project(Interface):
         self,
         version: VersionType = None,
     ):
-        if isinstance(version, str) and not version.startswith("~"):
+        if is_directory_version(version):
             # interpret as shortcut for directory
             version = {"directory": version}
         super().__init__(version=version)

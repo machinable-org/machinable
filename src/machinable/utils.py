@@ -38,9 +38,8 @@ from omegaconf.omegaconf import OmegaConf
 sentinel = object()
 
 import json
-import threading
 
-from machinable.types import DatetimeType
+from machinable.types import DatetimeType, VersionType
 from pydantic import BaseModel
 
 
@@ -89,7 +88,18 @@ def is_valid_module_path(name):
     return all(map(is_valid_variable_name, name.split(".")))
 
 
-def random_str(length, random_state=None):
+def is_directory_version(version: VersionType) -> bool:
+    if not isinstance(version, str):
+        return False
+    if not version.startswith("~"):
+        return True
+    if "/" in version or "\\" in version or version == "~":
+        return True
+
+    return False
+
+
+def random_str(length: int, random_state=None):
     if random_state is None or isinstance(random_state, int):
         random_state = random.Random(random_state)
 

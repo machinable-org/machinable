@@ -164,3 +164,23 @@ def test_resolve_at_alias():
     assert utils.resolve_at_alias("@") == "_machinable"
     assert utils.resolve_at_alias("@test") == "_machinable.test"
     assert utils.resolve_at_alias("@test", "foo") == "_machinable.foo.test"
+
+
+def test_directory_version():
+    for case in [
+        None,
+        {"directory": "yes"},
+        "~version",
+    ]:
+        assert utils.is_directory_version(case) is False
+    for case in [
+        "~",
+        ".",
+        "./",
+        "./version",
+        "test",
+        "test.me",
+        "/path/to/version",
+        "../test",
+    ]:
+        assert utils.is_directory_version(case) is True
