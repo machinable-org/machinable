@@ -88,6 +88,10 @@ class Execution(Interface):
     def executables() -> ComponentCollection:
         return Component
 
+    @property
+    def pending_executables(self) -> ComponentCollection:
+        return self.executables.filter(lambda e: not e.cached())
+
     def add(
         self,
         executable: Union[Component, List[Component]],
@@ -171,7 +175,7 @@ class Execution(Interface):
         if not self.executables:
             return self
 
-        if all(self.executables.map(lambda x: x.cached())):
+        if len(self.pending_executables) == 0:
             return self
 
         if self.on_before_dispatch() is False:
@@ -186,7 +190,7 @@ class Execution(Interface):
 
         try:
             # compute resources
-            for executable in self.executables.filter(lambda e: not e.cached()):
+            for executable in self.pending_executables:
                 self.save_file(
                     f"resources-{executable.id}.json",
                     self.compute_resources(executable),
@@ -203,7 +207,7 @@ class Execution(Interface):
         return self
 
     def __call__(self) -> None:
-        for executable in self.executables:
+        for executable in self.pending_executables:
             executable.dispatch()
 
     def on_verify_schedule(self) -> bool:
