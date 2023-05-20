@@ -29,7 +29,7 @@ def test_component_collection(tmp_storage):
         assert isinstance(collection, ComponentCollection)
 
         collection.launch()
-        assert all(collection.map(lambda x: x.execution.is_finished()))
+        assert all(collection.map(lambda x: x.is_finished()))
 
         assert len(collection.status("finished")) == 5
         assert len(collection.status("active")) == 0

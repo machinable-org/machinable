@@ -11,8 +11,8 @@ def test_end_to_end_execution(tmp_storage):
         except errors.ExecutionFailed:
             pass
 
-        assert component.execution.is_started()
-        assert not component.execution.is_finished()
+        assert component.is_started()
+        assert not component.is_finished()
 
         # resume
         try:
@@ -21,4 +21,4 @@ def test_end_to_end_execution(tmp_storage):
             pass
 
         component.launch()
-        assert component.execution.is_finished()
+        assert component.is_finished()

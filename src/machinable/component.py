@@ -4,6 +4,7 @@ import random
 import sys
 import threading
 
+import arrow
 from machinable.group import Group
 from machinable.settings import get_settings
 
@@ -20,7 +21,8 @@ from machinable.element import Element, get_dump, get_lineage
 from machinable.interface import Interface, belongs_to, belongs_to_many
 from machinable.project import Project
 from machinable.storage import Storage
-from machinable.types import VersionType
+from machinable.types import DatetimeType, TimestampType, VersionType
+from machinable.utils import load_file, save_file
 
 if TYPE_CHECKING:
     from machinable.execution import Execution
@@ -97,12 +99,10 @@ class Component(Interface):
 
             # meta-data
             writes_meta_data = (
-                self.on_write_meta_data() is not False
-                and self.is_mounted()
-                and self.execution is not None
+                self.on_write_meta_data() is not False and self.is_mounted()
             )
             if writes_meta_data:
-                self.execution.mark_started()
+                self.mark_started()
                 self.save_file(
                     "host.json",
                     data=Project.get().provider().get_host_info(),
@@ -113,12 +113,8 @@ class Component(Interface):
                 t.daemon = True
                 t.start()
                 self.on_heartbeat()
-                if (
-                    self.on_write_meta_data() is not False
-                    and self.is_mounted()
-                    and self.execution is not None
-                ):
-                    self.execution.update_heartbeat()
+                if self.on_write_meta_data() is not False and self.is_mounted():
+                    self.update_heartbeat()
                 return t
 
             heartbeat = beat()
@@ -129,7 +125,7 @@ class Component(Interface):
             self.on_finish(success=True)
 
             if writes_meta_data:
-                self.execution.update_heartbeat(mark_finished=True)
+                self.update_heartbeat(mark_finished=True)
 
             if heartbeat is not None:
                 heartbeat.cancel()
@@ -148,9 +144,7 @@ class Component(Interface):
         return self.load_file("host.json", None)
 
     def cached(self) -> bool:
-        if self.execution is None:
-            return False
-        return self.execution.is_finished()
+        return self.is_finished()
 
     def derive(
         self,
@@ -182,6 +176,147 @@ class Component(Interface):
             return f'{sys.executable} -c "{code}"'
 
         return code.replace("        ", "")[1:-1]
+
+    def mark_started(
+        self, timestamp: Optional[TimestampType] = None
+    ) -> Optional[DatetimeType]:
+        if self.is_finished():
+            return None
+
+        if timestamp is None:
+            timestamp = arrow.now()
+        if isinstance(timestamp, arrow.Arrow):
+            timestamp = arrow.get(timestamp)
+
+        save_file(
+            self.local_directory("started_at"),
+            str(timestamp) + "\n",
+            # starting event can occur multiple times
+            mode="a",
+        )
+
+        return timestamp
+
+    def update_heartbeat(
+        self,
+        timestamp: Union[float, int, DatetimeType, None] = None,
+        mark_finished=False,
+    ) -> Optional[DatetimeType]:
+        if self.is_finished():
+            return None
+        if timestamp is None:
+            timestamp = arrow.now()
+
+        if isinstance(timestamp, arrow.Arrow):
+            timestamp = arrow.get(timestamp)
+
+        save_file(
+            self.local_directory("heartbeat_at"),
+            str(timestamp),
+            mode="w",
+        )
+        if mark_finished:
+            save_file(
+                self.local_directory("finished_at"),
+                str(timestamp),
+            )
+
+        return timestamp
+
+    def output(self, incremental: bool = False) -> Optional[str]:
+        """Returns the output log"""
+        if not self.is_mounted():
+            return None
+        if incremental:
+            read_length = self._cache.get("output_read_length", 0)
+            if read_length == -1:
+                return ""
+            output = self.load_file("output.log", None)
+            if output is None:
+                return None
+
+            if self.is_finished():
+                self._cache["output_read_length"] = -1
+            else:
+                self._cache["output_read_length"] = len(output)
+            return output[read_length:]
+
+        if "output" in self._cache:
+            return self._cache["output"]
+
+        output = self.load_file("output.log", None)
+
+        if self.is_finished():
+            self._cache["output"] = output
+
+        return output
+
+    def created_at(self) -> Optional[DatetimeType]:
+        if self.timestamp is None:
+            return None
+
+        return arrow.get(self.timestamp)
+
+    def started_at(self) -> Optional[DatetimeType]:
+        """Returns the starting time"""
+        if not self.is_mounted():
+            return None
+        return self._retrieve_status("started")
+
+    def heartbeat_at(self):
+        """Returns the last heartbeat time"""
+        if not self.is_mounted():
+            return None
+        return self._retrieve_status("heartbeat")
+
+    def finished_at(self):
+        """Returns the finishing time"""
+        if not self.is_mounted():
+            return None
+        return self._retrieve_status("finished")
+
+    def _retrieve_status(self, field: str) -> Optional[DatetimeType]:
+        fields = ["started", "heartbeat", "finished"]
+        if field not in fields:
+            raise ValueError(f"Invalid field: {field}. Must be on of {fields}")
+        status = load_file(self.local_directory(f"{field}_at"), default=None)
+        if status is None:
+            return None
+        if field == "started":
+            # can have multiple rows, return latest
+            status = status.strip("\n").split("\n")[-1]
+
+        try:
+            return arrow.get(status)
+        except arrow.ParserError:
+            return None
+
+    def is_finished(self):
+        """True if finishing time has been written"""
+        return bool(self.finished_at())
+
+    def is_started(self):
+        """True if starting time has been written"""
+        return bool(self.started_at())
+
+    def is_active(self):
+        """True if not finished and last heartbeat occurred less than 30 seconds ago"""
+        if not self.heartbeat_at():
+            return False
+
+        return (not self.is_finished()) and (
+            (arrow.now() - self.heartbeat_at()).seconds < 30
+        )
+
+    def is_live(self):
+        """True if active or finished"""
+        return self.is_finished() or self.is_active()
+
+    def is_incomplete(self):
+        """Shorthand for is_started() and not (is_active() or is_finished())"""
+        return self.is_started() and not (
+            self.is_active() or self.is_finished()
+        )
 
     # life cycle
 

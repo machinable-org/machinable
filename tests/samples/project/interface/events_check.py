@@ -16,17 +16,17 @@ class EventsCheck(Component):
         return False
 
     def on_success(self):
-        assert self.execution.is_started()
+        assert self.is_started()
         self.events.append("on_success")
 
     def __call__(self) -> None:
-        assert self.execution.is_active()
+        assert self.is_active()
         self.events.append("on_call")
 
     def on_after_dispatch(self, success):
         self.events.append("on_after_dispatch")
         self.save_file("events.json", self.events)
-        assert self.execution.is_finished()
+        assert self.is_finished()
 
     def on_failure(self, exception: errors.MachinableError):
         assert False

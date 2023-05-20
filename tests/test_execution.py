@@ -27,27 +27,6 @@ def test_execution(tmp_storage):
 
         assert execution.host_info["python_version"].startswith("3")
 
-        # output
-        execution = Execution().commit()
-        assert execution.output() is None
-        execution.save_file("output.log", "test")
-        assert execution.output() == "test"
-
-        assert execution.output(incremental=True) == "test"
-        execution.save_file("output.log", "testt")
-        assert execution.output(incremental=True) == "t"
-        assert execution.output(incremental=True) == ""
-        execution.save_file("output.log", "testt more")
-        assert execution.output(incremental=True) == " more"
-
-        execution.mark_started()
-        assert execution.is_started()
-        execution.update_heartbeat()
-        assert execution.is_active()
-        execution.update_heartbeat(mark_finished=True)
-        assert execution.is_finished()
-        assert not execution.is_incomplete()
-
 
 def test_execution_dispatch(tmp_storage):
     # prevent execution from component
@@ -90,8 +69,8 @@ def test_execution_context(tmp_storage):
         e2.launch()
         assert len(execution.executables) == 2
         assert e2.execution is None
-    assert e1.execution.is_finished()
-    assert e2.execution.is_finished()
+    assert e1.is_finished()
+    assert e2.is_finished()
 
     with Execution():
         e1 = Component()
@@ -100,8 +79,8 @@ def test_execution_context(tmp_storage):
         e2.launch()
         assert e1.execution is None
         assert e2.execution is None
-    assert e1.execution.is_finished()
-    assert e2.execution.is_finished()
+    assert e1.is_finished()
+    assert e2.is_finished()
     assert e1.execution.nickname == e2.execution.nickname
 
 

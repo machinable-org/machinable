@@ -140,3 +140,12 @@ class Storage(Interface):
             return
 
         shutil.copytree(local_directory, target_directory)
+
+    def update_status(self, interface: "Interface") -> None:
+        for remote in self.remotes:
+            remote.update_status(interface)
+
+        self.on_update_status(interface)
+
+    def on_update_status(self, interface: "Interface") -> None:
+        pass
