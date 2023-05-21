@@ -102,7 +102,7 @@ class Component(Interface):
                 self.on_write_meta_data() is not False and self.is_mounted()
             )
             if writes_meta_data:
-                self.mark_started()
+                Storage.get().update_status(self.uuid, "started")
                 self.save_file(
                     "host.json",
                     data=Project.get().provider().get_host_info(),
@@ -114,7 +114,7 @@ class Component(Interface):
                 t.start()
                 self.on_heartbeat()
                 if self.on_write_meta_data() is not False and self.is_mounted():
-                    self.update_heartbeat()
+                    Storage.get().update_status(self.uuid, "heartbeat")
                 return t
 
             heartbeat = beat()
@@ -125,7 +125,7 @@ class Component(Interface):
             self.on_finish(success=True)
 
             if writes_meta_data:
-                self.update_heartbeat(mark_finished=True)
+                Storage.get().update_status(self.uuid, "finished")
 
             if heartbeat is not None:
                 heartbeat.cancel()
@@ -176,52 +176,6 @@ class Component(Interface):
             return f'{sys.executable} -c "{code}"'
 
         return code.replace("        ", "")[1:-1]
-
-    def mark_started(
-        self, timestamp: Optional[TimestampType] = None
-    ) -> Optional[DatetimeType]:
-        if self.is_finished():
-            return None
-
-        if timestamp is None:
-            timestamp = arrow.now()
-        if isinstance(timestamp, arrow.Arrow):
-            timestamp = arrow.get(timestamp)
-
-        save_file(
-            self.local_directory("started_at"),
-            str(timestamp) + "\n",
-            # starting event can occur multiple times
-            mode="a",
-        )
-
-        return timestamp
-
-    def update_heartbeat(
-        self,
-        timestamp: Union[float, int, DatetimeType, None] = None,
-        mark_finished=False,
-    ) -> Optional[DatetimeType]:
-        if self.is_finished():
-            return None
-        if timestamp is None:
-            timestamp = arrow.now()
-
-        if isinstance(timestamp, arrow.Arrow):
-            timestamp = arrow.get(timestamp)
-
-        save_file(
-            self.local_directory("heartbeat_at"),
-            str(timestamp),
-            mode="w",
-        )
-        if mark_finished:
-            save_file(
-                self.local_directory("finished_at"),
-                str(timestamp),
-            )
-
-        return timestamp
 
     def output(self, incremental: bool = False) -> Optional[str]:
         """Returns the output log"""

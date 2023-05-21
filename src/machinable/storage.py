@@ -4,13 +4,15 @@ import os
 import shutil
 from dataclasses import dataclass
 
+import arrow
 from machinable import schema
 from machinable.config import Field
 from machinable.element import extract, get_lineage
 from machinable.index import Index
 from machinable.interface import Interface
 from machinable.settings import get_settings
-from machinable.types import ElementType, VersionType
+from machinable.types import ElementType, TimestampType, VersionType
+from machinable.utils import save_file
 
 if TYPE_CHECKING:
     from machinable.interface import Interface
@@ -106,20 +108,23 @@ class Storage(Interface):
         directory = self.local_directory(interface.uuid)
         interface.to_directory(directory)
 
+    def contains(self, uuid: str) -> bool:
+        return os.path.exists(self.local_directory(uuid))
+
     def retrieve(
         self, uuid: str, target_directory: Optional[str] = None
     ) -> bool:
-        local_directory = self.local_directory(uuid)
         if target_directory is None:
-            target_directory = local_directory
+            target_directory = self.local_directory(uuid)
 
-        if not os.path.exists(local_directory):
+        if not self.contains(uuid):
+            # try to retrieve from remotes
             available = False
             for remote in self.remotes:
                 if (
                     remote.index
                     and remote.index.find(uuid)
-                    and remote.retrieve(uuid, local_directory)
+                    and remote.retrieve(uuid, target_directory)
                 ):
                     available = True
                     break
@@ -141,11 +146,49 @@ class Storage(Interface):
 
         shutil.copytree(local_directory, target_directory)
 
-    def update_status(self, interface: "Interface") -> None:
+    def update_status(
+        self,
+        uuid: str,
+        status: str = "started",
+        timestamp: Optional[TimestampType] = None,
+    ) -> None:
         for remote in self.remotes:
-            remote.update_status(interface)
+            remote.update_status(uuid, status, timestamp)
 
-        self.on_update_status(interface)
+        if timestamp is None:
+            timestamp = arrow.now()
+        if isinstance(timestamp, arrow.Arrow):
+            timestamp = arrow.get(timestamp)
 
-    def on_update_status(self, interface: "Interface") -> None:
-        pass
+        if status == "started":
+            self.on_mark_started(uuid, timestamp)
+        elif status == "heartbeat":
+            self.on_mark_heartbeat(uuid, timestamp)
+        elif status == "finished":
+            self.on_mark_finished(uuid, timestamp)
+        else:
+            raise ValueError(
+                f"Invalid status {status}; must be one of 'started', 'heartbeat', 'finished'"
+            )
+
+    def on_mark_started(self, uuid: str, timestamp: TimestampType) -> None:
+        save_file(
+            self.local_directory(uuid, "started_at"),
+            str(timestamp) + "\n",
+            # starting event can occur multiple times
+            mode="a",
+        )
+
+    def on_mark_heartbeat(self, uuid: str, timestamp: TimestampType) -> None:
+        save_file(
+            self.local_directory(uuid, "heartbeat_at"),
+            str(timestamp),
+            mode="w",
+        )
+
+    def on_mark_finished(self, uuid: str, timestamp: TimestampType) -> None:
+        save_file(
+            self.local_directory(uuid, "finished_at"),
+            str(timestamp),
+            mode="w",
+        )

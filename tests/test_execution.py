@@ -129,3 +129,26 @@ def test_execution_resources():
         execution.resources({"a": 3})
         e2.launch()
     assert e2.resources["a"] == 3
+
+
+def test_interrupted_execution(tmp_storage):
+    with Project("./tests/samples/project"):
+        component = Component.make("interface.interrupted_lifecycle").group_as(
+            "a/b/c"
+        )
+        try:
+            component.launch()
+        except errors.ExecutionFailed:
+            pass
+
+        assert component.is_started()
+        assert not component.is_finished()
+
+        # resume
+        try:
+            component.launch()
+        except errors.ExecutionFailed:
+            pass
+
+        component.launch()
+        assert component.is_finished()
