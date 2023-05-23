@@ -104,4 +104,4 @@ E  time_diliation
 
 Early validation is a key design principle of the components; when implementing an component, we encourage you to perform checks as early as possible and separate them from your main code. Learn more about [early-validation techniques](../elements-in-depth/advanced-configuration.md#validation).
 
-Finally, it is good practice to design your code in a way that it can be resumed automatically if failures occur. For example, you may checkpoint and automatically reload intermediate results. Check out the [checkpointing example](../../examples/checkpointing.md) to see this in action.
+Finally, it is good practice to design your code in a way that it can be resumed automatically if failures occur. For example, you may checkpoint and automatically reload intermediate results. Check out the [checkpointing example](../../examples/checkpointing/index.md) to see this in action.

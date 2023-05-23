@@ -10,7 +10,46 @@ The key idea is to unify the running of code and the retrieval of produced resul
 
 ::: code-group
 
-<<< @/snippets/estimate_pi/montecarlo.py
+```python [montecarlo.py]
+from dataclasses import dataclass
+from random import random
+
+from machinable import Component
+
+
+class EstimatePi(Component):
+    @dataclass
+    class Config:
+        samples: int = 100
+
+    def __call__(self):
+        count = 0
+        for _ in range(self.config.samples):
+            x, y = random(), random()
+            count += int((x**2 + y**2) <= 1)
+        pi = 4 * count / self.config.samples
+
+        self.save_file(
+            "result.json",
+            {"count": count, "pi": pi},
+        )
+
+    def summary(self):
+        if self.is_finished():
+            print(
+                f"After {self.config.samples} samples, "
+                f"PI is approximately {self.load_file('result.json')['pi']}."
+            )
+```
+
+<!-- TEST
+
+```python
+from machinable import get
+get("montecarlo", {"samples": 150}).launch().summary()
+```
+
+-->
 
 :::
 
@@ -18,7 +57,20 @@ The key idea is to unify the running of code and the retrieval of produced resul
 
 ::: code-group
 
-<<< @/snippets/estimate_pi/interface.py [Python]
+```python [Python]
+from machinable import get
+
+# Imports component in `montecarlo.py` with samples=150;
+# if an component with this configuration exists, it
+# is automatically reloaded.
+component = get("montecarlo", {"samples": 150})
+
+# Executes the component unless it's already been computed
+component.launch()
+
+component.summary()
+# >>> After 150 samples, PI is approximately 3.1466666666666665.
+```
 
 ```python [Jupyter]
 >>> from machinable import get
@@ -77,7 +129,7 @@ The guide describes every aspect of the framework and available APIs in full det
 
 :::
 
-::: info :arrow_right: &nbsp; [Check out the How-to guides](../examples/overview.md)
+::: info :arrow_right: &nbsp; [Check out the How-to guides](../examples/index.md)
 
 Explore real-world examples that demonstrate advanced concepts
 

@@ -43,7 +43,28 @@ To implement an execution, create a module with a class that inherits from the <
 
 ::: code-group
 
-<<< @/snippets/examples/execution/multiprocess.py
+```python [multiprocess.py]
+from multiprocessing import Pool
+
+from machinable import Execution
+
+
+class Multiprocess(Execution):
+    class Config:
+        processes: int = 1
+
+    def __call__(self):
+        pool = Pool(processes=self.config.processes, maxtasksperchild=1)
+        try:
+            pool.imap_unordered(
+                lambda component: component(),
+                self.pending_executables,
+            )
+            pool.close()
+            pool.join()
+        finally:
+            pool.terminate()
+```
 
 :::
 
@@ -53,7 +74,7 @@ Like before, we can instantiate this execution using the module convention:
 ```python
 from machinable import get
 
-multiprocessing = get("multiprocess_execution", {'processes': 2})
+multiprocessing = get("multiprocess", {'processes': 2})
 ```
 
 Then, to use it, we can wrap the launch in the execution context:

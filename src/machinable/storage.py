@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, List, Optional, Union
+from typing import TYPE_CHECKING, List, Literal, Optional, Union
 
 import os
 import shutil
@@ -149,7 +149,7 @@ class Storage(Interface):
     def update_status(
         self,
         uuid: str,
-        status: str = "started",
+        status: Literal["started", "heartbeat", "finished"] = "heartbeat",
         timestamp: Optional[TimestampType] = None,
     ) -> None:
         for remote in self.remotes:

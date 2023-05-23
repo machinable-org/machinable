@@ -1,80 +1,106 @@
-import json
+from typing import Optional, Tuple
+
 import os
-import shutil
-import time
 
-import pytest
-
-try:
-    import mpi4py
-except ImportError:
-    mpi4py = None
-
-from machinable import Component, Execution, Project
+from machinable import Project
+from machinable.utils import import_from_directory
 
 
-def test_docs_snippets_estimate_pi(tmp_storage):
-    with Project("docs/snippets/estimate_pi"):
-        import docs.snippets.estimate_pi.interface
+def _parse_code_string(code_string: str) -> Tuple[Optional[str], Optional[str]]:
+    code_string = code_string[3:]
+    q = code_string.split("[")
+    if len(q) == 1:
+        return code_string.strip(), None
+    else:
+        language = q[0].strip()
+        filename = q[1].strip()[:-1]
+    return language, filename
 
 
-def test_docs_snippets_tutorial_main(tmp_storage):
-    with Project("docs/snippets/tutorial"):
-        import docs.snippets.tutorial.main
+def test_docs(tmp_storage, tmp_path):
+    wd = str(tmp_path / "snippets")
+    os.makedirs(wd)
 
+    # find all markdown files in docs
+    # and extract code blocks
+    for root, dirs, files in os.walk("docs"):
+        for file in files:
+            if not file.endswith(".md"):
+                continue
+            code_blocks = []
+            doc = os.path.join(root, file)
+            print(f"Parsing {doc}")
+            with open(doc) as f:
+                lines = f.readlines()
+                codeblock = None
+                in_code_block = False
+                in_code = False
+                is_test = False
+                for i, line in enumerate(lines):
+                    if line.startswith("::: code-group"):
+                        codeblock = {
+                            "fn": doc,
+                            "start": i + 1,
+                            "end": None,
+                            "code": [],
+                        }
+                        in_code_block = True
+                    elif line.startswith(":::") and in_code_block:
+                        codeblock["end"] = i + 1
+                        code_blocks.append(codeblock)
+                        in_code_block = False
+                    elif line.startswith("```") and in_code_block:
+                        if in_code:
+                            codeblock["code"][-1]["end"] = i + 1
+                            in_code = False
+                        else:
+                            lang, fn = _parse_code_string(line)
+                            if lang == "python":
+                                codeblock["code"].append(
+                                    {
+                                        "start": i + 1,
+                                        "end": None,
+                                        "filename": fn,
+                                        "content": "",
+                                        "is_test": is_test,
+                                    }
+                                )
+                                in_code = True
+                    elif in_code:
+                        codeblock["code"][-1]["content"] += line
+                    elif in_code_block and not in_code:
+                        if line.startswith("<!--") and "TEST" in line:
+                            is_test = True
+                        elif is_test and "-->" in line:
+                            is_test = False
+            for b, codeblock in enumerate(code_blocks):
+                if not any([q["is_test"] for q in codeblock["code"]]):
+                    continue
+                os.makedirs(os.path.join(wd, str(b)))
+                tests = []
+                for c, code in enumerate(codeblock["code"]):
+                    if code["filename"] and code["filename"].endswith(".py"):
+                        code["module"] = os.path.splitext(code["filename"])[0]
+                    else:
+                        if not code["is_test"]:
+                            raise RuntimeError(
+                                "Non-test code block without filename"
+                            )
+                        code["filename"] = f"test_{c+1}.py"
+                        code["module"] = f"test_{c+1}"
+                    with open(
+                        os.path.join(wd, str(b), code["filename"]), "w"
+                    ) as f:
+                        f.write(code["content"])
+                    tests.append(code)
 
-def test_docs_snippets_tutorial_main_unified(tmp_storage):
-    with Project("docs/snippets/tutorial"):
-        import docs.snippets.tutorial.main_unified
-
-
-# Examples/execution
-
-
-class ExternalComponent(Component):
-    def on_create(self):
-        print("Hello from MPI script")
-        self.save_file("test.txt", "hello")
-
-
-@pytest.mark.skipif(
-    not shutil.which("mpirun") or mpi4py is None,
-    reason="Test requires MPI environment",
-)
-def test_mpi_execution(tmp_storage):
-    with Project.instance("docs/snippets/examples"):
-        component = ExternalComponent()
-        with Execution.get("execution.mpi"):
-            component.launch()
-        assert component.is_finished()
-        assert component.load_file("test.txt") == "hello"
-
-
-class SlurmComponent(Component):
-    def __call__(self):
-        print("Hello world from Slurm")
-        self.save_file("test_run.json", {"success": True})
-
-
-@pytest.mark.skipif(
-    not shutil.which("sbatch")
-    or "MACHINABLE_SLURM_TEST_RESOURCES" not in os.environ,
-    reason="Test requires Slurm environment",
-)
-def test_slurm_execution(tmp_storage):
-    component = SlurmComponent()
-    with Project.instance("docs/snippets/examples"), Execution.get(
-        "execution.slurm",
-        resources=json.loads(
-            os.environ.get("MACHINABLE_SLURM_TEST_RESOURCES", "{}")
-        ),
-    ):
-        component.launch()
-        for _ in range(30):
-            if component.is_finished():
-                assert "Hello world from Slurm" in component.output()
-                assert component.load_file("test_run.json")["success"] is True
-                return
-
-            time.sleep(1)
-        assert False, "Timeout"
+                with Project(os.path.join(wd, str(b))):
+                    for test in tests:
+                        # prettyprint test dict
+                        print(f"Running {test['filename']}")
+                        print(f"{test['start']}-{test['end']}")
+                        import_from_directory(
+                            test["module"],
+                            os.path.join(wd, str(b)),
+                            or_fail=True,
+                        )
