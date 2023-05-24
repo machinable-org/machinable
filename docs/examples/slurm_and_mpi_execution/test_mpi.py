@@ -1,10 +1,13 @@
 import shutil
+
 import pytest
 from machinable import Component, Execution, Project
+
 try:
     import mpi4py
 except ImportError:
     mpi4py = None
+
 
 class ExternalComponent(Component):
     def on_create(self):

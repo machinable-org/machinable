@@ -81,6 +81,7 @@ class Storage(Interface):
         assert interface.predicate is not None
 
         # if newly created, commit to index and remotes
+        created = False
         if not self.index.find(interface.uuid):
             self.on_commit(interface)
             self.index.commit(interface.__model__)
@@ -96,13 +97,12 @@ class Storage(Interface):
                         self.index.create_relation(r.name, u, interface.uuid)
                     else:
                         self.index.create_relation(r.name, interface.uuid, u)
+            created = True
 
-            for remote in self.remotes:
-                remote.commit(interface)
+        for remote in self.remotes:
+            remote.commit(interface)
 
-            return True
-
-        return False
+        return created
 
     def on_commit(self, interface: "Interface") -> None:
         directory = self.local_directory(interface.uuid)

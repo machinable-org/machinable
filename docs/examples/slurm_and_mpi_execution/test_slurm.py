@@ -1,9 +1,9 @@
-
-import pytest
+import json
+import os
 import shutil
 import time
-import os
-import json
+
+import pytest
 from machinable import Component, Execution, Project
 
 
