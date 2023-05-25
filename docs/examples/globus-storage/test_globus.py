@@ -2,7 +2,7 @@ import json
 import os
 
 import pytest
-from machinable import Storage
+from machinable import Index, Storage
 
 try:
     import globus_sdk
@@ -15,20 +15,14 @@ except ImportError:
     reason="Test requires globus environment",
 )
 def test_globus_storage(tmp_path):
-    storage = Storage.instance(
+    Index(
+        {"directory": str(tmp_path), "database": str(tmp_path / "test.sqlite")}
+    ).__enter__()
+    storage = Storage.make(
         "globus",
-        [
-            {
-                "directory": str(tmp_path),
-                "index": [
-                    "machinable.index",
-                    {"database": str(tmp_path / "index.sqlite")},
-                ],
-            },
-            json.loads(os.environ.get("MACHINABLE_GLOBUS_TEST_CONFIG", "{}")),
-        ],
+        json.loads(os.environ.get("MACHINABLE_GLOBUS_TEST_CONFIG", "{}")),
     ).__enter__()
 
-    storage.contains()
+    print(storage.contains("test"))
 
     storage.__exit__()

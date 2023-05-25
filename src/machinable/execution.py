@@ -97,9 +97,7 @@ class Execution(Interface):
         # ensure that configuration is parsed
         self.executables.map(lambda x: x.config and x.predicate)
 
-        Storage.get().commit(self)
-
-        return self
+        return super().commit()
 
     def resources(self, resources: Dict = sentinel) -> Optional[Dict]:
         if resources is sentinel:

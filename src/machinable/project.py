@@ -308,12 +308,11 @@ class Project(Interface):
     def serialize(self) -> dict:
         return {
             "directory": self.config.directory,
-            "name": self.name,
         }
 
     @classmethod
     def unserialize(cls, serialized: dict) -> "Project":
-        return cls(**serialized)
+        return cls(serialized)
 
     def get_host_info(self) -> dict:
         """Returned dictionary will be recorded as host information"""

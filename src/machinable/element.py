@@ -324,6 +324,10 @@ class Element(Mixin, Jsonable):
         return self
 
     @classmethod
+    def connected(cls) -> List["Element"]:
+        return _CONNECTIONS[cls.kind]
+
+    @classmethod
     def get(
         cls,
         module: Union[str, "Element", None] = None,
@@ -677,3 +681,7 @@ def get_lineage(element: "Element") -> Tuple[str, ...]:
 def get_dump(element: "Element") -> Optional[bytes]:
     if element.__model__.module.startswith("__session__"):
         return pickle.dumps(element.__class__)
+
+
+def reset_connections() -> None:
+    _CONNECTIONS.clear()

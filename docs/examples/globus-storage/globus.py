@@ -5,6 +5,7 @@ from globus_sdk import (
     NativeAppAuthClient,
     RefreshTokenAuthorizer,
     TransferClient,
+    TransferData,
 )
 from globus_sdk.scopes import TransferScopes
 from globus_sdk.services.transfer.errors import TransferAPIError
@@ -15,7 +16,7 @@ from machinable.config import RequiredField
 
 class Globus(Storage):
     @dataclass
-    class Config(Storage.Config):
+    class Config:
         client_id: str = RequiredField
         local_endpoint_id: str = RequiredField
         local_endpoint_directory: str = RequiredField
@@ -50,7 +51,7 @@ class Globus(Storage):
             if not self.auth_file.file_exists():
                 # do a login flow, getting back initial tokens
                 self.auth_client.oauth2_start_flow(
-                    requested_scopes=TransferScopes.all,
+                    requested_scopes=f"{TransferScopes.all}[*https://auth.globus.org/scopes/{self.config.remote_endpoint_id}/data_access]",
                     refresh_tokens=True,
                 )
                 authorize_url = self.auth_client.oauth2_get_authorize_url()
@@ -82,19 +83,19 @@ class Globus(Storage):
             self._transfer_client = TransferClient(authorizer=self.authorizer)
         return self._transfer_client
 
-    def contains(self) -> bool:
+    def contains(self, uuid: str) -> bool:
         # check if folder exists on globus storage
         try:
             response = self.transfer_client.operation_ls(
                 self.config.remote_endpoint_id,
-                path=self.config.remote_endpoint_directory,
+                path=os.path.join(self.config.remote_endpoint_directory, uuid),
             )
         except TransferAPIError as e:
             if e.code == "ClientError.NotFound":
                 return False
             elif e.code == "ConsentRequired":
-                raise ValueError(
-                    "Please give consent to the Globus app to access your storage."
+                raise RuntimeError(
+                    f"You do not have the right permissions. Try removing {self.config.auth_filepath} and authenticating again with the appropriate identity provider."
                 ) from e
             raise e
 
@@ -104,8 +105,16 @@ class Globus(Storage):
 
         return False
 
-    def on_commit(self) -> None:
-        pass
-
     def on_retrieve(self, uuid: str, target_directory: str) -> None:
-        pass
+        task_data = TransferData(
+            source_endpoint=self.config.remote_endpoint_id,
+            destination_endpoint=self.config.local_endpoint_id,
+        )
+        task_data.add_item(
+            os.path.join(self.config.remote_endpoint_directory, uuid),
+            target_directory,
+        )
+
+        task_doc = self.transfer_client.submit_transfer(task_data)
+        task_id = task_doc["task_id"]
+        print(f"submitted transfer, task_id={task_id}")

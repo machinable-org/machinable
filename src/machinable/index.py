@@ -86,6 +86,7 @@ class Index(Element):
     default = get_settings().default_index
 
     class Config:
+        directory: str = "./storage"
         database: str = "sqlite:///~/.machinable/index.sqlite"
 
     def __init__(self, version: VersionType = None):
@@ -104,6 +105,10 @@ class Index(Element):
         if self._db is None:
             self._db = load(self.config.database, create=True)
         return self._db
+
+    def local_directory(self, uuid: str, *append: str) -> str:
+        # TODO: allow custom directory mappings
+        return os.path.join(self.config.directory, uuid, *append)
 
     def commit(self, model: schema.Interface) -> bool:
         cur = self.db.cursor()

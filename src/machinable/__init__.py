@@ -7,6 +7,7 @@ __all__ = [
     "Project",
     "Storage",
     "Mixin",
+    "Index",
     "mixin",
     "Schedule",
     "get",
@@ -25,6 +26,7 @@ from machinable.cli import from_cli
 from machinable.component import Component
 from machinable.element import Element
 from machinable.execution import Execution
+from machinable.index import Index
 from machinable.interface import Interface
 from machinable.mixin import Mixin, mixin
 from machinable.project import Project

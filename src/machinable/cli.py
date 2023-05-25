@@ -93,10 +93,11 @@ def main(args: Optional[List] = None):
         print("Invalid argument: ", method)
         return 128
 
+    contexts = []
     component = None
     for module, *version in elements:
         element = machinable.get(module, version)
-        element.__enter__()
+        contexts.append(element.__enter__())
         if isinstance(element, machinable.Component):
             component = element
 
@@ -107,5 +108,8 @@ def main(args: Optional[List] = None):
         # check if cli_{method} exists before falling back on {method}
         target = getattr(component, f"cli_{method}", getattr(component, method))
         target()
+
+    for context in reversed(contexts):
+        context.__exit__()
 
     return 0

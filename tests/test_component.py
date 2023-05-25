@@ -55,11 +55,11 @@ def test_component(tmp_storage):
     c.save_file("output.log", "testt more")
     assert c.output(incremental=True) == " more"
 
-    tmp_storage.update_status(c.uuid, "started")
+    c.update_status("started")
     assert c.is_started()
-    tmp_storage.update_status(c.uuid, "heartbeat")
+    c.update_status("heartbeat")
     assert c.is_active()
-    tmp_storage.update_status(c.uuid, "finished")
+    c.update_status("finished")
     assert c.is_finished()
     assert not c.is_incomplete()
 

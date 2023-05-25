@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Any, List, Optional, Union
+from typing import TYPE_CHECKING, List, Literal, Optional, Union
 
 import random
 import sys
@@ -17,6 +17,7 @@ from typing import Dict
 
 from machinable import errors, schema
 from machinable.collection import ComponentCollection, ExecutionCollection
+from machinable.element import _CONNECTIONS as connected_elements
 from machinable.element import Element, get_dump, get_lineage
 from machinable.interface import Interface, belongs_to, belongs_to_many
 from machinable.project import Project
@@ -102,7 +103,7 @@ class Component(Interface):
                 self.on_write_meta_data() is not False and self.is_mounted()
             )
             if writes_meta_data:
-                Storage.get().update_status(self.uuid, "started")
+                self.update_status("started")
                 self.save_file(
                     "host.json",
                     data=Project.get().provider().get_host_info(),
@@ -114,7 +115,7 @@ class Component(Interface):
                 t.start()
                 self.on_heartbeat()
                 if self.on_write_meta_data() is not False and self.is_mounted():
-                    Storage.get().update_status(self.uuid, "heartbeat")
+                    self.update_status("heartbeat")
                 return t
 
             heartbeat = beat()
@@ -124,11 +125,11 @@ class Component(Interface):
             self.on_success()
             self.on_finish(success=True)
 
-            if writes_meta_data:
-                Storage.get().update_status(self.uuid, "finished")
-
             if heartbeat is not None:
                 heartbeat.cancel()
+
+            if writes_meta_data:
+                self.update_status("finished")
 
             self.on_after_dispatch(success=True)
         except BaseException as _ex:  # pylint: disable=broad-except
@@ -161,12 +162,18 @@ class Component(Interface):
         )
 
     def dispatch_code(self, inline: bool = True) -> Optional[str]:
-        storage = Storage.get().as_json().replace('"', '\\"')
+        connections = []
+        for kind, elements in connected_elements.items():
+            if kind == "Project":
+                continue
+            for element in elements:
+                jn = element.as_json().replace('"', '\\"')
+                connections.append(f"Element.from_json('{jn}').__enter__()")
+        co = "\n".join(connections)
         code = f"""
-        from machinable import Project, Storage, Component
-        from machinable.errors import StorageError
+        from machinable import Project, Element, Component
         Project('{Project.get().path()}').__enter__()
-        Storage.from_json('{storage}').__enter__()
+        {co}
         component__ = Component.find('{self.uuid}')
         component__.dispatch()
         """
@@ -204,6 +211,40 @@ class Component(Interface):
             self._cache["output"] = output
 
         return output
+
+    def update_status(
+        self,
+        status: Literal["started", "heartbeat", "finished"] = "heartbeat",
+        timestamp: Optional[TimestampType] = None,
+    ) -> None:
+        if timestamp is None:
+            timestamp = arrow.now()
+        if isinstance(timestamp, arrow.Arrow):
+            timestamp = arrow.get(timestamp)
+
+        if status == "started":
+            save_file(
+                self.local_directory("started_at"),
+                str(timestamp) + "\n",
+                # starting event can occur multiple times
+                mode="a",
+            )
+        elif status == "heartbeat":
+            save_file(
+                self.local_directory("heartbeat_at"),
+                str(timestamp),
+                mode="w",
+            )
+        elif status == "finished":
+            save_file(
+                self.local_directory("finished_at"),
+                str(timestamp),
+                mode="w",
+            )
+        else:
+            raise ValueError(
+                f"Invalid status {status}; must be one of 'started', 'heartbeat', 'finished'"
+            )
 
     def created_at(self) -> Optional[DatetimeType]:
         if self.timestamp is None:

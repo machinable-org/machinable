@@ -1,33 +1,44 @@
 import os
 import shutil
 
-from machinable import get
+from machinable import Index, Storage, get
 
 
 def test_storage(tmp_path):
+    class CopyStorage(Storage):
+        class Config:
+            directory: str = ""
+
+        def commit(self, interface) -> bool:
+            directory = os.path.join(self.config.directory, interface.uuid)
+            if not os.path.exists(directory):
+                os.makedirs(directory)
+                interface.to_directory(directory)
+
+        def contains(self, uuid):
+            return os.path.exists(os.path.join(self.config.directory, uuid))
+
+        def retrieve(self, uuid, local_directory) -> bool:
+            if not self.contains(uuid):
+                return False
+
+            shutil.copytree(
+                os.path.join(self.config.directory, uuid),
+                local_directory,
+                dirs_exist_ok=True,
+            )
+
+            return True
+
     primary = str(tmp_path / "primary")
     secondary = str(tmp_path / "secondary")
 
-    storage = get(
-        "machinable.storage",
-        {
-            "directory": primary,
-            "remotes": [
-                "machinable.storage",
-                {
-                    "directory": secondary,
-                    "index": [
-                        "machinable.index",
-                        {"database": str(tmp_path / "secondary.sqlite")},
-                    ],
-                },
-            ],
-            "index": [
-                "machinable.index",
-                {"database": str(tmp_path / "primary.sqlite")},
-            ],
-        },
+    i = Index(
+        {"directory": primary, "database": str(tmp_path / "index.sqlite")}
     ).__enter__()
+
+    st2 = CopyStorage({"directory": secondary}).__enter__()
+    st1 = Storage().__enter__()
 
     project = get("machinable.project", "tests/samples/project").__enter__()
 
@@ -48,4 +59,6 @@ def test_storage(tmp_path):
     assert os.path.exists(interface2.local_directory())
 
     project.__exit__()
-    storage.__exit__()
+    st1.__exit__()
+    st2.__exit__()
+    i.__exit__()

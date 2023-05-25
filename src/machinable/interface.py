@@ -23,7 +23,9 @@ from machinable.element import (
     get_lineage,
     resolve_custom_predicate,
 )
+from machinable.index import Index
 from machinable.settings import get_settings
+from machinable.storage import Storage
 from machinable.types import VersionType
 from machinable.utils import is_directory_version, load_file, save_file
 from omegaconf import OmegaConf
@@ -75,22 +77,12 @@ class Relation:
             not instance._relation_cache.get(self.fn.__name__, None)
             and instance.is_mounted()
         ):
-            from machinable.storage import Storage
-
-            storage = Storage.get()
-            if storage.index is None:
-                return None
-
-            related = storage.index.find_related(
+            related = Index.get().find_related(
                 relation=self.name, uuid=instance.uuid, inverse=self.inverse
             )
 
             if related is not None:
-                related = [
-                    Interface.from_directory(storage.local_directory(r.uuid))
-                    for r in related
-                    if storage.retrieve(r.uuid)
-                ]
+                related = [Interface.find(r.uuid) for r in related]
 
                 if self.multiple is False:
                     related = related[0] if len(related) > 0 else None
@@ -189,9 +181,33 @@ class Interface(Element):
         self._relation_cache[key] = True
 
     def commit(self) -> Self:
-        from machinable.storage import Storage
+        # ensure that configuration has been parsed
+        assert self.config is not None
+        assert self.predicate is not None
 
-        Storage.get().commit(self)
+        index = Index.get()
+
+        # only commit if not already in index
+        if index.find(self.uuid) is not None:
+            return self
+
+        # commit to index
+        index.commit(self.__model__)
+        for k, v in self.__related__.items():
+            if v is None:
+                continue
+            r = self.__relations__[k]
+            if not r.multiple:
+                v = [v]
+            for u in [i.commit().uuid for i in v]:
+                if r.inverse:
+                    index.create_relation(r.name, u, self.uuid)
+                else:
+                    index.create_relation(r.name, self.uuid, u)
+
+        # commit to storage
+        for storage in Storage.active():
+            storage.commit(self)
 
         # write deferred files
         for filepath, data in self._deferred_data.items():
@@ -256,7 +272,7 @@ class Interface(Element):
         **kwargs,
     ) -> "Collection":
         if module in [
-            "machinable.storage",
+            "machinable.index",
             "machinable.project",
         ] and is_directory_version(version):
             # interpret as shortcut for directory
@@ -280,18 +296,25 @@ class Interface(Element):
 
     @classmethod
     def find(cls, uuid: str) -> Optional["Element"]:
-        from machinable.storage import Storage
+        index = Index.get()
 
-        storage = Storage.get()
-
-        if not (
-            storage.index
-            and storage.index.find(uuid)
-            and storage.retrieve(uuid)
-        ):
+        if not index.find(uuid):
             return None
 
-        return cls.from_directory(storage.local_directory(uuid))
+        local_directory = index.local_directory(uuid)
+
+        if not os.path.exists(local_directory):
+            # try to fetch storage
+            available = False
+            for storage in Storage.active():
+                if storage.retrieve(uuid, local_directory):
+                    available = True
+                    break
+
+            if not available:
+                return None
+
+        return cls.from_directory(local_directory)
 
     @classmethod
     def find_many(cls, uuids: List[str]) -> "Collection":
@@ -320,12 +343,10 @@ class Interface(Element):
                 )
             )
 
-        from machinable.storage import Storage
-
         return cls.collect(
             [
                 cls.find(interface.uuid)
-                for interface in Storage.get().index.find_by_predicate(
+                for interface in Index.get().find_by_predicate(
                     module
                     if isinstance(module, str)
                     else f"__session__{module.__name__}",
@@ -373,12 +394,13 @@ class Interface(Element):
 
         return self
 
-    def local_directory(
-        self, *append: str, create: bool = False
-    ) -> Optional[str]:
-        from machinable.storage import Storage
+    def local_directory(self, *append: str, create: bool = False) -> str:
+        directory = Index.get().local_directory(self.uuid, *append)
 
-        return Storage.get().local_directory(self.uuid, *append, create=create)
+        if create:
+            os.makedirs(directory, exist_ok=True)
+
+        return directory
 
     def load_file(self, filepath: str, default=None) -> Optional[Any]:
         if not self.is_mounted():

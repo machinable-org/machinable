@@ -16,7 +16,7 @@ class Settings(BaseModel):
     default_schedule: Optional[ElementType] = None
     default_group: Optional[str] = "%Y_%U_%a/"
     default_storage: Optional[ElementType] = None
-    default_index: Optional[ElementType] = ["machinable.index"]
+    default_index: Optional[ElementType] = None
 
 
 def get_settings(file="~/.machinable/settings.json"):
