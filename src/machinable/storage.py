@@ -36,19 +36,17 @@ class Storage(Element):
 
         return [cls.instance()]
 
-    def commit(self, interface: "Interface") -> bool:
+    def commit(self, interface: "Interface") -> None:
         directory = interface.local_directory()
         if not os.path.exists(directory):
             os.makedirs(directory)
             interface.to_directory(directory)
+
+    def update(self, interface: "Interface") -> None:
+        pass
 
     def contains(self, uuid: str) -> bool:
         return False
 
     def retrieve(self, uuid: str, local_directory: str) -> bool:
         return False
-
-    def update_status(
-        self, uuid: str, local_directory: Optional[str] = None
-    ) -> None:
-        pass

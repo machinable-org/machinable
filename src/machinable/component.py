@@ -85,7 +85,6 @@ class Component(Interface):
         """Returns a collection of components"""
         return ComponentCollection(components)
 
-    @property
     def resources(self) -> Optional[Dict]:
         if self.execution is None:
             return None
@@ -93,15 +92,16 @@ class Component(Interface):
 
     def dispatch(self) -> Self:
         """Dispatch the component lifecycle"""
+        writes_meta_data = (
+            self.on_write_meta_data() is not False and self.is_mounted()
+        )
         try:
             self.on_before_dispatch()
 
             self.on_seeding()
 
             # meta-data
-            writes_meta_data = (
-                self.on_write_meta_data() is not False and self.is_mounted()
-            )
+
             if writes_meta_data:
                 self.update_status("started")
                 self.save_file(
@@ -139,6 +139,11 @@ class Component(Interface):
             raise errors.ComponentException(
                 f"{self.__class__.__name__} dispatch failed"
             ) from _ex
+        finally:
+            if writes_meta_data:
+                # propagate changes
+                for storage in Storage.active():
+                    storage.update(self)
 
     @property
     def host_info(self) -> Optional[Dict]:

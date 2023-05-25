@@ -5,8 +5,8 @@ from machinable import Execution
 class Slurm(Execution):
     def __call__(self):
         runner = commandlib.Command("sbatch")
-        script = "#!/usr/bin/env bash"
-        for component in self.components:
+        script = "#!/usr/bin/env bash\n"
+        for component in self.pending_executables:
             resources = component.resources()
             if "--job-name" not in resources:
                 resources["--job-name"] = f"{component.id}"
@@ -32,10 +32,12 @@ class Slurm(Execution):
                 job_id = int(output.rsplit(" ", maxsplit=1)[-1])
             except ValueError:
                 job_id = False
-            print(f"{output} for component {component.id}")
+            print(
+                f"{output} for component {component.id} ({component.local_directory()})"
+            )
 
             # save job information
-            self.save_data(
+            self.save_file(
                 filepath="slurm.json",
                 data={
                     "job_id": job_id,

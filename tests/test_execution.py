@@ -114,21 +114,21 @@ def test_execution_resources():
     r = {"test": 1, "a": True}
     with Execution(resources={}) as execution:
         component = Component()
-        assert component.resources is None
+        assert component.resources() is None
         execution.resources(r)
         component.launch()
-    assert component.resources == r
+    assert component.resources() == r
 
     with Execution(resources={}) as execution:
         # component is already finished so updating resources has no effect
         execution.resources({"a": 2})
         component.launch()
-        assert component.resources["a"] is True
+        assert component.resources()["a"] is True
 
         e2 = Component()
         execution.resources({"a": 3})
         e2.launch()
-    assert e2.resources["a"] == 3
+    assert e2.resources()["a"] == 3
 
 
 def test_interrupted_execution(tmp_storage):

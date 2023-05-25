@@ -1,7 +1,7 @@
 import shutil
 
 import pytest
-from machinable import Component, Execution, Project
+from machinable import Component, Execution, Index, Project
 
 try:
     import mpi4py
@@ -9,8 +9,8 @@ except ImportError:
     mpi4py = None
 
 
-class ExternalComponent(Component):
-    def on_create(self):
+class MpiExample(Component):
+    def __call__(self):
         print("Hello from MPI script")
         self.save_file("test.txt", "hello")
 
@@ -19,10 +19,13 @@ class ExternalComponent(Component):
     not shutil.which("mpirun") or mpi4py is None,
     reason="Test requires MPI environment",
 )
-def test_mpi_execution(tmp_storage):
-    with Project.instance("docs/examples"):
-        component = ExternalComponent()
-        with Execution.get("execution.mpi"):
-            component.launch()
-        assert component.is_finished()
-        assert component.load_file("test.txt") == "hello"
+def test_mpi_execution(tmp_path):
+    with Index(
+        {"directory": str(tmp_path), "database": str(tmp_path / "test.sqlite")}
+    ):
+        with Project("docs/examples/slurm_and_mpi_execution"):
+            component = MpiExample()
+            with Execution.get("mpi"):
+                component.launch()
+            assert component.is_finished()
+            assert component.load_file("test.txt") == "hello"

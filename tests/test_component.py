@@ -1,4 +1,5 @@
 import os
+import stat
 
 import commandlib
 import pytest
@@ -179,6 +180,8 @@ def test_component_export(tmp_storage):
     Execution().add(component).commit()
     script = component.dispatch_code(inline=True)
     script_filepath = component.save_file("run.sh", script)
+    st = os.stat(script_filepath)
+    os.chmod(script_filepath, st.st_mode | stat.S_IEXEC)
 
     print(commandlib.Command("bash")(script_filepath).output())
     assert component.is_finished()

@@ -287,7 +287,7 @@ class Element(Mixin, Jsonable):
 
     @property
     def id(self) -> str:
-        return uuid_to_id(self.uuid)
+        return self.uuid[:6]
 
     def version(
         self, version: VersionType = sentinel, overwrite: bool = False
