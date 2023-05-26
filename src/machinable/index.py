@@ -13,6 +13,7 @@ from machinable.element import Element, get_lineage
 from machinable.interface import Interface
 from machinable.settings import get_settings
 from machinable.types import VersionType
+from machinable.utils import is_directory_version
 
 
 def _jn(data: Any) -> str:
@@ -88,9 +89,12 @@ class Index(Interface):
 
     class Config:
         directory: str = "./storage"
-        database: str = "sqlite:///./storage/index.sqlite"
+        database: str = "in_directory('index.sqlite')"
 
     def __init__(self, version: VersionType = None):
+        if is_directory_version(version):
+            # interpret as shortcut for directory
+            version = {"directory": version}
         super().__init__(version=version)
         self.__model__ = schema.Index(
             kind=self.kind,
@@ -100,6 +104,9 @@ class Index(Interface):
             lineage=get_lineage(self),
         )
         self._db = None
+
+    def config_in_directory(self, relative_path: str) -> str:
+        return os.path.join("sqlite:///", self.config.directory, relative_path)
 
     @property
     def db(self) -> sqlite3.Connection:
