@@ -133,9 +133,7 @@ def test_execution_resources():
 
 def test_interrupted_execution(tmp_storage):
     with Project("./tests/samples/project"):
-        component = Component.make("interface.interrupted_lifecycle").group_as(
-            "a/b/c"
-        )
+        component = Component.make("interface.interrupted_lifecycle")
         try:
             component.launch()
         except errors.ExecutionFailed:

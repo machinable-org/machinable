@@ -5,7 +5,6 @@ import sys
 import threading
 
 import arrow
-from machinable.group import Group
 from machinable.settings import get_settings
 
 if sys.version_info >= (3, 11):
@@ -48,10 +47,6 @@ class Component(Interface):
             lineage=get_lineage(self),
         )
         self.__model__._dump = get_dump(self)
-
-    @belongs_to
-    def group():
-        return Group
 
     @belongs_to_many(key="execution_history")
     def executions() -> ExecutionCollection:
@@ -352,18 +347,3 @@ class Component(Interface):
 
     def on_heartbeat(self) -> None:
         """Event triggered on heartbeat every 15 seconds"""
-
-    def group_as(self, group: Union[Group, str]) -> Self:
-        # todo: allow group modifications after execution
-        # todo: self._assert_editable()
-
-        if isinstance(group, str):
-            group = Group(group)
-        if not isinstance(group, Group):
-            raise ValueError(
-                f"Expected group, but found: {type(group)} {group}"
-            )
-        group.push_related("components", self)
-        self.push_related("group", group)
-
-        return self

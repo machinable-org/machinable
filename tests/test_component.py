@@ -99,7 +99,7 @@ def test_component_launch(tmp_storage):
 
 def test_component_relations(tmp_storage):
     with Project("./tests/samples/project"):
-        component = Component.instance("basic").group_as("test/group")
+        component = Component.instance("basic")
         execution = Execution().add(component)
         execution.dispatch()
 

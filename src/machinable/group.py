@@ -55,11 +55,5 @@ class Group(Interface):
     def path(self) -> str:
         return self.__model__.path
 
-    @has_many(cached=False)
-    def components() -> ComponentCollection:
-        from machinable.component import Component
-
-        return Component
-
     def __repr__(self) -> str:
         return f"Group [{self.path}]"
