@@ -1,97 +1,64 @@
 import os
+import shutil
 
-import pytest
-from machinable import Execution, Experiment, Project, Storage, errors
-from machinable.testing import storage_tests
-
-
-def test_storage_interface(tmpdir):
-    with Project("./tests/samples/project"):
-        repository = Storage.make(
-            "machinable.storage.filesystem", {"directory": str(tmpdir)}
-        )
-        repository_b = Storage.make(
-            "machinable.storage.filesystem", {"directory": str(tmpdir)}
-        )
-        assert repository.config.directory == repository_b.config.directory
-
-        # serialization
-        restored = Storage.from_json(repository.as_json())
-        assert restored.__module__ == repository.__module__
-        assert restored.config.directory == str(tmpdir)
-
-        # deferred data
-        experiment = Experiment()
-        experiment.save_data("test.txt", "deferral")
-        experiment.save_file("test.json", "deferral")
-        assert len(experiment._deferred_data) == 2
-        execution = Execution().add(experiment)
-        repository.commit(experiment, execution)
-
-        assert os.path.isfile(experiment.local_directory("data/test.txt"))
-        assert os.path.isfile(experiment.local_directory("test.json"))
-        assert len(experiment._deferred_data) == 0
+from machinable import Index, Storage, get
 
 
-def test_storage(tmpdir):
-    assert Storage.make(
-        "machinable.storage.filesystem", {"directory": str(tmpdir)}
-    ).config.directory == str(tmpdir)
+def test_storage(tmp_path):
+    class CopyStorage(Storage):
+        class Config:
+            directory: str = ""
 
+        def commit(self, interface) -> bool:
+            directory = os.path.join(self.config.directory, interface.uuid)
+            if not os.path.exists(directory):
+                os.makedirs(directory)
+                interface.to_directory(directory)
 
-def test_filesystem_storage(tmpdir):
-    storage = Storage.make(
-        "machinable.storage.filesystem",
-        {"directory": str(tmpdir / "storage")},
-    )
-    storage_tests(storage)
+        def contains(self, uuid):
+            return os.path.exists(os.path.join(self.config.directory, uuid))
 
+        def retrieve(self, uuid, local_directory) -> bool:
+            if not self.contains(uuid):
+                return False
 
-def test_multiple_storage(tmpdir):
-    storage = Storage.make(
-        "machinable.storage.multiple",
-        {
-            "primary": [
-                "machinable.storage.filesystem",
-                {"directory": str(tmpdir / "0")},
-            ],
-            "secondary": [],
-        },
-    )
-    storage = storage_tests(storage)
+            shutil.copytree(
+                os.path.join(self.config.directory, uuid),
+                local_directory,
+                # dirs_exist_ok=True, -> not available in Python 3.7
+            )
 
-    storage = Storage.make(
-        "machinable.storage.multiple",
-        {
-            "primary": [
-                "machinable.storage.filesystem",
-                {"directory": str(tmpdir / "a")},
-            ],
-            "secondary": [
-                [
-                    "machinable.storage.filesystem",
-                    {"directory": str(tmpdir / "b")},
-                ]
-            ],
-        },
-    )
+            return True
 
-    storage_tests(storage)
+    primary = str(tmp_path / "primary")
+    secondary = str(tmp_path / "secondary")
 
-    # serialization
-    storage = Storage.make(
-        "machinable.storage.multiple",
-        {
-            "primary": [
-                "machinable.storage.filesystem",
-                {"directory": str(tmpdir / "c")},
-            ],
-            "secondary": [
-                [
-                    "machinable.storage.filesystem",
-                    {"directory": str(tmpdir / "d")},
-                ]
-            ],
-        },
-    )
-    storage_tests(Storage.from_json(storage.as_json()))
+    i = Index(
+        {"directory": primary, "database": str(tmp_path / "index.sqlite")}
+    ).__enter__()
+
+    st2 = CopyStorage({"directory": secondary}).__enter__()
+    st1 = Storage().__enter__()
+
+    project = get("machinable.project", "tests/samples/project").__enter__()
+
+    interface1 = get("dummy").commit()
+    interface2 = get("dummy", {"a": 5}).commit()
+
+    assert os.path.exists(os.path.join(primary, interface1.uuid))
+    assert os.path.exists(os.path.join(secondary, interface1.uuid))
+
+    # delete primary source and reload from remote
+    shutil.rmtree(primary)
+    assert not os.path.exists(interface1.local_directory())
+    assert not os.path.exists(interface2.local_directory())
+    interface1_reload = get("dummy")
+    assert os.path.exists(interface1_reload.local_directory())
+    assert not os.path.exists(interface2.local_directory())
+    interface2_reload = get("dummy", {"a": 5})
+    assert os.path.exists(interface2.local_directory())
+
+    project.__exit__()
+    st1.__exit__()
+    st2.__exit__()
+    i.__exit__()

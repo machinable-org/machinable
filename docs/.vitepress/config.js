@@ -52,12 +52,12 @@ export default defineConfig({
                 link: '/tutorial/essentials/project-structure'
               },
               {
-                text: 'Implementing experiments',
-                link: '/tutorial/essentials/implementing-experiments'
+                text: 'Implementing components',
+                link: '/tutorial/essentials/implementing-components'
               },
               {
-                text: 'Running experiments',
-                link: '/tutorial/essentials/running-experiments'
+                text: 'Running components',
+                link: '/tutorial/essentials/running-components'
               },
               {
                 text: 'Storage and retrieval',
@@ -82,7 +82,7 @@ export default defineConfig({
               },
               {
                 text: 'Experiments',
-                link: '/tutorial/elements-in-depth/experiments'
+                link: '/tutorial/elements-in-depth/components'
               },
               {
                 text: 'Execution',

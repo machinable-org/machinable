@@ -1,6 +1,6 @@
 import os
 
-from machinable import Experiment, Project, from_cli, get_version
+from machinable import Component, Project, from_cli, get_version
 from machinable.cli import main
 
 
@@ -33,17 +33,17 @@ def test_cli_from_cli():
 
 
 def test_cli_to_cli():
-    assert Experiment().to_cli() == "machinable.experiment"
+    assert Component().to_cli() == "machinable.component"
     assert (
-        Experiment(["~test", {"a": {"b": 1}}, "~foo"]).to_cli()
-        == "machinable.experiment ~test a.b=1 ~foo"
+        Component(["~test", {"a": {"b": 1}}, "~foo"]).to_cli()
+        == "machinable.component ~test a.b=1 ~foo"
     )
     assert (
-        Experiment([{"a": {"b": 1}}, {"c": 1}]).to_cli()
-        == "machinable.experiment a.b=1 c=1"
+        Component([{"a": {"b": 1}}, {"c": 1}]).to_cli()
+        == "machinable.component a.b=1 c=1"
     )
     assert (
-        Experiment({"a": "t m ."}).to_cli() == "machinable.experiment a='t m .'"
+        Component({"a": "t m ."}).to_cli() == "machinable.component a='t m .'"
     )
 
 

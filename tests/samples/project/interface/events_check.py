@@ -1,9 +1,9 @@
 from typing import Any, Optional
 
-from machinable import Experiment, errors
+from machinable import Component, errors
 
 
-class EventsCheck(Experiment):
+class EventsCheck(Component):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.events = ["on_init"]
@@ -15,24 +15,18 @@ class EventsCheck(Experiment):
         self.events.append("on_seeding")
         return False
 
-    def set_seed(self, seed: Optional[int] = None) -> bool:
-        # never called when on_seeding returns False
-        assert False
-
-    def on_create(self):
+    def on_success(self):
         assert self.is_started()
-        self.events.append("on_create")
+        self.events.append("on_success")
 
     def __call__(self) -> None:
         assert self.is_active()
-        self.events.append("on_execute")
+        self.events.append("on_call")
 
-    def on_destroy(self):
-        self.events.append("on_destroy")
-        self.save_data("events.json", self.events)
+    def on_after_dispatch(self, success):
+        self.events.append("on_after_dispatch")
+        self.save_file("events.json", self.events)
+        assert self.is_finished()
 
     def on_failure(self, exception: errors.MachinableError):
         assert False
-
-    def on_after_destroy(self):
-        assert self.is_finished()

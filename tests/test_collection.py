@@ -4,8 +4,9 @@
 
 from unittest import TestCase
 
-from machinable.collection import Collection, ExperimentCollection, collect
-from machinable.experiment import Experiment, Project
+from machinable.collection import Collection, ComponentCollection, collect
+from machinable.component import Component
+from machinable.project import Project
 from machinable.storage import Storage
 
 
@@ -13,28 +14,28 @@ def test_collect():
     assert isinstance(collect([1, 2]), Collection)
 
 
-class DummyExperiment(Experiment):
+class DummyComponent(Component):
     class Config:
         m: int = -1
 
 
-def test_experiment_collection(tmp_storage):
+def test_component_collection(tmp_storage):
     with Project("./tests/samples/project"):
-        collection = Experiment.collect(
-            [DummyExperiment({"m": i % 2}) for i in range(5)]
+        collection = Component.collect(
+            [DummyComponent({"m": i % 2}) for i in range(5)]
         )
         for i, e in enumerate(collection):
-            e.save_data("i", i)
-        assert isinstance(collection, ExperimentCollection)
+            e.save_file("i", i)
+        assert isinstance(collection, ComponentCollection)
 
         collection.launch()
         assert all(collection.map(lambda x: x.is_finished()))
 
-        assert len(collection.finished()) == 5
-        assert len(collection.active()) == 0
-        assert len(collection.started()) == 5
-        assert len(collection.incomplete()) == 0
-        assert len(collection.started().active()) == 0
+        assert len(collection.status("finished")) == 5
+        assert len(collection.status("active")) == 0
+        assert len(collection.status("started")) == 5
+        assert len(collection.status("incomplete")) == 0
+        assert len(collection.status("started").status("active")) == 0
 
         assert len(collection.filter_by_predicate("non-existent")) == 0
         m = "tests.test_collection"
@@ -42,7 +43,7 @@ def test_experiment_collection(tmp_storage):
         assert len(collection.filter_by_predicate(m, {"m": 0})) == 3
         assert len(collection.filter_by_predicate(m, {"m": 1})) == 2
 
-        assert collection.singleton(m, {"m": 1}).load_data("i") == "1"
+        assert collection.singleton(m, {"m": 1}).load_file("i") == "1"
 
 
 class CollectionTestCase(TestCase):

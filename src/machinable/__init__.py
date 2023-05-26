@@ -1,12 +1,13 @@
 """machinable"""
 __all__ = [
     "Element",
+    "Interface",
     "Execution",
-    "Experiment",
+    "Component",
     "Project",
-    "Record",
     "Storage",
     "Mixin",
+    "Index",
     "mixin",
     "Schedule",
     "get",
@@ -22,12 +23,13 @@ else:
     import importlib_metadata
 
 from machinable.cli import from_cli
+from machinable.component import Component
 from machinable.element import Element
 from machinable.execution import Execution
-from machinable.experiment import Experiment
+from machinable.index import Index
+from machinable.interface import Interface
 from machinable.mixin import Mixin, mixin
 from machinable.project import Project
-from machinable.record import Record
 from machinable.schedule import Schedule
 from machinable.settings import get_settings
 from machinable.storage import Storage
@@ -39,8 +41,8 @@ def get(
     version: VersionType = None,
     predicate: Optional[str] = get_settings().default_predicate,
     **kwargs,
-) -> Element:
-    return Element.get(module, version, predicate, **kwargs)
+) -> Interface:
+    return Interface.get(module, version, predicate, **kwargs)
 
 
 def get_version() -> str:

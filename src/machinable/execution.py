@@ -1,29 +1,28 @@
 from typing import Any, Dict, List, Optional, Union
 
 import copy
+import sys
+
+if sys.version_info >= (3, 11):
+    from typing import Self
+else:
+    from typing_extensions import Self
 
 from machinable import schema
-from machinable.collection import ExperimentCollection
-from machinable.element import (
-    Element,
-    defaultversion,
-    extract,
-    get_dump,
-    get_lineage,
-    has_many,
-    has_one,
-)
+from machinable.collection import ComponentCollection
+from machinable.component import Component
+from machinable.element import extract, get_dump, get_lineage
 from machinable.errors import ExecutionFailed
-from machinable.experiment import Experiment
+from machinable.interface import Interface, has_many, has_one
 from machinable.project import Project
 from machinable.schedule import Schedule
 from machinable.settings import get_settings
 from machinable.storage import Storage
 from machinable.types import ElementType, VersionType
-from machinable.utils import sentinel, update_dict
+from machinable.utils import generate_seed, sentinel, update_dict
 
 
-class Execution(Element):
+class Execution(Interface):
     kind = "Execution"
     default = get_settings().default_execution
 
@@ -31,73 +30,74 @@ class Execution(Element):
         self,
         version: VersionType = None,
         resources: Optional[Dict] = None,
+        seed: Union[int, None] = None,
         schedule: Union[
             Schedule, ElementType, None
         ] = get_settings().default_schedule,
     ):
         super().__init__(version)
+        if seed is None:
+            seed = generate_seed()
         self.__model__ = schema.Execution(
+            kind=self.kind,
             module=self.__model__.module,
             config=self.__model__.config,
             version=self.__model__.version,
             resources=resources,
-            host_info=Project.get().provider().get_host_info(),
+            seed=seed,
             lineage=get_lineage(self),
         )
         self.__model__._dump = get_dump(self)
         if schedule is not None:
             if not isinstance(schedule, Schedule):
                 schedule = Schedule.make(*extract(schedule))
-            self.__related__["schedule"] = schedule
+            self.push_related("schedule", schedule)
+
+    @property
+    def seed(self) -> int:
+        return self.__model__.seed
+
+    @property
+    def timestamp(self) -> int:
+        return self.__model__.timestamp
 
     @has_one
     def schedule() -> "Schedule":
         return Schedule
 
-    @has_many
-    def experiments() -> ExperimentCollection:
-        return Experiment, ExperimentCollection
+    @has_many(key="execution_history")
+    def executables() -> ComponentCollection:
+        return Component
 
     @property
-    def executables(self) -> "Collection":
-        return self.experiments
+    def pending_executables(self) -> ComponentCollection:
+        return self.executables.filter(lambda e: not e.cached())
 
     def add(
         self,
-        executable: Union[Experiment, List[Experiment]],
+        executable: Union[Component, List[Component]],
         once: bool = False,
-    ) -> "Execution":
+    ) -> Self:
         if isinstance(executable, (list, tuple)):
             for _executable in executable:
                 self.add(_executable)
             return self
 
-        if not isinstance(executable, Experiment):
-            raise ValueError(
-                f"Expected experiment, but found: {type(executable)} {executable}"
-            )
-
-        self.__related__.setdefault("experiments", ExperimentCollection())
-
-        if once and self.__related__["experiments"].contains(
+        if once and self.__related__["executables"].contains(
             lambda x: x == executable
         ):
             # already added
             return self
 
-        self.__related__["experiments"].append(executable)
+        self.push_related("executables", executable)
 
         return self
 
-    def commit(self) -> "Execution":
-        self.on_before_commit()
+    def commit(self) -> Self:
+        # ensure that configuration is parsed
+        self.executables.map(lambda x: x.config and x.predicate)
 
-        # trigger configuration validation for early failure
-        self.executables.each(lambda x: x.config)
-
-        Storage.get().commit(self.executables, self)
-
-        return self
+        return super().commit()
 
     def resources(self, resources: Dict = sentinel) -> Optional[Dict]:
         if resources is sentinel:
@@ -110,10 +110,10 @@ class Execution(Element):
     def canonicalize_resources(self, resources: Dict) -> Dict:
         return resources
 
-    def default_resources(self, executable: "Experiment") -> Optional[dict]:
+    def default_resources(self, executable: "Component") -> Optional[dict]:
         """Default resources"""
 
-    def compute_resources(self, executable: "Experiment") -> Dict:
+    def compute_resources(self, executable: "Component") -> Dict:
         default_resources = self.default_resources(executable)
 
         if not self.__model__.resources and default_resources is not None:
@@ -150,11 +150,11 @@ class Execution(Element):
 
         return {}
 
-    def dispatch(self, force: bool = False) -> "Execution":
+    def dispatch(self) -> Self:
         if not self.executables:
             return self
 
-        if not force and all(self.executables.map(lambda x: x.is_finished())):
+        if len(self.pending_executables) == 0:
             return self
 
         if self.on_before_dispatch() is False:
@@ -169,13 +169,15 @@ class Execution(Element):
 
         try:
             # compute resources
-            for executable in self.executables.filter(
-                lambda e: not e.is_finished()
-            ):
+            for executable in self.pending_executables:
                 self.save_file(
-                    f"resources-{executable.experiment_id}.json",
+                    f"resources-{executable.id}.json",
                     self.compute_resources(executable),
                 )
+            self.save_file(
+                "host.json", Project.get().provider().get_host_info()
+            )
+
             self.__call__()
             self.on_after_dispatch()
         except BaseException as _ex:  # pylint: disable=broad-except
@@ -184,7 +186,7 @@ class Execution(Element):
         return self
 
     def __call__(self) -> None:
-        for executable in self.executables:
+        for executable in self.pending_executables:
             executable.dispatch()
 
     def on_verify_schedule(self) -> bool:
@@ -199,30 +201,16 @@ class Execution(Element):
 
         Return False to prevent the dispatch
         """
-        # forward into on_before_dispatch
-        for executable in self.executables:
-            executable.on_before_dispatch()
 
     def on_before_commit(self) -> Optional[bool]:
         """Event triggered before commit of an execution"""
-        # forward into on_before_commit
-        for executable in self.executables:
-            executable.on_before_commit()
 
     def on_after_dispatch(self) -> None:
         """Event triggered after the dispatch of an execution"""
 
     @property
-    def timestamp(self) -> float:
-        return self.__model__.timestamp
-
-    @property
     def host_info(self) -> Optional[Dict]:
-        return self.__model__.host_info
-
-    @property
-    def env_info(self) -> Optional[Dict]:
-        return self.load_file("env.json", None)
+        return self.load_file("host.json", None)
 
     @property
     def nickname(self) -> str:
@@ -236,19 +224,5 @@ class Execution(Element):
 
         super().__exit__()
 
-    def __str__(self) -> str:
-        return self.__repr__()
-
     def __repr__(self) -> str:
         return "Execution"
-
-    def __eq__(self, other):
-        return (
-            self.nickname == other.nickname
-            and self.timestamp == other.timestamp
-        )
-
-    def __ne__(self, other):
-        return (
-            self.nickname != other.nickname or self.timestamp != other.timestamp
-        )

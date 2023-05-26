@@ -7,12 +7,15 @@ import os
 import platform
 import socket
 import sys
+from dataclasses import dataclass
 
 import machinable
 from commandlib import Command
 from machinable import schema
+from machinable.config import Field, validator
 from machinable.element import Element, get_lineage, instantiate, normversion
 from machinable.errors import ConfigurationError
+from machinable.interface import Interface
 from machinable.types import VersionType
 from machinable.utils import (
     find_subclass_in_module,
@@ -20,6 +23,7 @@ from machinable.utils import (
     get_diff,
     get_root_commit,
     import_from_directory,
+    is_directory_version,
 )
 
 if TYPE_CHECKING:
@@ -159,38 +163,33 @@ def import_element(
     return element_class
 
 
-class Project(Element):
+class Project(Interface):
     kind = "Project"
+
+    @dataclass
+    class Config:
+        directory: Optional[str] = Field(default_factory=lambda: os.getcwd())
+
+        @validator("directory")
+        def normalize_directory(cls, v):
+            return os.path.normpath(os.path.abspath(os.path.expanduser(v)))
 
     def __init__(
         self,
-        directory: Optional[str] = None,
         version: VersionType = None,
-        name: Optional[str] = None,
     ):
-        super().__init__()
-        if directory is None:
-            directory = os.getcwd()
-        directory = os.path.abspath(directory)
-        if name is None:
-            name = os.path.basename(directory)
+        if is_directory_version(version):
+            # interpret as shortcut for directory
+            version = {"directory": version}
+        super().__init__(version=version)
         self.__model__ = schema.Project(
-            directory=directory,
-            name=name,
+            kind=self.kind,
             version=normversion(version),
             lineage=get_lineage(self),
         )
         self._parent: Optional[Project] = None
         self._provider: str = "_machinable/project"
         self._resolved_provider: Optional[Project] = None
-
-    @classmethod
-    def instance(
-        cls,
-        directory: Optional[str] = None,
-        version: VersionType = None,
-    ) -> "Project":
-        return Project(directory, version).provider()
 
     def provider(self, reload: Union[str, bool] = False) -> "Project":
         """Resolves and returns the provider instance"""
@@ -201,11 +200,11 @@ class Project(Element):
             if isinstance(self._provider, str):
                 self._resolved_provider = find_subclass_in_module(
                     module=import_from_directory(
-                        self._provider, self.__model__.directory
+                        self._provider, self.config.directory
                     ),
                     base_class=Project,
                     default=Project,
-                )(self.__model__.directory, version=self.__model__.version)
+                )(version=self.__model__.version)
             else:
                 self._resolved_provider = Project(
                     version=self.__model__.version
@@ -222,19 +221,19 @@ class Project(Element):
 
     def add_to_path(self) -> None:
         if (
-            os.path.exists(self.__model__.directory)
-            and self.__model__.directory not in sys.path
+            os.path.exists(self.config.directory)
+            and self.config.directory not in sys.path
         ):
             if self.is_root():
-                sys.path.insert(0, self.__model__.directory)
+                sys.path.insert(0, self.config.directory)
             else:
-                sys.path.append(self.__model__.directory)
+                sys.path.append(self.config.directory)
 
     def name(self) -> str:
-        return self.__model__.name
+        return os.path.basename(self.config.directory)
 
     def path(self, *append: str) -> str:
-        return os.path.join(self.__model__.directory, *append)
+        return os.path.join(self.config.directory, *append)
 
     def is_root(self) -> bool:
         return self._parent is None
@@ -262,8 +261,8 @@ class Project(Element):
 
     def get_code_version(self) -> dict:
         return {
-            "id": get_root_commit(self.__model__.directory),
-            "project": get_commit(self.__model__.directory),
+            "id": get_root_commit(self.config.directory),
+            "project": get_commit(self.config.directory),
             "vendor": {
                 vendor: get_commit(self.path("vendor", vendor))
                 for vendor in self.get_vendors()
@@ -288,28 +287,32 @@ class Project(Element):
             if not isinstance(element_class, Element):
                 element_class = import_element(self.path(), module, base_class)
 
-        return instantiate(
+        element = instantiate(
             module,
             element_class,
             version,
             **constructor_kwargs,
         )
 
+        if isinstance(element, Interface):
+            element.push_related("project", self)
+
+        return element
+
     def get_diff(self) -> Union[str, None]:
         return get_diff(self.path())
 
     def exists(self) -> bool:
-        return os.path.exists(self.__model__.directory)
+        return os.path.exists(self.config.directory)
 
     def serialize(self) -> dict:
         return {
-            "directory": self.__model__.directory,
-            "provider": self._provider,
+            "directory": self.config.directory,
         }
 
     @classmethod
     def unserialize(cls, serialized: dict) -> "Project":
-        return cls(**serialized)
+        return cls(serialized)
 
     def get_host_info(self) -> dict:
         """Returned dictionary will be recorded as host information"""
@@ -357,4 +360,4 @@ class Project(Element):
         return {}
 
     def __repr__(self) -> str:
-        return f"Project({self.__model__.directory})"
+        return f"Project({self.config.directory})"

@@ -22,7 +22,7 @@ features:
     details: Run code and inspect results using the same abstraction. Check out the example below ⏬
   - icon: ⚡️
     title: Designed for rapid iteration
-    details: Spend more time experimenting while relying on machinable to keep things organized.
+    details: Spend more time componenting while relying on machinable to keep things organized.
   - icon: 💡
     title: Hackable and interactive
     details: Tweak, extend, override while leveraging first-class support for Jupyter as well as the CLI. 
@@ -58,11 +58,11 @@ features:
 
   ... and loading the corresponding results ...
 
-  `python plot_regression_result.py --experiment=run-01`
+  `python plot_regression_result.py --component=run-01`
 
   ... are distinct and often redundant.
 
-  This means you have to manually keep track by remembering what the experiment with `rate=0.1` was called.
+  This means you have to manually keep track by remembering what the component with `rate=0.1` was called.
 
   :::
 

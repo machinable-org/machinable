@@ -24,3 +24,9 @@ class ExecutionFailed(MachinableError):
     """Execution failed
 
     Bases: MachinableError"""
+
+
+class ComponentException(MachinableError):
+    """Component exception
+
+    Bases: MachinableError"""

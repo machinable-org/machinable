@@ -1,101 +1,31 @@
-from typing import (
-    TYPE_CHECKING,
-    Any,
-    Callable,
-    Dict,
-    List,
-    Optional,
-    Tuple,
-    Union,
-)
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
 
 import collections
 import copy
 import json
 import os
-import shlex
 import stat
-from functools import wraps
+import sys
+
+if sys.version_info >= (3, 11):
+    from typing import Self
+else:
+    from typing_extensions import Self
 
 import arrow
 import dill as pickle
 import machinable
 import omegaconf
 import pydantic
-from flatten_dict import flatten
 from machinable import schema
-from machinable.collection import Collection
+from machinable.collection import ElementCollection
 from machinable.config import from_element, match_method, rewrite_config_methods
 from machinable.errors import ConfigurationError, MachinableError
 from machinable.mixin import Mixin
 from machinable.settings import get_settings
 from machinable.types import ElementType, VersionType
-from machinable.utils import Jsonable, unflatten_dict, update_dict
+from machinable.utils import Jsonable, sentinel, unflatten_dict, update_dict
 from omegaconf import DictConfig, OmegaConf
-
-if TYPE_CHECKING:
-    from machinable.storage import Storage
-
-
-def belongs_to(f: Callable) -> Any:
-    @property
-    @wraps(f)
-    def _wrapper(self: "Element"):
-        name = f.__name__
-        if self.__related__.get(name, None) is None and self.is_mounted():
-            related_class = f()
-            use_cache = True
-            if isinstance(related_class, tuple):
-                related_class, use_cache = related_class
-            related = self.__model__._storage_instance.retrieve_related(
-                self.__model__._storage_id,
-                f"{self.kind.lower()}.{name}",
-            )
-            if related is None:
-                return None
-            element = related_class.from_model(related)
-            if not use_cache:
-                return element
-            self.__related__[name] = element
-
-        return self.__related__.get(name, None)
-
-    return _wrapper
-
-
-has_one = belongs_to
-
-
-def has_many(f: Callable) -> Any:
-    @property
-    @wraps(f)
-    def _wrapper(self: "Element") -> Any:
-        name = f.__name__
-        if self.__related__.get(name, None) is None and self.is_mounted():
-            args = f()
-            use_cache = True
-            if len(args) == 2:
-                related_class, collection = args
-            elif len(args) == 3:
-                related_class, collection, use_cache = args
-            else:
-                assert False, "Invalid number of relation arguments"
-            related = self.__model__._storage_instance.retrieve_related(
-                self.__model__._storage_id,
-                f"{self.kind.lower()}.{name}",
-            )
-            if related is None:
-                return None
-            collected = collection(
-                [related_class.from_model(r) for r in related]
-            )
-            if not use_cache:
-                return collected
-            self.__related__[name] = collected
-
-        return self.__related__.get(name, None)
-
-    return _wrapper
 
 
 class ConfigMethod:
@@ -189,6 +119,12 @@ def defaultversion(
     if module is not None:
         return module, normversion(version)
 
+    # handle in-session defaults
+    if isinstance(element.default, (list, tuple)) and not isinstance(
+        element.default[0], str
+    ):
+        return element.default[0], element.default[1:] + normversion(version)
+
     default_version = normversion(element.default)
 
     if len(default_version) == 0:
@@ -216,9 +152,12 @@ def extract(
     if isinstance(compact_element, str):
         return compact_element, None
 
+    if isinstance(compact_element, omegaconf.listconfig.ListConfig):
+        compact_element = list(compact_element)
+
     if not isinstance(compact_element, (list, tuple)):
         raise ValueError(
-            f"Invalid component defintion. Expected list or str but found {compact_element}"
+            f"Invalid component defintion. Expected list or str but found {type(compact_element)}: {compact_element}"
         )
 
     if len(compact_element) == 0:
@@ -266,6 +205,17 @@ def transfer_to(src: "Element", destination: "Element") -> "Element":
     destination.__model__ = src.__model__
 
     return destination
+
+
+def uuid_to_id(uuid: str) -> str:
+    alphabet = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
+
+    # convert uuid hex to base 62 of length 6
+    result = ""
+    for i in range(0, 6 * 2, 2):
+        result += alphabet[int(uuid[i : i + 2], 16) % 62]
+
+    return result
 
 
 def resolve_custom_predicate(predicate: str, element: "Element"):
@@ -318,6 +268,7 @@ class Element(Mixin, Jsonable):
         if Element._module_ is None:
             Element._module_ = self.__module__
         self.__model__ = schema.Element(
+            kind=self.kind,
             module=Element._module_,
             version=normversion(version),
             lineage=get_lineage(self),
@@ -325,29 +276,62 @@ class Element(Mixin, Jsonable):
             if Element._module_.startswith("__session__")
             else None,
         )
-        self.__related__ = {}
         self.__mixin__ = None
         self.__mixins__ = {}
         self._config: Optional[DictConfig] = None
         self._predicate: Optional[DictConfig] = None
         self._cache = {}
-        self._deferred_data = {}
 
         Element._module_ = None
+
+    @property
+    def uuid(self) -> str:
+        return self.__model__.uuid
+
+    @property
+    def id(self) -> str:
+        return self.uuid[:6]
+
+    def version(
+        self, version: VersionType = sentinel, overwrite: bool = False
+    ) -> List[Union[str, dict]]:
+        if version is sentinel:
+            return self.__model__.version
+
+        if hasattr(self, "is_mounted") and self.is_mounted():
+            raise MachinableError(
+                f"Cannot change version of mounted element {self}"
+            )
+
+        if overwrite:
+            self.__model__.version = normversion(version)
+        else:
+            self.__model__.version.extend(normversion(version))
+
+        self._clear_caches()
+
+        return self.__model__.version
 
     @classmethod
     def set_default(
         cls,
-        module: Optional[str] = None,
+        module: Union[str, "Element", None] = None,
         version: VersionType = None,
     ) -> None:
+        if module is not None and not isinstance(module, str):
+            cls.default = [module] + normversion(version)
+            return
         cls.default = compact(module, version)
 
-    def as_default(self) -> "Element":
+    def as_default(self) -> Self:
         cls = getattr(machinable, self.kind, Element)
         cls.set_default(self.__model__.module, self.__model__.version)
 
         return self
+
+    @classmethod
+    def connected(cls) -> List["Element"]:
+        return _CONNECTIONS[cls.kind]
 
     @classmethod
     def get(
@@ -396,7 +380,7 @@ class Element(Mixin, Jsonable):
     @classmethod
     def instance(
         cls,
-        module: Optional[str] = None,
+        module: Union[None, str, "Element"] = None,
         version: VersionType = None,
         **kwargs,
     ) -> "Element":
@@ -410,35 +394,9 @@ class Element(Mixin, Jsonable):
         version: VersionType = None,
         predicate: Optional[str] = get_settings().default_predicate,
         **kwargs,
-    ) -> "Collection[Element]":
-        candidates = cls.find_by_predicate(
-            module,
-            version,
-            predicate,
-            **kwargs,
-        )
-        if candidates:
-            return candidates[-1]
-
+    ) -> "Element":
+        # no-op as elements do not have a storage representation
         return cls.make(module, version, **kwargs)
-
-    def mount(self, storage: "Storage", storage_id: Any) -> bool:
-        if self.__model__ is None:
-            return False
-
-        self.__model__._storage_instance = storage
-        self.__model__._storage_id = storage_id
-
-        return True
-
-    def is_mounted(self) -> bool:
-        if self.__model__ is None:
-            return False
-
-        return (
-            self.__model__._storage_instance is not None
-            and self.__model__._storage_id is not None
-        )
 
     @classmethod
     def from_model(cls, model: schema.Element) -> "Element":
@@ -458,74 +416,6 @@ class Element(Mixin, Jsonable):
         instance.set_model(model)
 
         return instance
-
-    @classmethod
-    def find(cls, element_id: str, *args, **kwargs) -> Optional["Element"]:
-        from machinable.storage import Storage
-
-        storage = Storage.get()
-
-        storage_id = getattr(storage, f"find_{cls.kind.lower()}")(
-            element_id, *args, **kwargs
-        )
-
-        if storage_id is None:
-            return None
-
-        return cls.from_storage(storage_id, storage)
-
-    @classmethod
-    def find_many(cls, elements: List[str]) -> "Collection":
-        return cls.collect([cls.find(element_id) for element_id in elements])
-
-    @classmethod
-    def find_by_predicate(
-        cls,
-        module: Union[str, "Element"],
-        version: VersionType = None,
-        predicate: Optional[str] = get_settings().default_predicate,
-        **kwargs,
-    ) -> "Collection":
-        from machinable.storage import Storage
-
-        storage = Storage.get()
-        try:
-            candidate = cls.make(module, version, **kwargs)
-        except ModuleNotFoundError:
-            return cls.collect([])
-
-        element_type = candidate.kind.lower()
-        handler = f"find_{element_type}_by_predicate"
-
-        if hasattr(storage, handler):
-            if predicate:
-                predicate = OmegaConf.to_container(
-                    OmegaConf.create(
-                        {
-                            p: candidate.predicate[p]
-                            for p in resolve_custom_predicate(
-                                predicate, candidate
-                            )
-                        }
-                    )
-                )
-            storage_ids = getattr(storage, handler)(
-                module
-                if isinstance(module, str)
-                else f"__session__{module.__name__}",
-                predicate,
-            )
-        else:
-            storage_ids = []
-
-        return cls.collect(
-            [
-                cls.from_model(
-                    getattr(storage, f"retrieve_{element_type}")(storage_id)
-                )
-                for storage_id in storage_ids
-            ]
-        )
 
     def on_compute_predicate(self) -> Optional[Dict]:
         """Event to compute a custom predicate dictionary of the element
@@ -650,35 +540,9 @@ class Element(Mixin, Jsonable):
     def lineage(self) -> Tuple[str, ...]:
         return self.__model__.lineage
 
-    @property
-    def storage_id(self) -> Optional[str]:
-        if not self.is_mounted():
-            return None
-
-        return self.__model__._storage_id
-
-    @property
-    def storage_instance(self) -> Optional["Storage"]:
-        if not self.is_mounted():
-            return None
-
-        return self.__model__._storage_instance
-
     @classmethod
-    def from_storage(cls, storage_id, storage=None) -> "Element":
-        if storage is None:
-            from machinable.storage import Storage
-
-            storage = Storage.get()
-
-        return cls.from_model(
-            getattr(storage, f"retrieve_{cls.kind.lower()}")(storage_id)
-        )
-
-    @classmethod
-    def collect(cls, elements) -> Collection:
-        """Returns a collection of the element type"""
-        return Collection(elements)
+    def collect(cls, elements) -> ElementCollection:
+        return ElementCollection(elements)
 
     @classmethod
     def model(cls, element: Optional[Any] = None) -> schema.Element:
@@ -703,7 +567,7 @@ class Element(Mixin, Jsonable):
 
         return True
 
-    def set_model(self, model: schema.Element) -> "Element":
+    def set_model(self, model: schema.Element) -> Self:
         self.__model__ = model
 
         # invalidate cached config
@@ -711,54 +575,6 @@ class Element(Mixin, Jsonable):
         self._predicate = None
 
         return self
-
-    def local_directory(
-        self, *append: str, create: bool = False
-    ) -> Optional[str]:
-        if not self.is_mounted():
-            return None
-
-        return self.__model__._storage_instance.local_directory(
-            self, *append, create=create
-        )
-
-    def load_file(self, filepath: str, default=None) -> Optional[Any]:
-        if not self.is_mounted():
-            # has write been deferred?
-            if filepath in self._deferred_data:
-                return self._deferred_data[filepath]
-
-            return default
-
-        data = self.__model__._storage_instance.retrieve_file(self, filepath)
-
-        return data if data is not None else default
-
-    def save_file(self, filepath: str, data: Any) -> str:
-        if os.path.isabs(filepath):
-            raise ValueError("Filepath must be relative")
-
-        if not self.is_mounted():
-            # defer writes until element storage creation
-            self._deferred_data[filepath] = data
-            return "$deferred"
-
-        file = self.__model__._storage_instance.create_file(
-            self, filepath, data
-        )
-
-        # mark scripts as executable
-        if filepath.endswith(".sh"):
-            st = os.stat(file)
-            os.chmod(file, st.st_mode | stat.S_IEXEC)
-
-        return file
-
-    def save_data(self, filepath: str, data: Any) -> str:
-        return self.save_file(os.path.join("data", filepath), data)
-
-    def load_data(self, filepath: str, default=None) -> Optional[Any]:
-        return self.load_file(os.path.join("data", filepath), default)
 
     def serialize(self) -> Dict:
         # ensure that configuration has been parsed
@@ -772,43 +588,6 @@ class Element(Mixin, Jsonable):
     @classmethod
     def is_connected(cls) -> bool:
         return len(_CONNECTIONS[cls.kind]) > 0
-
-    def to_cli(self) -> str:
-        cli = [self.module]
-        for v in self.__model__.version:
-            if isinstance(v, str):
-                cli.append(v)
-            else:
-                cli.extend(
-                    [
-                        f"{key}={shlex.quote(str(val))}"
-                        for key, val in flatten(v, reducer="dot").items()
-                    ]
-                )
-
-        return " ".join(cli)
-
-    def __enter__(self):
-        _CONNECTIONS[self.kind].append(self)
-        return self
-
-    def __exit__(self, *args, **kwargs):
-        try:
-            _CONNECTIONS[self.kind].pop()
-        except IndexError:
-            pass
-
-    def __reduce__(self) -> Union[str, Tuple[Any, ...]]:
-        return (self.__class__, (), self.serialize())
-
-    def __getstate__(self):
-        return self.serialize()
-
-    def __setstate__(self, state):
-        self.__model__ = self.__class__.model()(**state)
-
-    def __str__(self):
-        return self.__repr__()
 
     def compute_predicate(self) -> Dict:
         from machinable.project import Project
@@ -851,6 +630,10 @@ class Element(Mixin, Jsonable):
         that are applied at a later stage.
         """
 
+    def _clear_caches(self) -> None:
+        self._config = None
+        self.__model__.config = None
+
     def __getattr__(self, name) -> Any:
         attr = getattr(self.__mixin__, name, None)
         if attr is not None:
@@ -860,6 +643,37 @@ class Element(Mixin, Jsonable):
                 self.__class__.__name__, name
             )
         )
+
+    def __enter__(self) -> Self:
+        _CONNECTIONS[self.kind].append(self)
+        return self
+
+    def __exit__(self, *args, **kwargs):
+        try:
+            _CONNECTIONS[self.kind].pop()
+        except IndexError:
+            pass
+
+    def __reduce__(self) -> Union[str, Tuple[Any, ...]]:
+        return (self.__class__, (), self.serialize())
+
+    def __getstate__(self):
+        return self.serialize()
+
+    def __setstate__(self, state):
+        self.__model__ = self.__class__.model()(**state)
+
+    def __repr__(self):
+        return f"{self.kind} [{self.id}]"
+
+    def __str__(self):
+        return self.__repr__()
+
+    def __eq__(self, other):
+        return self.uuid == other.uuid
+
+    def __ne__(self, other):
+        return self.uuid != other.uuid
 
 
 def get_lineage(element: "Element") -> Tuple[str, ...]:
@@ -872,3 +686,7 @@ def get_lineage(element: "Element") -> Tuple[str, ...]:
 def get_dump(element: "Element") -> Optional[bytes]:
     if element.__model__.module.startswith("__session__"):
         return pickle.dumps(element.__class__)
+
+
+def reset_connections() -> None:
+    _CONNECTIONS.clear()

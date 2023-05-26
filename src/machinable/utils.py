@@ -2,6 +2,13 @@ import types
 from types import ModuleType
 from typing import Any, Callable, List, Mapping, Optional, Tuple, Union
 
+import sys
+
+if sys.version_info >= (3, 11):
+    from typing import Self
+else:
+    from typing_extensions import Self
+
 import importlib
 import inspect
 import json
@@ -12,13 +19,13 @@ import string
 import sys
 from keyword import iskeyword
 from pathlib import Path
+from uuid import UUID
 
 import arrow
 import commandlib
 import dill as pickle
 import jsonlines
 import omegaconf
-from baseconv import base62
 from flatten_dict import unflatten as _unflatten_dict
 
 if sys.version_info >= (3, 8):
@@ -31,96 +38,17 @@ from omegaconf.omegaconf import OmegaConf
 sentinel = object()
 
 import json
-import threading
 
-from machinable.types import DatetimeType
-from observable import Observable
-
-
-class Events(Observable):
-    def __init__(self) -> None:
-        super().__init__()
-        self._heartbeat = None
-
-    def trigger(self, event: str, *args: Any, **kw: Any) -> list:
-        """Triggers all handlers which are subscribed to an event.
-        Returns True when there were callbacks to execute, False otherwise."""
-        # upstream pending on issue https://github.com/timofurrer/observable/issues/17
-        callbacks = list(self._events.get(event, []))
-        return [callback(*args, **kw) for callback in callbacks]
-
-    def heartbeats(self, seconds=10):
-        if self._heartbeat is not None:
-            self._heartbeat.cancel()
-
-        if seconds is None or int(seconds) == 0:
-            # disable heartbeats
-            return
-
-        def heartbeat():
-            t = threading.Timer(seconds, heartbeat)
-            t.daemon = True
-            t.start()
-            self.trigger("heartbeat")
-            return t
-
-        self._heartbeat = heartbeat()
-
-
-class Jsonable:
-    def as_json(self, stringify=True, **dumps_kwargs):
-        serialized = self.serialize()
-        if stringify:
-            serialized = json.dumps(serialized, **dumps_kwargs)
-        return serialized
-
-    @classmethod
-    def from_json(cls, serialized, **loads_kwargs):
-        if isinstance(serialized, str):
-            serialized = json.loads(serialized, **loads_kwargs)
-        return cls.unserialize(serialized)
-
-    def clone(self):
-        return self.__class__.from_json(self.as_json())
-
-    def serialize(self) -> dict:
-        raise NotImplementedError
-
-    @classmethod
-    def unserialize(cls, serialized: dict) -> Any:
-        raise NotImplementedError
-
-
-class Connectable:
-    """Connectable trait"""
-
-    __connection__: Optional["Connectable"] = None
-
-    @classmethod
-    def is_connected(cls) -> bool:
-        return cls.__connection__ is not None
-
-    @classmethod
-    def get(cls) -> "Connectable":
-        return cls() if cls.__connection__ is None else cls.__connection__
-
-    def __enter__(self):
-        self._outer_connection = (  # pylint: disable=attribute-defined-outside-init
-            self.__class__.__connection__
-        )
-        self.__class__.__connection__ = self
-        return self
-
-    def __exit__(self, *args, **kwargs):
-        if self.__class__.__connection__ is self:
-            self.__class__.__connection__ = None
-        if getattr(self, "_outer_connection", None) is not None:
-            self.__class__.__connection__ = self._outer_connection
-        return self
+from machinable.types import DatetimeType, VersionType
+from pydantic import BaseModel
 
 
 def serialize(obj):
     """JSON serializer for objects not serializable by default json code"""
+    if isinstance(obj, BaseModel):
+        return obj.dict()
+    if isinstance(obj, UUID):
+        return obj.hex
     if isinstance(obj, DatetimeType):
         return str(obj)
     if isinstance(obj, (omegaconf.DictConfig, omegaconf.ListConfig)):
@@ -144,68 +72,10 @@ def generate_seed(random_state=None):
     return random_state.randint(0, 2**31 - 1)
 
 
-def as_color(experiment_id: str):
-    return "".join(
-        encode_experiment_id(decode_experiment_id(i) % 16)
-        for i in experiment_id
-    )
-
-
 def timestamp_to_directory(timestamp: float) -> str:
     return (
         arrow.get(timestamp).strftime("%Y-%m-%dT%H%M%S_%f%z").replace("+", "_")
     )
-
-
-def encode_experiment_id(seed, or_fail=True) -> Optional[str]:
-    """Encodes a seed and returns the corresponding experiment ID
-
-    # Arguments
-    seed: int in the range 62^5 <= seed <= 62^6-1
-    or_fail: If True, raises a Value error instead of returning None
-    """
-    try:
-        if not isinstance(seed, int):
-            raise ValueError
-        if 62**5 <= seed <= 62**6 - 1:
-            return base62.encode(seed)
-        raise ValueError
-    except (ValueError, TypeError) as e:
-        if or_fail:
-            raise ValueError(
-                "Seed has to lie in range 62^5 <= seed <= 62^6-1"
-            ) from e
-        return None
-
-
-def decode_experiment_id(experiment_id, or_fail=True) -> Optional[int]:
-    """Decodes a experiment ID into the corresponding seed
-
-    # Arguments
-    experiment_id: The base62 experiment ID
-    or_fail: If True, raises a Value error instead of returning None
-    """
-    try:
-        if not isinstance(experiment_id, str):
-            raise ValueError
-        value = int(base62.decode(experiment_id))
-        if 62**5 <= value <= 62**6 - 1:
-            return value
-        raise ValueError
-    except (ValueError, TypeError) as e:
-        if or_fail:
-            raise ValueError(
-                f"'{experiment_id}' is not a valid experiment ID"
-            ) from e
-        return None
-
-
-def generate_experiment_id(random_state=None) -> int:
-    if random_state is None or isinstance(random_state, int):
-        random_state = random.Random(random_state)
-
-    # ~ 55x10^9 distinct experiment IDs that if represented in base62 are len 6
-    return random_state.randint(62**5, 62**6 - 1)
 
 
 def is_valid_variable_name(name):
@@ -218,7 +88,18 @@ def is_valid_module_path(name):
     return all(map(is_valid_variable_name, name.split(".")))
 
 
-def random_str(length, random_state=None):
+def is_directory_version(version: VersionType) -> bool:
+    if not isinstance(version, str):
+        return False
+    if not version.startswith("~"):
+        return True
+    if "/" in version or "\\" in version or version == "~":
+        return True
+
+    return False
+
+
+def random_str(length: int, random_state=None):
     if random_state is None or isinstance(random_state, int):
         random_state = random.Random(random_state)
 
@@ -644,3 +525,55 @@ def get_root_commit(repository: str) -> Optional[str]:
         )
     except commandlib.exceptions.CommandError:
         return None
+
+
+class Jsonable:
+    def as_json(self, stringify=True, default=serialize, **dumps_kwargs):
+        serialized = self.serialize()
+        if stringify:
+            serialized = json.dumps(serialized, default=default, **dumps_kwargs)
+        return serialized
+
+    @classmethod
+    def from_json(cls, serialized, **loads_kwargs):
+        if isinstance(serialized, str):
+            serialized = json.loads(serialized, **loads_kwargs)
+        return cls.unserialize(serialized)
+
+    def clone(self):
+        return self.__class__.from_json(self.as_json())
+
+    def serialize(self) -> dict:
+        raise NotImplementedError
+
+    @classmethod
+    def unserialize(cls, serialized: dict) -> Any:
+        raise NotImplementedError
+
+
+class Connectable:
+    """Connectable trait"""
+
+    __connection__: Optional["Connectable"] = None
+
+    @classmethod
+    def is_connected(cls) -> bool:
+        return cls.__connection__ is not None
+
+    @classmethod
+    def get(cls) -> "Connectable":
+        return cls() if cls.__connection__ is None else cls.__connection__
+
+    def __enter__(self) -> Self:
+        self._outer_connection = (  # pylint: disable=attribute-defined-outside-init
+            self.__class__.__connection__
+        )
+        self.__class__.__connection__ = self
+        return self
+
+    def __exit__(self, *args, **kwargs) -> Self:
+        if self.__class__.__connection__ is self:
+            self.__class__.__connection__ = None
+        if getattr(self, "_outer_connection", None) is not None:
+            self.__class__.__connection__ = self._outer_connection
+        return self

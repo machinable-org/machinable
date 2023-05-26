@@ -1,9 +1,9 @@
 from dataclasses import dataclass
 
-from machinable import Experiment
+from machinable import Component
 
 
-class Hello(Experiment):
+class Hello(Component):
     @dataclass
     class Config:
         name: str = "World"

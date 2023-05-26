@@ -6,18 +6,6 @@ from machinable import get_version, utils
 from machinable.element import Element
 
 
-def test_experiment_id_encoding():
-    assert utils.encode_experiment_id(946416180) == "123456"
-    with pytest.raises(ValueError):
-        utils.encode_experiment_id(0)
-    assert utils.decode_experiment_id("123456") == 946416180
-    with pytest.raises(ValueError):
-        utils.decode_experiment_id("invalid")
-    assert utils.generate_experiment_id() > 0
-    eid = utils.generate_experiment_id()
-    assert utils.decode_experiment_id(utils.encode_experiment_id(eid)) == eid
-
-
 def test_generate_nickname():
     with pytest.raises(ValueError):
         utils.generate_nickname({})
@@ -176,3 +164,23 @@ def test_resolve_at_alias():
     assert utils.resolve_at_alias("@") == "_machinable"
     assert utils.resolve_at_alias("@test") == "_machinable.test"
     assert utils.resolve_at_alias("@test", "foo") == "_machinable.foo.test"
+
+
+def test_directory_version():
+    for case in [
+        None,
+        {"directory": "yes"},
+        "~version",
+    ]:
+        assert utils.is_directory_version(case) is False
+    for case in [
+        "~",
+        ".",
+        "./",
+        "./version",
+        "test",
+        "test.me",
+        "/path/to/version",
+        "../test",
+    ]:
+        assert utils.is_directory_version(case) is True

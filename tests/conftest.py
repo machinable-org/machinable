@@ -1,10 +1,13 @@
 import pytest
-from machinable.storage import Storage
+from machinable.index import Index
 
 
 @pytest.fixture()
 def tmp_storage(tmp_path):
-    with Storage.make(
-        "machinable.storage.filesystem", {"directory": str(tmp_path)}
-    ) as storage:
-        yield storage
+    with Index(
+        {
+            "directory": str(tmp_path),
+            "database": str(tmp_path / "index.sqlite"),
+        }
+    ) as index:
+        yield index

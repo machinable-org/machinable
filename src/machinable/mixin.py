@@ -1,7 +1,10 @@
-from typing import Any, Callable, Optional
+from typing import TYPE_CHECKING, Any, Callable
 
 from functools import wraps
 from inspect import getattr_static
+
+if TYPE_CHECKING:
+    from machinable.element import Element
 
 
 class Mixin:

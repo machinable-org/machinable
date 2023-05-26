@@ -86,28 +86,30 @@ def main(args: Optional[List] = None):
             print("\nmachinable [element_module...] [version...] --method")
             print("\nExample:")
             print(
-                "\tmachinable my_experiment ~ver arg=1 nested.arg=2 --launch\n"
+                "\tmachinable my_component ~ver arg=1 nested.arg=2 --launch\n"
             )
             return 0
 
         print("Invalid argument: ", method)
         return 128
 
-    experiment = None
+    contexts = []
+    component = None
     for module, *version in elements:
         element = machinable.get(module, version)
-        element.__enter__()
-        if isinstance(element, machinable.Experiment):
-            experiment = element
+        contexts.append(element.__enter__())
+        if isinstance(element, machinable.Component):
+            component = element
 
-    if experiment is None:
-        raise ValueError("You have to provide an experiment")
+    if component is None:
+        raise ValueError("You have to provide an component")
 
     for method in methods:
         # check if cli_{method} exists before falling back on {method}
-        target = getattr(
-            experiment, f"cli_{method}", getattr(experiment, method)
-        )
+        target = getattr(component, f"cli_{method}", getattr(component, method))
         target()
+
+    for context in reversed(contexts):
+        context.__exit__()
 
     return 0

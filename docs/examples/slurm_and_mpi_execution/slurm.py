@@ -5,13 +5,13 @@ from machinable import Execution
 class Slurm(Execution):
     def __call__(self):
         runner = commandlib.Command("sbatch")
-        script = "#!/usr/bin/env bash"
-        for experiment in self.experiments:
-            resources = experiment.resources()
+        script = "#!/usr/bin/env bash\n"
+        for component in self.pending_executables:
+            resources = component.resources()
             if "--job-name" not in resources:
-                resources["--job-name"] = f"{experiment.experiment_id}"
+                resources["--job-name"] = f"{component.id}"
             if "--output" not in resources:
-                resources["--output"] = experiment.local_directory("output.log")
+                resources["--output"] = component.local_directory("output.log")
             if "--open-mode" not in resources:
                 resources["--open-mode"] = "append"
 
@@ -23,7 +23,7 @@ class Slurm(Execution):
                 sbatch_arguments.append(line)
             script += "\n".join(sbatch_arguments) + "\n"
 
-            script += experiment.dispatch_code()
+            script += component.dispatch_code()
 
             # submit to slurm
 
@@ -32,10 +32,12 @@ class Slurm(Execution):
                 job_id = int(output.rsplit(" ", maxsplit=1)[-1])
             except ValueError:
                 job_id = False
-            print(f"{output} for experiment {experiment.experiment_id}")
+            print(
+                f"{output} for component {component.id} ({component.local_directory()})"
+            )
 
             # save job information
-            self.save_data(
+            self.save_file(
                 filepath="slurm.json",
                 data={
                     "job_id": job_id,
