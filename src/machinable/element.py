@@ -119,6 +119,12 @@ def defaultversion(
     if module is not None:
         return module, normversion(version)
 
+    # handle in-session defaults
+    if isinstance(element.default, (list, tuple)) and not isinstance(
+        element.default[0], str
+    ):
+        return element.default[0], element.default[1:] + normversion(version)
+
     default_version = normversion(element.default)
 
     if len(default_version) == 0:
@@ -309,9 +315,12 @@ class Element(Mixin, Jsonable):
     @classmethod
     def set_default(
         cls,
-        module: Optional[str] = None,
+        module: Union[str, "Element", None] = None,
         version: VersionType = None,
     ) -> None:
+        if module is not None and not isinstance(module, str):
+            cls.default = [module] + normversion(version)
+            return
         cls.default = compact(module, version)
 
     def as_default(self) -> Self:
@@ -371,7 +380,7 @@ class Element(Mixin, Jsonable):
     @classmethod
     def instance(
         cls,
-        module: Optional[str] = None,
+        module: Union[None, str, "Element"] = None,
         version: VersionType = None,
         **kwargs,
     ) -> "Element":

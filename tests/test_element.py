@@ -37,6 +37,23 @@ def test_element_defaults():
         Element.default = None
         assert Element.instance().module == "machinable.element"
 
+    # in session
+    class InSession(Element):
+        Config = {"a": 1}
+
+        def in_session(self):
+            return True
+
+    Element.default = [InSession, {"a": 2}]
+    q = Element.instance()
+    assert q.module == "__session__InSession"
+    assert q.config.a == 2
+    assert q.in_session()
+    assert Element.make().module == "machinable.element"
+    Element.set_default(InSession, {"a": -1})
+    assert Element.instance().config.a == -1
+    Element.default = None
+
 
 def test_element_instantiation():
     with Project("./tests/samples/project") as project:
