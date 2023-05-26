@@ -18,7 +18,7 @@ import machinable
 import omegaconf
 import pydantic
 from machinable import schema
-from machinable.collection import Collection
+from machinable.collection import ElementCollection
 from machinable.config import from_element, match_method, rewrite_config_methods
 from machinable.errors import ConfigurationError, MachinableError
 from machinable.mixin import Mixin
@@ -26,9 +26,6 @@ from machinable.settings import get_settings
 from machinable.types import ElementType, VersionType
 from machinable.utils import Jsonable, sentinel, unflatten_dict, update_dict
 from omegaconf import DictConfig, OmegaConf
-
-if TYPE_CHECKING:
-    from machinable.collection import Collection
 
 
 class ConfigMethod:
@@ -535,9 +532,8 @@ class Element(Mixin, Jsonable):
         return self.__model__.lineage
 
     @classmethod
-    def collect(cls, elements) -> Collection:
-        """Returns a collection of the element type"""
-        return Collection(elements)
+    def collect(cls, elements) -> ElementCollection:
+        return ElementCollection(elements)
 
     @classmethod
     def model(cls, element: Optional[Any] = None) -> schema.Element:

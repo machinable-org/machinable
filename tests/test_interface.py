@@ -123,3 +123,20 @@ def tes_interface_save_file(tmp_storage):
     uncommitted = Interface()
     uncommitted.save_file("test", "deferred")
     assert uncommitted.load_data("test") == "deferred"
+
+
+def test_interface_derivatives(tmp_storage):
+    class T(Interface):
+        Config = {"c": 1}
+
+    root = Interface().commit()
+
+    child1 = root.derive(T).commit()
+    child2 = root.derive(T, {"c": 2}).commit()
+
+    assert child1.ancestor == root
+    assert child2.ancestor == root
+
+    assert root.derive(T) == child1
+    assert root.derive(T, {"c": 2}) == child2
+    assert root.derive(T, {"c": -1}) != child1

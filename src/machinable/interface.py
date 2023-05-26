@@ -172,6 +172,10 @@ class Interface(Element):
 
         self._deferred_data = {}
 
+    @classmethod
+    def collect(cls, elements) -> InterfaceCollection:
+        return InterfaceCollection(elements)
+
     def push_related(self, key: str, value: "Interface") -> None:
         # todo: check for editablility
         if self.__relations__[key].multiple:
@@ -262,6 +266,20 @@ class Interface(Element):
         self.push_related("uses", use)
 
         return self
+
+    def derive(
+        self,
+        module: Union[str, Element, None] = None,
+        version: VersionType = None,
+        predicate: Optional[str] = get_settings().default_predicate,
+        **kwargs,
+    ) -> Self:
+        if module is None or predicate is None:
+            return self.make(module, version, derived_from=self, **kwargs)
+
+        return self.derived.singleton(
+            module, version, predicate, derived_from=self, **kwargs
+        )
 
     @classmethod
     def singleton(

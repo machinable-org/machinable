@@ -82,7 +82,6 @@ class Component(Interface):
 
     @classmethod
     def collect(cls, components) -> "ComponentCollection":
-        """Returns a collection of components"""
         return ComponentCollection(components)
 
     def resources(self) -> Optional[Dict]:
@@ -151,20 +150,6 @@ class Component(Interface):
 
     def cached(self) -> bool:
         return self.is_finished()
-
-    def derive(
-        self,
-        module: Union[str, Element, None] = None,
-        version: VersionType = None,
-        predicate: Optional[str] = get_settings().default_predicate,
-        **kwargs,
-    ) -> "Component":
-        if module is None or predicate is None:
-            return self.make(module, version, derived_from=self, **kwargs)
-
-        return self.derived.singleton(
-            module, version, predicate, derived_from=self, **kwargs
-        )
 
     def dispatch_code(self, inline: bool = True) -> Optional[str]:
         connections = []
