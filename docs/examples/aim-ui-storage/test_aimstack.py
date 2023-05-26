@@ -23,6 +23,4 @@ def test_aimstack_storage(tmp_path):
         "aimstack", {"repo": index.config.directory}
     ).__enter__()
 
-    print(storage.repo)
-
     storage.__exit__()

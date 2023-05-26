@@ -23,6 +23,6 @@ def test_globus_storage(tmp_path):
         json.loads(os.environ.get("MACHINABLE_GLOBUS_TEST_CONFIG", "{}")),
     ).__enter__()
 
-    print(storage.contains("test"))
+    assert storage.contains("test") is False
 
     storage.__exit__()

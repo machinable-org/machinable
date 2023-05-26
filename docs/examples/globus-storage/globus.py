@@ -83,6 +83,12 @@ class Globus(Storage):
             self._transfer_client = TransferClient(authorizer=self.authorizer)
         return self._transfer_client
 
+    def commit(self, interface: "Interface") -> None:
+        ...
+
+    def update(self, interface: "Interface") -> None:
+        ...
+
     def contains(self, uuid: str) -> bool:
         # check if folder exists on globus storage
         try:
@@ -105,16 +111,17 @@ class Globus(Storage):
 
         return False
 
-    def on_retrieve(self, uuid: str, target_directory: str) -> None:
-        task_data = TransferData(
-            source_endpoint=self.config.remote_endpoint_id,
-            destination_endpoint=self.config.local_endpoint_id,
-        )
-        task_data.add_item(
-            os.path.join(self.config.remote_endpoint_directory, uuid),
-            target_directory,
-        )
+    def retrieve(self, uuid: str, local_directory: str) -> bool:
+        # task_data = TransferData(
+        #     source_endpoint=self.config.remote_endpoint_id,
+        #     destination_endpoint=self.config.local_endpoint_id,
+        # )
+        # task_data.add_item(
+        #     os.path.join(self.config.remote_endpoint_directory, uuid),
+        #     target_directory,
+        # )
 
-        task_doc = self.transfer_client.submit_transfer(task_data)
-        task_id = task_doc["task_id"]
-        print(f"submitted transfer, task_id={task_id}")
+        # task_doc = self.transfer_client.submit_transfer(task_data)
+        # task_id = task_doc["task_id"]
+        # print(f"submitted transfer, task_id={task_id}")
+        return False

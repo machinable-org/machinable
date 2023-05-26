@@ -51,7 +51,7 @@ class Execution(Interface):
         if schedule is not None:
             if not isinstance(schedule, Schedule):
                 schedule = Schedule.make(*extract(schedule))
-            self.__related__["schedule"] = schedule
+            self.push_related("schedule", schedule)
 
     @property
     def seed(self) -> int:

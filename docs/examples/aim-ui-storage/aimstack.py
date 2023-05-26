@@ -30,7 +30,7 @@ class Aimstack(Storage):
 
         return self._repo
 
-    def contains(self, uuid: str):
+    def contains(self, uuid: str) -> bool:
         try:
             query_res = self.repo.query_runs(
                 f"run.uuid=='{uuid}'", report_mode=0
@@ -57,11 +57,9 @@ class Aimstack(Storage):
         for k, v in interface.__model__.dict().items():
             run[k] = v
 
-    def update(self, uuid):
+    def update(self, interface: "Interface") -> None:
         if self._run(uuid)._checkins is None:
-            return
-        if mark_finished:
-            self._run(uuid).report_successful_finish()
             return
 
         self._run(uuid).report_progress(expect_next_in=120)
+        self._run(uuid).report_successful_finish()
