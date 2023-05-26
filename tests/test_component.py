@@ -187,6 +187,15 @@ def test_component_export(tmp_storage):
     assert component.is_finished()
     assert component.load_file("test_run.json")["success"]
 
+    class OuterContext(Execution):
+        def __call__(self):
+            assert False, "Should not be called"
+
+    c = ExportComponent().commit()
+    with OuterContext():
+        script = c.dispatch_code(inline=False)
+    exec(script)
+
 
 def test_component_predicates(tmp_storage):
     p = Project("./tests/samples/project").__enter__()

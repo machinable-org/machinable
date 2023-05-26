@@ -148,15 +148,15 @@ class Component(Interface):
     def dispatch_code(self, inline: bool = True) -> Optional[str]:
         connections = [f"Project('{Project.get().path()}').__enter__()"]
         for kind, elements in connected_elements.items():
-            if kind == "Project":
+            if kind in ["Project", "Execution"]:
                 continue
             for element in elements:
                 jn = element.as_json().replace('"', '\\"')
                 connections.append(f"Element.from_json('{jn}').__enter__()")
-        co = "\n".join(connections)
+        context = "\n".join(connections)
         code = f"""
         from machinable import Project, Element, Component
-        {co}
+        {context}
         component__ = Component.find('{self.uuid}')
         component__.dispatch()
         """
