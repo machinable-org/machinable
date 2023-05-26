@@ -10,6 +10,7 @@ except ModuleNotFoundError:
 
 from machinable import schema
 from machinable.element import Element, get_lineage
+from machinable.interface import Interface
 from machinable.settings import get_settings
 from machinable.types import VersionType
 
@@ -81,7 +82,7 @@ def load(database: str, create=False) -> sqlite3.Connection:
     return db
 
 
-class Index(Element):
+class Index(Interface):
     kind = "Index"
     default = get_settings().default_index
 

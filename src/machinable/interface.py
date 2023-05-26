@@ -23,9 +23,7 @@ from machinable.element import (
     get_lineage,
     resolve_custom_predicate,
 )
-from machinable.index import Index
 from machinable.settings import get_settings
-from machinable.storage import Storage
 from machinable.types import VersionType
 from machinable.utils import is_directory_version, load_file, save_file
 from omegaconf import OmegaConf
@@ -77,6 +75,8 @@ class Relation:
             not instance._relation_cache.get(self.fn.__name__, None)
             and instance.is_mounted()
         ):
+            from machinable.index import Index
+
             related = Index.get().find_related(
                 relation=self.name, uuid=instance.uuid, inverse=self.inverse
             )
@@ -185,6 +185,8 @@ class Interface(Element):
         self._relation_cache[key] = True
 
     def commit(self) -> Self:
+        from machinable.index import Index
+
         # ensure that configuration has been parsed
         assert self.config is not None
         assert self.predicate is not None
@@ -196,6 +198,7 @@ class Interface(Element):
             return self
 
         # commit to index
+        self.to_directory(self.local_directory(create=True))
         index.commit(self.__model__)
         for k, v in self.__related__.items():
             if v is None:
@@ -210,7 +213,9 @@ class Interface(Element):
                     index.create_relation(r.name, self.uuid, u)
 
         # commit to storage
-        for storage in Storage.active():
+        from machinable.storage import Storage
+
+        for storage in Storage.connected():
             storage.commit(self)
 
         # write deferred files
@@ -314,6 +319,8 @@ class Interface(Element):
 
     @classmethod
     def find(cls, uuid: str) -> Optional["Element"]:
+        from machinable.index import Index
+
         index = Index.get()
 
         if not index.find(uuid):
@@ -323,8 +330,10 @@ class Interface(Element):
 
         if not os.path.exists(local_directory):
             # try to fetch storage
+            from machinable.storage import Storage
+
             available = False
-            for storage in Storage.active():
+            for storage in Storage.connected():
                 if storage.retrieve(uuid, local_directory):
                     available = True
                     break
@@ -346,6 +355,8 @@ class Interface(Element):
         predicate: Optional[str] = get_settings().default_predicate,
         **kwargs,
     ) -> "Collection":
+        from machinable.index import Index
+
         try:
             candidate = cls.make(module, version, **kwargs)
         except ModuleNotFoundError:
@@ -402,17 +413,18 @@ class Interface(Element):
             for k, v in self.__related__.items():
                 if hasattr(v, "uuid"):
                     save_file(os.path.join(directory, "related", k), v.uuid)
-                elif v is not None:
-                    for i in v:
-                        save_file(
-                            os.path.join(directory, "related", k),
-                            i.uuid + "\n",
-                            mode="a",
-                        )
+                elif v:
+                    save_file(
+                        os.path.join(directory, "related", k),
+                        "\n".join([i.uuid for i in v]),
+                        mode="w",
+                    )
 
         return self
 
     def local_directory(self, *append: str, create: bool = False) -> str:
+        from machinable.index import Index
+
         directory = Index.get().local_directory(self.uuid, *append)
 
         if create:

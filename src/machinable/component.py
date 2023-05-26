@@ -100,7 +100,6 @@ class Component(Interface):
             self.on_seeding()
 
             # meta-data
-
             if writes_meta_data:
                 self.update_status("started")
                 self.save_file(
@@ -141,7 +140,7 @@ class Component(Interface):
         finally:
             if writes_meta_data:
                 # propagate changes
-                for storage in Storage.active():
+                for storage in Storage.connected():
                     storage.update(self)
 
     @property

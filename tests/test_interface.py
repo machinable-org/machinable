@@ -21,9 +21,8 @@ def test_interface_to_directory(tmp_path):
     i.use([Interface(), Interface()])
     i.to_directory(str(tmp_path / "test2"))
     assert load_file(str(tmp_path / "test2" / ".machinable")) == i.uuid
-    assert (
-        load_file(str(tmp_path / "test2" / "related" / "uses"))
-        == "\n".join([i.uuid for i in i.uses]) + "\n"
+    assert load_file(str(tmp_path / "test2" / "related" / "uses")) == "\n".join(
+        [i.uuid for i in i.uses]
     )
 
 

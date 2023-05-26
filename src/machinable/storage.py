@@ -4,14 +4,12 @@ import os
 
 from machinable import schema
 from machinable.element import Element, get_lineage
+from machinable.interface import Interface
 from machinable.settings import get_settings
 from machinable.types import VersionType
 
-if TYPE_CHECKING:
-    from machinable.interface import Interface
 
-
-class Storage(Element):
+class Storage(Interface):
     kind = "Storage"
     default = get_settings().default_storage
 
@@ -28,19 +26,8 @@ class Storage(Element):
             lineage=get_lineage(self),
         )
 
-    @classmethod
-    def active(cls) -> List["Storage"]:
-        connected = cls.connected()
-        if len(connected) > 0:
-            return connected
-
-        return [cls.instance()]
-
     def commit(self, interface: "Interface") -> None:
-        directory = interface.local_directory()
-        if not os.path.exists(directory):
-            os.makedirs(directory)
-            interface.to_directory(directory)
+        pass
 
     def update(self, interface: "Interface") -> None:
         pass
