@@ -28,6 +28,7 @@ def interface_row_factory(cursor, row) -> schema.Interface:
         version=json.loads(row[4]),
         predicate=json.loads(row[5]),
         lineage=json.loads(row[6]),
+        timestamp=float(row[7]),
     )
 
 
@@ -44,7 +45,8 @@ def migrate(db: sqlite3.Connection) -> None:
                 config json,
                 version json,
                 predicate json,
-                lineage json
+                lineage json,
+                'timestamp' real
             )"""
         )
         cur.execute(
@@ -126,8 +128,9 @@ class Index(Interface):
                 config,
                 version,
                 predicate,
-                lineage
-            ) VALUES (?,?,?,?,?,?,?)""",
+                lineage,
+                'timestamp'
+            ) VALUES (?,?,?,?,?,?,?,?)""",
             (
                 model.uuid,
                 model.kind,
@@ -136,6 +139,7 @@ class Index(Interface):
                 _jn(model.version),
                 _jn(model.predicate),
                 _jn(model.lineage),
+                model.timestamp,
             ),
         )
         self.db.commit()

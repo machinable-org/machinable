@@ -19,6 +19,7 @@ class Element(BaseModel):
     config: Optional[Dict] = None
     predicate: Optional[Dict] = None
     lineage: Tuple[str, ...] = ()
+    timestamp: float = Field(default_factory=lambda: datetime.now().timestamp())
 
 
 class Storage(Element):
@@ -47,7 +48,6 @@ class Execution(Interface):
     seed: int = Field(default_factory=generate_seed)
     resources: Optional[Dict] = None
     nickname: str = Field(default_factory=generate_nickname)
-    timestamp: float = Field(default_factory=lambda: datetime.now().timestamp())
 
 
 class Schedule(Interface):

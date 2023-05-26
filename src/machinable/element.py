@@ -23,7 +23,7 @@ from machinable.config import from_element, match_method, rewrite_config_methods
 from machinable.errors import ConfigurationError, MachinableError
 from machinable.mixin import Mixin
 from machinable.settings import get_settings
-from machinable.types import ElementType, VersionType
+from machinable.types import DatetimeType, ElementType, VersionType
 from machinable.utils import Jsonable, sentinel, unflatten_dict, update_dict
 from omegaconf import DictConfig, OmegaConf
 
@@ -291,6 +291,13 @@ class Element(Mixin, Jsonable):
     @property
     def id(self) -> str:
         return self.uuid[:6]
+
+    @property
+    def timestamp(self) -> float:
+        return self.__model__.timestamp
+
+    def timestamp_at(self) -> DatetimeType:
+        return arrow.get(self.__model__.timestamp)
 
     def version(
         self, version: VersionType = sentinel, overwrite: bool = False

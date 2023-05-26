@@ -37,7 +37,7 @@ def test_index_load(tmp_path):
 def test_index_commit():
     i = index.Index({"database": ":memory:"})
     v = schema.Interface()
-    e = (v.uuid, "Interface", None, "null", "[]", "null", "[]")
+    e = (v.uuid, "Interface", None, "null", "[]", "null", "[]", v.timestamp)
     assert i.commit(v) is True
     assert i.db.cursor().execute("SELECT * FROM 'index';").fetchall() == [e]
     assert i.commit(v) is False

@@ -57,10 +57,6 @@ class Execution(Interface):
     def seed(self) -> int:
         return self.__model__.seed
 
-    @property
-    def timestamp(self) -> int:
-        return self.__model__.timestamp
-
     @has_one
     def schedule() -> "Schedule":
         return Schedule
