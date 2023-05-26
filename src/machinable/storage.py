@@ -27,13 +27,15 @@ class Storage(Interface):
         )
 
     def commit(self, interface: "Interface") -> None:
-        pass
+        ...
 
     def update(self, interface: "Interface") -> None:
-        pass
+        ...
 
     def contains(self, uuid: str) -> bool:
+        ...
         return False
 
     def retrieve(self, uuid: str, local_directory: str) -> bool:
+        ...
         return False

@@ -300,7 +300,7 @@ class Component(Interface):
     # life cycle
 
     def __call__(self) -> None:
-        """Main event"""
+        ...
 
     def on_before_commit(self) -> Optional[bool]:
         """Event triggered before the commit of the component"""

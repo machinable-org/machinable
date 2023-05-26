@@ -62,7 +62,7 @@ def migrate(db: sqlite3.Connection) -> None:
         version += 1
     if version == 1:
         # future migrations
-        pass  # pragma: no cover
+        ...
 
 
 def load(database: str, create=False) -> sqlite3.Connection:
