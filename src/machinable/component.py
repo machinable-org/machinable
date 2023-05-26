@@ -146,7 +146,7 @@ class Component(Interface):
         return self.is_finished()
 
     def dispatch_code(self, inline: bool = True) -> Optional[str]:
-        connections = []
+        connections = [f"Project('{Project.get().path()}').__enter__()"]
         for kind, elements in connected_elements.items():
             if kind == "Project":
                 continue
@@ -156,7 +156,6 @@ class Component(Interface):
         co = "\n".join(connections)
         code = f"""
         from machinable import Project, Element, Component
-        Project('{Project.get().path()}').__enter__()
         {co}
         component__ = Component.find('{self.uuid}')
         component__.dispatch()
