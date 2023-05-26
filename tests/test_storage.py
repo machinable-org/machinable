@@ -25,7 +25,7 @@ def test_storage(tmp_path):
             shutil.copytree(
                 os.path.join(self.config.directory, uuid),
                 local_directory,
-                dirs_exist_ok=True,
+                # dirs_exist_ok=True, -> not available in Python 3.7
             )
 
             return True
