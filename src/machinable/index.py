@@ -88,7 +88,7 @@ class Index(Interface):
 
     class Config:
         directory: str = "./storage"
-        database: str = "sqlite:///~/.machinable/index.sqlite"
+        database: str = "sqlite:///./storage/index.sqlite"
 
     def __init__(self, version: VersionType = None):
         super().__init__(version=version)
