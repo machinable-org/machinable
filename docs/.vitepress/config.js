@@ -51,6 +51,10 @@ export default defineConfig({
                 text: 'Elements',
                 link: '/guide/essentials/elements'
               },
+              {
+                text: 'Interfaces',
+                link: '/guide/essentials/interfaces'
+              },
             ]
           },
         ]

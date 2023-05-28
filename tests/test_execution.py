@@ -84,7 +84,7 @@ def test_execution_context(tmp_storage):
     assert e1.execution.nickname == e2.execution.nickname
 
 
-def test_execution_resources():
+def test_execution_resources(tmp_storage):
     component = Component()
     execution = Execution()
     # default resources are empty
