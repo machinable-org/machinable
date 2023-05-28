@@ -196,6 +196,16 @@ def test_component_export(tmp_storage):
         script = c.dispatch_code(inline=False)
     exec(script)
 
+    class EscapeTest(Component):
+        Config = {"test": "method('valid_escape')"}
+
+        def config_method(self, value):
+            return value == "valid_escape"
+
+    c = EscapeTest().commit()
+    assert c.config.test
+    exec(c.dispatch_code(inline=False))
+
 
 def test_component_predicates(tmp_storage):
     p = Project("./tests/samples/project").__enter__()

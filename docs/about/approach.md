@@ -2,7 +2,7 @@
 
 ::: tip Optional reading
 
-This background discusses big-picture ideas. For a hands-on guide, refer to the [tutorial](../tutorial/essentials/project-structure.md).
+This background discusses the big-picture approach. For a hands-on tutorial, refer to the [guide](../guide/introduction.md).
 
 :::
 

@@ -27,7 +27,7 @@ def test_slurm_execution(tmp_path):
     with Index(
         {"directory": str(tmp_path), "database": str(tmp_path / "test.sqlite")}
     ):
-        with Project("docs/examples/slurm_and_mpi_execution"):
+        with Project("docs/examples/slurm-and-mpi-execution"):
             with Execution.get(
                 "slurm",
                 resources=json.loads(
@@ -47,3 +47,12 @@ def test_slurm_execution(tmp_path):
                 time.sleep(1)
             print(component.output())
             assert False, f"Timeout for {component.local_directory()}"
+
+
+@pytest.mark.skipif(
+    not shutil.which("sbatch")
+    or "MACHINABLE_SLURM_TEST_RESOURCES" not in os.environ,
+    reason="Test requires Slurm environment",
+)
+def test_slurm_execution_with_dependencies(tmp_path):
+    pass

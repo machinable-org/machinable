@@ -4,7 +4,10 @@
 
 # Unreleased
 
-- No current changes
+- Generalized storage (#437)
+- Support for in-session element instances
+- Allow unstructured untyped dict-config
+- Simplified event structure
 
 # v4.2.0
 

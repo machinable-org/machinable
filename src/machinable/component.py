@@ -156,7 +156,7 @@ class Component(Interface):
             if kind in ["Project", "Execution"]:
                 continue
             for element in elements:
-                jn = element.as_json().replace('"', '\\"')
+                jn = element.as_json().replace('"', '\\"').replace("'", "\\'")
                 connections.append(f"Element.from_json('{jn}').__enter__()")
         context = "\n".join(connections)
         code = f"""

@@ -4,7 +4,7 @@ layout: home
 hero:
   name: machinable
   text: research code
-  tagline: A modular system to manage research code effectively so you can move quickly while enabling reuse and collaboration.
+  tagline: A modular system to manage research code so you can move quickly while enabling reuse and collaboration.
   image:
     src: /logo/logo.png
     alt: machinable-logo
@@ -22,7 +22,7 @@ features:
     details: Run code and inspect results using the same abstraction. Check out the example below ⏬
   - icon: ⚡️
     title: Designed for rapid iteration
-    details: Spend more time componenting while relying on machinable to keep things organized.
+    details: Spend more time experimenting while relying on machinable to keep things organized.
   - icon: 💡
     title: Hackable and interactive
     details: Tweak, extend, override while leveraging first-class support for Jupyter as well as the CLI. 
