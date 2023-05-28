@@ -19,9 +19,9 @@ export default defineConfig({
     themeConfig: {
       logo: '/logo/logo.svg',
       nav: [
-        { text: 'Tutorial', link: '/tutorial/introduction' },
+        { text: 'Guide', link: '/guide/introduction' },
         { text: 'Reference', link: '/reference/' },
-        { text: 'Examples', link: '/examples/overview' },
+        { text: 'Examples', link: '/examples/' },
         { text: 'About',
           items: [
             { text: "Approach", link: '/about/approach' },
@@ -30,76 +30,26 @@ export default defineConfig({
         }
       ],
       sidebar: {
-        '/tutorial/': [
+        '/guide/': [
           {
             text: 'Getting Started',
             items: [
               {
                 text: 'Introduction',
-                link: '/tutorial/introduction'
+                link: '/guide/introduction'
               },
               {
                 text: 'Installation',
-                link: '/tutorial/installation'
+                link: '/guide/installation'
               }
             ]
           },
           {
-            text: 'Essentials',
-            items: [
-              {
-                text: 'Project structure',
-                link: '/tutorial/essentials/project-structure'
-              },
-              {
-                text: 'Implementing components',
-                link: '/tutorial/essentials/implementing-components'
-              },
-              {
-                text: 'Executing experiments',
-                link: '/tutorial/essentials/executing-experiments'
-              },
-              {
-                text: 'Storage and retrieval',
-                link: '/tutorial/essentials/storage-and-retrieval'
-              }
-            ]
-          },
-          {
-            text: 'Elements in-depth',
+            text: 'Tutorial',
             items: [
               {
                 text: 'Elements',
-                link: '/tutorial/elements-in-depth/elements'
-              },
-              {
-                text: 'Advanced configuration',
-                link: '/tutorial/elements-in-depth/advanced-configuration'
-              },
-              {
-                text: 'Relationships',
-                link: '/tutorial/elements-in-depth/relationships'
-              },
-              {
-                text: 'Experiments',
-                link: '/tutorial/elements-in-depth/components'
-              },
-              {
-                text: 'Execution',
-                link: '/tutorial/elements-in-depth/execution'
-              },
-            ]
-          },
-          {
-            text: 'Extra topics',
-            items: [
-              {
-                text: 'Collections',
-                link: '/tutorial/extra-topics/collections'
-              },
-              {
-                text: 'CLI',
-                link: '/tutorial/extra-topics/cli'
+                link: '/guide/essentials/elements'
               },
             ]
           },
