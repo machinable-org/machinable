@@ -45,15 +45,19 @@ export default defineConfig({
             ]
           },
           {
-            text: 'Tutorial',
+            text: 'Core',
             items: [
               {
-                text: 'Elements',
-                link: '/guide/essentials/elements'
+                text: 'Element',
+                link: '/guide/element'
               },
               {
-                text: 'Interfaces',
-                link: '/guide/essentials/interfaces'
+                text: 'Interface',
+                link: '/guide/interface'
+              },
+              {
+                text: 'Component',
+                link: '/guide/component'
               },
             ]
           },

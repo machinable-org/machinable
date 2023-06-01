@@ -1,8 +1,4 @@
-# Tutorial
-
-The goal of this tutorial is to quickly give you an experience of what it feels like to work with machinable. It does not aim to be comprehensive, and you don't need to understand everything before moving on. The remainder of the Guide will cover each topic in more detail.
-
-## Elements
+# Element
 
 At a basic level, machinable projects are regular Python projects consisting of  *elements* - configurable classes that encapsulate parts of your code.
 For example, an element implementation of a dataset might look like this:
@@ -56,7 +52,7 @@ class MnistData(Element):
 16
 ```
 
-The `~` indicates that the version is defined as a method and machinable will look up and call `version_{name}` to use the returned dictionary to update the default configuration. This works with parameters as well:
+The `~{name}` indicates that the version is defined as a method and machinable will look up and call `version_{name}` to use the returned dictionary to update the default configuration. This works with parameters as well:
 
 ```python
 class MnistData(Element):
@@ -83,7 +79,7 @@ Furthermore, it is possible to compose versions in a list, for example:
 {'batch_size': 4, 'name': 'halve'}
 ```
 
-The updates are merged from left to right, i.e. values appended to the list overwrite prior values:
+The updates are merged from right to left, i.e. values appended to the list overwrite prior values:
 ```python
 >>> MnistData([{"name": "first"}, {"name": "second"}]).config.name
 'second'
@@ -112,4 +108,4 @@ mnist = MnistData({"batch_size": 1})
 {'batch_size': 1}
 ```
 
-Elements support many more advanced configuration features such as validation, parameter documentation, computed values, etc., which will be covered in later sections of the Guide. For now, the key thing to note is that elements are classes with default configurations that may be modified with a list of configuration updates.
+Elements support many more advanced configuration features such as typing, validation, parameter documentation, computed values, etc., which will be covered in later sections of the Guide. For now, to summarize, elements are classes with default configurations that may be modified with a list of configuration updates.
