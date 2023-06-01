@@ -1,7 +1,5 @@
 # How-to examples
 
-::: warning Coming soon
+This section presents code examples that demonstrate real-world usage and my be a good starting point when implementing your own projects.
 
-This section is currently under construction
-
-:::
+Please select an example from the menu.

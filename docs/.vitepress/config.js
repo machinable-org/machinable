@@ -61,6 +61,30 @@ export default defineConfig({
               },
             ]
           },
+        ],
+        '/examples/': [
+          {
+            text: 'Storage',
+            items: [
+              {
+                text: 'Aimstack',
+                link: '/examples/aim-ui-storage/'
+              },
+              {
+                text: 'Globus',
+                link: '/examples/globus-storage/'
+              }
+            ]
+          },
+          {
+            text: 'Execution',
+            items: [
+              {
+                text: 'Slurm and MPI',
+                link: '/examples/slurm-and-mpi-execution/'
+              },
+            ]
+          },
         ]
       },
       footer: {

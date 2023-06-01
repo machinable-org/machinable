@@ -56,10 +56,3 @@ class Aimstack(Storage):
 
         for k, v in interface.__model__.dict().items():
             run[k] = v
-
-    def update(self, interface: "Interface") -> None:
-        if self._run(uuid)._checkins is None:
-            return
-
-        self._run(uuid).report_progress(expect_next_in=120)
-        self._run(uuid).report_successful_finish()

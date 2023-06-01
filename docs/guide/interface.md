@@ -1,6 +1,6 @@
 # Interface
 
-[Elements](./elements.md) by themselves are limited in that they are effectively stateless. You can construct and use them but any computed result or additional information will not be persisted. 
+[Elements](./element.md) by themselves are limited in that they are effectively stateless. You can construct and use them but any computed result or additional information will not be persisted. 
 
 To enable storage and retrival we can use an <Pydoc>machinable.Interface</Pydoc> class.
 
@@ -27,7 +27,7 @@ Interface [29f034]
 Interface [29f034] # reloaded interface
 ```
 
-During commit, machinable collects information like a unique ID (e.g. `29f034`), the used configuration, and other meta-data and saves it in a unique storage (e.g. a local directory) from which it can be later reloaded. 
+During commit, machinable collects information like a unique ID (e.g. `29f034`), the used configuration, and other meta-data and saves it in a unique storage (e.g. a local directory) from which it can be reloaded later. 
 
 ## get
 
@@ -43,7 +43,7 @@ mnist = get(MnistData, {"batch_size": 8})
 mnist.commit()
 ```
 
-Now, if we later like to retrieve this instance, rather than using its ID, we can instead use the same code:
+Now, if we later want to retrieve this instance, we can use the same code in place of a unique ID:
 
 ```python
 mnist_reloaded = get(MnistData, {"batch_size": 8})
@@ -53,7 +53,7 @@ assert mnist == mnist_reloaded
 
 What is happening here is that <Pydoc caption="get()">machinable.get</Pydoc> automatically searches the storage for an interface of type `MnistData` with a `batch_size` of `8`. If such an instance has not been committed yet (like when initially running the code), a new instance with this configuration will be returned. But if such an instance has previously been committed, it will simply be reloaded.
 
-To avoid the storage lookup and instantiate different instances with the same configuration you can set the `predicate` parameter to `None`
+To avoid this storage lookup and instantiate different instances with the same configuration you can set the `predicate` parameter to `None`
 
 ```python
 mnist1 = get(MnistData, {"batch_size": 8})
@@ -63,7 +63,7 @@ assert mnist1 != mnist2
 
 ## The module convention
 
-As your project grows, the classes that you implement should be moved into their own Python module. You are free to structure your code as you see fit but there is one hard constraint that each class must be placed in its own module. The project source code may, for instance, be organized like this:
+As your project grows, the classes that you implement should be moved into their own Python module. You are free to structure your code as you see fit but there is one hard constraint that classes must be placed in their own modules. The project source code may, for instance, be organized like this:
 
 ```
 example_project/
@@ -73,7 +73,7 @@ example_project/
 └─ main.py                        # main script to execute
 ```
 
-One benefit of this requirement is that you can refer to the classes via their module import path.
+The benefit of this requirement is that you can refer to the classes via their module import path.
 For example, using this *module convention*, you can simplify the instantiation of classes that are located in different modules:
 
 ::: code-group
@@ -97,7 +97,7 @@ evolution = get('evolution.simulate_offspring')
 
 :::
 
-Note that we do not refer to the classes by their name but just by the modules that contain them. As we will see later, importing and instantiating the classes this way has a lot of advantages, so it is the default way of instantiation in machinable projects.
+Note that we do not refer to the classes by their name but just by the modules that contain them (since each module only contains one). As we will see later, importing and instantiating the classes this way has a lot of advantages, so it is the default way of instantiation in machinable projects.
 
 
 ## Saving and loading state
