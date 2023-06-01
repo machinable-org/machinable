@@ -226,6 +226,7 @@ def resolve_custom_predicate(predicate: str, element: "Element"):
         custom.update(element.global_predicate() or {})
     else:
         custom.update(Project.get().provider().global_predicate() or {})
+    custom.update(getattr(element, "_starred_predicates", {}))
 
     if custom:
         predicate = predicate.replace(
@@ -466,10 +467,10 @@ class Element(Mixin, Jsonable):
                         replace=True,
                     )
 
-                    # expose raw config so events and config methods can use it
-                    raw_config, config_model = from_element(self)
+                    # expose default config so events and config methods can use it
+                    default_config, config_model = from_element(self)
 
-                    self._config = OmegaConf.create(raw_config)
+                    self._config = OmegaConf.create(default_config)
 
                     self.on_before_configure(self._config)
 
@@ -522,7 +523,7 @@ class Element(Mixin, Jsonable):
                         config = config_model(**config).dict()
 
                     # add introspection data
-                    config["_raw_"] = raw_config
+                    config["_default_"] = default_config
                     config["_version_"] = __version
                     config["_update_"] = config_update
 
@@ -606,7 +607,7 @@ class Element(Mixin, Jsonable):
             custom.update(Project.get().provider().global_predicate() or {})
 
         config = copy.deepcopy(OmegaConf.to_container(self.config))
-        raw = config.pop("_raw_")
+        default = config.pop("_default_")
         version = config.pop("_version_")
         update = config.pop("_update_")
 

@@ -1,7 +1,21 @@
 # Aim storage
 
-::: warning Coming soon
+Integration for the AI metadata tracker [AimStack](https://aimstack.io/).
 
-This section is currently under construction
+## Usage example
+
+```python
+from machinable import get
+
+get("aimstack", {"repo": "./path/to/aim-repo"}).__enter__()
+
+# your code
+```
+
+## Source
+
+::: code-group
+
+<<< @/examples/aim-ui-storage/aimstack.py
 
 :::

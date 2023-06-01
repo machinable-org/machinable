@@ -45,11 +45,43 @@ export default defineConfig({
             ]
           },
           {
-            text: 'Tutorial',
+            text: 'Core',
             items: [
               {
-                text: 'Elements',
-                link: '/guide/essentials/elements'
+                text: 'Element',
+                link: '/guide/element'
+              },
+              {
+                text: 'Interface',
+                link: '/guide/interface'
+              },
+              {
+                text: 'Component',
+                link: '/guide/component'
+              },
+            ]
+          },
+        ],
+        '/examples/': [
+          {
+            text: 'Storage',
+            items: [
+              {
+                text: 'Aimstack',
+                link: '/examples/aim-ui-storage/'
+              },
+              {
+                text: 'Globus',
+                link: '/examples/globus-storage/'
+              }
+            ]
+          },
+          {
+            text: 'Execution',
+            items: [
+              {
+                text: 'Slurm and MPI',
+                link: '/examples/slurm-and-mpi-execution/'
               },
             ]
           },

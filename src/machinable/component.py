@@ -27,7 +27,7 @@ from machinable.interface import Interface, belongs_to, belongs_to_many
 from machinable.project import Project
 from machinable.storage import Storage
 from machinable.types import DatetimeType, TimestampType, VersionType
-from machinable.utils import load_file, save_file
+from machinable.utils import generate_seed, load_file, save_file
 
 if TYPE_CHECKING:
     from machinable.execution import Execution
@@ -42,13 +42,17 @@ class Component(Interface):
         version: VersionType = None,
         uses: Union[None, "Interface", List["Interface"]] = None,
         derived_from: Optional["Interface"] = None,
+        seed: Union[int, None] = None,
     ):
         super().__init__(version=version, uses=uses, derived_from=derived_from)
+        if seed is None:
+            seed = generate_seed()
         self.__model__ = schema.Component(
             kind=self.kind,
             module=self.__model__.module,
             config=self.__model__.config,
             version=self.__model__.version,
+            seed=seed,
             lineage=get_lineage(self),
         )
         self.__model__._dump = get_dump(self)
@@ -64,6 +68,14 @@ class Component(Interface):
         from machinable.execution import Execution
 
         return Execution
+
+    @property
+    def seed(self) -> int:
+        return self.__model__.seed
+
+    @property
+    def nickname(self) -> str:
+        return self.__model__.nickname
 
     def launch(self) -> Self:
         from machinable.execution import Execution
@@ -87,7 +99,7 @@ class Component(Interface):
     def resources(self) -> Optional[Dict]:
         if self.execution is None:
             return None
-        return self.execution.load_file(f"resources-{self.id}.json", None)
+        return self.load_file(f"resources-{self.execution.id}.json", None)
 
     def dispatch(self) -> Self:
         """Dispatch the component lifecycle"""
@@ -340,8 +352,7 @@ class Component(Interface):
 
     def on_seeding(self):
         """Lifecycle event to implement custom seeding using `self.seed`"""
-        if self.execution:
-            random.seed(self.execution.seed)
+        random.seed(self.seed)
 
     def on_write_meta_data(self) -> Optional[bool]:
         """Event triggered before meta-data such as creation time etc. is written to the storage

@@ -107,19 +107,15 @@ Research is extremely diverse so machinable primarily aims to be an **API-spec**
 
 ## Where to go from here
 
-Continue with the guide that will quickly introduce the bare minimum of concepts necessary to start using machinable. Along the way, it will provide pointers to sections that discuss concepts in more detail or cover more advanced functionality.
-
-Feel free to pick a learning path that suits your preference.
-
-:::tip Installation
+::: info :gear: &nbsp; Installation
 
 We recommend [installing machinable](./installation.md) to try things out while following along.
 
 :::
 
-::: info :student: &nbsp; [Continue with the Guide](./essentials/elements.md)
+::: info :student: &nbsp; [Continue with the Guide](./element.md)
 
-Designed to learn concepts hands-on.
+Designed to learn concepts hands-on. Starts with the bare minimum of concepts necessary to start using machinable. Along the way, it will provide pointers to sections that discuss concepts in more detail or cover more advanced functionality.
 
 :::
 

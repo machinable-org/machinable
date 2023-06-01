@@ -1,15 +1,19 @@
 # Slurm and MPI execution
 
-::: warning Coming soon
+Integration for [Slurm](https://slurm.schedmd.com/documentation.html) and/or [MPI](https://en.wikipedia.org/wiki/Message_Passing_Interface).
 
-This section is currently under construction
+## MPI
+
+::: code-group
+
+<<< @/examples/slurm-and-mpi-execution/mpi.py
 
 :::
 
+## Slurm
 
-Covers:
+::: code-group
 
-- MPI
-- Slurm
-- Slurm+MPI
-- on_write_metadata
+<<< @/examples/slurm-and-mpi-execution/slurm.py
+
+:::
