@@ -25,7 +25,7 @@ def test_execution(tmp_storage):
         assert len(execution.executables) == 1
         execution.dispatch()
 
-        assert execution.host_info["python_version"].startswith("3")
+        assert component.host_info["python_version"].startswith("3")
 
 
 def test_execution_dispatch(tmp_storage):
@@ -81,7 +81,6 @@ def test_execution_context(tmp_storage):
         assert e2.execution is None
     assert e1.is_finished()
     assert e2.is_finished()
-    assert e1.execution.nickname == e2.execution.nickname
 
 
 def test_execution_resources(tmp_storage):

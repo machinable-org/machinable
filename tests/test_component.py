@@ -89,6 +89,7 @@ def test_component_launch(tmp_storage):
         assert e2.execution is None
     assert e1.is_finished()
     assert e2.is_finished()
+    assert e1.nickname != e2.nickname
 
     class Example(Component):
         def __call__(self):

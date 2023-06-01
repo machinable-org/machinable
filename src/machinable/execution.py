@@ -17,9 +17,8 @@ from machinable.interface import Interface, has_many, has_one
 from machinable.project import Project
 from machinable.schedule import Schedule
 from machinable.settings import get_settings
-from machinable.storage import Storage
 from machinable.types import ElementType, VersionType
-from machinable.utils import generate_seed, sentinel, update_dict
+from machinable.utils import sentinel, update_dict
 
 
 class Execution(Interface):
@@ -30,21 +29,17 @@ class Execution(Interface):
         self,
         version: VersionType = None,
         resources: Optional[Dict] = None,
-        seed: Union[int, None] = None,
         schedule: Union[
             Schedule, ElementType, None
         ] = get_settings().default_schedule,
     ):
         super().__init__(version)
-        if seed is None:
-            seed = generate_seed()
         self.__model__ = schema.Execution(
             kind=self.kind,
             module=self.__model__.module,
             config=self.__model__.config,
             version=self.__model__.version,
             resources=resources,
-            seed=seed,
             lineage=get_lineage(self),
         )
         self.__model__._dump = get_dump(self)
@@ -52,10 +47,12 @@ class Execution(Interface):
             if not isinstance(schedule, Schedule):
                 schedule = Schedule.make(*extract(schedule))
             self.push_related("schedule", schedule)
+        self._starred_predicates = {"resources": None}
 
-    @property
-    def seed(self) -> int:
-        return self.__model__.seed
+    def compute_predicate(self) -> Dict:
+        predicates = super().compute_predicate()
+        predicates["resources"] = self.__model__.resources
+        return predicates
 
     @has_one
     def schedule() -> "Schedule":
@@ -166,14 +163,10 @@ class Execution(Interface):
         try:
             # compute resources
             for executable in self.pending_executables:
-                self.save_file(
-                    f"resources-{executable.id}.json",
+                executable.save_file(
+                    f"resources-{self.id}.json",
                     self.compute_resources(executable),
                 )
-            self.save_file(
-                "host.json", Project.get().provider().get_host_info()
-            )
-
             self.__call__()
             self.on_after_dispatch()
         except BaseException as _ex:  # pylint: disable=broad-except
@@ -203,14 +196,6 @@ class Execution(Interface):
 
     def on_after_dispatch(self) -> None:
         """Event triggered after the dispatch of an execution"""
-
-    @property
-    def host_info(self) -> Optional[Dict]:
-        return self.load_file("host.json", None)
-
-    @property
-    def nickname(self) -> str:
-        return self.__model__.nickname
 
     def __iter__(self):
         yield from self.executables

@@ -226,6 +226,7 @@ def resolve_custom_predicate(predicate: str, element: "Element"):
         custom.update(element.global_predicate() or {})
     else:
         custom.update(Project.get().provider().global_predicate() or {})
+    custom.update(getattr(element, "_starred_predicates", {}))
 
     if custom:
         predicate = predicate.replace(

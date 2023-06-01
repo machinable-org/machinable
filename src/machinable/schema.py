@@ -37,6 +37,8 @@ class Interface(Element):
 
 class Component(Interface):
     kind: str = "Component"
+    seed: int = Field(default_factory=generate_seed)
+    nickname: str = Field(default_factory=generate_nickname)
 
 
 class Project(Interface):
@@ -45,9 +47,7 @@ class Project(Interface):
 
 class Execution(Interface):
     kind: str = "Execution"
-    seed: int = Field(default_factory=generate_seed)
     resources: Optional[Dict] = None
-    nickname: str = Field(default_factory=generate_nickname)
 
 
 class Schedule(Interface):

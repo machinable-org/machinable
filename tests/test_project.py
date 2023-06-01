@@ -34,6 +34,5 @@ def test_project_events(tmp_storage):
     component = Component.instance("dummy")
     component.launch()
     assert component.host_info["dummy"] == "data"
-    assert component.execution.host_info["dummy"] == "data"
 
     project.__exit__()
