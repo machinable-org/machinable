@@ -4,6 +4,10 @@
 
 # Unreleased
 
+No current changes
+
+# v4.3.0
+
 - Generalized storage (#437)
 - Support for in-session element instances
 - Allow unstructured untyped dict-config
