@@ -1,7 +1,5 @@
-import time
-
 import pytest
-from machinable import Component, Execution, Project, Storage, errors
+from machinable import Component, Execution, Project, errors
 
 
 def test_execution(tmp_storage):
@@ -128,6 +126,26 @@ def test_execution_resources(tmp_storage):
         execution.resources({"a": 3})
         e2.launch()
     assert e2.resources()["a"] == 3
+
+    # retried execution
+    g = {"fail": True}
+
+    class Fail(Component):
+        def __call__(self) -> None:
+            if g["fail"]:
+                raise ValueError("Fail!")
+
+    c = Fail()
+    with pytest.raises(errors.ExecutionFailed):
+        with Execution(resources={"x": 1}) as execution1:
+            c.launch()
+    assert c.resources()["x"] == 1
+    g["fail"] = False
+    c.__related__ = {}
+    c._relation_cache = {}
+    with Execution(resources={"y": 1}) as execution2:
+        c.launch()
+    assert c.resources(execution2)["y"] == 1
 
 
 def test_interrupted_execution(tmp_storage):

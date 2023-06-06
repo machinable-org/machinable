@@ -6,10 +6,6 @@ from uuid import uuid4
 from machinable.utils import generate_nickname, generate_seed
 from pydantic import BaseModel, Field, PrivateAttr
 
-if TYPE_CHECKING:
-    from machinable.execution import Execution as ExecutionElement
-    from machinable.storage.storage import Storage
-
 
 class Element(BaseModel):
     uuid: str = Field(default_factory=lambda: uuid4().hex)

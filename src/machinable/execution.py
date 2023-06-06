@@ -164,7 +164,7 @@ class Execution(Interface):
             # compute resources
             for executable in self.pending_executables:
                 executable.save_file(
-                    f"resources-{self.id}.json",
+                    f"resources/{self.id}.json",
                     self.compute_resources(executable),
                 )
             self.__call__()
@@ -201,9 +201,10 @@ class Execution(Interface):
         yield from self.executables
 
     def __exit__(self, *args, **kwargs):
-        self.dispatch()
-
-        super().__exit__()
+        try:
+            self.dispatch()
+        finally:
+            super().__exit__()
 
     def __repr__(self) -> str:
         return "Execution"

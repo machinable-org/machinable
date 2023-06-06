@@ -96,10 +96,14 @@ class Component(Interface):
     def collect(cls, components) -> "ComponentCollection":
         return ComponentCollection(components)
 
-    def resources(self) -> Optional[Dict]:
-        if self.execution is None:
+    def resources(
+        self, execution: Optional["Execution"] = None
+    ) -> Optional[Dict]:
+        if execution is None:
+            execution = self.execution
+        if execution is None:
             return None
-        return self.load_file(f"resources-{self.execution.id}.json", None)
+        return self.load_file(f"resources/{execution.id}.json", None)
 
     def dispatch(self) -> Self:
         """Dispatch the component lifecycle"""

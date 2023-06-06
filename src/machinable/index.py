@@ -2,6 +2,7 @@ from typing import Any, Dict, List, Optional, Union
 
 import json
 import os
+from datetime import datetime
 
 try:
     from pysqlite3 import dbapi2 as sqlite3
@@ -57,6 +58,7 @@ def migrate(db: sqlite3.Connection) -> None:
                 uuid text NOT NULL REFERENCES 'index' (uuid),
                 related_uuid text NOT NULL REFERENCES 'index' (uuid),
                 'priority' integer NOT NULL DEFAULT 0,
+                'timestamp' real,
                 UNIQUE (uuid, related_uuid, relation)
             )"""
         )
@@ -158,10 +160,11 @@ class Index(Interface):
         uuid: str,
         related_uuid: Union[str, List[str]],
         priority: int = 0,
+        timestamp: Optional[float] = None,
     ) -> None:
         if isinstance(related_uuid, (list, tuple)):
             for r in related_uuid:
-                self.create_relation(relation, uuid, r, priority)
+                self.create_relation(relation, uuid, r, priority, timestamp)
             return
 
         cur = self.db.cursor()
@@ -171,19 +174,17 @@ class Index(Interface):
         ).fetchone():
             # already exists
             return
+        if timestamp is None:
+            timestamp = datetime.now().timestamp()
         cur.execute(
             """INSERT INTO 'relations' (
                 relation,
                 uuid,
                 related_uuid,
-                priority
-            ) VALUES (?,?,?,?)""",
-            (
-                relation,
-                uuid,
-                related_uuid,
                 priority,
-            ),
+                timestamp
+            ) VALUES (?,?,?,?,?)""",
+            (relation, uuid, related_uuid, priority, timestamp),
         )
         self.db.commit()
 
@@ -227,7 +228,7 @@ class Index(Interface):
                 """SELECT * FROM 'index' WHERE uuid IN
                     (
                     SELECT related_uuid FROM relations WHERE uuid=? AND relation=?
-                    )
+                    )  ORDER BY 'timestamp' ASC
                 """,
                 (uuid, relation),
             ).fetchall()
@@ -235,8 +236,8 @@ class Index(Interface):
             rows = cur.execute(
                 """SELECT * FROM 'index' WHERE uuid IN
                     (
-                    SELECT uuid FROM relations WHERE related_uuid=? AND relation=?
-                    )
+                    SELECT uuid FROM relations WHERE related_uuid=? AND relation=? ORDER BY 'timestamp' DESC
+                    )  ORDER BY 'timestamp' ASC
                 """,
                 (uuid, relation),
             ).fetchall()
