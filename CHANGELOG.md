@@ -6,6 +6,11 @@
 
 No current changes
 
+# v4.3.1
+
+- Drops commandlib dependency
+- Fix Component.execution resolution for resource retrieval
+
 # v4.3.0
 
 - Generalized storage (#437)
