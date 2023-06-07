@@ -1,7 +1,7 @@
 import os
+import subprocess
 
 import pytest
-from commandlib import Command
 from machinable import get_version, utils
 from machinable.element import Element
 
@@ -120,8 +120,7 @@ def test_git_utils(tmp_path):
     # create a repository
     repo_dir = str(tmp_path / "test_repo")
     os.makedirs(repo_dir, exist_ok=True)
-    git = Command("git").in_dir(repo_dir)
-    git("init").run()
+    subprocess.run(["git", "init"], cwd=repo_dir, check=True)
 
     # get_diff
     assert utils.get_diff(str(tmp_path)) is None
@@ -130,7 +129,7 @@ def test_git_utils(tmp_path):
     with open(os.path.join(repo_dir, "test"), "w") as f:
         f.write("some test data")
 
-    git("add", ".").run()
+    subprocess.run(["git", "add", "."], cwd=repo_dir, check=True)
     assert "some test data" in utils.get_diff(repo_dir)
 
 

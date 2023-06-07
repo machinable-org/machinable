@@ -1,7 +1,7 @@
 import os
 import stat
+import subprocess
 
-import commandlib
 import pytest
 from machinable import (
     Component,
@@ -184,7 +184,10 @@ def test_component_export(tmp_storage):
     st = os.stat(script_filepath)
     os.chmod(script_filepath, st.st_mode | stat.S_IEXEC)
 
-    print(commandlib.Command("bash")(script_filepath).output())
+    output = subprocess.run(
+        ["bash", script_filepath], capture_output=True, text=True, check=True
+    ).stdout
+    print(output)
     assert component.is_finished()
     assert component.load_file("test_run.json")["success"]
 

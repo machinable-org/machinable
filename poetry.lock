@@ -141,17 +141,6 @@ files = [
 ]
 
 [[package]]
-name = "commandlib"
-version = "0.3.5"
-description = "Pythonic command runner"
-category = "main"
-optional = false
-python-versions = "*"
-files = [
-    {file = "commandlib-0.3.5.tar.gz", hash = "sha256:07b4d2a64a6858e36b185e3512d24ea2f34267d035450035d9bd8437c0ad7d38"},
-]
-
-[[package]]
 name = "coverage"
 version = "7.2.6"
 description = "Code coverage measurement for Python"
@@ -829,4 +818,4 @@ all = []
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.7"
-content-hash = "10b841f35c0d27fc3f6a9c7b293a19d9e61c810f2e00d863b044c60c60483ba4"
+content-hash = "d450cf61506d2ac99333ad950484636d6cb0c439550c1a4cc4fba9e17d5511f4"

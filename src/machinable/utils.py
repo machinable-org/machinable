@@ -16,13 +16,13 @@ import os
 import random
 import re
 import string
+import subprocess
 import sys
 from keyword import iskeyword
 from pathlib import Path
 from uuid import UUID
 
 import arrow
-import commandlib
 import dill as pickle
 import jsonlines
 import omegaconf
@@ -469,61 +469,58 @@ def unflatten_dict(
 
 
 def get_diff(repository: str) -> Optional[str]:
-    git = commandlib.Command("git").in_dir(os.path.abspath(repository))
-
+    command = ["git", "diff", "--staged"]
     try:
-        return git("diff", "--staged").output()
-    except commandlib.exceptions.CommandError:
+        process = subprocess.run(
+            command,
+            cwd=os.path.abspath(repository),
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        return process.stdout
+    except subprocess.CalledProcessError:
         return None
-
-
-# This following method is modified 3rd party source code from
-# https://github.com/IDSIA/sacred/blob/7897c664b1b93fa2e2b6f3af244dfee590b1342a/sacred/dependencies.py#L401.
-# The copyright and license agreement can be found in the ThirdPartyNotices.txt file at the root of this repository.
 
 
 def get_commit(repository: str) -> dict:
     try:
-        import git
 
-        try:
-            repo = git.Repo(repository, search_parent_directories=False)
-            try:
-                branch = str(repo.active_branch)
-            except TypeError:
-                branch = None
+        def run_git_command(command):
+            return (
+                subprocess.check_output(
+                    ["git", "-C", repository] + command,
+                    stderr=subprocess.DEVNULL,
+                )
+                .decode()
+                .strip()
+            )
 
-            try:
-                path = repo.remote().url
-            except ValueError:
-                path = "git:/" + repo.working_dir
-            is_dirty = repo.is_dirty()
-            commit = repo.head.commit.hexsha
-            return {
-                "path": path,
-                "commit": commit,
-                "is_dirty": is_dirty,
-                "branch": branch,
-            }
-        except (git.exc.GitError, ValueError):
-            pass
-    except ImportError:
+        branch = run_git_command(["rev-parse", "--abbrev-ref", "HEAD"])
+        path = run_git_command(["config", "--get", "remote.origin.url"])
+        is_dirty = run_git_command(["status", "--porcelain"]) != ""
+        commit = run_git_command(["rev-parse", "HEAD"])
+
+        return {
+            "path": path,
+            "commit": commit,
+            "is_dirty": is_dirty,
+            "branch": branch,
+        }
+    except subprocess.CalledProcessError:
         pass
-
-    # todo: fallback
 
     return {"path": None, "commit": None, "is_dirty": None, "branch": None}
 
 
 def get_root_commit(repository: str) -> Optional[str]:
+    command = ["git", "rev-list", "--parents", "HEAD"]
     try:
-        return (
-            commandlib.Command("git", "rev-list", "--parents", "HEAD")
-            .in_dir(repository)
-            .output()[-1]
-            .replace("\n", "")
+        process = subprocess.run(
+            command, cwd=repository, capture_output=True, text=True, check=True
         )
-    except commandlib.exceptions.CommandError:
+        return process.stdout.split("\n")[-2]
+    except subprocess.CalledProcessError:
         return None
 
 

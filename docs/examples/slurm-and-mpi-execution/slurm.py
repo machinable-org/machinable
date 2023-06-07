@@ -1,10 +1,11 @@
-import commandlib
+import subprocess
+
 from machinable import Execution
+from machinable.errors import ExecutionFailed
 
 
 class Slurm(Execution):
     def __call__(self):
-        runner = commandlib.Command("sbatch")
         script = "#!/usr/bin/env bash\n"
         for component in self.pending_executables:
             resources = component.resources()
@@ -26,8 +27,24 @@ class Slurm(Execution):
             script += component.dispatch_code()
 
             # submit to slurm
+            process = subprocess.Popen(
+                ["sbatch"],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                stdin=subprocess.PIPE,
+            )
+            process.stdin.write(script.encode("utf8"))
+            stdoutput, _ = process.communicate()
+            returncode = process.returncode
+            if returncode != 0:
+                raise ExecutionFailed(
+                    self.__repr__(),
+                    returncode,
+                    stdoutput.decode("utf8").strip(),
+                )
 
-            output = runner.piped.from_string(script).output().strip()
+            output = stdoutput.decode("utf8").strip()
+
             try:
                 job_id = int(output.rsplit(" ", maxsplit=1)[-1])
             except ValueError:

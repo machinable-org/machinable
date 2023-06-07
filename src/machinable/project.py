@@ -1,4 +1,3 @@
-import types
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
 
 import getpass
@@ -6,11 +5,11 @@ import importlib
 import os
 import platform
 import socket
+import subprocess
 import sys
 from dataclasses import dataclass
 
 import machinable
-from commandlib import Command
 from machinable import schema
 from machinable.config import Field, validator
 from machinable.element import Element, get_lineage, instantiate, normversion
@@ -45,11 +44,14 @@ def fetch_directory(source, target):
     return True
 
 
-def fetch_git(source, target):
-    git = Command("git")
+def fetch_git(source: str, target: str) -> bool:
     name, directory = os.path.split(target)
-    clone = git("clone").in_dir(directory)
-    clone(source, name).run()
+    command = ["git", "clone", source, name]
+    process = subprocess.Popen(command, cwd=directory)
+    process.communicate()
+
+    if process.returncode != 0:
+        return False
 
     return True
 
