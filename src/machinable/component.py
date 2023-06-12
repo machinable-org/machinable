@@ -3,6 +3,7 @@ from typing import TYPE_CHECKING, List, Optional, Union
 import random
 import sys
 import threading
+import time
 
 import arrow
 from machinable.settings import get_settings
@@ -216,6 +217,11 @@ class Component(Interface):
 
         return output
 
+    def stream_output(self, refresh_every: Union[int, float] = 1, stream=print):
+        while not self.is_started() or self.is_active():
+            stream(self.output(incremental=True))
+            time.sleep(refresh_every)
+
     def update_status(
         self,
         status: Literal["started", "heartbeat", "finished"] = "heartbeat",
@@ -233,6 +239,7 @@ class Component(Interface):
                 # starting event can occur multiple times
                 mode="a",
             )
+            self.update_status("heartbeat", timestamp)
         elif status == "heartbeat":
             save_file(
                 self.local_directory("heartbeat_at"),
@@ -312,10 +319,8 @@ class Component(Interface):
         return self.is_finished() or self.is_active()
 
     def is_incomplete(self):
-        """Shorthand for is_started() and not (is_active() or is_finished())"""
-        return self.is_started() and not (
-            self.is_active() or self.is_finished()
-        )
+        """Shorthand for is_started() and not is_live()"""
+        return self.is_started() and not self.is_live()
 
     # life cycle
 
