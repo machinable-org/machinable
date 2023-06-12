@@ -25,7 +25,12 @@ from machinable.element import (
 )
 from machinable.settings import get_settings
 from machinable.types import VersionType
-from machinable.utils import is_directory_version, load_file, save_file
+from machinable.utils import (
+    is_directory_version,
+    joinpath,
+    load_file,
+    save_file,
+)
 from omegaconf import OmegaConf
 
 
@@ -391,7 +396,7 @@ class Interface(Element):
         Note that this does not verify the integrity of the directory.
         In particular, the interface may be missing or not be indexed.
         """
-        data = load_file(os.path.join(directory, "model.json"))
+        data = load_file([directory, "model.json"])
 
         model = getattr(schema, data["kind"], None)
         if model is None:
@@ -400,22 +405,22 @@ class Interface(Element):
 
         interface = model(**data)
         if interface.module.startswith("__session__"):
-            interface._dump = load_file(os.path.join(directory, "dump.p"), None)
+            interface._dump = load_file([directory, "dump.p"], None)
 
         return cls.from_model(interface)
 
     def to_directory(self, directory: str, relations=True) -> Self:
-        save_file(os.path.join(directory, ".machinable"), self.__model__.uuid)
-        save_file(os.path.join(directory, "model.json"), self.__model__)
+        save_file([directory, ".machinable"], self.__model__.uuid)
+        save_file([directory, "model.json"], self.__model__)
         if self.__model__._dump is not None:
-            save_file(os.path.join(directory, "dump.p"), self.__model__._dump)
+            save_file([directory, "dump.p"], self.__model__._dump)
         if relations:
             for k, v in self.__related__.items():
                 if hasattr(v, "uuid"):
-                    save_file(os.path.join(directory, "related", k), v.uuid)
+                    save_file([directory, "related", k], v.uuid)
                 elif v:
                     save_file(
-                        os.path.join(directory, "related", k),
+                        [directory, "related", k],
                         "\n".join([i.uuid for i in v]),
                         mode="w",
                     )
@@ -432,7 +437,10 @@ class Interface(Element):
 
         return directory
 
-    def load_file(self, filepath: str, default=None) -> Optional[Any]:
+    def load_file(
+        self, filepath: Union[str, List[str]], default=None
+    ) -> Optional[Any]:
+        filepath = joinpath(filepath)
         if not self.is_mounted():
             # has write been deferred?
             if filepath in self._deferred_data:
@@ -444,7 +452,9 @@ class Interface(Element):
 
         return data if data is not None else default
 
-    def save_file(self, filepath: str, data: Any) -> str:
+    def save_file(self, filepath: Union[str, List[str]], data: Any) -> str:
+        filepath = joinpath(filepath)
+
         if os.path.isabs(filepath):
             raise ValueError("Filepath must be relative")
 
