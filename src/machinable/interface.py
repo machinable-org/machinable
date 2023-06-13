@@ -284,7 +284,7 @@ class Interface(Element):
         self,
         module: Union[str, Element, None] = None,
         version: VersionType = None,
-        predicate: Optional[str] = get_settings().default_predicate,
+        predicate: Optional[str] = "$",
         **kwargs,
     ) -> Self:
         if module is None or predicate is None:
@@ -299,7 +299,7 @@ class Interface(Element):
         cls,
         module: Union[str, "Element"],
         version: VersionType = None,
-        predicate: Optional[str] = get_settings().default_predicate,
+        predicate: Optional[str] = "$",
         **kwargs,
     ) -> "Collection":
         if module in [
@@ -360,7 +360,7 @@ class Interface(Element):
         cls,
         module: Union[str, "Element"],
         version: VersionType = None,
-        predicate: Optional[str] = get_settings().default_predicate,
+        predicate: Optional[str] = "$",
         **kwargs,
     ) -> "Collection":
         from machinable.index import Index
@@ -370,15 +370,16 @@ class Interface(Element):
         except ModuleNotFoundError:
             return cls.collect([])
 
-        if predicate:
-            predicate = OmegaConf.to_container(
-                OmegaConf.create(
-                    {
-                        p: candidate.predicate[p]
-                        for p in resolve_custom_predicate(predicate, candidate)
-                    }
-                )
+        predicate_fields = resolve_custom_predicate(predicate, candidate)
+
+        if predicate_fields is None:
+            return cls.collect([])
+
+        predicate_data = OmegaConf.to_container(
+            OmegaConf.create(
+                {p: candidate.predicate[p] for p in predicate_fields}
             )
+        )
 
         return cls.collect(
             [
@@ -387,7 +388,7 @@ class Interface(Element):
                     module
                     if isinstance(module, str)
                     else f"__session__{module.__name__}",
-                    predicate,
+                    predicate_data,
                 )
             ]
         )

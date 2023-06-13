@@ -1,5 +1,6 @@
 from machinable import Component
 
+
 class Counter(Component):
     def __call__(self):
         self.save_file("count", self.count + 1)

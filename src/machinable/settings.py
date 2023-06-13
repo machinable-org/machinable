@@ -9,7 +9,6 @@ from pydantic import BaseModel, Field
 
 
 class Settings(BaseModel):
-    default_predicate: Optional[str] = "config,*"
     default_execution: Optional[ElementType] = None
     default_component: Optional[ElementType] = None
     default_interface: Optional[ElementType] = None

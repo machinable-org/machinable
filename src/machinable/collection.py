@@ -9,7 +9,6 @@ from functools import reduce
 from json import dumps
 from pprint import pprint
 
-from machinable.settings import get_settings
 from machinable.types import VersionType
 
 long = int
@@ -1384,7 +1383,7 @@ class ElementCollection(Collection):
         self,
         module: str,
         version: VersionType = None,
-        predicate: str = get_settings().default_predicate,
+        predicate: str = "$",
         **kwargs,
     ):
         from machinable import Element
@@ -1407,7 +1406,7 @@ class ElementCollection(Collection):
         self,
         module: str,
         version: VersionType = None,
-        predicate: str = get_settings().default_predicate,
+        predicate: str = "$",
         **kwargs,
     ) -> Union[Any, "Component"]:
         from machinable import Element

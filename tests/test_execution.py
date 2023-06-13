@@ -3,7 +3,11 @@ from machinable import Component, Execution, Project, errors, get
 
 
 def test_execution(tmp_storage):
-    assert len(Execution().add([Component(), Component()]).executables) == 2
+    # no-predicate by default
+    e1 = get("machinable.execution", {"a": 1}).commit()
+    e2 = get("machinable.execution", {"a": 1}).commit()
+    assert e1 != e2
+
     execution = Execution()
     assert (
         Execution.from_model(execution.__model__).timestamp
@@ -19,7 +23,6 @@ def test_execution(tmp_storage):
     assert isinstance(execution.timestamp, float)
 
     # add
-
     component = Component()
     execution = Execution().add(component)
     assert len(execution.executables) == 1

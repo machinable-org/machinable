@@ -48,6 +48,7 @@ StatusType = Literal["started", "heartbeat", "finished", "resumed"]
 class Execution(Interface):
     kind = "Execution"
     default = get_settings().default_execution
+    default_predicate: Optional[str] = None
 
     def __init__(
         self,
