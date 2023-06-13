@@ -25,6 +25,28 @@ def test_execution(tmp_storage):
 
         assert component.host_info["python_version"].startswith("3")
 
+        # output
+        c = Component().commit()
+        e = Execution().add(c).commit()
+        assert e.output(c) is None
+        e.save_file([c, "output.log"], "test")
+        assert e.output(c) == "test"
+
+        assert e.output(c, incremental=True) == "test"
+        e.save_file([c, "output.log"], "testt")
+        assert e.output(c, incremental=True) == "t"
+        assert e.output(c, incremental=True) == ""
+        e.save_file([c, "output.log"], "testt more")
+        assert e.output(c, incremental=True) == " more"
+
+        e.update_status(c, "started")
+        assert e.is_started(c)
+        e.update_status(c, "heartbeat")
+        assert e.is_active(c)
+        e.update_status(c, "finished")
+        assert e.is_finished(c)
+        assert not e.is_incomplete(c)
+
 
 def test_execution_dispatch(tmp_storage):
     # prevent execution from component
@@ -62,23 +84,27 @@ def test_execution_context(tmp_storage):
     with Execution(schedule=None) as execution:
         e1 = Component()
         e1.launch()
-        assert e1.execution is None
+        assert e1.execution == execution
+        assert not e1.execution.is_started()
         e2 = Component()
         e2.launch()
         assert len(execution.executables) == 2
-        assert e2.execution is None
-    assert e1.is_finished()
-    assert e2.is_finished()
+        assert e2.execution == execution
+        assert not e2.execution.is_started()
+    assert e1.execution.is_finished()
+    assert e2.execution.is_finished()
 
-    with Execution():
+    with Execution() as execution:
         e1 = Component()
         e1.launch()
         e2 = Component()
         e2.launch()
-        assert e1.execution is None
-        assert e2.execution is None
-    assert e1.is_finished()
-    assert e2.is_finished()
+        assert e1.execution == execution
+        assert e2.execution == execution
+        assert not e1.execution.is_started()
+        assert not e2.execution.is_started()
+    assert e1.execution.is_finished()
+    assert e2.execution.is_finished()
 
 
 def test_execution_resources(tmp_storage):
@@ -89,14 +115,14 @@ def test_execution_resources(tmp_storage):
 
     # default resources can be declared via a method
     class T(Execution):
-        def default_resources(self, component):
+        def on_compute_default_resources(self, _):
             return {"1": 2}
 
     execution = T()
     assert execution.compute_resources(component) == {"1": 2}
     # default resources are reused
     execution = T(resources={"test": "me"})
-    assert execution.resources() == {"test": "me"}
+    assert execution.resources()["test"] == "me"
     assert execution.compute_resources(component) == {"1": 2, "test": "me"}
     # inheritance of default resources
     execution = T(resources={"3": 4})
@@ -108,24 +134,18 @@ def test_execution_resources(tmp_storage):
     assert execution.compute_resources(component) == {"3": 4}
 
     # interface
-    r = {"test": 1, "a": True}
-    with Execution(resources={}) as execution:
+    with Execution(resources={"test": 1, "a": True}) as execution:
         component = Component()
-        assert component.resources() is None
-        execution.resources(r)
         component.launch()
-    assert component.resources() == r
+    assert component.execution.resources()["test"] == 1
 
-    with Execution(resources={}) as execution:
-        # component is already finished so updating resources has no effect
-        execution.resources({"a": 2})
+    with Execution(resources={"a": 3}) as execution:
         component.launch()
-        assert component.resources()["a"] is True
+        assert component.execution.resources()["a"] is True
 
         e2 = Component()
-        execution.resources({"a": 3})
         e2.launch()
-    assert e2.resources()["a"] == 3
+    assert e2.execution.resources()["a"] == 3
 
     # retried execution
     g = {"fail": True}
@@ -137,15 +157,14 @@ def test_execution_resources(tmp_storage):
 
     c = Fail()
     with pytest.raises(errors.ExecutionFailed):
-        with Execution(resources={"x": 1}) as execution1:
+        with Execution(resources={"x": 1}):
             c.launch()
-    assert c.resources()["x"] == 1
+    assert c.execution.resources()["x"] == 1
     g["fail"] = False
-    c.__related__ = {}
-    c._relation_cache = {}
-    with Execution(resources={"y": 1}) as execution2:
+    with Execution(resources={"y": 1}) as execution:
         c.launch()
-    assert c.resources(execution2)["y"] == 1
+    assert execution.resources()["y"] == 1
+    assert c.execution.resources()["x"] == 1
 
 
 def test_interrupted_execution(tmp_storage):
@@ -156,8 +175,8 @@ def test_interrupted_execution(tmp_storage):
         except errors.ExecutionFailed:
             pass
 
-        assert component.is_started()
-        assert not component.is_finished()
+        assert component.execution.is_started()
+        assert not component.execution.is_finished()
 
         # resume
         try:
@@ -166,4 +185,4 @@ def test_interrupted_execution(tmp_storage):
             pass
 
         component.launch()
-        assert component.is_finished()
+        assert component.execution.is_finished()

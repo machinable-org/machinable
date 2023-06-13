@@ -43,27 +43,6 @@ def test_component(tmp_storage):
     with pytest.raises(errors.MachinableError):
         component.version(["modify"])
 
-    # output
-    c = Component().commit()
-    assert c.output() is None
-    c.save_file("output.log", "test")
-    assert c.output() == "test"
-
-    assert c.output(incremental=True) == "test"
-    c.save_file("output.log", "testt")
-    assert c.output(incremental=True) == "t"
-    assert c.output(incremental=True) == ""
-    c.save_file("output.log", "testt more")
-    assert c.output(incremental=True) == " more"
-
-    c.update_status("started")
-    assert c.is_started()
-    c.update_status("heartbeat")
-    assert c.is_active()
-    c.update_status("finished")
-    assert c.is_finished()
-    assert not c.is_incomplete()
-
     p.__exit__()
 
 
@@ -72,7 +51,7 @@ def test_component_launch(tmp_storage):
     assert not component.is_mounted()
     component.launch()
     assert component.is_mounted()
-    assert component.is_finished()
+    assert component.execution.is_finished()
 
     # multiples
     component = Component()
@@ -84,11 +63,9 @@ def test_component_launch(tmp_storage):
 
     with Execution():
         e1 = Component().launch()
-        assert e1.execution is None
         e2 = Component().launch()
-        assert e2.execution is None
-    assert e1.is_finished()
-    assert e2.is_finished()
+    assert e1.execution.is_finished()
+    assert e2.execution.is_finished()
     assert e1.nickname != e2.nickname
 
     class Example(Component):
@@ -169,11 +146,11 @@ def test_component_export(tmp_storage):
         exec(script)
 
     e = Execution().add(component).commit()
-    assert not component.is_started()
+    assert not component.execution.is_started()
 
     exec(script)
 
-    assert component.is_finished()
+    assert component.execution.is_finished()
     assert component.load_file("test_run.json")["success"]
 
     # inline
@@ -188,7 +165,7 @@ def test_component_export(tmp_storage):
         ["bash", script_filepath], capture_output=True, text=True, check=True
     ).stdout
     print(output)
-    assert component.is_finished()
+    assert component.execution.is_finished()
     assert component.load_file("test_run.json")["success"]
 
     class OuterContext(Execution):

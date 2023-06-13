@@ -297,7 +297,7 @@ class Element(Mixin, Jsonable):
     def timestamp(self) -> float:
         return self.__model__.timestamp
 
-    def timestamp_at(self) -> DatetimeType:
+    def created_at(self) -> DatetimeType:
         return arrow.get(self.__model__.timestamp)
 
     def version(

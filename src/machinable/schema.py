@@ -43,6 +43,7 @@ class Project(Interface):
 
 class Execution(Interface):
     kind: str = "Execution"
+    seed: int = Field(default_factory=generate_seed)
     resources: Optional[Dict] = None
 
 

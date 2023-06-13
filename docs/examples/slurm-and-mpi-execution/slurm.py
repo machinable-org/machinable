@@ -12,7 +12,9 @@ class Slurm(Execution):
             if "--job-name" not in resources:
                 resources["--job-name"] = f"{executable.id}"
             if "--output" not in resources:
-                resources["--output"] = executable.local_directory("output.log")
+                resources["--output"] = self.local_directory(
+                    executable.id, "output.log"
+                )
             if "--open-mode" not in resources:
                 resources["--open-mode"] = "append"
 

@@ -35,7 +35,7 @@ class EstimatePi(Component):
         )
 
     def summary(self):
-        if self.is_finished():
+        if self.execution.is_finished():
             print(
                 f"After {self.config.samples} samples, "
                 f"PI is approximately {self.load_file('result.json')['pi']}."
