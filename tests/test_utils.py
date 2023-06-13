@@ -190,6 +190,5 @@ def test_joinpath():
     assert utils.joinpath(["a", "b", "c"]) == "a/b/c"
     e = Element()
     assert utils.joinpath([e, "b"]) == f"{e.id}/b"
-    with pytest.raises(ValueError):
-        utils.joinpath(["a", 1])
     assert utils.joinpath(["a", ""]) == "a/"
+    assert utils.joinpath([None, "a", None, "b"]) == "a/b"

@@ -105,16 +105,11 @@ class Execution(Interface):
             return executable
 
         raise ValueError(
-            "No executable selected. Call `execution.of(executable)` first."
+            "No executable selected. Call `execution.of(executable)` first, or pass an executable argument."
         )
 
     def of(self, executable: Union[None, Component]) -> Self:
-        if executable is None:
-            self._executable_ = None
-            return self
-
         self._executable_ = executable
-
         return self
 
     @property
@@ -124,17 +119,13 @@ class Execution(Interface):
     def add(
         self,
         executable: Union[Component, List[Component]],
-        once: bool = False,
     ) -> Self:
         if isinstance(executable, (list, tuple)):
             for _executable in executable:
                 self.add(_executable)
             return self
 
-        if once and self.__related__["executables"].contains(
-            lambda x: x == executable
-        ):
-            # already added
+        if self.executables.contains(lambda x: x == executable):
             return self
 
         self.push_related("executables", executable)

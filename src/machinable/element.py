@@ -675,7 +675,7 @@ class Element(Mixin, Jsonable):
         return f"{self.kind} [{self.id}]"
 
     def __str__(self):
-        return self.__repr__()
+        return self.id
 
     def __eq__(self, other):
         return self.uuid == other.uuid

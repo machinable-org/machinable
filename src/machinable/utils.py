@@ -103,17 +103,7 @@ def joinpath(filepath: Union[str, List[str]]) -> str:
     if isinstance(filepath, str):
         return filepath
 
-    def _to_path_segment(p):
-        if isinstance(p, str):
-            return p
-        if p is None:
-            return ""
-        elif hasattr(p, "id"):
-            return p.id
-        else:
-            raise ValueError(f"Invalid path segment: {p}")
-
-    return os.path.join(*[_to_path_segment(p) for p in filepath])
+    return os.path.join(*[str(p) for p in filepath if p is not None])
 
 
 def random_str(length: int, random_state=None):

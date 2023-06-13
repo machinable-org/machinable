@@ -1,5 +1,6 @@
 from typing import TYPE_CHECKING, List, Optional, Union
 
+import os
 import random
 import sys
 import threading
@@ -53,6 +54,14 @@ class Component(Interface):
         self.__model__._dump = get_dump(self)
         self._current_execution_context = None
 
+    @property
+    def current_execution_context(self) -> "Execution":
+        if self._current_execution_context is None:
+            from machinable.execution import Execution
+
+            self._current_execution_context = Execution.get()
+        return self._current_execution_context
+
     @belongs_to_many(key="execution_history")
     def executions() -> ExecutionCollection:
         from machinable.execution import Execution
@@ -73,7 +82,11 @@ class Component(Interface):
             )
 
             if related is not None and len(related) > 0:
-                related = Interface.find(related[0].uuid)
+                related = Interface.find(
+                    sorted(related, key=lambda x: x.timestamp, reverse=True)[
+                        0
+                    ].uuid
+                )
             else:
                 related = None
 
@@ -82,21 +95,11 @@ class Component(Interface):
             if Execution.is_connected():
                 related = Execution.get()
             else:
-                if self._current_execution_context is None:
-                    self._current_execution_context = Execution.get()
-                related = self._current_execution_context
+                related = self.current_execution_context
 
         related.of(self)
 
         return related
-
-    @property
-    def seed(self) -> int:
-        return self.__model__.seed
-
-    @property
-    def nickname(self) -> str:
-        return self.__model__.nickname
 
     def launch(self) -> Self:
         from machinable.execution import Execution
@@ -105,11 +108,21 @@ class Component(Interface):
 
         if Execution.is_connected():
             # commit only, defer execution
+            Execution.get().add(self)
             self.commit()
         else:
-            self.execution.dispatch()
+            self.current_execution_context.add(self)
+            self.current_execution_context.dispatch()
 
         return self
+
+    @property
+    def seed(self) -> int:
+        return self.__model__.seed
+
+    @property
+    def nickname(self) -> str:
+        return self.__model__.nickname
 
     @classmethod
     def collect(cls, components) -> "ComponentCollection":
@@ -158,6 +171,7 @@ class Component(Interface):
 
             if writes_meta_data:
                 self.execution.update_status(status="finished")
+                self.cached(True, reason="finished")
 
             self.on_after_dispatch(success=True)
         except BaseException as _ex:  # pylint: disable=broad-except
@@ -177,8 +191,18 @@ class Component(Interface):
     def host_info(self) -> Optional[Dict]:
         return self.load_file("host.json", None)
 
-    def cached(self) -> bool:
-        return self.execution.is_finished()
+    def cached(
+        self, cached: Optional[bool] = None, reason: str = "user"
+    ) -> bool:
+        if cached is None:
+            return self.load_file("cached", None) is not None
+        elif cached is True:
+            self.save_file("cached", str(reason))
+            return True
+        elif cached is False:
+            os.remove(self.local_directory("cached"), ignore_errors=True)
+
+        return cached
 
     def dispatch_code(self, inline: bool = True) -> Optional[str]:
         connections = [f"Project('{Project.get().path()}').__enter__()"]

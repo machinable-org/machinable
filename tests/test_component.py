@@ -59,7 +59,7 @@ def test_component_launch(tmp_storage):
         component.launch()
         component.launch()
         component.launch()
-    assert len(execution.executables) == 3
+    assert len(execution.executables) == 1
 
     with Execution():
         e1 = Component().launch()

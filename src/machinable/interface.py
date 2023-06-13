@@ -15,7 +15,7 @@ from typing import Callable
 import os
 from functools import partial, wraps
 
-from machinable import schema
+from machinable import errors, schema
 from machinable.collection import Collection, InterfaceCollection
 from machinable.element import (
     Element,
@@ -172,8 +172,15 @@ class Interface(Element):
             else:
                 self.__related__[name] = None
         if uses:
-            self.use(uses)
-        self.push_related("ancestor", derived_from)
+            if not isinstance(uses, (list, tuple)):
+                uses = [uses]
+            for use in uses:
+                self.__related__["uses"].append(use)
+            self._relation_cache["uses"] = True
+
+        if derived_from:
+            self.__related__["ancestor"] = derived_from
+            self._relation_cache["ancestor"] = True
 
         self._deferred_data = {}
 
@@ -182,12 +189,20 @@ class Interface(Element):
         return InterfaceCollection(elements)
 
     def push_related(self, key: str, value: "Interface") -> None:
-        # todo: check for editablility
+        if self.is_committed():
+            raise errors.MachinableError(
+                f"{repr(self)} already exists and cannot be modified."
+            )
         if self.__relations__[key].multiple:
             self.__related__[key].append(value)
         else:
             self.__related__[key] = value
         self._relation_cache[key] = True
+
+    def is_committed(self) -> bool:
+        from machinable.index import Index
+
+        return Index.get().find(self.uuid) is not None
 
     def commit(self) -> Self:
         from machinable.index import Index
@@ -264,18 +279,6 @@ class Interface(Element):
                 )
 
         return " ".join(cli)
-
-    def use(self, use: Union[Element, List[Element]]) -> Self:
-        # todo: check for editablility
-
-        if isinstance(use, (list, tuple)):
-            for _use in use:
-                self.use(_use)
-            return self
-
-        self.push_related("uses", use)
-
-        return self
 
     def derive(
         self,

@@ -228,7 +228,7 @@ class Index(Interface):
                 """SELECT * FROM 'index' WHERE uuid IN
                     (
                     SELECT related_uuid FROM relations WHERE uuid=? AND relation=?
-                    )  ORDER BY 'timestamp' ASC
+                    )  ORDER BY 'timestamp' DESC
                 """,
                 (uuid, relation),
             ).fetchall()
@@ -236,8 +236,8 @@ class Index(Interface):
             rows = cur.execute(
                 """SELECT * FROM 'index' WHERE uuid IN
                     (
-                    SELECT uuid FROM relations WHERE related_uuid=? AND relation=? ORDER BY 'timestamp' DESC
-                    )  ORDER BY 'timestamp' ASC
+                    SELECT uuid FROM relations WHERE related_uuid=? AND relation=?
+                    )  ORDER BY 'timestamp' DESC
                 """,
                 (uuid, relation),
             ).fetchall()

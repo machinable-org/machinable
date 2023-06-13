@@ -1,5 +1,5 @@
 import pytest
-from machinable import Component, Execution, Project, errors
+from machinable import Component, Execution, Project, errors, get
 
 
 def test_execution(tmp_storage):
@@ -10,42 +10,50 @@ def test_execution(tmp_storage):
         == execution.timestamp
     )
 
-    assert str(Execution()) == "Execution"
-    assert repr(Execution()) == "Execution"
+    e = Execution()
+    assert str(e) == e.id
+    assert repr(e) == "Execution"
 
-    with Project("./tests/samples/project"):
-        execution = Execution().add(Component())
-        assert len(execution.executables) == 1
-        assert isinstance(execution.timestamp, float)
+    execution = Execution().add(Component())
+    assert len(execution.executables) == 1
+    assert isinstance(execution.timestamp, float)
 
-        component = Component()
-        execution = Execution().add(component)
-        assert len(execution.executables) == 1
-        execution.dispatch()
+    # add
 
-        assert component.host_info["python_version"].startswith("3")
+    component = Component()
+    execution = Execution().add(component)
+    assert len(execution.executables) == 1
+    execution.dispatch()
 
-        # output
-        c = Component().commit()
-        e = Execution().add(c).commit()
-        assert e.output(c) is None
-        e.save_file([c, "output.log"], "test")
-        assert e.output(c) == "test"
+    restored = Execution.find(execution.uuid)
+    with pytest.raises(errors.MachinableError):
+        restored.add(Component())
 
-        assert e.output(c, incremental=True) == "test"
-        e.save_file([c, "output.log"], "testt")
-        assert e.output(c, incremental=True) == "t"
-        assert e.output(c, incremental=True) == ""
-        e.save_file([c, "output.log"], "testt more")
-        assert e.output(c, incremental=True) == " more"
+    # host info
+    assert component.host_info["python_version"].startswith("3")
 
-        e.update_status(c, "started")
-        assert e.is_started(c)
-        e.update_status(c, "heartbeat")
-        assert e.is_active(c)
-        e.update_status(c, "finished")
-        assert e.is_finished(c)
-        assert not e.is_incomplete(c)
+    # output
+    c = Component().commit()
+    e = Execution().add(c).commit()
+    assert e.output(c) is None
+    e.save_file([c, "output.log"], "test")
+    assert e.output(c) == "test"
+
+    assert e.output(c, incremental=True) == "test"
+    e.save_file([c, "output.log"], "testt")
+    assert e.output(c, incremental=True) == "t"
+    assert e.output(c, incremental=True) == ""
+    e.save_file([c, "output.log"], "testt more")
+    assert e.output(c, incremental=True) == " more"
+
+    # status
+    e.update_status(c, "started")
+    assert e.is_started(c)
+    e.update_status(c, "heartbeat")
+    assert e.is_active(c)
+    e.update_status(c, "finished")
+    assert e.is_finished(c)
+    assert not e.is_incomplete(c)
 
 
 def test_execution_dispatch(tmp_storage):
@@ -147,25 +155,6 @@ def test_execution_resources(tmp_storage):
         e2.launch()
     assert e2.execution.resources()["a"] == 3
 
-    # retried execution
-    g = {"fail": True}
-
-    class Fail(Component):
-        def __call__(self) -> None:
-            if g["fail"]:
-                raise ValueError("Fail!")
-
-    c = Fail()
-    with pytest.raises(errors.ExecutionFailed):
-        with Execution(resources={"x": 1}):
-            c.launch()
-    assert c.execution.resources()["x"] == 1
-    g["fail"] = False
-    with Execution(resources={"y": 1}) as execution:
-        c.launch()
-    assert execution.resources()["y"] == 1
-    assert c.execution.resources()["x"] == 1
-
 
 def test_interrupted_execution(tmp_storage):
     with Project("./tests/samples/project"):
@@ -186,3 +175,74 @@ def test_interrupted_execution(tmp_storage):
 
         component.launch()
         assert component.execution.is_finished()
+
+
+def test_rerepeated_execution(tmp_storage):
+    project = Project("./tests/samples/project").__enter__()
+
+    # first execution
+    with Execution() as execution1:
+        c1 = get("count").launch()
+        assert c1.count == 0
+    assert c1.execution == execution1
+    assert c1.execution.is_finished()
+    assert c1.count == 1
+
+    # second execution, nothing happens here
+    with execution1:
+        c1.launch()
+    assert c1.execution == execution1
+    assert c1.count == 1
+
+    # add a new component to existing execution is not allowed
+    with execution1:
+        c2 = get("count", predicate=None)
+        with pytest.raises(errors.MachinableError):
+            c2.launch()
+    assert c2.count == 0
+    assert not c2.is_committed()
+
+    # resume execution
+    with pytest.raises(errors.ExecutionFailed):
+        with Execution() as execution2:
+            done = get("count", predicate=None).launch()
+            failed = get("fail", predicate=None).launch()
+    assert done.execution.is_finished()
+    assert not done.execution.is_resumed()
+    assert not failed.execution.is_finished()
+
+    failed.save_file("repaired", "yes")
+    with execution2:
+        done.launch()
+        failed.launch()
+    assert failed.execution.is_finished()
+    assert failed.execution.is_resumed()
+    assert len(execution2.executables) == 2
+
+    # resume with another execution
+    with pytest.raises(errors.ExecutionFailed):
+        with Execution() as execution2:
+            done = get("count", predicate=None).launch()
+            failed = get("fail", predicate=None).launch()
+    failed.save_file("repaired", "yes")
+    with Execution() as execution3:
+        failed.launch()
+    assert failed.execution == execution3
+    assert failed.execution.is_finished()
+    assert not failed.execution.is_resumed()
+    assert len(execution2.executables) == 2
+    assert len(execution3.executables) == 1
+
+    # attempted re-execution - silently ignored
+    with Execution() as execution4:
+        done.launch()
+    assert done.count == 1
+    assert not execution4.is_committed()
+    with Execution() as execution5:
+        done.launch()
+        done2 = get("count", predicate=None).launch()
+    assert done.count == 1
+    assert done2.count == 1
+    assert len(execution5.executables) == 2
+
+    project.__exit__()
