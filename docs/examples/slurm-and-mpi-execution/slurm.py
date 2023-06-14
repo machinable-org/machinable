@@ -20,6 +20,8 @@ class Slurm(Execution):
 
             sbatch_arguments = []
             for k, v in resources.items():
+                if not k.startswith("--"):
+                    continue
                 line = "#SBATCH " + k
                 if v not in [None, True]:
                     line += f"={v}"

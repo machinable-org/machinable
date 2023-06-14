@@ -73,6 +73,8 @@ class Relation:
 
     def __set_name__(self, cls, name):
         self.cls = cls
+        if cls.__relations__ is None:
+            cls.__relations__ = {}
         cls.__relations__[name] = self
 
     def __get__(self, instance, owner):
@@ -145,7 +147,7 @@ class Interface(Element):
     # class level relationship information
     # note that the actual data is kept
     # in the __related__ object propery
-    __relations__: Dict[str, Relation] = {}
+    __relations__: Optional[Dict[str, Relation]] = None
 
     def __init__(
         self,
@@ -166,6 +168,8 @@ class Interface(Element):
         # initialize relation data
         self.__related__ = {}
         self._relation_cache = {}
+        if self.__relations__ is None:
+            self.__relations__ = {}
         for name, relation in self.__relations__.items():
             if relation.multiple:
                 self.__related__[name] = relation.collect([])

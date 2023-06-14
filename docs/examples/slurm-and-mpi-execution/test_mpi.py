@@ -27,5 +27,5 @@ def test_mpi_execution(tmp_path):
             component = MpiExample()
             with Execution.get("mpi"):
                 component.launch()
-            assert component.is_finished()
+            assert component.execution.is_finished()
             assert component.load_file("test.txt") == "hello"
