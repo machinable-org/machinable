@@ -296,9 +296,6 @@ class Project(Interface):
             **constructor_kwargs,
         )
 
-        if isinstance(element, Interface):
-            element.push_related("project", self)
-
         return element
 
     def get_diff(self) -> Union[str, None]:
