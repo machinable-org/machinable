@@ -283,7 +283,9 @@ class Execution(Interface):
     ):
         executable = self.executable(executable)
         while not self.is_started(executable) or self.is_active(executable):
-            stream(self.output(executable, incremental=True))
+            output = self.output(executable, incremental=True)
+            if output:
+                stream(output)
             time.sleep(refresh_every)
 
     def update_status(
