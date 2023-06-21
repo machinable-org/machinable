@@ -6,6 +6,15 @@
 
 No current changes
 
+# v4.4.0
+
+- Improved tracking of execution meta-data
+- Realiable `.execution` access to make None-checks obsolete
+- Adds `stream_output` to simplify live monitoring of execution logs
+- Allow predicate specification based on the element kind
+- Prevent index errors in multithreaded enviroments
+- Disables automatic gathering of project relationship
+
 # v4.3.1
 
 - Drops commandlib dependency
