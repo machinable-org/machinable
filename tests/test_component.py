@@ -76,9 +76,10 @@ def test_component_launch(tmp_storage):
 
 
 def test_component_relations(tmp_storage):
-    with Project("./tests/samples/project"):
+    with Project("./tests/samples/project") as project:
         component = Component.instance("basic")
         execution = Execution().add(component)
+        component.push_related("project", project)
         execution.dispatch()
 
         assert component.project.name() == "project"

@@ -2,6 +2,7 @@ from typing import Any, Dict, List, Optional, Union
 
 import json
 import os
+from contextlib import contextmanager
 from datetime import datetime
 
 try:
@@ -87,6 +88,16 @@ def load(database: str, create=False) -> sqlite3.Connection:
     return db
 
 
+@contextmanager
+def db(database: str, create=False) -> Optional[sqlite3.Connection]:
+    try:
+        database = load(database, create)
+        yield database
+        database.close()
+    except FileNotFoundError:
+        yield None
+
+
 class Index(Interface):
     kind = "Index"
     default = get_settings().default_index
@@ -123,35 +134,36 @@ class Index(Interface):
         return os.path.join(self.config.directory, uuid, *append)
 
     def commit(self, model: schema.Interface) -> bool:
-        cur = self.db.cursor()
-        if cur.execute(
-            """SELECT uuid FROM 'index' WHERE uuid=?""", (model.uuid,)
-        ).fetchone():
-            # already exists
-            return False
-        cur.execute(
-            """INSERT INTO 'index' (
-                uuid,
-                kind,
-                module,
-                config,
-                version,
-                predicate,
-                lineage,
-                'timestamp'
-            ) VALUES (?,?,?,?,?,?,?,?)""",
-            (
-                model.uuid,
-                model.kind,
-                model.module,
-                _jn(model.config),
-                _jn(model.version),
-                _jn(model.predicate),
-                _jn(model.lineage),
-                model.timestamp,
-            ),
-        )
-        self.db.commit()
+        with db(self.config.database, create=True) as _db:
+            cur = _db.cursor()
+            if cur.execute(
+                """SELECT uuid FROM 'index' WHERE uuid=?""", (model.uuid,)
+            ).fetchone():
+                # already exists
+                return False
+            cur.execute(
+                """INSERT INTO 'index' (
+                    uuid,
+                    kind,
+                    module,
+                    config,
+                    version,
+                    predicate,
+                    lineage,
+                    'timestamp'
+                ) VALUES (?,?,?,?,?,?,?,?)""",
+                (
+                    model.uuid,
+                    model.kind,
+                    model.module,
+                    _jn(model.config),
+                    _jn(model.version),
+                    _jn(model.predicate),
+                    _jn(model.lineage),
+                    model.timestamp,
+                ),
+            )
+            _db.commit()
         return True
 
     def create_relation(
@@ -166,79 +178,90 @@ class Index(Interface):
             for r in related_uuid:
                 self.create_relation(relation, uuid, r, priority, timestamp)
             return
-
-        cur = self.db.cursor()
-        if cur.execute(
-            """SELECT id FROM 'relations' WHERE uuid=? AND related_uuid=? AND relation=?""",
-            (uuid, related_uuid, relation),
-        ).fetchone():
-            # already exists
-            return
-        if timestamp is None:
-            timestamp = datetime.now().timestamp()
-        cur.execute(
-            """INSERT INTO 'relations' (
-                relation,
-                uuid,
-                related_uuid,
-                priority,
-                timestamp
-            ) VALUES (?,?,?,?,?)""",
-            (relation, uuid, related_uuid, priority, timestamp),
-        )
-        self.db.commit()
+        with db(self.config.database, create=True) as _db:
+            cur = _db.cursor()
+            if cur.execute(
+                """SELECT id FROM 'relations' WHERE uuid=? AND related_uuid=? AND relation=?""",
+                (uuid, related_uuid, relation),
+            ).fetchone():
+                # already exists
+                return
+            if timestamp is None:
+                timestamp = datetime.now().timestamp()
+            cur.execute(
+                """INSERT INTO 'relations' (
+                    relation,
+                    uuid,
+                    related_uuid,
+                    priority,
+                    timestamp
+                ) VALUES (?,?,?,?,?)""",
+                (relation, uuid, related_uuid, priority, timestamp),
+            )
+            _db.commit()
 
     def find(self, uuid: str) -> Optional[schema.Interface]:
-        cur = self.db.cursor()
-        row = cur.execute(
-            """SELECT * FROM 'index' WHERE uuid=?""", (uuid,)
-        ).fetchone()
-        if row is None:
-            return None
-        return interface_row_factory(cur, row)
+        with db(self.config.database, create=False) as _db:
+            if not _db:
+                return None
+            cur = _db.cursor()
+            row = cur.execute(
+                """SELECT * FROM 'index' WHERE uuid=?""", (uuid,)
+            ).fetchone()
+            if row is None:
+                return None
+            return interface_row_factory(cur, row)
 
     def find_by_predicate(
         self, module: str, predicate: Optional[Dict] = None
     ) -> List[schema.Interface]:
-        cur = self.db.cursor()
-        if predicate:
-            keys = ["module=?"]
-            values = [module]
-            for p, v in predicate.items():
-                keys.append(f"json_extract(predicate, '$.{p}')=?")
-                values.append(v if isinstance(v, (str, int, float)) else _jn(v))
-            query = cur.execute(
-                """SELECT * FROM 'index' WHERE """ + (" AND ".join(keys)),
-                values,
-            )
-        else:
-            query = cur.execute(
-                """SELECT * FROM 'index' WHERE module=?""",
-                (module,),
-            )
+        with db(self.config.database, create=False) as _db:
+            if not _db:
+                return []
+            cur = _db.cursor()
+            if predicate:
+                keys = ["module=?"]
+                values = [module]
+                for p, v in predicate.items():
+                    keys.append(f"json_extract(predicate, '$.{p}')=?")
+                    values.append(
+                        v if isinstance(v, (str, int, float)) else _jn(v)
+                    )
+                query = cur.execute(
+                    """SELECT * FROM 'index' WHERE """ + (" AND ".join(keys)),
+                    values,
+                )
+            else:
+                query = cur.execute(
+                    """SELECT * FROM 'index' WHERE module=?""",
+                    (module,),
+                )
 
-        return [interface_row_factory(cur, row) for row in query.fetchall()]
+            return [interface_row_factory(cur, row) for row in query.fetchall()]
 
     def find_related(
         self, relation: str, uuid: str, inverse: bool = False
     ) -> Union[None, List[schema.Interface]]:
-        cur = self.db.cursor()
-        if not inverse:
-            rows = cur.execute(
-                """SELECT * FROM 'index' WHERE uuid IN
-                    (
-                    SELECT related_uuid FROM relations WHERE uuid=? AND relation=?
-                    )  ORDER BY 'timestamp' DESC
-                """,
-                (uuid, relation),
-            ).fetchall()
-        else:
-            rows = cur.execute(
-                """SELECT * FROM 'index' WHERE uuid IN
-                    (
-                    SELECT uuid FROM relations WHERE related_uuid=? AND relation=?
-                    )  ORDER BY 'timestamp' DESC
-                """,
-                (uuid, relation),
-            ).fetchall()
-        return [interface_row_factory(cur, row) for row in rows or []]
+        with db(self.config.database, create=False) as _db:
+            if not _db:
+                return None
+            cur = _db.cursor()
+            if not inverse:
+                rows = cur.execute(
+                    """SELECT * FROM 'index' WHERE uuid IN
+                        (
+                        SELECT related_uuid FROM relations WHERE uuid=? AND relation=?
+                        )  ORDER BY 'timestamp' DESC
+                    """,
+                    (uuid, relation),
+                ).fetchall()
+            else:
+                rows = cur.execute(
+                    """SELECT * FROM 'index' WHERE uuid IN
+                        (
+                        SELECT uuid FROM relations WHERE related_uuid=? AND relation=?
+                        )  ORDER BY 'timestamp' DESC
+                    """,
+                    (uuid, relation),
+                ).fetchall()
+            return [interface_row_factory(cur, row) for row in rows or []]

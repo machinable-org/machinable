@@ -34,8 +34,8 @@ def test_index_load(tmp_path):
     db.close()
 
 
-def test_index_commit():
-    i = index.Index({"database": ":memory:"})
+def test_index_commit(tmp_path):
+    i = index.Index({"database": str(tmp_path / "index.sqlite")})
     v = schema.Interface()
     e = (v.uuid, "Interface", None, "null", "[]", "null", "[]", v.timestamp)
     assert i.commit(v) is True
@@ -47,8 +47,8 @@ def test_index_commit():
     i.db.close()
 
 
-def test_index_create_relation(setup=False):
-    i = index.Index({"database": ":memory:"})
+def test_index_create_relation(tmp_path, setup=False):
+    i = index.Index({"database": str(tmp_path / "index.sqlite")})
     v1, v2, v3, v4 = (
         schema.Interface(),
         schema.Interface(),
@@ -72,8 +72,8 @@ def test_index_create_relation(setup=False):
     i.db.close()
 
 
-def test_index_find():
-    i = index.Index({"database": ":memory:"})
+def test_index_find(tmp_path):
+    i = index.Index({"database": str(tmp_path / "index.sqlite")})
     v = schema.Interface()
     assert i.commit(v) is True
     assert i.find(v.uuid) == v
@@ -81,8 +81,8 @@ def test_index_find():
     i.db.close()
 
 
-def test_index_find_by_predicate():
-    i = index.Index({"database": ":memory:"})
+def test_index_find_by_predicate(tmp_path):
+    i = index.Index({"database": str(tmp_path / "index.sqlite")})
     v = schema.Interface(module="machinable", predicate={"a": 0, "b": 0})
     i.commit(v)
     assert len(i.find_by_predicate(module="machinable")) == 1
@@ -107,8 +107,8 @@ def test_index_find_by_predicate():
     i.db.close()
 
 
-def test_index_find_related():
-    i, v1, v2, v3, v4 = test_index_create_relation(setup=True)
+def test_index_find_related(tmp_path):
+    i, v1, v2, v3, v4 = test_index_create_relation(tmp_path, setup=True)
 
     q = i.find_related("test_one", v1.uuid)
     assert len(q) == 1

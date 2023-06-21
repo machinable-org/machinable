@@ -33,7 +33,7 @@ def test_execution(tmp_storage):
         restored.add(Component())
 
     # host info
-    assert component.host_info["python_version"].startswith("3")
+    assert execution.host_info["python_version"].startswith("3")
 
     # output
     c = Component().commit()

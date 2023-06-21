@@ -145,8 +145,8 @@ class Component(Interface):
                 else:
                     self.execution.update_status(status="resumed")
 
-                self.save_file(
-                    "host.json",
+                self.execution.save_file(
+                    [self.id, "host.json"],
                     data=Project.get().provider().get_host_info(),
                 )
 
@@ -186,10 +186,6 @@ class Component(Interface):
                 # propagate changes
                 for storage in Storage.connected():
                     storage.update(self)
-
-    @property
-    def host_info(self) -> Optional[Dict]:
-        return self.load_file("host.json", None)
 
     def cached(
         self, cached: Optional[bool] = None, reason: str = "user"

@@ -238,6 +238,14 @@ class Execution(Interface):
         for executable in self.pending_executables:
             executable.dispatch()
 
+    @property
+    def host_info(
+        self,
+        executable: Optional["Component"] = None,
+    ) -> Optional[Dict]:
+        executable = self.executable(executable)
+        return self.load_file([executable.id, "host.json"], None)
+
     def output(
         self,
         executable: Optional["Component"] = None,
