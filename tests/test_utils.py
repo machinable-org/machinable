@@ -183,3 +183,12 @@ def test_directory_version():
         "../test",
     ]:
         assert utils.is_directory_version(case) is True
+
+
+def test_joinpath():
+    assert utils.joinpath(["a", "b"]) == "a/b"
+    assert utils.joinpath(["a", "b", "c"]) == "a/b/c"
+    e = Element()
+    assert utils.joinpath([e, "b"]) == f"{e.id}/b"
+    assert utils.joinpath(["a", ""]) == "a/"
+    assert utils.joinpath([None, "a", None, "b"]) == "a/b"

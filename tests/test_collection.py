@@ -6,36 +6,28 @@ from unittest import TestCase
 
 from machinable.collection import Collection, ComponentCollection, collect
 from machinable.component import Component
+from machinable.execution import Execution
 from machinable.project import Project
-from machinable.storage import Storage
 
 
 def test_collect():
     assert isinstance(collect([1, 2]), Collection)
 
 
-class DummyComponent(Component):
+class Dummy(Component):
     class Config:
         m: int = -1
 
 
-def test_component_collection(tmp_storage):
+def test_element_collection(tmp_storage):
     with Project("./tests/samples/project"):
-        collection = Component.collect(
-            [DummyComponent({"m": i % 2}) for i in range(5)]
-        )
+        collection = Component.collect([Dummy({"m": i % 2}) for i in range(5)])
         for i, e in enumerate(collection):
             e.save_file("i", i)
         assert isinstance(collection, ComponentCollection)
 
         collection.launch()
-        assert all(collection.map(lambda x: x.is_finished()))
-
-        assert len(collection.status("finished")) == 5
-        assert len(collection.status("active")) == 0
-        assert len(collection.status("started")) == 5
-        assert len(collection.status("incomplete")) == 0
-        assert len(collection.status("started").status("active")) == 0
+        assert all(collection.map(lambda x: x.execution.is_finished()))
 
         assert len(collection.filter_by_predicate("non-existent")) == 0
         m = "tests.test_collection"
@@ -44,6 +36,14 @@ def test_component_collection(tmp_storage):
         assert len(collection.filter_by_predicate(m, {"m": 1})) == 2
 
         assert collection.singleton(m, {"m": 1}).load_file("i") == "1"
+
+        collection = Execution.collect([e.execution for e in collection])
+
+        assert len(collection.status("finished")) == 5
+        assert len(collection.status("active")) == 0
+        assert len(collection.status("started")) == 5
+        assert len(collection.status("incomplete")) == 0
+        assert len(collection.status("started").status("active")) == 0
 
 
 class CollectionTestCase(TestCase):

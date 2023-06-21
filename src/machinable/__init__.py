@@ -39,7 +39,7 @@ from machinable.types import Optional, Union, VersionType
 def get(
     module: Union[str, Element, None] = None,
     version: VersionType = None,
-    predicate: Optional[str] = get_settings().default_predicate,
+    predicate: Optional[str] = "$",
     **kwargs,
 ) -> Interface:
     return Interface.get(module, version, predicate, **kwargs)

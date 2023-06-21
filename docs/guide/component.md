@@ -37,7 +37,7 @@ Downloading 'mnist' ...
 If the execution is successful, the component is marked as finished.
 
 ```python
->>> mnist.is_finished()
+>>> mnist.execution.is_finished()
 True
 ```
 

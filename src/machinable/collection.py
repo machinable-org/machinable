@@ -9,7 +9,6 @@ from functools import reduce
 from json import dumps
 from pprint import pprint
 
-from machinable.settings import get_settings
 from machinable.types import VersionType
 
 long = int
@@ -1384,7 +1383,7 @@ class ElementCollection(Collection):
         self,
         module: str,
         version: VersionType = None,
-        predicate: str = get_settings().default_predicate,
+        predicate: str = "$",
         **kwargs,
     ):
         from machinable import Element
@@ -1407,7 +1406,7 @@ class ElementCollection(Collection):
         self,
         module: str,
         version: VersionType = None,
-        predicate: str = get_settings().default_predicate,
+        predicate: str = "$",
         **kwargs,
     ) -> Union[Any, "Component"]:
         from machinable import Element
@@ -1445,6 +1444,11 @@ class ComponentCollection(InterfaceCollection):
 
         return self
 
+
+class ExecutionCollection(ElementCollection):
+    def __str__(self):
+        return f"Executions <{len(self.items)}>"
+
     def status(self, status="started"):
         """Filters the collection by a status attribute
 
@@ -1455,8 +1459,3 @@ class ComponentCollection(InterfaceCollection):
             return self.filter(lambda item: getattr(item, "is_" + status)())
         except AttributeError as _ex:
             raise ValueError(f"Invalid status field: {status}") from _ex
-
-
-class ExecutionCollection(ElementCollection):
-    def __str__(self):
-        return f"Executions <{len(self.items)}>"

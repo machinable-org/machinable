@@ -37,7 +37,7 @@ def test_slurm_execution(tmp_path):
                 component.launch()
 
             for _ in range(60):
-                if component.is_finished():
+                if component.execution.is_finished():
                     assert "Hello world from Slurm" in component.output()
                     assert (
                         component.load_file("test_run.json")["success"] is True

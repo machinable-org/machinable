@@ -99,6 +99,13 @@ def is_directory_version(version: VersionType) -> bool:
     return False
 
 
+def joinpath(filepath: Union[str, List[str]]) -> str:
+    if isinstance(filepath, str):
+        return filepath
+
+    return os.path.join(*[str(p) for p in filepath if p is not None])
+
+
 def random_str(length: int, random_state=None):
     if random_state is None or isinstance(random_state, int):
         random_state = random.Random(random_state)
@@ -213,7 +220,7 @@ def generate_nickname(categories=None, glue="_"):
 
 
 def load_file(
-    filepath: str,
+    filepath: Union[str, List[str]],
     default: Any = sentinel,
     opener=open,
     **opener_kwargs,
@@ -228,6 +235,7 @@ def load_file(
     opener: Customer file opener
     opener_kwargs: Optional arguments to pass to the opener
     """
+    filepath = joinpath(filepath)
     _, ext = os.path.splitext(filepath)
     mode = opener_kwargs.pop("mode", "r")
     try:
@@ -262,7 +270,7 @@ def load_file(
 
 
 def save_file(
-    filepath: str,
+    filepath: Union[str, List[str]],
     data: Any,
     makedirs: Union[bool, Callable] = True,
     opener=open,
@@ -281,6 +289,7 @@ def save_file(
 
     Returns the absolute path to the written file
     """
+    filepath = joinpath(filepath)
     path = os.path.dirname(filepath)
     name = os.path.basename(filepath)
     _, ext = os.path.splitext(name)

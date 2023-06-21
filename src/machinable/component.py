@@ -1,10 +1,10 @@
 from typing import TYPE_CHECKING, List, Optional, Union
 
+import os
 import random
 import sys
 import threading
 
-import arrow
 from machinable.settings import get_settings
 
 if sys.version_info >= (3, 11):
@@ -12,22 +12,18 @@ if sys.version_info >= (3, 11):
 else:
     from typing_extensions import Self
 
-if sys.version_info >= (3, 8):
-    from typing import Literal
-else:
-    from typing_extensions import Literal
-
 from typing import Dict
 
 from machinable import errors, schema
 from machinable.collection import ComponentCollection, ExecutionCollection
 from machinable.element import _CONNECTIONS as connected_elements
-from machinable.element import Element, get_dump, get_lineage
+from machinable.element import get_dump, get_lineage
+from machinable.index import Index
 from machinable.interface import Interface, belongs_to, belongs_to_many
 from machinable.project import Project
 from machinable.storage import Storage
-from machinable.types import DatetimeType, TimestampType, VersionType
-from machinable.utils import generate_seed, load_file, save_file
+from machinable.types import VersionType
+from machinable.utils import generate_seed
 
 if TYPE_CHECKING:
     from machinable.execution import Execution
@@ -56,6 +52,15 @@ class Component(Interface):
             lineage=get_lineage(self),
         )
         self.__model__._dump = get_dump(self)
+        self._current_execution_context = None
+
+    @property
+    def current_execution_context(self) -> "Execution":
+        if self._current_execution_context is None:
+            from machinable.execution import Execution
+
+            self._current_execution_context = Execution.get()
+        return self._current_execution_context
 
     @belongs_to_many(key="execution_history")
     def executions() -> ExecutionCollection:
@@ -63,11 +68,53 @@ class Component(Interface):
 
         return Execution
 
-    @belongs_to(key="execution_history", cached=False)
-    def execution() -> "Execution":
+    @property
+    def execution(self) -> "Execution":
         from machinable.execution import Execution
 
-        return Execution
+        related = None
+        if self.is_mounted():
+            # if mounted, search for related, most recent execution
+            related = Index.get().find_related(
+                relation="Execution.Component.execution_history",
+                uuid=self.uuid,
+                inverse=True,
+            )
+
+            if related is not None and len(related) > 0:
+                related = Interface.find(
+                    sorted(related, key=lambda x: x.timestamp, reverse=True)[
+                        0
+                    ].uuid
+                )
+            else:
+                related = None
+
+        # use context if no related execution was found
+        if related is None:
+            if Execution.is_connected():
+                related = Execution.get()
+            else:
+                related = self.current_execution_context
+
+        related.of(self)
+
+        return related
+
+    def launch(self) -> Self:
+        from machinable.execution import Execution
+
+        self.execution.add(self)
+
+        if Execution.is_connected():
+            # commit only, defer execution
+            Execution.get().add(self)
+            self.commit()
+        else:
+            self.current_execution_context.add(self)
+            self.current_execution_context.dispatch()
+
+        return self
 
     @property
     def seed(self) -> int:
@@ -77,33 +124,9 @@ class Component(Interface):
     def nickname(self) -> str:
         return self.__model__.nickname
 
-    def launch(self) -> Self:
-        from machinable.execution import Execution
-
-        execution = Execution.get()
-
-        execution.add(self)
-
-        if Execution.is_connected():
-            # commit only, defer execution
-            self.commit()
-        else:
-            execution.dispatch()
-
-        return self
-
     @classmethod
     def collect(cls, components) -> "ComponentCollection":
         return ComponentCollection(components)
-
-    def resources(
-        self, execution: Optional["Execution"] = None
-    ) -> Optional[Dict]:
-        if execution is None:
-            execution = self.execution
-        if execution is None:
-            return None
-        return self.load_file(f"resources/{execution.id}.json", None)
 
     def dispatch(self) -> Self:
         """Dispatch the component lifecycle"""
@@ -117,9 +140,13 @@ class Component(Interface):
 
             # meta-data
             if writes_meta_data:
-                self.update_status("started")
-                self.save_file(
-                    "host.json",
+                if not self.execution.is_started():
+                    self.execution.update_status(status="started")
+                else:
+                    self.execution.update_status(status="resumed")
+
+                self.execution.save_file(
+                    [self.id, "host.json"],
                     data=Project.get().provider().get_host_info(),
                 )
 
@@ -129,7 +156,7 @@ class Component(Interface):
                 t.start()
                 self.on_heartbeat()
                 if self.on_write_meta_data() is not False and self.is_mounted():
-                    self.update_status("heartbeat")
+                    self.execution.update_status(status="heartbeat")
                 return t
 
             heartbeat = beat()
@@ -143,7 +170,8 @@ class Component(Interface):
                 heartbeat.cancel()
 
             if writes_meta_data:
-                self.update_status("finished")
+                self.execution.update_status(status="finished")
+                self.cached(True, reason="finished")
 
             self.on_after_dispatch(success=True)
         except BaseException as _ex:  # pylint: disable=broad-except
@@ -159,12 +187,18 @@ class Component(Interface):
                 for storage in Storage.connected():
                     storage.update(self)
 
-    @property
-    def host_info(self) -> Optional[Dict]:
-        return self.load_file("host.json", None)
+    def cached(
+        self, cached: Optional[bool] = None, reason: str = "user"
+    ) -> bool:
+        if cached is None:
+            return self.load_file("cached", None) is not None
+        elif cached is True:
+            self.save_file("cached", str(reason))
+            return True
+        elif cached is False:
+            os.remove(self.local_directory("cached"), ignore_errors=True)
 
-    def cached(self) -> bool:
-        return self.is_finished()
+        return cached
 
     def dispatch_code(self, inline: bool = True) -> Optional[str]:
         connections = [f"Project('{Project.get().path()}').__enter__()"]
@@ -188,142 +222,10 @@ class Component(Interface):
 
         return code.replace("        ", "")[1:-1]
 
-    def output(self, incremental: bool = False) -> Optional[str]:
-        """Returns the output log"""
-        if not self.is_mounted():
-            return None
-        if incremental:
-            read_length = self._cache.get("output_read_length", 0)
-            if read_length == -1:
-                return ""
-            output = self.load_file("output.log", None)
-            if output is None:
-                return None
-
-            if self.is_finished():
-                self._cache["output_read_length"] = -1
-            else:
-                self._cache["output_read_length"] = len(output)
-            return output[read_length:]
-
-        if "output" in self._cache:
-            return self._cache["output"]
-
-        output = self.load_file("output.log", None)
-
-        if self.is_finished():
-            self._cache["output"] = output
-
-        return output
-
-    def update_status(
-        self,
-        status: Literal["started", "heartbeat", "finished"] = "heartbeat",
-        timestamp: Optional[TimestampType] = None,
-    ) -> None:
-        if timestamp is None:
-            timestamp = arrow.now()
-        if isinstance(timestamp, arrow.Arrow):
-            timestamp = arrow.get(timestamp)
-
-        if status == "started":
-            save_file(
-                self.local_directory("started_at"),
-                str(timestamp) + "\n",
-                # starting event can occur multiple times
-                mode="a",
-            )
-        elif status == "heartbeat":
-            save_file(
-                self.local_directory("heartbeat_at"),
-                str(timestamp),
-                mode="w",
-            )
-        elif status == "finished":
-            save_file(
-                self.local_directory("finished_at"),
-                str(timestamp),
-                mode="w",
-            )
-        else:
-            raise ValueError(
-                f"Invalid status {status}; must be one of 'started', 'heartbeat', 'finished'"
-            )
-
-    def created_at(self) -> Optional[DatetimeType]:
-        if self.timestamp is None:
-            return None
-
-        return arrow.get(self.timestamp)
-
-    def started_at(self) -> Optional[DatetimeType]:
-        """Returns the starting time"""
-        if not self.is_mounted():
-            return None
-        return self._retrieve_status("started")
-
-    def heartbeat_at(self):
-        """Returns the last heartbeat time"""
-        if not self.is_mounted():
-            return None
-        return self._retrieve_status("heartbeat")
-
-    def finished_at(self):
-        """Returns the finishing time"""
-        if not self.is_mounted():
-            return None
-        return self._retrieve_status("finished")
-
-    def _retrieve_status(self, field: str) -> Optional[DatetimeType]:
-        fields = ["started", "heartbeat", "finished"]
-        if field not in fields:
-            raise ValueError(f"Invalid field: {field}. Must be on of {fields}")
-        status = load_file(self.local_directory(f"{field}_at"), default=None)
-        if status is None:
-            return None
-        if field == "started":
-            # can have multiple rows, return latest
-            status = status.strip("\n").split("\n")[-1]
-
-        try:
-            return arrow.get(status)
-        except arrow.ParserError:
-            return None
-
-    def is_finished(self):
-        """True if finishing time has been written"""
-        return bool(self.finished_at())
-
-    def is_started(self):
-        """True if starting time has been written"""
-        return bool(self.started_at())
-
-    def is_active(self):
-        """True if not finished and last heartbeat occurred less than 30 seconds ago"""
-        if not self.heartbeat_at():
-            return False
-
-        return (not self.is_finished()) and (
-            (arrow.now() - self.heartbeat_at()).seconds < 30
-        )
-
-    def is_live(self):
-        """True if active or finished"""
-        return self.is_finished() or self.is_active()
-
-    def is_incomplete(self):
-        """Shorthand for is_started() and not (is_active() or is_finished())"""
-        return self.is_started() and not (
-            self.is_active() or self.is_finished()
-        )
-
     # life cycle
 
     def __call__(self) -> None:
         ...
-
-    def on_before_commit(self) -> Optional[bool]:
-        """Event triggered before the commit of the component"""
 
     def on_before_dispatch(self) -> Optional[bool]:
         """Event triggered before the dispatch of the component"""

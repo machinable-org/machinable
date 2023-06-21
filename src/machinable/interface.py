@@ -15,7 +15,7 @@ from typing import Callable
 import os
 from functools import partial, wraps
 
-from machinable import schema
+from machinable import errors, schema
 from machinable.collection import Collection, InterfaceCollection
 from machinable.element import (
     Element,
@@ -25,7 +25,12 @@ from machinable.element import (
 )
 from machinable.settings import get_settings
 from machinable.types import VersionType
-from machinable.utils import is_directory_version, load_file, save_file
+from machinable.utils import (
+    is_directory_version,
+    joinpath,
+    load_file,
+    save_file,
+)
 from omegaconf import OmegaConf
 
 
@@ -68,6 +73,8 @@ class Relation:
 
     def __set_name__(self, cls, name):
         self.cls = cls
+        if cls.__relations__ is None:
+            cls.__relations__ = {}
         cls.__relations__[name] = self
 
     def __get__(self, instance, owner):
@@ -140,7 +147,7 @@ class Interface(Element):
     # class level relationship information
     # note that the actual data is kept
     # in the __related__ object propery
-    __relations__: Dict[str, Relation] = {}
+    __relations__: Optional[Dict[str, Relation]] = None
 
     def __init__(
         self,
@@ -161,14 +168,23 @@ class Interface(Element):
         # initialize relation data
         self.__related__ = {}
         self._relation_cache = {}
+        if self.__relations__ is None:
+            self.__relations__ = {}
         for name, relation in self.__relations__.items():
             if relation.multiple:
                 self.__related__[name] = relation.collect([])
             else:
                 self.__related__[name] = None
         if uses:
-            self.use(uses)
-        self.push_related("ancestor", derived_from)
+            if not isinstance(uses, (list, tuple)):
+                uses = [uses]
+            for use in uses:
+                self.__related__["uses"].append(use)
+            self._relation_cache["uses"] = True
+
+        if derived_from:
+            self.__related__["ancestor"] = derived_from
+            self._relation_cache["ancestor"] = True
 
         self._deferred_data = {}
 
@@ -177,12 +193,20 @@ class Interface(Element):
         return InterfaceCollection(elements)
 
     def push_related(self, key: str, value: "Interface") -> None:
-        # todo: check for editablility
+        if self.is_committed():
+            raise errors.MachinableError(
+                f"{repr(self)} already exists and cannot be modified."
+            )
         if self.__relations__[key].multiple:
             self.__related__[key].append(value)
         else:
             self.__related__[key] = value
         self._relation_cache[key] = True
+
+    def is_committed(self) -> bool:
+        from machinable.index import Index
+
+        return Index.get().find(self.uuid) is not None
 
     def commit(self) -> Self:
         from machinable.index import Index
@@ -260,23 +284,11 @@ class Interface(Element):
 
         return " ".join(cli)
 
-    def use(self, use: Union[Element, List[Element]]) -> Self:
-        # todo: check for editablility
-
-        if isinstance(use, (list, tuple)):
-            for _use in use:
-                self.use(_use)
-            return self
-
-        self.push_related("uses", use)
-
-        return self
-
     def derive(
         self,
         module: Union[str, Element, None] = None,
         version: VersionType = None,
-        predicate: Optional[str] = get_settings().default_predicate,
+        predicate: Optional[str] = "$",
         **kwargs,
     ) -> Self:
         if module is None or predicate is None:
@@ -291,7 +303,7 @@ class Interface(Element):
         cls,
         module: Union[str, "Element"],
         version: VersionType = None,
-        predicate: Optional[str] = get_settings().default_predicate,
+        predicate: Optional[str] = "$",
         **kwargs,
     ) -> "Collection":
         if module in [
@@ -352,7 +364,7 @@ class Interface(Element):
         cls,
         module: Union[str, "Element"],
         version: VersionType = None,
-        predicate: Optional[str] = get_settings().default_predicate,
+        predicate: Optional[str] = "$",
         **kwargs,
     ) -> "Collection":
         from machinable.index import Index
@@ -362,15 +374,16 @@ class Interface(Element):
         except ModuleNotFoundError:
             return cls.collect([])
 
-        if predicate:
-            predicate = OmegaConf.to_container(
-                OmegaConf.create(
-                    {
-                        p: candidate.predicate[p]
-                        for p in resolve_custom_predicate(predicate, candidate)
-                    }
-                )
+        predicate_fields = resolve_custom_predicate(predicate, candidate)
+
+        if predicate_fields is None:
+            return cls.collect([])
+
+        predicate_data = OmegaConf.to_container(
+            OmegaConf.create(
+                {p: candidate.predicate[p] for p in predicate_fields}
             )
+        )
 
         return cls.collect(
             [
@@ -379,7 +392,7 @@ class Interface(Element):
                     module
                     if isinstance(module, str)
                     else f"__session__{module.__name__}",
-                    predicate,
+                    predicate_data,
                 )
             ]
         )
@@ -391,7 +404,7 @@ class Interface(Element):
         Note that this does not verify the integrity of the directory.
         In particular, the interface may be missing or not be indexed.
         """
-        data = load_file(os.path.join(directory, "model.json"))
+        data = load_file([directory, "model.json"])
 
         model = getattr(schema, data["kind"], None)
         if model is None:
@@ -400,22 +413,22 @@ class Interface(Element):
 
         interface = model(**data)
         if interface.module.startswith("__session__"):
-            interface._dump = load_file(os.path.join(directory, "dump.p"), None)
+            interface._dump = load_file([directory, "dump.p"], None)
 
         return cls.from_model(interface)
 
     def to_directory(self, directory: str, relations=True) -> Self:
-        save_file(os.path.join(directory, ".machinable"), self.__model__.uuid)
-        save_file(os.path.join(directory, "model.json"), self.__model__)
+        save_file([directory, ".machinable"], self.__model__.uuid)
+        save_file([directory, "model.json"], self.__model__)
         if self.__model__._dump is not None:
-            save_file(os.path.join(directory, "dump.p"), self.__model__._dump)
+            save_file([directory, "dump.p"], self.__model__._dump)
         if relations:
             for k, v in self.__related__.items():
                 if hasattr(v, "uuid"):
-                    save_file(os.path.join(directory, "related", k), v.uuid)
+                    save_file([directory, "related", k], v.uuid)
                 elif v:
                     save_file(
-                        os.path.join(directory, "related", k),
+                        [directory, "related", k],
                         "\n".join([i.uuid for i in v]),
                         mode="w",
                     )
@@ -432,7 +445,10 @@ class Interface(Element):
 
         return directory
 
-    def load_file(self, filepath: str, default=None) -> Optional[Any]:
+    def load_file(
+        self, filepath: Union[str, List[str]], default=None
+    ) -> Optional[Any]:
+        filepath = joinpath(filepath)
         if not self.is_mounted():
             # has write been deferred?
             if filepath in self._deferred_data:
@@ -444,7 +460,9 @@ class Interface(Element):
 
         return data if data is not None else default
 
-    def save_file(self, filepath: str, data: Any) -> str:
+    def save_file(self, filepath: Union[str, List[str]], data: Any) -> str:
+        filepath = joinpath(filepath)
+
         if os.path.isabs(filepath):
             raise ValueError("Filepath must be relative")
 

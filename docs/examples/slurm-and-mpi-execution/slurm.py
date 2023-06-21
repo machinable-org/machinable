@@ -7,24 +7,28 @@ from machinable.errors import ExecutionFailed
 class Slurm(Execution):
     def __call__(self):
         script = "#!/usr/bin/env bash\n"
-        for component in self.pending_executables:
-            resources = component.resources()
+        for executable in self.pending_executables:
+            resources = executable.resources()
             if "--job-name" not in resources:
-                resources["--job-name"] = f"{component.id}"
+                resources["--job-name"] = f"{executable.id}"
             if "--output" not in resources:
-                resources["--output"] = component.local_directory("output.log")
+                resources["--output"] = self.local_directory(
+                    executable.id, "output.log"
+                )
             if "--open-mode" not in resources:
                 resources["--open-mode"] = "append"
 
             sbatch_arguments = []
             for k, v in resources.items():
+                if not k.startswith("--"):
+                    continue
                 line = "#SBATCH " + k
                 if v not in [None, True]:
                     line += f"={v}"
                 sbatch_arguments.append(line)
             script += "\n".join(sbatch_arguments) + "\n"
 
-            script += component.dispatch_code()
+            script += executable.dispatch_code()
 
             # submit to slurm
             process = subprocess.Popen(
@@ -50,13 +54,13 @@ class Slurm(Execution):
             except ValueError:
                 job_id = False
             print(
-                f"{output} for component {component.id} ({component.local_directory()})"
+                f"{output} for component {executable.id} ({executable.local_directory()})"
             )
 
             # save job information
             self.save_file(
-                filepath="slurm.json",
-                data={
+                [executable, "slurm.json"],
+                {
                     "job_id": job_id,
                     "cmd": sbatch_arguments,
                     "script": script,

@@ -3,8 +3,6 @@ from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
 import collections
 import copy
 import json
-import os
-import stat
 import sys
 
 if sys.version_info >= (3, 11):
@@ -16,13 +14,11 @@ import arrow
 import dill as pickle
 import machinable
 import omegaconf
-import pydantic
 from machinable import schema
 from machinable.collection import ElementCollection
 from machinable.config import from_element, match_method, rewrite_config_methods
 from machinable.errors import ConfigurationError, MachinableError
 from machinable.mixin import Mixin
-from machinable.settings import get_settings
 from machinable.types import DatetimeType, ElementType, VersionType
 from machinable.utils import Jsonable, sentinel, unflatten_dict, update_dict
 from omegaconf import DictConfig, OmegaConf
@@ -218,7 +214,19 @@ def uuid_to_id(uuid: str) -> str:
     return result
 
 
-def resolve_custom_predicate(predicate: str, element: "Element"):
+def resolve_custom_predicate(
+    predicate: Optional[str], element: "Element"
+) -> Optional[List[str]]:
+    # predicate may look like this "example,test,*"
+    #  where * represents a placeholder for all the custom predicates
+    #  that are marked with a trailing * (i.e. default predicates)
+    # $ is a shorthand for inferring the predicate from the element
+    if predicate == "$":
+        predicate = element.default_predicate
+
+    if predicate is None:
+        return None
+
     from machinable.project import Project
 
     custom = element.on_compute_predicate() or {}
@@ -262,6 +270,7 @@ class Element(Mixin, Jsonable):
 
     kind: Optional[str] = "Element"
     default: Optional["Element"] = None
+    default_predicate: Optional[str] = "config,*"
     _module_: Optional[str] = None
 
     def __init__(self, version: VersionType = None):
@@ -297,7 +306,7 @@ class Element(Mixin, Jsonable):
     def timestamp(self) -> float:
         return self.__model__.timestamp
 
-    def timestamp_at(self) -> DatetimeType:
+    def created_at(self) -> DatetimeType:
         return arrow.get(self.__model__.timestamp)
 
     def version(
@@ -346,7 +355,7 @@ class Element(Mixin, Jsonable):
         cls,
         module: Union[str, "Element", None] = None,
         version: VersionType = None,
-        predicate: Optional[str] = get_settings().default_predicate,
+        predicate: Optional[str] = "$",
         **kwargs,
     ) -> "Element":
         if module is None and version is None:
@@ -400,7 +409,7 @@ class Element(Mixin, Jsonable):
         cls,
         module: Union[str, "Element"],
         version: VersionType = None,
-        predicate: Optional[str] = get_settings().default_predicate,
+        predicate: Optional[str] = "$",
         **kwargs,
     ) -> "Element":
         # no-op as elements do not have a storage representation
@@ -569,7 +578,11 @@ class Element(Mixin, Jsonable):
         return getattr(schema, cls.kind)
 
     def matches(self, element: "Element", predicate: str) -> bool:
-        for p in resolve_custom_predicate(predicate, element):
+        predicate_fields = resolve_custom_predicate(predicate, element)
+        if predicate_fields is None:
+            return False
+
+        for p in predicate_fields:
             if not equalversion(self.predicate[p], element.predicate[p]):
                 return False
 
@@ -675,7 +688,7 @@ class Element(Mixin, Jsonable):
         return f"{self.kind} [{self.id}]"
 
     def __str__(self):
-        return self.__repr__()
+        return self.id
 
     def __eq__(self, other):
         return self.uuid == other.uuid

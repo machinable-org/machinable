@@ -378,6 +378,8 @@ def test_idversion():
 
 def test_resolve_custom_predicate():
     class T:
+        default_predicate = "default"
+
         def __init__(self, predicate):
             self.predicate = predicate
 
@@ -390,6 +392,15 @@ def test_resolve_custom_predicate():
     assert resolve_custom_predicate("test,*", T(None)) == ["test"]
     assert resolve_custom_predicate("* , t", T({})) == ["t"]
     assert resolve_custom_predicate("t,*", T({"a": "1"})) == ["t"]
+    assert resolve_custom_predicate("$", T(None)) == ["default"]
+    T.default_predicate = "default,*"
+    assert resolve_custom_predicate("$", T({"a*": 1, "b": 2})) == [
+        "default",
+        "a",
+    ]
+    T.default_predicate = None
+    assert resolve_custom_predicate("$", T(None)) is None
+    assert resolve_custom_predicate(None, T({})) is None
 
 
 def test_uuid_to_id():

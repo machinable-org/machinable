@@ -17,8 +17,7 @@ def test_interface_to_directory(tmp_path):
     assert os.path.exists(str(tmp_path / "test" / "model.json"))
     assert not os.path.exists(str(tmp_path / "test" / "related"))
 
-    i = Interface(derived_from=Interface())
-    i.use([Interface(), Interface()])
+    i = Interface(derived_from=Interface(), uses=[Interface(), Interface()])
     i.to_directory(str(tmp_path / "test2"))
     assert load_file(str(tmp_path / "test2" / ".machinable")) == i.uuid
     assert load_file(str(tmp_path / "test2" / "related" / "uses")) == "\n".join(
