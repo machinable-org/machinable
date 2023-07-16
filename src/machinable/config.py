@@ -5,6 +5,7 @@ import collections
 import re
 from inspect import isclass
 
+import omegaconf
 from pydantic import BaseModel as Model
 from pydantic import Field
 from pydantic import validator as _validator
@@ -95,3 +96,16 @@ def rewrite_config_methods(
         return '${config_method:"' + function + '","' + args + '"}'
 
     return config
+
+
+def to_dict(dict_like):
+    if isinstance(dict_like, (omegaconf.DictConfig, omegaconf.ListConfig)):
+        return omegaconf.OmegaConf.to_container(dict_like)
+
+    if isinstance(dict_like, (list, tuple)):
+        return dict_like.__class__([k for k in dict_like])
+
+    if not isinstance(dict_like, collections.abc.Mapping):
+        return dict_like
+
+    return {k: to_dict(v) for k, v in dict_like.items()}

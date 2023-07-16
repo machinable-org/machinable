@@ -1,4 +1,10 @@
-from machinable.config import from_element, match_method, rewrite_config_methods
+import omegaconf
+from machinable.config import (
+    from_element,
+    match_method,
+    rewrite_config_methods,
+    to_dict,
+)
 
 
 def test_config_from_element():
@@ -31,3 +37,14 @@ def test_rewrite_config_methods():
     rewrite_config_methods({"test": "test_me(1)"}) == {
         "test": "${config_method:test_me,1}"
     }
+
+
+def test_to_dict():
+    assert to_dict({"a": 1}) == {"a": 1}
+    assert to_dict(omegaconf.DictConfig({"a": 1})) == {"a": 1}
+    assert to_dict(omegaconf.ListConfig([1, 2, 3])) == [1, 2, 3]
+    assert to_dict({"a": omegaconf.DictConfig({"b": 1})}) == {"a": {"b": 1}}
+    assert to_dict([1, 2, 3]) == [1, 2, 3]
+    assert to_dict((1, 2, 3)) == (1, 2, 3)
+    assert to_dict(1) == 1
+    assert to_dict("foo") == "foo"
