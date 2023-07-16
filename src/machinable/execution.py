@@ -290,11 +290,14 @@ class Execution(Interface):
         stream=print,
     ):
         executable = self.executable(executable)
-        while not self.is_started(executable) or self.is_active(executable):
-            output = self.output(executable, incremental=True)
-            if output:
-                stream(output)
-            time.sleep(refresh_every)
+        try:
+            while not self.is_started(executable) or self.is_active(executable):
+                output = self.output(executable, incremental=True)
+                if output:
+                    stream(output)
+                time.sleep(refresh_every)
+        except KeyboardInterrupt:
+            pass
 
     def update_status(
         self,
