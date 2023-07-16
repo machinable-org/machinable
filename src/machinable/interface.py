@@ -398,7 +398,7 @@ class Interface(Element):
         )
 
     @classmethod
-    def from_directory(cls, directory: str) -> "Element":
+    def from_directory(cls, directory: str) -> Self:
         """Returns an interface from a storage directory
 
         Note that this does not verify the integrity of the directory.
@@ -416,6 +416,12 @@ class Interface(Element):
             interface._dump = load_file([directory, "dump.p"], None)
 
         return cls.from_model(interface)
+
+    def all(self) -> "Collection":
+        return self.find_by_predicate(self.module, self.__model__.version)
+
+    def new(self) -> Self:
+        return self.make(self.module, self.__model__.version)
 
     def to_directory(self, directory: str, relations=True) -> Self:
         save_file([directory, ".machinable"], self.__model__.uuid)

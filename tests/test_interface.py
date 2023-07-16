@@ -138,3 +138,23 @@ def test_interface_derivatives(tmp_storage):
     assert root.derive(T) == child1
     assert root.derive(T, {"c": 2}) == child2
     assert root.derive(T, {"c": -1}) != child1
+
+
+def test_interface_all(tmp_storage):
+    project = Project("./tests/samples/project").__enter__()
+
+    # all modifier
+    assert len(Interface().all()) == 0
+    get("interface.dummy").commit()
+    assert len(Interface().all()) == 0
+    assert list(get("interface.dummy").all()) == [get("interface.dummy")]
+    get("interface.dummy", {"a": 1}).commit()
+    assert len(Interface().all()) == 0
+    assert len(get("interface.dummy").all()) == 1
+    assert len(get("interface.dummy", {"a": 1}).all()) == 1
+
+    # new modifier
+    assert get("interface.dummy").is_committed()
+    assert get("interface.dummy").new().is_committed() is False
+
+    project.__exit__()
