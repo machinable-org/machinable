@@ -8,6 +8,7 @@ __all__ = [
     "Storage",
     "Mixin",
     "Index",
+    "Scope",
     "mixin",
     "Schedule",
     "get",
@@ -31,6 +32,7 @@ from machinable.interface import Interface
 from machinable.mixin import Mixin, mixin
 from machinable.project import Project
 from machinable.schedule import Schedule
+from machinable.scope import Scope
 from machinable.settings import get_settings
 from machinable.storage import Storage
 from machinable.types import Optional, Union, VersionType
@@ -39,10 +41,9 @@ from machinable.types import Optional, Union, VersionType
 def get(
     module: Union[str, Element, None] = None,
     version: VersionType = None,
-    predicate: Optional[str] = "$",
     **kwargs,
 ) -> Interface:
-    return Interface.get(module, version, predicate, **kwargs)
+    return Interface.get(module, version, **kwargs)
 
 
 def get_version() -> str:

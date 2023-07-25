@@ -172,29 +172,31 @@ def extract(
     return compact_element[0], normversion(compact_element[1:])
 
 
+def equaljson(a: Any, b: Any) -> bool:
+    return json.dumps(a, sort_keys=True) == json.dumps(b, sort_keys=True)
+
+
 def equalversion(a: VersionType, b: VersionType) -> bool:
-    return json.dumps(normversion(a), sort_keys=True) == json.dumps(
-        normversion(b), sort_keys=True
-    )
+    return equaljson(normversion(a), normversion(b))
 
 
-def _filter_enderscores(m: Any):
+def filter_enderscores(m: Any):
     if not isinstance(m, collections.abc.Mapping):
         return m
     return {
-        k: _filter_enderscores(v) for k, v in m.items() if not k.endswith("_")
+        k: filter_enderscores(v) for k, v in m.items() if not k.endswith("_")
     }
 
 
-def _idversion_filter(value: Union[str, dict]) -> Union[str, dict, None]:
+def idversion_filter(value: Union[str, dict]) -> Union[str, dict, None]:
     if isinstance(value, str) and value.endswith("_"):
         return None
 
-    return _filter_enderscores(value)
+    return filter_enderscores(value)
 
 
 def idversion(version: VersionType) -> VersionType:
-    return normversion([_idversion_filter(v) for v in normversion(version)])
+    return normversion([idversion_filter(v) for v in normversion(version)])
 
 
 def transfer_to(src: "Element", destination: "Element") -> "Element":
@@ -212,40 +214,6 @@ def uuid_to_id(uuid: str) -> str:
         result += alphabet[int(uuid[i : i + 2], 16) % 62]
 
     return result
-
-
-def resolve_custom_predicate(
-    predicate: Optional[str], element: "Element"
-) -> Optional[List[str]]:
-    # predicate may look like this "example,test,*"
-    #  where * represents a placeholder for all the custom predicates
-    #  that are marked with a trailing * (i.e. default predicates)
-    # $ is a shorthand for inferring the predicate from the element
-    if predicate == "$":
-        predicate = element.default_predicate
-
-    if predicate is None:
-        return None
-
-    from machinable.project import Project
-
-    custom = element.on_compute_predicate() or {}
-    if isinstance(element, Project):
-        custom.update(element.global_predicate() or {})
-    else:
-        custom.update(Project.get().provider().global_predicate() or {})
-    custom.update(getattr(element, "_starred_predicates", {}))
-
-    if custom:
-        predicate = predicate.replace(
-            "*",
-            ",".join(
-                [k.replace("*", "") for k in custom.keys() if k.endswith("*")]
-            ),
-        )
-    return [
-        p.strip() for p in predicate.split(",") if p.strip() not in ("*", "")
-    ]
 
 
 def instantiate(
@@ -270,14 +238,13 @@ class Element(Mixin, Jsonable):
 
     kind: Optional[str] = "Element"
     default: Optional["Element"] = None
-    default_predicate: Optional[str] = "config,*"
     _module_: Optional[str] = None
 
     def __init__(self, version: VersionType = None):
         super().__init__()
         if Element._module_ is None:
             Element._module_ = self.__module__
-        self.__model__ = schema.Element(
+        self.__model__ = getattr(schema, self.kind, schema.Element)(
             kind=self.kind,
             module=Element._module_,
             version=normversion(version),
@@ -291,8 +258,15 @@ class Element(Mixin, Jsonable):
         self._config: Optional[DictConfig] = None
         self._predicate: Optional[DictConfig] = None
         self._cache = {}
+        self._kwargs = {}
 
         Element._module_ = None
+
+    @property
+    def _enderscore_config(self):
+        if "enderscore_config" not in self._cache:
+            self._cache["enderscore_config"] = filter_enderscores(self.config)
+        return self._cache["enderscore_config"]
 
     @property
     def uuid(self) -> str:
@@ -355,22 +329,21 @@ class Element(Mixin, Jsonable):
         cls,
         module: Union[str, "Element", None] = None,
         version: VersionType = None,
-        predicate: Optional[str] = "$",
         **kwargs,
     ) -> "Element":
         if module is None and version is None:
             if len(_CONNECTIONS[cls.kind]) > 0:
                 return _CONNECTIONS[cls.kind][-1]
 
-        if module is None or predicate is None:
-            return cls.instance(module, version, **kwargs)
+        if module is None:
+            return cls.make(module, version, **kwargs)
 
-        return cls.singleton(module, version, predicate, **kwargs)
+        return cls.singleton(module, version, **kwargs)
 
     @classmethod
     def make(
         cls,
-        module: Optional[str] = None,
+        module: Union[None, str, "Element"] = None,
         version: VersionType = None,
         base_class: "Element" = None,
         **kwargs,
@@ -409,7 +382,6 @@ class Element(Mixin, Jsonable):
         cls,
         module: Union[str, "Element"],
         version: VersionType = None,
-        predicate: Optional[str] = "$",
         **kwargs,
     ) -> "Element":
         # no-op as elements do not have a storage representation
@@ -434,20 +406,42 @@ class Element(Mixin, Jsonable):
 
         return instance
 
-    def on_compute_predicate(self) -> Optional[Dict]:
-        """Event to compute a custom predicate dictionary of the element
-        where each key presents a predicate that can be used
-        during element lookup. Keys marked with a * are automatically
-        matched."""
+    def compute_context(self) -> Optional[Dict]:
+        """Computes the context contraints of the element
+
+        Returns:
+            Optional[Dict]: Maps constraint fields their required JSON-able values.
+                An empty dict means no constraits, i.e. all elements will be matched.
+                Returning None means full constraits, i.e. no element will be matched.
+        """
+        return {
+            "module": self.module,
+            "config": self._enderscore_config,
+            "predicate": self.compute_predicate(),
+        }
+
+    def on_compute_predicate(self) -> Dict:
+        """Event to compute additional predicates that identify this element.
+
+        Returns:
+            Dict: Maps the names used during lookup to their JSON-able value.
+        """
+        return {}
+
+    def compute_predicate(self) -> Dict:
+        predicate = self.on_compute_predicate() or {}
+
+        # apply scopes
+        for scope in _CONNECTIONS["Scope"]:
+            predicate.update(scope())
+
+        return predicate
 
     @property
     def predicate(self) -> DictConfig:
         if self._predicate is None:
-            if self.__model__.predicate is None:
-                self.__model__.predicate = OmegaConf.to_container(
-                    OmegaConf.create(self.compute_predicate())
-                )
-
+            if not self.__model__.predicate:
+                return OmegaConf.create({})
             self._predicate = OmegaConf.create(self.__model__.predicate)
 
         return self._predicate
@@ -577,14 +571,37 @@ class Element(Mixin, Jsonable):
 
         return getattr(schema, cls.kind)
 
-    def matches(self, element: "Element", predicate: str) -> bool:
-        predicate_fields = resolve_custom_predicate(predicate, element)
-        if predicate_fields is None:
+    def matches(
+        self, element: "Element", context: Optional[Dict] = sentinel
+    ) -> bool:
+        if context is sentinel:
+            context = element.compute_context()
+
+        if context is None:
+            # full constraint, match none
             return False
 
-        for p in predicate_fields:
-            if not equalversion(self.predicate[p], element.predicate[p]):
-                return False
+        if not context:
+            # no constraints, match all
+            return True
+
+        for field, value in context.items():
+            if field in (
+                "uuid",
+                "kind",
+                "module",
+            ):
+                if not equaljson(getattr(self, field), value):
+                    return False
+            elif field == "config":
+                if not equaljson(self._enderscore_config, value):
+                    return False
+            elif field == "predicate":
+                for p, v in value.items():
+                    if not equaljson(self.predicate[p], v):
+                        return False
+            else:
+                raise ValueError("Invalid context field: {field}")
 
         return True
 
@@ -609,30 +626,6 @@ class Element(Mixin, Jsonable):
     @classmethod
     def is_connected(cls) -> bool:
         return len(_CONNECTIONS[cls.kind]) > 0
-
-    def compute_predicate(self) -> Dict:
-        from machinable.project import Project
-
-        custom = self.on_compute_predicate() or {}
-        if isinstance(self, Project):
-            custom.update(self.global_predicate() or {})
-        else:
-            custom.update(Project.get().provider().global_predicate() or {})
-
-        config = copy.deepcopy(OmegaConf.to_container(self.config))
-        default = config.pop("_default_")
-        version = config.pop("_version_")
-        update = config.pop("_update_")
-
-        return {
-            "config_update": _filter_enderscores(update),
-            "config_update_": update,
-            "config": _filter_enderscores(config),
-            "config_": config,
-            "version": idversion(version),
-            "version_": version,
-            **{k.replace("*", ""): v for k, v in custom.items()},
-        }
 
     def on_instantiate(self) -> None:
         """Event that is invoked whenever the element is instantiated"""

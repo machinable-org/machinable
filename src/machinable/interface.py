@@ -13,15 +13,15 @@ else:
 from typing import Callable
 
 import os
-from functools import partial, wraps
+from functools import partial
 
 from machinable import errors, schema
 from machinable.collection import Collection, InterfaceCollection
 from machinable.element import (
     Element,
+    filter_enderscores,
     get_dump,
     get_lineage,
-    resolve_custom_predicate,
 )
 from machinable.settings import get_settings
 from machinable.types import VersionType
@@ -31,7 +31,6 @@ from machinable.utils import (
     load_file,
     save_file,
 )
-from omegaconf import OmegaConf
 
 
 class Relation:
@@ -211,15 +210,15 @@ class Interface(Element):
     def commit(self) -> Self:
         from machinable.index import Index
 
-        # ensure that configuration has been parsed
-        assert self.config is not None
-        assert self.predicate is not None
-
         index = Index.get()
 
         # only commit if not already in index
         if index.find(self.uuid) is not None:
             return self
+
+        # ensure that configuration and predicate has been computed
+        assert self.config is not None
+        self.__model__.predicate = self.compute_predicate()
 
         # commit to index
         self.to_directory(self.local_directory(create=True))
@@ -288,14 +287,13 @@ class Interface(Element):
         self,
         module: Union[str, Element, None] = None,
         version: VersionType = None,
-        predicate: Optional[str] = "$",
         **kwargs,
     ) -> Self:
-        if module is None or predicate is None:
+        if module is None:
             return self.make(module, version, derived_from=self, **kwargs)
 
         return self.derived.singleton(
-            module, version, predicate, derived_from=self, **kwargs
+            module, version, derived_from=self, **kwargs
         )
 
     @classmethod
@@ -303,7 +301,6 @@ class Interface(Element):
         cls,
         module: Union[str, "Element"],
         version: VersionType = None,
-        predicate: Optional[str] = "$",
         **kwargs,
     ) -> "Collection":
         if module in [
@@ -312,10 +309,9 @@ class Interface(Element):
         ] and is_directory_version(version):
             # interpret as shortcut for directory
             version = {"directory": version}
-        candidates = cls.find_by_predicate(
+        candidates = cls.find_in_context(
             module,
             version,
-            predicate,
             **kwargs,
         )
         if candidates:
@@ -360,11 +356,10 @@ class Interface(Element):
         return cls.collect([cls.find(uuid) for uuid in uuids])
 
     @classmethod
-    def find_by_predicate(
+    def find_in_context(
         cls,
         module: Union[str, "Element"],
         version: VersionType = None,
-        predicate: Optional[str] = "$",
         **kwargs,
     ) -> "Collection":
         from machinable.index import Index
@@ -374,26 +369,14 @@ class Interface(Element):
         except ModuleNotFoundError:
             return cls.collect([])
 
-        predicate_fields = resolve_custom_predicate(predicate, candidate)
-
-        if predicate_fields is None:
+        context = candidate.compute_context()
+        if context is None:
             return cls.collect([])
-
-        predicate_data = OmegaConf.to_container(
-            OmegaConf.create(
-                {p: candidate.predicate[p] for p in predicate_fields}
-            )
-        )
 
         return cls.collect(
             [
                 cls.find(interface.uuid)
-                for interface in Index.get().find_by_predicate(
-                    module
-                    if isinstance(module, str)
-                    else f"__session__{module.__name__}",
-                    predicate_data,
-                )
+                for interface in Index.get().find_by_context(context)
             ]
         )
 
@@ -418,10 +401,12 @@ class Interface(Element):
         return cls.from_model(interface)
 
     def all(self) -> "Collection":
-        return self.find_by_predicate(self.module, self.__model__.version)
+        return self.find_in_context(
+            self.module, self.__model__.version, **self._kwargs
+        )
 
     def new(self) -> Self:
-        return self.make(self.module, self.__model__.version)
+        return self.make(self.module, self.__model__.version, **self._kwargs)
 
     def to_directory(self, directory: str, relations=True) -> Self:
         save_file([directory, ".machinable"], self.__model__.uuid)

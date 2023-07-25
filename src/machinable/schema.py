@@ -26,6 +26,10 @@ class Index(Element):
     kind: str = "Index"
 
 
+class Scope(Element):
+    kind: str = "Scope"
+
+
 class Interface(Element):
     kind: str = "Interface"
     _dump: Optional[bytes] = PrivateAttr(default=None)

@@ -18,6 +18,3 @@ class TestProject(Project):
         info = super().get_host_info()
         info["dummy"] = "data"
         return info
-
-    def global_predicate(self):
-        return {"more": 1}

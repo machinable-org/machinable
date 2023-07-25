@@ -29,11 +29,10 @@ def test_element_collection(tmp_storage):
         collection.launch()
         assert all(collection.map(lambda x: x.execution.is_finished()))
 
-        assert len(collection.filter_by_predicate("non-existent")) == 0
         m = "tests.test_collection"
-        assert len(collection.filter_by_predicate(m)) == 0
-        assert len(collection.filter_by_predicate(m, {"m": 0})) == 3
-        assert len(collection.filter_by_predicate(m, {"m": 1})) == 2
+        assert len(collection.filter_by_context(m)) == 0
+        assert len(collection.filter_by_context(m, {"m": 0})) == 3
+        assert len(collection.filter_by_context(m, {"m": 1})) == 2
 
         assert collection.singleton(m, {"m": 1}).load_file("i") == "1"
 

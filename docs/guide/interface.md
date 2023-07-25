@@ -53,14 +53,6 @@ assert mnist == mnist_reloaded
 
 What is happening here is that <Pydoc caption="get()">machinable.get</Pydoc> automatically searches the storage for an interface of type `MnistData` with a `batch_size` of `8`. If such an instance has not been committed yet (like when initially running the code), a new instance with this configuration will be returned. But if such an instance has previously been committed, it will simply be reloaded.
 
-To avoid this storage lookup and instantiate different instances with the same configuration you can set the `predicate` parameter to `None`
-
-```python
-mnist1 = get(MnistData, {"batch_size": 8})
-mnist2 = get(MnistData, {"batch_size": 8}, predicate=None) # ignore storage
-assert mnist1 != mnist2
-```
-
 ## The module convention
 
 As your project grows, the classes that you implement should be moved into their own Python module. You are free to structure your code as you see fit but there is one hard constraint that classes must be placed in their own modules. The project source code may, for instance, be organized like this:

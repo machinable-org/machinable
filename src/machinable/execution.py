@@ -48,7 +48,6 @@ StatusType = Literal["started", "heartbeat", "finished", "resumed"]
 class Execution(Interface):
     kind = "Execution"
     default = get_settings().default_execution
-    default_predicate: Optional[str] = None
 
     def __init__(
         self,
@@ -72,17 +71,17 @@ class Execution(Interface):
             if not isinstance(schedule, Schedule):
                 schedule = Schedule.make(*extract(schedule))
             self.push_related("schedule", schedule)
-        self._starred_predicates = {"resources": None}
         self._executable_ = None
 
     @classmethod
     def collect(cls, executions) -> "ExecutionCollection":
         return ExecutionCollection(executions)
 
-    def compute_predicate(self) -> Dict:
-        predicates = super().compute_predicate()
-        predicates["resources"] = self.__model__.resources
-        return predicates
+    def compute_context(self) -> Optional[Dict]:
+        return None  # do not retrieve existing execution
+
+    def on_compute_predicate(self) -> Dict:
+        return {"resources": self.__model__.resources}
 
     @has_one
     def schedule() -> "Schedule":

@@ -104,8 +104,6 @@ class Component(Interface):
     def launch(self) -> Self:
         from machinable.execution import Execution
 
-        self.execution.add(self)
-
         if Execution.is_connected():
             # commit only, defer execution
             Execution.get().add(self)
