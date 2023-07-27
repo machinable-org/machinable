@@ -314,6 +314,7 @@ class Interface(Element):
             version,
             **kwargs,
         )
+
         if candidates:
             return candidates[-1]
 
@@ -401,8 +402,13 @@ class Interface(Element):
         return cls.from_model(interface)
 
     def all(self) -> "Collection":
+        module = (
+            self.module
+            if not self.module.startswith("__session__")
+            else self.__class__
+        )
         return self.find_in_context(
-            self.module, self.__model__.version, **self._kwargs
+            module, self.__model__.version, **self._kwargs
         )
 
     def new(self) -> Self:

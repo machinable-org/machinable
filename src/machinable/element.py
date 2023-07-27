@@ -684,10 +684,10 @@ class Element(Mixin, Jsonable):
         return self.id
 
     def __eq__(self, other):
-        return self.uuid == other.uuid
+        return self.uuid == getattr(other, "uuid", None)
 
     def __ne__(self, other):
-        return self.uuid != other.uuid
+        return self.uuid != getattr(other, "uuid", None)
 
 
 def get_lineage(element: "Element") -> Tuple[str, ...]:

@@ -53,9 +53,3 @@ class Execution(Interface):
 
 class Schedule(Interface):
     kind: str = "Schedule"
-
-
-class Group(Interface):
-    kind: str = "Group"
-    pattern: str
-    path: Optional[str] = None
