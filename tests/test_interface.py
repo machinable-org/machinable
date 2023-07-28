@@ -157,4 +157,6 @@ def test_interface_all(tmp_storage):
     assert get("interface.dummy").is_committed()
     assert get("interface.dummy").new().is_committed() is False
 
+    assert len(get().all()) == 0
+
     project.__exit__()

@@ -4,7 +4,7 @@ from machinable.scope import Scope
 
 def test_scope_element():
     scope = Scope()
-    assert scope() == {"unique_id": scope.uuid}
+    assert scope() == {}
     assert Scope({"test": 1})() == {"test": 1}
     assert Scope([{"a": 1}, {"a": 2}])() == {"a": 2}
 
@@ -24,3 +24,14 @@ def test_scoping(tmp_storage):
     e3 = get(T).commit()
     assert e1 != e2 != e3
     assert get(T, {"a": 2}) == e2
+
+    assert (len(Scope().all())) == 3
+    assert (len(Scope.get().all())) == 3
+
+    with Scope({"name": "test"}) as scope:
+        assert (len(Scope().all())) == 3
+        assert (len(Scope.get().all())) == 1
+        assert len(scope.all()) == 1
+
+    with Scope({"test": "isolation"}) as scope:
+        assert len(scope.all()) == 0

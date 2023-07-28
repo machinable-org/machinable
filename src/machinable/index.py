@@ -238,18 +238,19 @@ class Index(Interface):
             if not _db:
                 return []
             cur = _db.cursor()
-            if context:
-                keys = []
-                equals = []
-                for field, value in context.items():
-                    if field == "predicate":
-                        for p, v in value.items():
-                            keys.append(f"json_extract(predicate, '$.{p}')=?")
-                            equals.append(v)
-                    else:
-                        keys.append(f"{field}=?")
-                        equals.append(value)
 
+            keys = []
+            equals = []
+            for field, value in context.items():
+                if field == "predicate":
+                    for p, v in value.items():
+                        keys.append(f"json_extract(predicate, '$.{p}')=?")
+                        equals.append(v)
+                else:
+                    keys.append(f"{field}=?")
+                    equals.append(value)
+
+            if len(keys) > 0:
                 query = cur.execute(
                     """SELECT * FROM 'index' WHERE """ + (" AND ".join(keys)),
                     [

@@ -327,7 +327,7 @@ class Interface(Element):
         return os.path.exists(self.local_directory())
 
     @classmethod
-    def find(cls, uuid: str) -> Optional["Element"]:
+    def find(cls, uuid: str) -> Optional["Interface"]:
         from machinable.index import Index
 
         index = Index.get()
@@ -353,7 +353,7 @@ class Interface(Element):
         return cls.from_directory(local_directory)
 
     @classmethod
-    def find_many(cls, uuids: List[str]) -> "Collection":
+    def find_many(cls, uuids: List[str]) -> "InterfaceCollection":
         return cls.collect([cls.find(uuid) for uuid in uuids])
 
     @classmethod
@@ -362,7 +362,7 @@ class Interface(Element):
         module: Union[str, "Element"],
         version: VersionType = None,
         **kwargs,
-    ) -> "Collection":
+    ) -> "InterfaceCollection":
         from machinable.index import Index
 
         try:
@@ -401,7 +401,7 @@ class Interface(Element):
 
         return cls.from_model(interface)
 
-    def all(self) -> "Collection":
+    def all(self) -> "InterfaceCollection":
         module = (
             self.module
             if not self.module.startswith("__session__")
