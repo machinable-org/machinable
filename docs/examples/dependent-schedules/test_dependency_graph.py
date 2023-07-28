@@ -1,4 +1,4 @@
-from machinable import Component, Execution, Index, Project, get
+from machinable import Component, Element, Execution, Index, Project, get
 
 
 class Trace(Execution):
@@ -58,9 +58,9 @@ def test_dependency_graph(tmp_path):
             assert execution.name_trace == ["A", "C", "E", "B", "D"]
 
             with Trace(schedule=get("dependency_graph")) as execution:
-                a2 = get(A, predicate=None).launch()
+                a2 = Element.make(A).launch()
                 b = get(B, uses=[a]).launch()
                 c = get(C, uses=[a]).launch()
-                d2 = get(D, uses=[b, c], predicate=None).launch()
+                d2 = Element.make(D, uses=[b, c]).launch()
                 e = get(E, uses=[c]).launch()
             assert execution.name_trace == ["D", "A"]

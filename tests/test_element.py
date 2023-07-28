@@ -14,7 +14,6 @@ from machinable.element import (
     extract,
     idversion,
     normversion,
-    resolve_custom_predicate,
     transfer_to,
     uuid_to_id,
 )
@@ -374,33 +373,6 @@ def test_idversion():
         }
     ) == [{"b": {"c": 3, "f": "~t_", "g": {"n": 1}}, "_y": "y_"}]
     assert idversion({"a": 1, "a_": 2, "_a": 3}) == [{"a": 1, "_a": 3}]
-
-
-def test_resolve_custom_predicate():
-    class T:
-        default_predicate = "default"
-
-        def __init__(self, predicate):
-            self.predicate = predicate
-
-        def on_compute_predicate(self):
-            return self.predicate
-
-    assert resolve_custom_predicate(
-        "test, *", T({"a*": "1", "b": "2", "c*": "3"})
-    ) == ["test", "a", "c"]
-    assert resolve_custom_predicate("test,*", T(None)) == ["test"]
-    assert resolve_custom_predicate("* , t", T({})) == ["t"]
-    assert resolve_custom_predicate("t,*", T({"a": "1"})) == ["t"]
-    assert resolve_custom_predicate("$", T(None)) == ["default"]
-    T.default_predicate = "default,*"
-    assert resolve_custom_predicate("$", T({"a*": 1, "b": 2})) == [
-        "default",
-        "a",
-    ]
-    T.default_predicate = None
-    assert resolve_custom_predicate("$", T(None)) is None
-    assert resolve_custom_predicate(None, T({})) is None
 
 
 def test_uuid_to_id():

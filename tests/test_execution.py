@@ -1,5 +1,9 @@
+from typing import Dict
+
+import random
+
 import pytest
-from machinable import Component, Execution, Project, errors, get
+from machinable import Component, Execution, Project, Scope, errors, get
 
 
 def test_execution(tmp_storage):
@@ -183,8 +187,12 @@ def test_interrupted_execution(tmp_storage):
 def test_rerepeated_execution(tmp_storage):
     project = Project("./tests/samples/project").__enter__()
 
+    class NoScope(Scope):
+        def __call__(self) -> Dict:
+            return {"random": random.randint(0, 99999)}
+
     # first execution
-    with Execution() as execution1:
+    with Execution() as execution1, NoScope():
         c1 = get("count").launch()
         assert c1.count == 0
     assert c1.execution == execution1
@@ -199,7 +207,8 @@ def test_rerepeated_execution(tmp_storage):
 
     # add a new component to existing execution is not allowed
     with execution1:
-        c2 = get("count", predicate=None)
+        with NoScope():
+            c2 = get("count")
         with pytest.raises(errors.MachinableError):
             c2.launch()
     assert c2.count == 0
@@ -208,8 +217,10 @@ def test_rerepeated_execution(tmp_storage):
     # resume execution
     with pytest.raises(errors.ExecutionFailed):
         with Execution() as execution2:
-            done = get("count", predicate=None).launch()
-            failed = get("fail", predicate=None).launch()
+            with NoScope():
+                done = get("count").launch()
+            with NoScope():
+                failed = get("fail").launch()
     assert done.execution.is_finished()
     assert not done.execution.is_resumed()
     assert not failed.execution.is_finished()
@@ -225,8 +236,10 @@ def test_rerepeated_execution(tmp_storage):
     # resume with another execution
     with pytest.raises(errors.ExecutionFailed):
         with Execution() as execution2:
-            done = get("count", predicate=None).launch()
-            failed = get("fail", predicate=None).launch()
+            with NoScope():
+                done = get("count").launch()
+            with NoScope():
+                failed = get("fail").launch()
     failed.save_file("repaired", "yes")
     with Execution() as execution3:
         failed.launch()
@@ -243,7 +256,8 @@ def test_rerepeated_execution(tmp_storage):
     assert not execution4.is_committed()
     with Execution() as execution5:
         done.launch()
-        done2 = get("count", predicate=None).launch()
+        with NoScope():
+            done2 = get("count").launch()
     assert done.count == 1
     assert done2.count == 1
     assert len(execution5.executables) == 2

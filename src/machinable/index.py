@@ -1,5 +1,6 @@
 from typing import Any, Dict, List, Optional, Union
 
+import copy
 import json
 import os
 from contextlib import contextmanager
@@ -11,15 +12,17 @@ except ModuleNotFoundError:
     import sqlite3
 
 from machinable import schema
-from machinable.element import Element, get_lineage
+from machinable.element import filter_enderscores, get_lineage, idversion
 from machinable.interface import Interface
 from machinable.settings import get_settings
 from machinable.types import VersionType
-from machinable.utils import is_directory_version
+from machinable.utils import is_directory_version, serialize
 
 
 def _jn(data: Any) -> str:
-    return json.dumps(data, sort_keys=True, separators=(",", ":"))
+    return json.dumps(
+        data, sort_keys=True, separators=(",", ":"), default=serialize
+    )
 
 
 def interface_row_factory(cursor, row) -> schema.Interface:
@@ -27,11 +30,11 @@ def interface_row_factory(cursor, row) -> schema.Interface:
         uuid=row[0],
         kind=row[1],
         module=row[2],
-        config=json.loads(row[3]),
-        version=json.loads(row[4]),
-        predicate=json.loads(row[5]),
-        lineage=json.loads(row[6]),
-        timestamp=float(row[7]),
+        config=None,
+        version=json.loads(row[9]),
+        predicate=json.loads(row[10]),
+        lineage=json.loads(row[11]),
+        timestamp=float(row[12]),
     )
 
 
@@ -46,7 +49,12 @@ def migrate(db: sqlite3.Connection) -> None:
                 kind text,
                 module text,
                 config json,
+                config_ json,
+                config_update json,
+                config_update_ json,
+                config_default json,
                 version json,
+                version_ json,
                 predicate json,
                 lineage json,
                 'timestamp' real
@@ -141,23 +149,38 @@ class Index(Interface):
             ).fetchone():
                 # already exists
                 return False
+            config = copy.deepcopy(model.config or {})
+            default = config.pop("_default_", {})
+            version = config.pop("_version_", [])
+            update = config.pop("_update_", {})
+
             cur.execute(
                 """INSERT INTO 'index' (
                     uuid,
                     kind,
                     module,
                     config,
+                    config_,
+                    config_update,
+                    config_update_,
+                    config_default,
                     version,
+                    version_,
                     predicate,
                     lineage,
                     'timestamp'
-                ) VALUES (?,?,?,?,?,?,?,?)""",
+                ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)""",
                 (
                     model.uuid,
                     model.kind,
                     model.module,
-                    _jn(model.config),
-                    _jn(model.version),
+                    _jn(filter_enderscores(config)),
+                    _jn(config),
+                    _jn(filter_enderscores(update)),
+                    _jn(update),
+                    _jn(default),
+                    _jn(idversion(version)),
+                    _jn(version),
                     _jn(model.predicate),
                     _jn(model.lineage),
                     model.timestamp,
@@ -212,30 +235,33 @@ class Index(Interface):
                 return None
             return interface_row_factory(cur, row)
 
-    def find_by_predicate(
-        self, module: str, predicate: Optional[Dict] = None
-    ) -> List[schema.Interface]:
+    def find_by_context(self, context: Dict) -> List[schema.Interface]:
         with db(self.config.database, create=False) as _db:
             if not _db:
                 return []
             cur = _db.cursor()
-            if predicate:
-                keys = ["module=?"]
-                values = [module]
-                for p, v in predicate.items():
-                    keys.append(f"json_extract(predicate, '$.{p}')=?")
-                    values.append(
-                        v if isinstance(v, (str, int, float)) else _jn(v)
-                    )
+
+            keys = []
+            equals = []
+            for field, value in context.items():
+                if field == "predicate":
+                    for p, v in value.items():
+                        keys.append(f"json_extract(predicate, '$.{p}')=?")
+                        equals.append(v)
+                else:
+                    keys.append(f"{field}=?")
+                    equals.append(value)
+
+            if len(keys) > 0:
                 query = cur.execute(
                     """SELECT * FROM 'index' WHERE """ + (" AND ".join(keys)),
-                    values,
+                    [
+                        v if isinstance(v, (str, int, float)) else _jn(v)
+                        for v in equals
+                    ],
                 )
             else:
-                query = cur.execute(
-                    """SELECT * FROM 'index' WHERE module=?""",
-                    (module,),
-                )
+                query = cur.execute("""SELECT * FROM 'index'""")
 
             return [interface_row_factory(cur, row) for row in query.fetchall()]
 

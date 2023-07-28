@@ -16,6 +16,7 @@ class Settings(BaseModel):
     default_group: Optional[str] = "%Y_%U_%a/"
     default_storage: Optional[ElementType] = None
     default_index: Optional[ElementType] = None
+    default_scope: Optional[ElementType] = None
 
 
 def get_settings(file="~/.machinable/settings.json"):

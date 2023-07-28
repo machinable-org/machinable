@@ -1,15 +1,10 @@
-from typing import TYPE_CHECKING, Any, Optional, Tuple, Union
+from typing import Optional, Tuple
 
 from datetime import datetime
 
 from machinable import schema
-from machinable.collection import ComponentCollection
 from machinable.element import get_dump, get_lineage
-from machinable.interface import Interface, has_many
-from machinable.types import VersionType
-
-if TYPE_CHECKING:
-    from machinable.component import Component
+from machinable.scope import Scope
 
 
 def normgroup(group: Optional[str]) -> str:
@@ -26,15 +21,19 @@ def resolve_group(group: str) -> Tuple[str, str]:
     return group, resolved
 
 
-class Group(Interface):
+class Group(schema.Scope):
+    kind: str = "Group"
+    pattern: str
+    path: Optional[str] = None
+
+
+class Group(Scope):
     """Group element"""
 
     kind = "Group"
 
-    def __init__(
-        self, group: Optional[str] = None, version: VersionType = None
-    ):
-        super().__init__(version=version)
+    def __init__(self, group: Optional[str] = None):
+        super().__init__(version=None)
         pattern, path = resolve_group(group)
         self.__model__ = schema.Group(
             kind=self.kind,
@@ -55,5 +54,5 @@ class Group(Interface):
     def path(self) -> str:
         return self.__model__.path
 
-    def __repr__(self) -> str:
-        return f"Group [{self.path}]"
+    def __call__(self):
+        return {"group": self.path}

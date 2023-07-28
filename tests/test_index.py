@@ -37,7 +37,17 @@ def test_index_load(tmp_path):
 def test_index_commit(tmp_path):
     i = index.Index({"database": str(tmp_path / "index.sqlite")})
     v = schema.Interface()
-    e = (v.uuid, "Interface", None, "null", "[]", "null", "[]", v.timestamp)
+    e = (
+        v.uuid,
+        "Interface",
+        None,
+        *(("{}",) * 5),
+        "[]",
+        "[]",
+        "null",
+        "[]",
+        v.timestamp,
+    )
     assert i.commit(v) is True
     assert i.db.cursor().execute("SELECT * FROM 'index';").fetchall() == [e]
     assert i.commit(v) is False
@@ -81,26 +91,32 @@ def test_index_find(tmp_path):
     i.db.close()
 
 
-def test_index_find_by_predicate(tmp_path):
+def test_index_find_by_context(tmp_path):
     i = index.Index({"database": str(tmp_path / "index.sqlite")})
     v = schema.Interface(module="machinable", predicate={"a": 0, "b": 0})
     i.commit(v)
-    assert len(i.find_by_predicate(module="machinable")) == 1
+    assert len(i.find_by_context(dict(module="machinable"))) == 1
     assert (
-        len(i.find_by_predicate(module="machinable", predicate={"a": 1})) == 0
+        len(i.find_by_context(dict(module="machinable", predicate={"a": 1})))
+        == 0
     )
     assert (
-        len(i.find_by_predicate(module="machinable", predicate={"a": 0})) == 1
+        len(i.find_by_context(dict(module="machinable", predicate={"a": 0})))
+        == 1
     )
     assert (
         len(
-            i.find_by_predicate(module="machinable", predicate={"a": 0, "b": 1})
+            i.find_by_context(
+                dict(module="machinable", predicate={"a": 0, "b": 1})
+            )
         )
         == 0
     )
     assert (
         len(
-            i.find_by_predicate(module="machinable", predicate={"a": 0, "b": 0})
+            i.find_by_context(
+                dict(module="machinable", predicate={"a": 0, "b": 0})
+            )
         )
         == 1
     )

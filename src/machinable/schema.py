@@ -26,6 +26,10 @@ class Index(Element):
     kind: str = "Index"
 
 
+class Scope(Element):
+    kind: str = "Scope"
+
+
 class Interface(Element):
     kind: str = "Interface"
     _dump: Optional[bytes] = PrivateAttr(default=None)
@@ -49,9 +53,3 @@ class Execution(Interface):
 
 class Schedule(Interface):
     kind: str = "Schedule"
-
-
-class Group(Interface):
-    kind: str = "Group"
-    pattern: str
-    path: Optional[str] = None

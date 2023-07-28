@@ -1379,42 +1379,31 @@ class ElementCollection(Collection):
     def filter_by_module(self, module):
         return self.filter(lambda x: x.module == module)
 
-    def filter_by_predicate(
+    def filter_by_context(
         self,
         module: str,
         version: VersionType = None,
-        predicate: str = "$",
         **kwargs,
     ):
         from machinable import Element
 
-        try:
-            instance = Element.make(module, version, **kwargs)
-        except ModuleNotFoundError:
-            from machinable.element import equalversion
+        instance = Element.make(module, version, **kwargs)
 
-            # use direct comparison fallback
-            return self.filter(
-                lambda x: bool(
-                    x.module == module and equalversion(x.version(), version)
-                )
-            )
-
-        return self.filter(lambda x: x.matches(instance, predicate))
+        return self.filter(lambda x: x.matches(instance))
 
     def singleton(
         self,
         module: str,
         version: VersionType = None,
-        predicate: str = "$",
         **kwargs,
     ) -> Union[Any, "Component"]:
         from machinable import Element
 
         instance = Element.make(module, version, **kwargs)
+        context = instance.compute_context()
 
         for candidate in self:
-            if candidate.matches(instance, predicate):
+            if candidate.matches(instance, context):
                 return candidate
 
         return instance

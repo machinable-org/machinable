@@ -354,9 +354,5 @@ class Project(Interface):
         """
         return sys.argv[1:]
 
-    def global_predicate(self) -> Dict:
-        """Project-wide element predicates."""
-        return {}
-
     def __repr__(self) -> str:
         return f"Project({self.config.directory})"
