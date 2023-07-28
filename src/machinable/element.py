@@ -20,7 +20,13 @@ from machinable.config import from_element, match_method, rewrite_config_methods
 from machinable.errors import ConfigurationError, MachinableError
 from machinable.mixin import Mixin
 from machinable.types import DatetimeType, ElementType, VersionType
-from machinable.utils import Jsonable, sentinel, unflatten_dict, update_dict
+from machinable.utils import (
+    Jsonable,
+    sentinel,
+    serialize,
+    unflatten_dict,
+    update_dict,
+)
 from omegaconf import DictConfig, OmegaConf
 
 
@@ -173,7 +179,9 @@ def extract(
 
 
 def equaljson(a: Any, b: Any) -> bool:
-    return json.dumps(a, sort_keys=True) == json.dumps(b, sort_keys=True)
+    return json.dumps(a, sort_keys=True, default=serialize) == json.dumps(
+        b, sort_keys=True, default=serialize
+    )
 
 
 def equalversion(a: VersionType, b: VersionType) -> bool:

@@ -16,11 +16,13 @@ from machinable.element import filter_enderscores, get_lineage, idversion
 from machinable.interface import Interface
 from machinable.settings import get_settings
 from machinable.types import VersionType
-from machinable.utils import is_directory_version
+from machinable.utils import is_directory_version, serialize
 
 
 def _jn(data: Any) -> str:
-    return json.dumps(data, sort_keys=True, separators=(",", ":"))
+    return json.dumps(
+        data, sort_keys=True, separators=(",", ":"), default=serialize
+    )
 
 
 def interface_row_factory(cursor, row) -> schema.Interface:
