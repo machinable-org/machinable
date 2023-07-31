@@ -6,6 +6,13 @@
 
 No current changes
 
+# v4.5.0
+
+- Adds scopes to support context annotations
+- Adds all() and new() interface query modifiers
+- Adds config `to_dict` helper
+- Gracefully end output streaming on keyboard interrupt
+
 # v4.4.0
 
 - Improved tracking of execution meta-data
