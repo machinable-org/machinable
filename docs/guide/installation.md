@@ -7,7 +7,7 @@ $ pip install machinable
 ```
 
 ::: info
-machinable currently supports Python 3.7 and higher
+machinable currently supports Python 3.8 and higher
 :::
 
 Note that machinable requires the sqlite json1 extension, otherwise, you will likely see the error message:
