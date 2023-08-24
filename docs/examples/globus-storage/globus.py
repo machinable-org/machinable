@@ -1,5 +1,4 @@
 import os
-from dataclasses import dataclass
 
 from globus_sdk import (
     NativeAppAuthClient,
@@ -11,17 +10,16 @@ from globus_sdk.scopes import TransferScopes
 from globus_sdk.services.transfer.errors import TransferAPIError
 from globus_sdk.tokenstorage import SimpleJSONFileAdapter
 from machinable import Storage
-from machinable.config import RequiredField
+from pydantic import BaseModel, Field
 
 
 class Globus(Storage):
-    @dataclass
-    class Config:
-        client_id: str = RequiredField
-        local_endpoint_id: str = RequiredField
-        local_endpoint_directory: str = RequiredField
-        remote_endpoint_id: str = RequiredField
-        remote_endpoint_directory: str = RequiredField
+    class Config(BaseModel):
+        client_id: str
+        local_endpoint_id: str
+        local_endpoint_directory: str
+        remote_endpoint_id: str
+        remote_endpoint_directory: str
         auth_filepath: str = "~/.globus-tokens.json"
 
     def __init__(self, version=None):

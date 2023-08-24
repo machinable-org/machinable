@@ -4,6 +4,7 @@ import random
 
 import pytest
 from machinable import Component, Execution, Project, Scope, errors, get
+from pydantic import BaseModel
 
 
 def test_execution(tmp_storage):
@@ -66,7 +67,7 @@ def test_execution(tmp_storage):
 def test_execution_dispatch(tmp_storage):
     # prevent execution from component
     class T(Component):
-        class Config:
+        class Config(BaseModel):
             a: int = 1
             mode: str = "before"
 

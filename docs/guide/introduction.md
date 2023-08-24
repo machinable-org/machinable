@@ -11,15 +11,15 @@ The key idea is to unify the running of code and the retrieval of produced resul
 ::: code-group
 
 ```python [montecarlo.py]
-from dataclasses import dataclass
 from random import random
+
+from pydantic import BaseModel, Field
 
 from machinable import Component
 
 
 class EstimatePi(Component):
-    @dataclass
-    class Config:
+    class Config(BaseModel):
         samples: int = 100
 
     def __call__(self):

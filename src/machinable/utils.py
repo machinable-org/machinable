@@ -46,7 +46,7 @@ from pydantic import BaseModel
 def serialize(obj):
     """JSON serializer for objects not serializable by default json code"""
     if isinstance(obj, BaseModel):
-        return obj.dict()
+        return obj.model_dump()
     if isinstance(obj, UUID):
         return obj.hex
     if isinstance(obj, DatetimeType):

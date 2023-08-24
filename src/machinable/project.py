@@ -7,11 +7,9 @@ import platform
 import socket
 import subprocess
 import sys
-from dataclasses import dataclass
 
 import machinable
 from machinable import schema
-from machinable.config import Field, validator
 from machinable.element import Element, get_lineage, instantiate, normversion
 from machinable.errors import ConfigurationError
 from machinable.interface import Interface
@@ -24,6 +22,7 @@ from machinable.utils import (
     import_from_directory,
     is_directory_version,
 )
+from pydantic import BaseModel, Field, field_validator
 
 if TYPE_CHECKING:
     from machinable.project import Project
@@ -168,11 +167,10 @@ def import_element(
 class Project(Interface):
     kind = "Project"
 
-    @dataclass
-    class Config:
+    class Config(BaseModel):
         directory: Optional[str] = Field(default_factory=lambda: os.getcwd())
 
-        @validator("directory")
+        @field_validator("directory")
         def normalize_directory(cls, v):
             return os.path.normpath(os.path.abspath(os.path.expanduser(v)))
 

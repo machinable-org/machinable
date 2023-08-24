@@ -1,52 +1,23 @@
-__all__ = ["Field", "validator", "RequiredField", "Model"]
-from typing import TYPE_CHECKING, Any, Callable, Dict, Optional, Tuple, Union
+__all__ = ["Field", "field_validator", "Model"]
+from typing import TYPE_CHECKING, Any, Optional, Tuple, Union
 
 import collections
 import re
+from dataclasses import asdict, dataclass, is_dataclass
 from inspect import isclass
 
 import omegaconf
-from pydantic import BaseModel as Model
-from pydantic import Field
-from pydantic import validator as _validator
-from pydantic.dataclasses import dataclass
-from pydantic.typing import AnyCallable
+from pydantic import BaseModel, Field, field_validator
 
 if TYPE_CHECKING:
     from machinable.element import Element
-    from pydantic.typing import AnyClassMethod
 
 
-RequiredField = Field("???")
+class _ModelPrototype(BaseModel):
+    pass
 
 
-def validator(
-    *fields: str,
-    pre: bool = False,
-    each_item: bool = False,
-    always: bool = False,
-    check_fields: bool = True,
-) -> Callable[[AnyCallable], "AnyClassMethod"]:
-    """
-    Decorate methods on the class indicating that they should be used to validate fields
-
-    fields: which field(s) the method should be called on
-    pre: whether or not this validator should be called before the standard validators (else after)
-    each_item: for complex objects (sets, lists etc.) whether to validate individual elements rather than the whole object
-    always: whether this method and other validators should be called even if the value is missing
-    check_fields: whether to check that the fields actually exist on the model
-    """
-    return _validator(
-        *fields,
-        pre=pre,
-        each_item=each_item,
-        always=always,
-        check_fields=check_fields,
-        allow_reuse=True,
-    )
-
-
-def from_element(element: "Element") -> Tuple[dict, Optional[Model]]:
+def from_element(element: "Element") -> Tuple[dict, Optional[BaseModel]]:
     if not isclass(element):
         element = element.__class__
 
@@ -59,13 +30,16 @@ def from_element(element: "Element") -> Tuple[dict, Optional[Model]]:
     if isinstance(config, collections.abc.Mapping):
         return config, None
 
-    # schema
-    class SchemaConf:
-        extra = "forbid"
+    # pydantic model
+    if isinstance(config, type(_ModelPrototype)):
+        return config().model_dump(), config
 
-    model = dataclass(config=SchemaConf)(config).__pydantic_model__
+    # ordinary class
+    if not is_dataclass(config):
+        config = dataclass(config)
 
-    return model().dict(), model
+    # dataclass
+    return asdict(config()), None
 
 
 def match_method(definition: str) -> Optional[Tuple[str, str]]:
