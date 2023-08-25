@@ -10,10 +10,7 @@ if sys.version_info >= (3, 11):
 else:
     from typing_extensions import Self
 
-if sys.version_info >= (3, 8):
-    from typing import Literal
-else:
-    from typing_extensions import Literal
+from typing import Literal
 
 import arrow
 from machinable import schema

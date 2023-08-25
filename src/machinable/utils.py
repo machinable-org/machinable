@@ -18,6 +18,7 @@ import re
 import string
 import subprocess
 import sys
+from importlib import metadata as importlib_metadata
 from keyword import iskeyword
 from pathlib import Path
 from uuid import UUID
@@ -27,12 +28,6 @@ import dill as pickle
 import jsonlines
 import omegaconf
 from flatten_dict import unflatten as _unflatten_dict
-
-if sys.version_info >= (3, 8):
-    from importlib import metadata as importlib_metadata
-else:
-    import importlib_metadata
-
 from omegaconf.omegaconf import OmegaConf
 
 sentinel = object()

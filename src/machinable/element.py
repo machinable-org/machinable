@@ -192,7 +192,9 @@ def filter_enderscores(m: Any):
     if not isinstance(m, collections.abc.Mapping):
         return m
     return {
-        k: filter_enderscores(v) for k, v in m.items() if not k.endswith("_")
+        k: filter_enderscores(v)
+        for k, v in m.items()
+        if not (isinstance(k, str) and k.endswith("_"))
     }
 
 
@@ -660,11 +662,7 @@ class Element(Mixin, Jsonable):
         attr = getattr(self.__mixin__, name, None)
         if attr is not None:
             return attr
-        raise AttributeError(
-            "{!r} object has no attribute {!r}".format(
-                self.__class__.__name__, name
-            )
-        )
+        return self.__getattribute__(name)
 
     def __enter__(self) -> Self:
         _CONNECTIONS[self.kind].append(self)

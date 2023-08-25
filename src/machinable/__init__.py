@@ -17,11 +17,7 @@ __all__ = [
 __doc__ = """A modular system for machinable research code"""
 
 import sys
-
-if sys.version_info >= (3, 8):
-    from importlib import metadata as importlib_metadata
-else:
-    import importlib_metadata
+from importlib import metadata as importlib_metadata
 
 from machinable.cli import from_cli
 from machinable.component import Component
