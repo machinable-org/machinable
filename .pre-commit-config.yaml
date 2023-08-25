@@ -12,7 +12,7 @@ repos:
     hooks:
       - id: pyupgrade
         name: pyupgrade
-        entry: pyupgrade --py37-plus
+        entry: pyupgrade --py38-plus
         types: [python]
         language: system
   - repo: local

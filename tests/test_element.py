@@ -1,12 +1,10 @@
 from typing import Optional
 
-from dataclasses import dataclass
 from uuid import uuid4
 
 import pydantic
 import pytest
 from machinable import Element, Project
-from machinable.config import Field, RequiredField
 from machinable.element import (
     compact,
     defaultversion,
@@ -106,8 +104,8 @@ def test_element_transfer():
 
 def test_element_config():
     class Dummy(Element):
-        class Config:
-            foo: float = RequiredField
+        class Config(pydantic.BaseModel):
+            foo: float = pydantic.Field("???")
             test: int = 1
 
         def version_floaty(self):
@@ -127,14 +125,12 @@ def test_element_config():
     assert Dummy([{"foo": 0.5}, "~floaty"]).config.foo == 0.1
 
     class Dummy(Element):
-        @dataclass
-        class Config:
-            @dataclass
-            class Beta:
+        class Config(pydantic.BaseModel):
+            class Beta(pydantic.BaseModel):
                 test: Optional[bool] = None
 
-            beta: Beta = Field(default_factory=Beta)
-            a: int = Field("through_config_method(1)")
+            beta: Beta = pydantic.Field(default_factory=Beta)
+            a: int = pydantic.Field("through_config_method(1)")
             b: Optional[int] = None
             alpha: int = 0
 
@@ -192,14 +188,13 @@ def test_element_config():
     # config methods
 
     class Methods(Element):
-        class Config:
-            @dataclass
-            class Nested:
+        class Config(pydantic.BaseModel):
+            class Nested(pydantic.BaseModel):
                 method: str = "hello()"
 
             method: str = "hello()"
             argmethod: str = "arghello('world')"
-            nested: Nested = Field(default_factory=Nested)
+            nested: Nested = pydantic.Field(default_factory=Nested)
             recursive: str = "recursive_call('test')"
 
         def config_hello(self):
@@ -246,38 +241,32 @@ def test_element_config():
 
 def test_element_config_schema():
     class Basic(Element):
-        class Config:
+        class Config(pydantic.BaseModel):
             hello: str = ""
-            world: float = RequiredField
+            world: float = pydantic.Field("???")
 
     # detect missing values
     with pytest.raises(ConfigurationError):
         schema = Basic({}).config
 
-    # casting
-    schema = Basic({"hello": 1, "world": "0.1"})
-    assert schema.config.hello == "1"
-    assert schema.config.world == 0.1
-
     with pytest.raises(ConfigurationError):
-        schema = Basic([{"hello": 1, "world": "0.1"}, {"typo": 1}]).config
+        schema = Basic([{"hello": 1, "world": 0.1}, {"typo": 1}]).config
 
     class Dataclass(Element):
-        @dataclass
-        class Config:
+        class Config(pydantic.BaseModel):
             test: str = ""
 
-    assert Dataclass([{"test": 1}, {"test": 0.1}]).config.test == "0.1"
+    assert Dataclass([{"test": 1}, {"test": "0.1"}]).config.test == "0.1"
 
     class Vector(pydantic.BaseModel):
         a: str = ""
         b: float = 0.0
 
     class Nesting(Element):
-        class Config:
-            value: Vector = Field(default_factory=Vector)
+        class Config(pydantic.BaseModel):
+            value: Vector = pydantic.Field(default_factory=Vector)
 
-    schema = Nesting({"value": {"a": 1, "b": 1}})
+    schema = Nesting({"value": {"a": "1", "b": 1}})
     assert schema.config.value.a == "1"
     assert schema.config.value.b == 1.0
 

@@ -531,7 +531,7 @@ class Element(Mixin, Jsonable):
 
                     # enforce schema
                     if config_model is not None:
-                        config = config_model(**config).dict()
+                        config = config_model(**config).model_dump()
 
                     # add introspection data
                     config["_default_"] = default_config
@@ -625,7 +625,7 @@ class Element(Mixin, Jsonable):
     def serialize(self) -> Dict:
         # ensure that configuration has been parsed
         assert self.config is not None
-        return self.__model__.dict()
+        return self.__model__.model_dump()
 
     @classmethod
     def unserialize(cls, serialized):

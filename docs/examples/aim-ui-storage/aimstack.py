@@ -1,16 +1,14 @@
 from typing import List, Optional
 
 import os
-from dataclasses import dataclass
 
 import aim
 from machinable import Interface, Storage
-from machinable.config import Field
+from pydantic import BaseModel, Field
 
 
 class Aimstack(Storage):
-    @dataclass
-    class Config:
+    class Config(BaseModel):
         repo: str = "./storage"
         system_tracking_interval: Optional[int] = None
         log_system_params: Optional[bool] = False
@@ -54,5 +52,5 @@ class Aimstack(Storage):
             log_system_params=self.config.log_system_params,
         )
 
-        for k, v in interface.__model__.dict().items():
+        for k, v in interface.__model__.model_dump().items():
             run[k] = v
