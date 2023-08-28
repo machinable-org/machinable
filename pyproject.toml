@@ -39,7 +39,7 @@ isort = "^5.11.5"
 pyupgrade = "^3.3"
 black = "^23.3.0"
 pytest = "^7.4"
-pre-commit = "^2.21.0"
+pre-commit = "^3.3.3"
 editorconfig-checker = "^2.7.2"
 pytest-cov = "^4.1.0"
 
