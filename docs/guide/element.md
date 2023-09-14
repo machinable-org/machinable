@@ -28,7 +28,7 @@ The parameters become available under `self.config` and can be accessed with obj
 You can override the default element configuration to instantiate different *versions* of the element:
 ```python
 >>> data = MnistData({"batch_size": 16})
->>> data.batch_size
+>>> data.config.batch_size
 16
 ```
 
