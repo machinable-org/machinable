@@ -608,9 +608,9 @@ class Element(Mixin, Jsonable):
                     return False
             elif field == "predicate":
                 for p, v in value.items():
-                    if p in self.predicate and not equaljson(
-                        self.predicate[p], v
-                    ):
+                    if p not in self.predicate:
+                        return False
+                    if not equaljson(self.predicate[p], v):
                         return False
             else:
                 raise ValueError("Invalid context field: {field}")
