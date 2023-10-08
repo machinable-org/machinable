@@ -117,6 +117,9 @@ def test_element_config():
     with pytest.raises(ConfigurationError):
         Dummy().config
 
+    with pytest.raises(ValueError):
+        Dummy({1: 1.0}).config
+
     with pytest.raises(ConfigurationError):
         Dummy({"foo": "test"}).config
         Dummy("~string").config

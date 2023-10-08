@@ -403,9 +403,7 @@ def update_dict(
     if d is None:
         d = {}
     if not isinstance(d, Mapping):
-        raise ValueError(
-            f"Error: Expected mapping but found {type(d).__name__}: {d}"
-        )
+        raise ValueError(f"Expected mapping but found {type(d).__name__}: {d}")
     if copy:
         d = d.copy()
     if not update:
@@ -413,11 +411,11 @@ def update_dict(
     if not isinstance(update, Mapping):
         if isinstance(update, str):
             raise ValueError(
-                f"Error: Invalid version {update}. Did you forget the ~-prefix?"
+                f"Invalid version {update}. Did you forget the ~-prefix?"
             )
         else:
             raise ValueError(
-                f"Error: Expected update mapping but found {type(update).__name__}: {update}"
+                f"Expected update mapping but found {type(update).__name__}: {update}"
             )
     for k, val in update.items():
         if isinstance(val, Mapping):
@@ -427,9 +425,17 @@ def update_dict(
     return d
 
 
+def dot_splitter(flat_key):
+    if not isinstance(flat_key, str):
+        raise ValueError(
+            f"Expected string but found {type(flat_key).__name__}: {flat_key}"
+        )
+    return tuple(flat_key.split("."))
+
+
 def unflatten_dict(
     d: Mapping,
-    splitter: Union[str, Callable] = "dot",
+    splitter: Union[str, Callable] = dot_splitter,
     inverse: bool = False,
     recursive: bool = True,
     copy: bool = True,
