@@ -4,7 +4,11 @@
 
 # Unreleased
 
-No current changes
+- Leverage UUID7 for timestamp information
+- Drops support for EOL Python 3.7
+- Upgrades to pydantic v2
+- Handles non-existing keys in Element.matches scope lookup
+- Propagate exceptions during mixin getattr lookup
 
 # v4.5.0
 
