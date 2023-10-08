@@ -1,21 +1,22 @@
 from typing import TYPE_CHECKING, Dict, List, Optional, Tuple, Union
 
-from datetime import datetime
-from uuid import uuid4
-
 from machinable.utils import generate_nickname, generate_seed
 from pydantic import BaseModel, Field, PrivateAttr
+from uuid_extensions import uuid7, uuid_to_datetime
 
 
 class Element(BaseModel):
-    uuid: str = Field(default_factory=lambda: uuid4().hex)
+    uuid: str = Field(default_factory=lambda: uuid7(as_type="hex"))
     kind: str = "Element"
     module: Optional[str] = None
     version: List[Union[str, Dict]] = []
     config: Optional[Dict] = None
     predicate: Optional[Dict] = None
     lineage: Tuple[str, ...] = ()
-    timestamp: float = Field(default_factory=lambda: datetime.now().timestamp())
+
+    @property
+    def timestamp(self) -> float:
+        return uuid_to_datetime(self.uuid).timestamp()
 
 
 class Storage(Element):

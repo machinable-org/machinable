@@ -28,6 +28,7 @@ from machinable.utils import (
     update_dict,
 )
 from omegaconf import DictConfig, OmegaConf
+from uuid_extensions import uuid_to_datetime
 
 
 class ConfigMethod:
@@ -284,7 +285,8 @@ class Element(Mixin, Jsonable):
 
     @property
     def id(self) -> str:
-        return self.uuid[:6]
+        # use last 6 characters since initial characters represent the timestamp
+        return self.uuid[-6:]
 
     @property
     def timestamp(self) -> float:

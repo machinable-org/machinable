@@ -32,6 +32,7 @@ importlib-metadata = {version = "^6.7", python = "<3.8"}
 omegaconf = "^2.3.0"
 dill = "^0.3.7"
 typing-extensions = {version = "^4.7.0", python = "<3.11"}
+uuid7 = "^0.1.0"
 
 
 [tool.poetry.dev-dependencies]
