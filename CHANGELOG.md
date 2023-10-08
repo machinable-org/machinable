@@ -4,9 +4,14 @@
 
 # Unreleased
 
-- Leverage UUID7 for timestamp information
+No current changes
+
+# v4.6.0
+
+- Leverages UUID7 for timestamp information
 - Drops support for EOL Python 3.7
 - Upgrades to pydantic v2
+- Drops default settings parser
 - Handles non-existing keys in Element.matches scope lookup
 - Propagate exceptions during mixin getattr lookup
 
@@ -20,10 +25,10 @@
 # v4.4.0
 
 - Improved tracking of execution meta-data
-- Realiable `.execution` access to make None-checks obsolete
+- Reliable `.execution` access to make None-checks obsolete
 - Adds `stream_output` to simplify live monitoring of execution logs
 - Allow predicate specification based on the element kind
-- Prevent index errors in multithreaded enviroments
+- Prevent index errors in multithreaded environments
 - Disables automatic gathering of project relationship
 
 # v4.3.1
