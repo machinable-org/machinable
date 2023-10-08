@@ -5,12 +5,11 @@ from machinable.config import to_dict
 from machinable.element import Element
 from machinable.index import Index
 from machinable.interface import Interface
-from machinable.settings import get_settings
 
 
 class Scope(Element):
     kind = "Scope"
-    default = get_settings().default_scope
+    default = None
 
     def __call__(self) -> Dict:
         return to_dict(self.config._update_)

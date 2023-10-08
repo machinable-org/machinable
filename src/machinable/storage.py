@@ -5,13 +5,12 @@ import os
 from machinable import schema
 from machinable.element import Element, get_lineage
 from machinable.interface import Interface
-from machinable.settings import get_settings
 from machinable.types import VersionType
 
 
 class Storage(Interface):
     kind = "Storage"
-    default = get_settings().default_storage
+    default = None
 
     def __init__(
         self,

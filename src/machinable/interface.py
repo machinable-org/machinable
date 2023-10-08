@@ -23,7 +23,6 @@ from machinable.element import (
     get_dump,
     get_lineage,
 )
-from machinable.settings import get_settings
 from machinable.types import VersionType
 from machinable.utils import (
     is_directory_version,
@@ -142,7 +141,7 @@ belongs_to_many = _relation(BelongsToMany)
 
 class Interface(Element):
     kind = "Interface"
-    default = get_settings().default_interface
+    default = None
     # class level relationship information
     # note that the actual data is kept
     # in the __related__ object propery

@@ -5,8 +5,6 @@ import random
 import sys
 import threading
 
-from machinable.settings import get_settings
-
 if sys.version_info >= (3, 11):
     from typing import Self
 else:
@@ -31,7 +29,7 @@ if TYPE_CHECKING:
 
 class Component(Interface):
     kind = "Component"
-    default = get_settings().default_component
+    default = None
 
     def __init__(
         self,

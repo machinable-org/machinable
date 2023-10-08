@@ -20,7 +20,6 @@ from machinable.element import extract, get_dump, get_lineage
 from machinable.errors import ExecutionFailed
 from machinable.interface import Interface, has_many, has_one
 from machinable.schedule import Schedule
-from machinable.settings import get_settings
 from machinable.types import (
     DatetimeType,
     ElementType,
@@ -44,15 +43,13 @@ StatusType = Literal["started", "heartbeat", "finished", "resumed"]
 
 class Execution(Interface):
     kind = "Execution"
-    default = get_settings().default_execution
+    default = None
 
     def __init__(
         self,
         version: VersionType = None,
         resources: Optional[Dict] = None,
-        schedule: Union[
-            Schedule, ElementType, None
-        ] = get_settings().default_schedule,
+        schedule: Union[Schedule, ElementType, None] = None,
     ):
         super().__init__(version)
         self.__model__ = schema.Execution(

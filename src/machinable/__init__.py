@@ -12,7 +12,6 @@ __all__ = [
     "mixin",
     "Schedule",
     "get",
-    "get_settings",
 ]
 __doc__ = """A modular system for machinable research code"""
 
@@ -29,7 +28,6 @@ from machinable.mixin import Mixin, mixin
 from machinable.project import Project
 from machinable.schedule import Schedule
 from machinable.scope import Scope
-from machinable.settings import get_settings
 from machinable.storage import Storage
 from machinable.types import Optional, Union, VersionType
 

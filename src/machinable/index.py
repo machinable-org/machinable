@@ -14,7 +14,6 @@ except ModuleNotFoundError:
 from machinable import schema
 from machinable.element import filter_enderscores, get_lineage, idversion
 from machinable.interface import Interface
-from machinable.settings import get_settings
 from machinable.types import VersionType
 from machinable.utils import is_directory_version, serialize
 
@@ -108,7 +107,7 @@ def db(database: str, create=False) -> Optional[sqlite3.Connection]:
 
 class Index(Interface):
     kind = "Index"
-    default = get_settings().default_index
+    default = None
 
     class Config:
         directory: str = "./storage"
