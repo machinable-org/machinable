@@ -126,16 +126,9 @@ class Index(Interface):
             version=self.__model__.version,
             lineage=get_lineage(self),
         )
-        self._db = None
 
     def config_in_directory(self, relative_path: str) -> str:
         return os.path.join("sqlite:///", self.config.directory, relative_path)
-
-    @property
-    def db(self) -> sqlite3.Connection:
-        if self._db is None:
-            self._db = load(self.config.database, create=True)
-        return self._db
 
     def local_directory(self, uuid: str, *append: str) -> str:
         # TODO: allow custom directory mappings

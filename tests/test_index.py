@@ -49,12 +49,14 @@ def test_index_commit(tmp_path):
         v.timestamp,
     )
     assert i.commit(v) is True
-    assert i.db.cursor().execute("SELECT * FROM 'index';").fetchall() == [e]
-    assert i.commit(v) is False
-    assert i.db.cursor().execute("SELECT * FROM 'index';").fetchall() == [e]
-    assert i.commit(schema.Interface()) is True
-    assert len(i.db.cursor().execute("SELECT * FROM 'index';").fetchall()) == 2
-    i.db.close()
+    with index.db(i.config.database) as db:
+        assert db.cursor().execute("SELECT * FROM 'index';").fetchall() == [e]
+        assert i.commit(v) is False
+        assert db.cursor().execute("SELECT * FROM 'index';").fetchall() == [e]
+        assert i.commit(schema.Interface()) is True
+        assert (
+            len(db.cursor().execute("SELECT * FROM 'index';").fetchall()) == 2
+        )
 
 
 def test_index_create_relation(tmp_path, setup=False):
@@ -75,11 +77,11 @@ def test_index_create_relation(tmp_path, setup=False):
     if setup:
         return i, v1, v2, v3, v4
 
-    assert (
-        len(i.db.cursor().execute("SELECT * FROM 'relations';").fetchall()) == 8
-    )
-
-    i.db.close()
+    with index.db(i.config.database) as db:
+        assert (
+            len(db.cursor().execute("SELECT * FROM 'relations';").fetchall())
+            == 8
+        )
 
 
 def test_index_find(tmp_path):
@@ -88,7 +90,6 @@ def test_index_find(tmp_path):
     assert i.commit(v) is True
     assert i.find(v.uuid) == v
     assert i.find("non-existing") is None
-    i.db.close()
 
 
 def test_index_find_by_context(tmp_path):
@@ -120,7 +121,6 @@ def test_index_find_by_context(tmp_path):
         )
         == 1
     )
-    i.db.close()
 
 
 def test_index_find_related(tmp_path):
@@ -148,5 +148,3 @@ def test_index_find_related(tmp_path):
     q = i.find_related("test_many_to_many", v3.uuid, inverse=True)
     assert len(q) == 2
     assert _matches(q, [v1, v2])
-
-    i.db.close()
