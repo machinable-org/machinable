@@ -3,6 +3,7 @@ from typing import TYPE_CHECKING, Any, Optional, Tuple, Union
 
 import collections
 import re
+import warnings
 from dataclasses import asdict, dataclass, is_dataclass
 from inspect import isclass
 
@@ -32,7 +33,8 @@ def from_element(element: "Element") -> Tuple[dict, Optional[BaseModel]]:
 
     # pydantic model
     if isinstance(config, type(_ModelPrototype)):
-        return config().model_dump(), config
+        with warnings.catch_warnings(record=True):  # ignore pydantic warnings
+            return config().model_dump(), config
 
     # ordinary class
     if not is_dataclass(config):
