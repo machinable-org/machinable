@@ -33,7 +33,7 @@ def test_execution(tmp_storage):
     assert len(execution.executables) == 1
     execution.dispatch()
 
-    restored = Execution.find(execution.uuid)
+    restored = Execution.find_by_id(execution.uuid)
     with pytest.raises(errors.MachinableError):
         restored.add(Component())
 

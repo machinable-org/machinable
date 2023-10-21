@@ -15,7 +15,6 @@ __all__ = [
 ]
 __doc__ = """A modular system for machinable research code"""
 
-import sys
 from importlib import metadata as importlib_metadata
 
 from machinable.cli import from_cli
@@ -26,18 +25,10 @@ from machinable.index import Index
 from machinable.interface import Interface
 from machinable.mixin import Mixin, mixin
 from machinable.project import Project
+from machinable.query import Query
 from machinable.schedule import Schedule
 from machinable.scope import Scope
 from machinable.storage import Storage
-from machinable.types import Optional, Union, VersionType
-
-
-def get(
-    module: Union[str, Element, None] = None,
-    version: VersionType = None,
-    **kwargs,
-) -> Interface:
-    return Interface.get(module, version, **kwargs)
 
 
 def get_version() -> str:
@@ -48,3 +39,5 @@ def get_version() -> str:
 
 
 __version__: str = get_version()
+
+get = Query()

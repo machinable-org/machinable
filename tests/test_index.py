@@ -88,8 +88,8 @@ def test_index_find(tmp_path):
     i = index.Index({"database": str(tmp_path / "index.sqlite")})
     v = schema.Interface()
     assert i.commit(v) is True
-    assert i.find(v.uuid) == v
-    assert i.find("non-existing") is None
+    assert i.find_by_id(v.uuid) == v
+    assert i.find_by_id("non-existing") is None
 
 
 def test_index_find_by_context(tmp_path):

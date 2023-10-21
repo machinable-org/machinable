@@ -25,13 +25,12 @@ def test_scoping(tmp_storage):
     assert e1 != e2 != e3
     assert get(T, {"a": 2}) == e2
 
-    assert (len(Scope().all())) == 3
-    assert (len(Scope.get().all())) == 3
+    assert (len(Scope().all())) == 0
 
     with Scope({"name": "test"}) as scope:
-        assert (len(Scope().all())) == 3
-        assert (len(Scope.get().all())) == 1
-        assert len(scope.all()) == 1
+        assert (len(get.all())) == 1
+        assert (len(Scope.get().all())) == 0
+        assert len(scope.all()) == 0
 
     with Scope({"test": "isolation"}) as scope:
-        assert len(scope.all()) == 0
+        assert len(get.all()) == 0

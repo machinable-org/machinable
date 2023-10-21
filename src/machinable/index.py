@@ -215,7 +215,7 @@ class Index(Interface):
             )
             _db.commit()
 
-    def find(self, uuid: str) -> Optional[schema.Interface]:
+    def find_by_id(self, uuid: str) -> Optional[schema.Interface]:
         with db(self.config.database, create=False) as _db:
             if not _db:
                 return None

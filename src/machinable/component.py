@@ -80,7 +80,7 @@ class Component(Interface):
             )
 
             if related is not None and len(related) > 0:
-                related = Interface.find(
+                related = Interface.find_by_id(
                     sorted(related, key=lambda x: x.timestamp, reverse=True)[
                         0
                     ].uuid
@@ -208,7 +208,7 @@ class Component(Interface):
         code = f"""
         from machinable import Project, Element, Component
         {context}
-        component__ = Component.find('{self.uuid}')
+        component__ = Component.find_by_id('{self.uuid}')
         component__.dispatch()
         """
 

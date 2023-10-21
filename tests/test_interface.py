@@ -1,6 +1,7 @@
 import os
 
-from machinable import Interface, Project, Schedule, get
+import pytest
+from machinable import Interface, Project, Schedule, Scope, get
 from machinable.collection import ComponentCollection
 from machinable.interface import belongs_to, belongs_to_many, has_many, has_one
 from machinable.utils import load_file
@@ -140,10 +141,12 @@ def test_interface_derivatives(tmp_storage):
     assert root.derive(T, {"c": -1}) != child1
 
 
-def test_interface_all(tmp_storage):
+def test_interface_modifiers(tmp_storage):
     project = Project("./tests/samples/project").__enter__()
 
-    # all modifier
+    # a posterity modifier
+
+    # all
     assert len(Interface().all()) == 0
     get("interface.dummy").commit()
     assert len(Interface().all()) == 0
@@ -153,10 +156,30 @@ def test_interface_all(tmp_storage):
     assert len(get("interface.dummy").all()) == 1
     assert len(get("interface.dummy", {"a": 1}).all()) == 1
 
-    # new modifier
+    # new
     assert get("interface.dummy").is_committed()
     assert get("interface.dummy").new().is_committed() is False
 
     assert len(get().all()) == 0
+
+    # a priori modifiers
+
+    # all
+    assert len(get.all()) == 2
+    with Scope({"unique": True}):
+        assert len(get.all()) == 0
+        get("interface.dummy").commit()
+        assert len(get.all()) == 1
+    assert len(get.all()) == 3
+
+    # new
+    assert get.new("interface.dummy").is_committed() is False
+
+    # or
+    assert get.or_none("interface.dummy") is not None
+    assert get.or_none("interface.dummy", {"a": 2}) is None
+    assert get.or_fail("interface.dummy").is_committed()
+    with pytest.raises(ValueError):
+        get.or_fail("interface.dummy", {"a": 2})
 
     project.__exit__()

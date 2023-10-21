@@ -17,12 +17,8 @@ from functools import partial
 
 from machinable import errors, schema
 from machinable.collection import Collection, InterfaceCollection
-from machinable.element import (
-    Element,
-    filter_enderscores,
-    get_dump,
-    get_lineage,
-)
+from machinable.element import _CONNECTIONS as connected_elements
+from machinable.element import Element, get_dump, get_lineage
 from machinable.types import VersionType
 from machinable.utils import (
     is_directory_version,
@@ -87,7 +83,7 @@ class Relation:
             )
 
             if related is not None:
-                related = [Interface.find(r.uuid) for r in related]
+                related = [Interface.find_by_id(r.uuid) for r in related]
 
                 if self.multiple is False:
                     related = related[0] if len(related) > 0 else None
@@ -204,7 +200,7 @@ class Interface(Element):
     def is_committed(self) -> bool:
         from machinable.index import Index
 
-        return Index.get().find(self.uuid) is not None
+        return Index.get().find_by_id(self.uuid) is not None
 
     def commit(self) -> Self:
         from machinable.index import Index
@@ -212,7 +208,7 @@ class Interface(Element):
         index = Index.get()
 
         # only commit if not already in index
-        if index.find(self.uuid) is not None:
+        if index.find_by_id(self.uuid) is not None:
             return self
 
         # ensure that configuration and predicate has been computed
@@ -308,7 +304,7 @@ class Interface(Element):
         ] and is_directory_version(version):
             # interpret as shortcut for directory
             version = {"directory": version}
-        candidates = cls.find_in_context(
+        candidates = cls.find(
             module,
             version,
             **kwargs,
@@ -326,12 +322,12 @@ class Interface(Element):
         return os.path.exists(self.local_directory())
 
     @classmethod
-    def find(cls, uuid: str) -> Optional["Interface"]:
+    def find_by_id(cls, uuid: str) -> Optional["Interface"]:
         from machinable.index import Index
 
         index = Index.get()
 
-        if not index.find(uuid):
+        if not index.find_by_id(uuid):
             return None
 
         local_directory = index.local_directory(uuid)
@@ -352,17 +348,28 @@ class Interface(Element):
         return cls.from_directory(local_directory)
 
     @classmethod
-    def find_many(cls, uuids: List[str]) -> "InterfaceCollection":
-        return cls.collect([cls.find(uuid) for uuid in uuids])
+    def find_many_by_id(cls, uuids: List[str]) -> "InterfaceCollection":
+        return cls.collect([cls.find_by_id(uuid) for uuid in uuids])
 
     @classmethod
-    def find_in_context(
+    def find(
         cls,
         module: Union[str, "Element"],
         version: VersionType = None,
         **kwargs,
     ) -> "InterfaceCollection":
         from machinable.index import Index
+
+        if module is None:
+            context = {"predicate": {}}
+            for scope in connected_elements["Scope"]:
+                context["predicate"].update(scope())
+            return cls.collect(
+                [
+                    cls.find_by_id(interface.uuid)
+                    for interface in Index.get().find_by_context(context)
+                ]
+            )
 
         try:
             candidate = cls.make(module, version, **kwargs)
@@ -375,7 +382,7 @@ class Interface(Element):
 
         return cls.collect(
             [
-                cls.find(interface.uuid)
+                cls.find_by_id(interface.uuid)
                 for interface in Index.get().find_by_context(context)
             ]
         )
@@ -399,19 +406,6 @@ class Interface(Element):
             interface._dump = load_file([directory, "dump.p"], None)
 
         return cls.from_model(interface)
-
-    def all(self) -> "InterfaceCollection":
-        module = (
-            self.module
-            if not self.module.startswith("__session__")
-            else self.__class__
-        )
-        return self.find_in_context(
-            module, self.__model__.version, **self._kwargs
-        )
-
-    def new(self) -> Self:
-        return self.make(self.module, self.__model__.version, **self._kwargs)
 
     def to_directory(self, directory: str, relations=True) -> Self:
         save_file([directory, ".machinable"], self.__model__.uuid)
@@ -470,3 +464,16 @@ class Interface(Element):
         file = save_file(self.local_directory(filepath), data, makedirs=True)
 
         return file
+
+    # a posteriori modifiers
+
+    def all(self) -> "InterfaceCollection":
+        module = (
+            self.module
+            if not self.module.startswith("__session__")
+            else self.__class__
+        )
+        return self.find(module, self.__model__.version, **self._kwargs)
+
+    def new(self) -> Self:
+        return self.make(self.module, self.__model__.version, **self._kwargs)

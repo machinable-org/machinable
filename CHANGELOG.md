@@ -4,7 +4,7 @@
 
 # Unreleased
 
-No current changes
+- Adds a priori modifiers `get.all`, `get.new` etc.
 
 # v4.6.0
 
