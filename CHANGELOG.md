@@ -4,7 +4,12 @@
 
 # Unreleased
 
+No current changes
+
+# v4.6.1
+
 - Adds a priori modifiers `get.all`, `get.new` etc.
+- Remove experimental enderscore feature
 
 # v4.6.0
 
