@@ -41,7 +41,7 @@ pyupgrade = "^3.3"
 black = "^23.10.0"
 pytest = "^7.4"
 pre-commit = "^3.4.0"
-editorconfig-checker = "^2.7.2"
+editorconfig-checker = "^2.7.3"
 pytest-cov = "^4.1.0"
 
 [tool.poetry.extras]

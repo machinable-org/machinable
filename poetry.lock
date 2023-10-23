@@ -233,12 +233,12 @@ files = [
 
 [[package]]
 name = "editorconfig-checker"
-version = "2.7.2"
+version = "2.7.3"
 description = "Python wrapper around invoking editorconfig-checker (https://github.com/editorconfig-checker/editorconfig-checker)"
 optional = false
 python-versions = ">=2.7"
 files = [
-    {file = "editorconfig-checker-2.7.2.tar.gz", hash = "sha256:43598be8601d157bc9ad5e4304d96dcabfd905fe6fb801f01636bb03f1b71e85"},
+    {file = "editorconfig-checker-2.7.3.tar.gz", hash = "sha256:69261f55585f0a4897b5534806bd170289d11b4825137411c1e9e5f2c1c5dbc2"},
 ]
 
 [[package]]
@@ -823,4 +823,4 @@ all = []
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.8"
-content-hash = "41e6bac0bc663abb01888d0da32d706103dff8ce509932e862940b8a1542c296"
+content-hash = "6729faca6e95ff184bb29d42d53b23150d8b7bd8a4c717e3100cd89bd8984020"
