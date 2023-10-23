@@ -12,7 +12,7 @@ except ModuleNotFoundError:
     import sqlite3
 
 from machinable import schema
-from machinable.element import filter_enderscores, get_lineage, idversion
+from machinable.element import get_lineage
 from machinable.interface import Interface
 from machinable.types import VersionType
 from machinable.utils import is_directory_version, serialize
@@ -30,10 +30,10 @@ def interface_row_factory(cursor, row) -> schema.Interface:
         kind=row[1],
         module=row[2],
         config=None,
-        version=json.loads(row[9]),
-        predicate=json.loads(row[10]),
-        lineage=json.loads(row[11]),
-        timestamp=float(row[12]),
+        version=json.loads(row[6]),
+        predicate=json.loads(row[7]),
+        lineage=json.loads(row[8]),
+        timestamp=float(row[9]),
     )
 
 
@@ -48,12 +48,9 @@ def migrate(db: sqlite3.Connection) -> None:
                 kind text,
                 module text,
                 config json,
-                config_ json,
                 config_update json,
-                config_update_ json,
                 config_default json,
                 version json,
-                version_ json,
                 predicate json,
                 lineage json,
                 'timestamp' real
@@ -152,26 +149,20 @@ class Index(Interface):
                     kind,
                     module,
                     config,
-                    config_,
                     config_update,
-                    config_update_,
                     config_default,
                     version,
-                    version_,
                     predicate,
                     lineage,
                     'timestamp'
-                ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                ) VALUES (?,?,?,?,?,?,?,?,?,?)""",
                 (
                     model.uuid,
                     model.kind,
                     model.module,
-                    _jn(filter_enderscores(config)),
                     _jn(config),
-                    _jn(filter_enderscores(update)),
                     _jn(update),
                     _jn(default),
-                    _jn(idversion(version)),
                     _jn(version),
                     _jn(model.predicate),
                     _jn(model.lineage),

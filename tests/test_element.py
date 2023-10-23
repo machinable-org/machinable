@@ -10,7 +10,6 @@ from machinable.element import (
     defaultversion,
     equalversion,
     extract,
-    idversion,
     normversion,
     transfer_to,
     uuid_to_id,
@@ -338,33 +337,6 @@ def test_equalversion():
     assert not equalversion(
         ({"a": 1, "b": 2}, "test"), ("test", {"b": 2, "a": 1})
     )
-
-
-def test_idversion():
-    assert idversion(None) == idversion([])
-    assert idversion(["~test", {"a": 2}]) == ["~test", {"a": 2}]
-    assert idversion(["~test_", {"a": 2}]) == [{"a": 2}]
-    assert idversion(["~test_", {"a_": 2}]) == []
-    assert idversion(
-        [
-            {"b": 1, "a_": 2},
-            "~test_",
-        ]
-    ) == [{"b": 1}]
-    assert idversion(
-        [
-            {"b": {"c": 3, "d_": 42}, "a_": 2},
-            "~test_",
-        ]
-    ) == [{"b": {"c": 3}}]
-    assert idversion(
-        {
-            "b": {"c": 3, "d_": 42, "f": "~t_", "g": {"n": 1, "q_": 2}},
-            "a_": 2,
-            "_y": "y_",
-        }
-    ) == [{"b": {"c": 3, "f": "~t_", "g": {"n": 1}}, "_y": "y_"}]
-    assert idversion({"a": 1, "a_": 2, "_a": 3}) == [{"a": 1, "_a": 3}]
 
 
 def test_uuid_to_id():

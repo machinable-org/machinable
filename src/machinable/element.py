@@ -189,27 +189,6 @@ def equalversion(a: VersionType, b: VersionType) -> bool:
     return equaljson(normversion(a), normversion(b))
 
 
-def filter_enderscores(m: Any):
-    if not isinstance(m, collections.abc.Mapping):
-        return m
-    return {
-        k: filter_enderscores(v)
-        for k, v in m.items()
-        if not (isinstance(k, str) and k.endswith("_"))
-    }
-
-
-def idversion_filter(value: Union[str, dict]) -> Union[str, dict, None]:
-    if isinstance(value, str) and value.endswith("_"):
-        return None
-
-    return filter_enderscores(value)
-
-
-def idversion(version: VersionType) -> VersionType:
-    return normversion([idversion_filter(v) for v in normversion(version)])
-
-
 def transfer_to(src: "Element", destination: "Element") -> "Element":
     destination.__model__ = src.__model__
 
@@ -272,12 +251,6 @@ class Element(Mixin, Jsonable):
         self._kwargs = {}
 
         Element._module_ = None
-
-    @property
-    def _enderscore_config(self):
-        if "enderscore_config" not in self._cache:
-            self._cache["enderscore_config"] = filter_enderscores(self.config)
-        return self._cache["enderscore_config"]
 
     @property
     def uuid(self) -> str:
@@ -428,7 +401,11 @@ class Element(Mixin, Jsonable):
         """
         return {
             "module": self.module,
-            "config": self._enderscore_config,
+            "config": {
+                k: v
+                for k, v in self.config.items()
+                if k not in ["_default_", "_version_", "_update_"]
+            },
             "predicate": self.compute_predicate(),
         }
 
@@ -606,7 +583,14 @@ class Element(Mixin, Jsonable):
                 if not equaljson(getattr(self, field), value):
                     return False
             elif field == "config":
-                if not equaljson(self._enderscore_config, value):
+                if not equaljson(
+                    {
+                        k: v
+                        for k, v in self.config.items()
+                        if k not in ["_default_", "_version_", "_update_"]
+                    },
+                    value,
+                ):
                     return False
             elif field == "predicate":
                 for p, v in value.items():

@@ -201,24 +201,6 @@ def test_component_predicates(tmp_storage):
     e3.launch()
     assert e2 != e3
 
-    # ignore enderscores by default
-    e = get("predicate", {"a": 2, "ignore_": 1})
-    assert e == e1
-    # match enderscore
-    e = get(
-        "predicate",
-        {"ignore_": 3},
-        test_context={"config_update_": {"ignore_": 3}},
-    )
-    assert e == e2
-    # full config
-    e = get(
-        "predicate",
-        {"ignore_": 3},
-        test_context={"config_": dict(a=1, ignore_=3)},
-    )
-    assert e == e2
-
     p.__exit__()
 
 

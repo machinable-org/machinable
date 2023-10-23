@@ -1,7 +1,8 @@
-from machinable.interface import Interface
-from machinable.types import Optional, Union, VersionType
 from machinable.collection import InterfaceCollection
 from machinable.element import normversion
+from machinable.interface import Interface
+from machinable.types import Optional, Union, VersionType
+
 
 class Query:
     def __call__(
@@ -11,9 +12,9 @@ class Query:
         **kwargs,
     ) -> Interface:
         return Interface.get(module, version, **kwargs)
-    
+
     # modifiers
-    
+
     def all(
         self,
         module: Union[None, str, Interface] = None,
@@ -29,7 +30,7 @@ class Query:
         **kwargs,
     ) -> Interface:
         return Interface.make(module, version, **kwargs)
-    
+
     def or_none(
         self,
         module: Union[None, str, Interface] = None,
@@ -39,7 +40,7 @@ class Query:
         existing = Interface.find(module, version, **kwargs)
         if existing:
             return existing[-1]
-        
+
         return None
 
     def or_fail(
@@ -51,5 +52,7 @@ class Query:
         existing = Interface.find(module, version, **kwargs)
         if existing:
             return existing[-1]
-        
-        raise ValueError(f"Could not find {module}{normversion(version)} ({kwargs})")
+
+        raise ValueError(
+            f"Could not find {module}{normversion(version)} ({kwargs})"
+        )
