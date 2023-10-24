@@ -1,3 +1,5 @@
+from typing import Optional
+
 import subprocess
 
 from machinable import Execution
@@ -5,10 +7,35 @@ from machinable.errors import ExecutionFailed
 
 
 class Slurm(Execution):
+    class Config:
+        mpi: Optional[str] = None
+        confirm: bool = True
+
+    def on_before_dispatch(self):
+        if self.config.confirm:
+            print(
+                f"Submitting {len(self.pending_executables)} jobs ({len(self.executables)} total). Proceed? [Y/n]: "
+            )
+            choice = input().lower()
+            return {"": True, "yes": True, "y": True, "no": False, "n": False}[
+                choice
+            ]
+
     def __call__(self):
         script = "#!/usr/bin/env bash\n"
         for executable in self.pending_executables:
-            resources = executable.resources()
+            # check if executable is already launched
+            if isinstance(executable.execution, Slurm):
+                raise ValueError("same")
+
+            # todo: check if execuable.is_started or is_running
+            # if so, skip
+
+            # for uses, check if it is a slurm instance, otherwise raise error to wait for finish first
+            # if slurm_id, make job dependent on slurm_id
+
+            resources = self.resources(executable)
+
             if "--job-name" not in resources:
                 resources["--job-name"] = f"{executable.id}"
             if "--output" not in resources:
@@ -28,6 +55,13 @@ class Slurm(Execution):
                 sbatch_arguments.append(line)
             script += "\n".join(sbatch_arguments) + "\n"
 
+            if self.config.mpi:
+                n = int(resources.get("--nodes", 0)) * int(
+                    resources.get("--ntasks-per-node", 0)
+                )
+                if n >= 1:
+                    script += f"{self.config.mpi} -n {n} "
+
             script += executable.dispatch_code()
 
             # submit to slurm
@@ -37,9 +71,13 @@ class Slurm(Execution):
                 stderr=subprocess.STDOUT,
                 stdin=subprocess.PIPE,
             )
+
             process.stdin.write(script.encode("utf8"))
+
             stdoutput, _ = process.communicate()
+
             returncode = process.returncode
+
             if returncode != 0:
                 raise ExecutionFailed(
                     self.__repr__(),
@@ -54,13 +92,13 @@ class Slurm(Execution):
             except ValueError:
                 job_id = False
             print(
-                f"{output} for component {executable.id} ({executable.local_directory()})"
+                f"{output} for {executable.id} ({executable.local_directory()} with output at {resources['--output']})"
             )
 
             # save job information
             self.save_file(
-                [executable, "slurm.json"],
-                {
+                [executable.id, "slurm.json"],
+                data={
                     "job_id": job_id,
                     "cmd": sbatch_arguments,
                     "script": script,

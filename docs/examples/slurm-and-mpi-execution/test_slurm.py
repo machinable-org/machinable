@@ -24,35 +24,30 @@ def test_slurm_execution(tmp_path):
     directory = os.environ.get("MACHINABLE_SLURM_TEST_DIRECTORY", None)
     if directory is not None:
         tmp_path = Path(directory) / component.uuid
-    with Index(
-        {"directory": str(tmp_path), "database": str(tmp_path / "test.sqlite")}
-    ):
+    with Index(str(tmp_path)):
         with Project("docs/examples/slurm-and-mpi-execution"):
+            # standard submission
             with Execution.get(
                 "slurm",
+                {"confirm": False},
                 resources=json.loads(
                     os.environ.get("MACHINABLE_SLURM_TEST_RESOURCES", "{}")
                 ),
             ):
-                component.launch()
+                component = SlurmComponent().launch()
 
+            status = False
             for _ in range(60):
                 if component.execution.is_finished():
-                    assert "Hello world from Slurm" in component.output()
+                    assert (
+                        "Hello world from Slurm" in component.execution.output()
+                    )
                     assert (
                         component.load_file("test_run.json")["success"] is True
                     )
-                    return
+                    status = True
+                    break
 
                 time.sleep(1)
-            print(component.output())
-            assert False, f"Timeout for {component.local_directory()}"
-
-
-@pytest.mark.skipif(
-    not shutil.which("sbatch")
-    or "MACHINABLE_SLURM_TEST_RESOURCES" not in os.environ,
-    reason="Test requires Slurm environment",
-)
-def test_slurm_execution_with_dependencies(tmp_path):
-    pass
+            print(component.execution.output())
+            assert status, f"Timeout for {component.local_directory()}"
