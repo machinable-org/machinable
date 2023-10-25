@@ -4,6 +4,10 @@
 
 # Unreleased
 
+No current changes
+
+# v4.6.2
+
 - Introduces cached `computed_resources` to supersede `compute_resources`
 - Fixes exception handling if raised within execution context
 
