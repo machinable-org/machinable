@@ -127,7 +127,7 @@ def test_execution_resources(tmp_storage):
     component = Component()
     execution = Execution()
     # default resources are empty
-    assert execution.compute_resources(component) == {}
+    assert execution.computed_resources(component) == {}
 
     # default resources can be declared via a method
     class T(Execution):
@@ -135,33 +135,34 @@ def test_execution_resources(tmp_storage):
             return {"1": 2}
 
     execution = T()
-    assert execution.compute_resources(component) == {"1": 2}
+    assert execution.computed_resources(component) == {"1": 2}
     # default resources are reused
     execution = T(resources={"test": "me"})
-    assert execution.resources()["test"] == "me"
-    assert execution.compute_resources(component) == {"1": 2, "test": "me"}
+    assert execution.__model__.resources["test"] == "me"
+    assert execution.computed_resources(component) == {"1": 2, "test": "me"}
     # inheritance of default resources
     execution = T(resources={"3": 4})
-    assert execution.compute_resources(component) == {"1": 2, "3": 4}
+    assert execution.computed_resources(component) == {"1": 2, "3": 4}
     execution = T(resources={"3": 4, "_inherit_defaults": False})
-    assert execution.compute_resources(component) == {"3": 4}
+    assert execution.computed_resources(component) == {"3": 4}
     # inherit but ignore commented resources
     execution = T(resources={"3": 4, "#1": None})
-    assert execution.compute_resources(component) == {"3": 4}
+    assert execution.computed_resources(component) == {"3": 4}
 
     # interface
     with Execution(resources={"test": 1, "a": True}) as execution:
         component = Component()
         component.launch()
-    assert component.execution.resources()["test"] == 1
+    assert component.execution.computed_resources()["test"] == 1
 
     with Execution(resources={"a": 3}) as execution:
         component.launch()
-        assert component.execution.resources()["a"] is True
+        # resources are still referring to prior execution
+        assert component.execution.computed_resources()["a"] is True
 
         e2 = Component()
         e2.launch()
-    assert e2.execution.resources()["a"] == 3
+    assert e2.execution.computed_resources()["a"] == 3
 
 
 def test_interrupted_execution(tmp_storage):

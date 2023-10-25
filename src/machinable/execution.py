@@ -66,6 +66,7 @@ class Execution(Interface):
                 schedule = Schedule.make(*extract(schedule))
             self.push_related("schedule", schedule)
         self._executable_ = None
+        self._resources = {}
 
     @classmethod
     def collect(cls, executions) -> "ExecutionCollection":
@@ -88,6 +89,9 @@ class Execution(Interface):
     def executable(
         self, executable: Optional[Component] = None
     ) -> Optional[Component]:
+        if executable is not None:
+            return executable
+
         if self._executable_ is not None:
             return self._executable_
 
@@ -95,11 +99,8 @@ class Execution(Interface):
         if len(self.executables) == 1:
             return self.executables[0]
 
-        if executable is not None:
-            return executable
-
         raise ValueError(
-            "No executable selected. Call `execution.of(executable)` first, or pass an executable argument."
+            "No executable selected. Call `execution.of(executable)`, or pass an executable argument."
         )
 
     def of(self, executable: Union[None, Component]) -> Self:
@@ -132,30 +133,31 @@ class Execution(Interface):
 
         return super().commit()
 
-    def resources(self, executable: Optional["Component"] = None) -> Dict:
-        try:
-            executable = self.executable(executable)
-        except ValueError:
-            pass
-
-        resources = {}
-        default = copy.deepcopy(self.__model__.resources)
-
-        if executable is None:
-            resources = default
-        else:
-            resources = self.load_file(
-                [executable, "resources.json"], default={}
-            )
-
-        resources["_default_"] = default
-
-        return resources
-
     def canonicalize_resources(self, resources: Dict) -> Dict:
         return resources
 
-    def compute_resources(
+    def computed_resources(
+        self, executable: Optional["Component"] = None
+    ) -> Optional[Dict]:
+        executable = self.executable(executable)
+
+        if executable.id not in self._resources:
+            # check if resources have been computed
+            resources = self.load_file(
+                [executable.id, "computed_resources.json"], default=None
+            )
+            if resources is None:
+                # compute resources
+                resources = self._compute_resources(executable)
+                self.save_file(
+                    [executable.id, "computed_resources.json"], resources
+                )
+
+            self._resources[executable.id] = resources
+
+        return self._resources[executable.id]
+
+    def _compute_resources(
         self, executable: Optional["Component"] = None
     ) -> Dict:
         default_resources = self.on_compute_default_resources(
@@ -215,11 +217,7 @@ class Execution(Interface):
 
         try:
             # compute resources
-            for executable in self.pending_executables:
-                self.save_file(
-                    [executable, "resources.json"],
-                    self.compute_resources(executable),
-                )
+            self.pending_executables.map(lambda e: self.computed_resources(e))
             self.__call__()
             self.on_after_dispatch()
         except BaseException as _ex:  # pylint: disable=broad-except
@@ -460,11 +458,15 @@ class Execution(Interface):
     def __iter__(self):
         yield from self.executables
 
-    def __exit__(self, *args, **kwargs):
-        try:
-            self.dispatch()
-        finally:
+    def __exit__(self, *args):
+        if len(args) == 3 and any(map(lambda x: x is not None, args)):
+            # error occurred
             super().__exit__()
+        else:
+            try:
+                self.dispatch()
+            finally:
+                super().__exit__()
 
     def __repr__(self) -> str:
         return "Execution"

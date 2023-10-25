@@ -1,14 +1,70 @@
-from typing import Optional
+from typing import Literal, Optional
 
 import subprocess
+import time
 
 from machinable import Execution
 from machinable.errors import ExecutionFailed
 
 
+class Job:
+    def __init__(self, job_id: str):
+        self.job_id = job_id
+        self.details = self._fetch_details()
+
+    def _fetch_details(self) -> dict:
+        cmd = ["scontrol", "show", "job", self.job_id]
+        result = subprocess.run(cmd, capture_output=True, text=True)
+        if result.returncode != 0:
+            return None
+
+        details = {}
+        raw_info = result.stdout.split()
+        for item in raw_info:
+            if "=" in item:
+                key, value = item.split("=", 1)
+                details[key] = value
+        return details
+
+    @classmethod
+    def find_by_name(cls, job_name: str) -> Optional["Job"]:
+        cmd = ["squeue", "--name", job_name, "--noheader", "--format=%i"]
+        result = subprocess.run(cmd, capture_output=True, text=True)
+        if result.returncode == 0 and result.stdout.strip():
+            return cls(result.stdout.strip())
+
+        return None
+
+    @property
+    def status(
+        self,
+    ) -> Literal[
+        "",
+        "PENDING",
+        "RUNNING",
+        "SUSPENDED",
+        "CANCELLED",
+        "COMPLETED",
+        "FAILED",
+        "TIMEOUT",
+        "PREEMPTED",
+    ]:
+        return self.details.get("JobState", "")
+
+    @property
+    def info(self) -> dict:
+        return self.details
+
+    def cancel(self) -> bool:
+        cmd = ["scancel", self.job_id]
+        result = subprocess.run(cmd, capture_output=True)
+        return result.returncode == 0
+
+
 class Slurm(Execution):
     class Config:
         mpi: Optional[str] = None
+        throttle: float = 0.5
         confirm: bool = True
 
     def on_before_dispatch(self):
@@ -22,19 +78,33 @@ class Slurm(Execution):
             ]
 
     def __call__(self):
-        script = "#!/usr/bin/env bash\n"
+        jobs = {}
         for executable in self.pending_executables:
-            # check if executable is already launched
-            if isinstance(executable.execution, Slurm):
-                raise ValueError("same")
+            script = "#!/usr/bin/env bash\n"
 
-            # todo: check if execuable.is_started or is_running
-            # if so, skip
+            # check if job is already launched
+            if job := Job.find_by_name(executable.id):
+                if job.status in ["PENDING", "RUNNING"]:
+                    print(
+                        f"{executable.id} is already launched with job_id={job.job_id}, skipping ..."
+                    )
+                    continue
 
-            # for uses, check if it is a slurm instance, otherwise raise error to wait for finish first
-            # if slurm_id, make job dependent on slurm_id
+            resources = self.computed_resources(executable)
 
-            resources = self.resources(executable)
+            # usage dependencies
+            if "--dependency" not in resources and (
+                dependencies := executable.uses
+            ):
+                ds = []
+                for dependency in dependencies:
+                    if dependency.id in jobs:
+                        ds.append(str(jobs[dependency.id]))
+                    else:
+                        if job := Job.find_by_name(dependency.id):
+                            ds.append(str(job.job_id))
+                if ds:
+                    resources["--dependency"] = "afterok:" + (":".join(ds))
 
             if "--job-name" not in resources:
                 resources["--job-name"] = f"{executable.id}"
@@ -92,10 +162,11 @@ class Slurm(Execution):
             except ValueError:
                 job_id = False
             print(
-                f"{output} for {executable.id} ({executable.local_directory()} with output at {resources['--output']})"
+                f"{output}  named `{resources['--job-name']}` for {executable.local_directory()} (output at {resources['--output']})"
             )
 
             # save job information
+            jobs[executable.id] = job_id
             self.save_file(
                 [executable.id, "slurm.json"],
                 data={
@@ -104,6 +175,9 @@ class Slurm(Execution):
                     "script": script,
                 },
             )
+
+            if self.config.throttle > 0 and len(self.pending_executables) > 1:
+                time.sleep(self.config.throttle)
 
     def canonicalize_resources(self, resources):
         if resources is None:
