@@ -1389,7 +1389,7 @@ class ElementCollection(Collection):
 
         instance = Element.make(module, version, **kwargs)
 
-        return self.filter(lambda x: x.matches(instance))
+        return self.filter(lambda x: x.matches(instance.compute_context()))
 
     def singleton(
         self,
@@ -1403,7 +1403,7 @@ class ElementCollection(Collection):
         context = instance.compute_context()
 
         for candidate in self:
-            if candidate.matches(instance, context):
+            if candidate.matches(context):
                 return candidate
 
         return instance

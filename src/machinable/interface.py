@@ -369,7 +369,7 @@ class Interface(Element):
                     cls.find_by_id(interface.uuid)
                     for interface in Index.get().find_by_context(context)
                 ]
-            )
+            ).filter(lambda i: i.matches(context))
 
         try:
             candidate = cls.make(module, version, **kwargs)
@@ -385,7 +385,7 @@ class Interface(Element):
                 cls.find_by_id(interface.uuid)
                 for interface in Index.get().find_by_context(context)
             ]
-        )
+        ).filter(lambda i: i.matches(context))
 
     @classmethod
     def from_directory(cls, directory: str) -> Self:

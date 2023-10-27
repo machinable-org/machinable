@@ -527,7 +527,7 @@ class Element(Mixin, Jsonable):
 
                     # save to model
                     self.__model__.config = OmegaConf.to_container(self._config)
-            except (ValueError, omegaconf.errors.OmegaConfBaseException) as _ex:
+            except Exception as _ex:
                 raise ConfigurationError(str(_ex)) from _ex
 
         return self._config
@@ -560,12 +560,7 @@ class Element(Mixin, Jsonable):
 
         return getattr(schema, cls.kind)
 
-    def matches(
-        self, element: "Element", context: Optional[Dict] = sentinel
-    ) -> bool:
-        if context is sentinel:
-            context = element.compute_context()
-
+    def matches(self, context: Optional[Dict] = None) -> bool:
         if context is None:
             # full constraint, match none
             return False
