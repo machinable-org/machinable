@@ -4,7 +4,8 @@
 
 # Unreleased
 
-No current changes
+- Improves element string representation
+- Adds `execution.output_filepath` and `execution.component_directory`
 
 # v4.6.2
 

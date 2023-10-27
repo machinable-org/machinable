@@ -13,7 +13,7 @@ class Mpi(Execution):
     def __call__(self):
         for executable in self.pending_executables:
             script_file = self.save_file(
-                [executable, "mpi.sh"],
+                [executable.id, "mpi.sh"],
                 executable.dispatch_code(),
             )
             st = os.stat(script_file)

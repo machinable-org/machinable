@@ -20,8 +20,8 @@ def test_execution(tmp_storage):
     )
 
     e = Execution()
-    assert str(e) == e.id
-    assert repr(e) == "Execution"
+    assert str(e) == f"machinable.execution [{e.id}]"
+    assert repr(e) == f"machinable.execution [{e.id}]"
 
     execution = Execution().add(Component())
     assert len(execution.executables) == 1
@@ -44,14 +44,14 @@ def test_execution(tmp_storage):
     c = Component().commit()
     e = Execution().add(c).commit()
     assert e.output(c) is None
-    e.save_file([c, "output.log"], "test")
+    e.save_file([c.id, "output.log"], "test")
     assert e.output(c) == "test"
 
     assert e.output(c, incremental=True) == "test"
-    e.save_file([c, "output.log"], "testt")
+    e.save_file([c.id, "output.log"], "testt")
     assert e.output(c, incremental=True) == "t"
     assert e.output(c, incremental=True) == ""
-    e.save_file([c, "output.log"], "testt more")
+    e.save_file([c.id, "output.log"], "testt more")
     assert e.output(c, incremental=True) == " more"
 
     # status

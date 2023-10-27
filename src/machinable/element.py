@@ -672,10 +672,12 @@ class Element(Mixin, Jsonable):
         self.__model__ = self.__class__.model()(**state)
 
     def __repr__(self):
-        return f"{self.kind} [{self.id}]"
+        return (
+            f"{self.kind if self.module is None else self.module} [{self.id}]"
+        )
 
     def __str__(self):
-        return self.id
+        return self.__repr__()
 
     def __eq__(self, other):
         return self.uuid == getattr(other, "uuid", None)

@@ -237,6 +237,15 @@ class Execution(Interface):
         executable = self.executable(executable)
         return self.load_file([executable.id, "host.json"], None)
 
+    def component_directory(self, *append: str, create: bool = False) -> str:
+        return self.local_directory(
+            self.executable().id, *append, create=create
+        )
+
+    def output_filepath(self, executable: Optional["Component"] = None) -> str:
+        executable = self.executable(executable)
+        return self.local_directory(executable.id, "output.log")
+
     def output(
         self,
         executable: Optional["Component"] = None,
@@ -323,7 +332,7 @@ class Execution(Interface):
         _assert_allowed(status)
         executable = self.executable(executable)
 
-        status = self.load_file([executable, f"{status}_at"], default=None)
+        status = self.load_file([executable.id, f"{status}_at"], default=None)
         if status is None:
             return None
 
@@ -375,29 +384,21 @@ class Execution(Interface):
         executable: Optional["Component"] = None,
     ):
         """True if finishing time has been written"""
-        return bool(self.finished_at(self.executable(executable)))
+        return bool(self.finished_at(executable))
 
     def is_started(
         self,
         executable: Optional["Component"] = None,
     ):
         """True if starting time has been written"""
-        return bool(
-            self.started_at(
-                self.executable(executable),
-            )
-        )
+        return bool(self.started_at(executable))
 
     def is_resumed(
         self,
         executable: Optional["Component"] = None,
     ):
         """True if resumed time has been written"""
-        return bool(
-            self.resumed_at(
-                self.executable(executable),
-            )
-        )
+        return bool(self.resumed_at(executable))
 
     def is_active(
         self,
@@ -467,6 +468,3 @@ class Execution(Interface):
                 self.dispatch()
             finally:
                 super().__exit__()
-
-    def __repr__(self) -> str:
-        return "Execution"
