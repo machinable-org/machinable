@@ -4,6 +4,10 @@
 
 # Unreleased
 
+No current changes
+
+# v4.6.3
+
 - Improves element string representation
 - Adds `execution.output_filepath` and `execution.component_directory`
 - Reject stale context matches in `index.find`
