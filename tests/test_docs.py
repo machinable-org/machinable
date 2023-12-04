@@ -6,7 +6,7 @@ from machinable import Project
 from machinable.utils import import_from_directory
 
 
-def _parse_code_string(code_string: str) -> Tuple[Optional[str], Optional[str]]:
+def _parse_code_string(code_string: str) -> tuple[Optional[str], Optional[str]]:
     code_string = code_string[3:]
     q = code_string.split("[")
     if len(q) == 1:

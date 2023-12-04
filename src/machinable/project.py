@@ -248,7 +248,7 @@ class Project(Interface):
 
         return p
 
-    def get_vendors(self) -> List[str]:
+    def get_vendors(self) -> list[str]:
         try:
             return [
                 vendor
@@ -325,7 +325,7 @@ class Project(Interface):
 
     def on_resolve_element(
         self, module: Union[str, Element]
-    ) -> Tuple[Union[str, Element], Optional[Element]]:
+    ) -> tuple[Union[str, Element], Optional[Element]]:
         """Override element resolution
 
         Return altered module and/or resolved Element class to be used instead.

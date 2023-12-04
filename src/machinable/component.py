@@ -34,7 +34,7 @@ class Component(Interface):
     def __init__(
         self,
         version: VersionType = None,
-        uses: Union[None, "Interface", List["Interface"]] = None,
+        uses: Union[None, "Interface", list["Interface"]] = None,
         derived_from: Optional["Interface"] = None,
         seed: Union[int, None] = None,
     ):

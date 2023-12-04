@@ -60,7 +60,7 @@ class Relation:
         else:
             return f"{self.related_cls.kind}.{self.cls.kind}.{self.key or 'default'}"
 
-    def collect(self, elements: List["Interface"]) -> Collection:
+    def collect(self, elements: list["Interface"]) -> Collection:
         if self.collection is None:
             return self.related_cls.collect(elements)
         return self.collection(elements)
@@ -141,12 +141,12 @@ class Interface(Element):
     # class level relationship information
     # note that the actual data is kept
     # in the __related__ object propery
-    __relations__: Optional[Dict[str, Relation]] = None
+    __relations__: Optional[dict[str, Relation]] = None
 
     def __init__(
         self,
         version: VersionType = None,
-        uses: Union[None, "Interface", List["Interface"]] = None,
+        uses: Union[None, "Interface", list["Interface"]] = None,
         derived_from: Optional["Interface"] = None,
     ):
         super().__init__(version=version)
@@ -348,7 +348,7 @@ class Interface(Element):
         return cls.from_directory(local_directory)
 
     @classmethod
-    def find_many_by_id(cls, uuids: List[str]) -> "InterfaceCollection":
+    def find_many_by_id(cls, uuids: list[str]) -> "InterfaceCollection":
         return cls.collect([cls.find_by_id(uuid) for uuid in uuids])
 
     @classmethod
@@ -436,7 +436,7 @@ class Interface(Element):
         return directory
 
     def load_file(
-        self, filepath: Union[str, List[str]], default=None
+        self, filepath: Union[str, list[str]], default=None
     ) -> Optional[Any]:
         filepath = joinpath(filepath)
         if not self.is_mounted():
@@ -450,7 +450,7 @@ class Interface(Element):
 
         return data if data is not None else default
 
-    def save_file(self, filepath: Union[str, List[str]], data: Any) -> str:
+    def save_file(self, filepath: Union[str, list[str]], data: Any) -> str:
         filepath = joinpath(filepath)
 
         if os.path.isabs(filepath):

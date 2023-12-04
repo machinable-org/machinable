@@ -15,7 +15,7 @@ def normgroup(group: Optional[str]) -> str:
     return group.lstrip("/")
 
 
-def resolve_group(group: str) -> Tuple[str, str]:
+def resolve_group(group: str) -> tuple[str, str]:
     group = normgroup(group)
     resolved = datetime.now().strftime(group)
     return group, resolved

@@ -9,7 +9,7 @@ if TYPE_CHECKING:
     from machinable.types import ElementType, VersionType
 
 
-def parse(args: List) -> Tuple[List["ElementType"], str]:
+def parse(args: list) -> tuple[list["ElementType"], str]:
     methods = []
     elements = []
     dotlist = []
@@ -55,7 +55,7 @@ def parse(args: List) -> Tuple[List["ElementType"], str]:
     return elements, methods
 
 
-def from_cli(args: Optional[List] = None) -> "VersionType":
+def from_cli(args: Optional[list] = None) -> "VersionType":
     if args is None:
         args = sys.argv[1:]
 
@@ -64,7 +64,7 @@ def from_cli(args: Optional[List] = None) -> "VersionType":
     return sum(elements, [])
 
 
-def main(args: Optional[List] = None):
+def main(args: Optional[list] = None):
     import machinable
 
     if args is None:

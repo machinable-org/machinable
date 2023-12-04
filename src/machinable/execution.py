@@ -48,7 +48,7 @@ class Execution(Interface):
     def __init__(
         self,
         version: VersionType = None,
-        resources: Optional[Dict] = None,
+        resources: Optional[dict] = None,
         schedule: Union[Schedule, ElementType, None] = None,
     ):
         super().__init__(version)
@@ -72,10 +72,10 @@ class Execution(Interface):
     def collect(cls, executions) -> "ExecutionCollection":
         return ExecutionCollection(executions)
 
-    def compute_context(self) -> Optional[Dict]:
+    def compute_context(self) -> Optional[dict]:
         return None  # do not retrieve existing execution
 
-    def on_compute_predicate(self) -> Dict:
+    def on_compute_predicate(self) -> dict:
         return {"resources": self.__model__.resources}
 
     @has_one
@@ -113,7 +113,7 @@ class Execution(Interface):
 
     def add(
         self,
-        executable: Union[Component, List[Component]],
+        executable: Union[Component, list[Component]],
     ) -> Self:
         if isinstance(executable, (list, tuple)):
             for _executable in executable:
@@ -133,12 +133,12 @@ class Execution(Interface):
 
         return super().commit()
 
-    def canonicalize_resources(self, resources: Dict) -> Dict:
+    def canonicalize_resources(self, resources: dict) -> dict:
         return resources
 
     def computed_resources(
         self, executable: Optional["Component"] = None
-    ) -> Optional[Dict]:
+    ) -> Optional[dict]:
         executable = self.executable(executable)
 
         if executable.id not in self._resources:
@@ -159,7 +159,7 @@ class Execution(Interface):
 
     def _compute_resources(
         self, executable: Optional["Component"] = None
-    ) -> Dict:
+    ) -> dict:
         default_resources = self.on_compute_default_resources(
             self.executable(executable)
         )
@@ -233,7 +233,7 @@ class Execution(Interface):
     def host_info(
         self,
         executable: Optional["Component"] = None,
-    ) -> Optional[Dict]:
+    ) -> Optional[dict]:
         executable = self.executable(executable)
         return self.load_file([executable.id, "host.json"], None)
 
@@ -449,7 +449,7 @@ class Execution(Interface):
 
     def on_compute_default_resources(
         self, executable: "Component"
-    ) -> Optional[Dict]:
+    ) -> Optional[dict]:
         """Event triggered to compute default resources"""
 
     @property

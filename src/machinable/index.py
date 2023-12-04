@@ -176,7 +176,7 @@ class Index(Interface):
         self,
         relation: str,
         uuid: str,
-        related_uuid: Union[str, List[str]],
+        related_uuid: Union[str, list[str]],
         priority: int = 0,
         timestamp: Optional[float] = None,
     ) -> None:
@@ -218,7 +218,7 @@ class Index(Interface):
                 return None
             return interface_row_factory(cur, row)
 
-    def find_by_context(self, context: Dict) -> List[schema.Interface]:
+    def find_by_context(self, context: dict) -> list[schema.Interface]:
         with db(self.config.database, create=False) as _db:
             if not _db:
                 return []
@@ -250,7 +250,7 @@ class Index(Interface):
 
     def find_related(
         self, relation: str, uuid: str, inverse: bool = False
-    ) -> Union[None, List[schema.Interface]]:
+    ) -> Union[None, list[schema.Interface]]:
         with db(self.config.database, create=False) as _db:
             if not _db:
                 return None

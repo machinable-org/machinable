@@ -28,7 +28,6 @@ from machinable.utils import (
     update_dict,
 )
 from omegaconf import DictConfig, OmegaConf
-from uuid_extensions import uuid_to_datetime
 
 
 class ConfigMethod:
@@ -63,7 +62,7 @@ class ConfigMethod:
             ) from _ex
 
 
-def normversion(version: VersionType = None) -> List[Union[str, dict]]:
+def normversion(version: VersionType = None) -> list[Union[str, dict]]:
     if not isinstance(
         version,
         (
@@ -99,7 +98,7 @@ def normversion(version: VersionType = None) -> List[Union[str, dict]]:
 
 
 def compact(
-    element: Union[str, List[Union[str, dict, None]]],
+    element: Union[str, list[Union[str, dict, None]]],
     version: VersionType = None,
 ) -> ElementType:
     if isinstance(element, (list, tuple, omegaconf.listconfig.ListConfig)):
@@ -118,7 +117,7 @@ def compact(
 
 def defaultversion(
     module: Optional[str], version: VersionType, element: "Element"
-) -> Tuple[Optional[str], VersionType]:
+) -> tuple[Optional[str], VersionType]:
     if module is not None:
         return module, normversion(version)
 
@@ -147,8 +146,8 @@ def defaultversion(
 
 
 def extract(
-    compact_element: Union[str, List[Union[str, dict]], None]
-) -> Tuple[Optional[str], Optional[List[Union[str, dict]]]]:
+    compact_element: Union[str, list[Union[str, dict]], None]
+) -> tuple[Optional[str], Optional[list[Union[str, dict]]]]:
     if compact_element is None:
         return None, None
 
@@ -220,7 +219,7 @@ def instantiate(
         ) from _ex
 
 
-_CONNECTIONS = collections.defaultdict(lambda: [])
+_CONNECTIONS = collections.defaultdict(list)
 
 
 class Element(Mixin, Jsonable):
@@ -270,7 +269,7 @@ class Element(Mixin, Jsonable):
 
     def version(
         self, version: VersionType = sentinel, overwrite: bool = False
-    ) -> List[Union[str, dict]]:
+    ) -> list[Union[str, dict]]:
         if version is sentinel:
             return self.__model__.version
 
@@ -306,7 +305,7 @@ class Element(Mixin, Jsonable):
         return self
 
     @classmethod
-    def connected(cls) -> List["Element"]:
+    def connected(cls) -> list["Element"]:
         return _CONNECTIONS[cls.kind]
 
     @classmethod
@@ -391,7 +390,7 @@ class Element(Mixin, Jsonable):
 
         return instance
 
-    def compute_context(self) -> Optional[Dict]:
+    def compute_context(self) -> Optional[dict]:
         """Computes the context contraints of the element
 
         Returns:
@@ -409,7 +408,7 @@ class Element(Mixin, Jsonable):
             "predicate": self.compute_predicate(),
         }
 
-    def on_compute_predicate(self) -> Dict:
+    def on_compute_predicate(self) -> dict:
         """Event to compute additional predicates that identify this element.
 
         Returns:
@@ -417,7 +416,7 @@ class Element(Mixin, Jsonable):
         """
         return {}
 
-    def compute_predicate(self) -> Dict:
+    def compute_predicate(self) -> dict:
         predicate = self.on_compute_predicate() or {}
 
         # apply scopes
@@ -537,7 +536,7 @@ class Element(Mixin, Jsonable):
         return self.__model__.module
 
     @property
-    def lineage(self) -> Tuple[str, ...]:
+    def lineage(self) -> tuple[str, ...]:
         return self.__model__.lineage
 
     @classmethod
@@ -560,7 +559,7 @@ class Element(Mixin, Jsonable):
 
         return getattr(schema, cls.kind)
 
-    def matches(self, context: Optional[Dict] = None) -> bool:
+    def matches(self, context: Optional[dict] = None) -> bool:
         if context is None:
             # full constraint, match none
             return False
@@ -607,7 +606,7 @@ class Element(Mixin, Jsonable):
 
         return self
 
-    def serialize(self) -> Dict:
+    def serialize(self) -> dict:
         # ensure that configuration has been parsed
         assert self.config is not None
         return self.__model__.model_dump()
@@ -657,7 +656,7 @@ class Element(Mixin, Jsonable):
         except IndexError:
             pass
 
-    def __reduce__(self) -> Union[str, Tuple[Any, ...]]:
+    def __reduce__(self) -> Union[str, tuple[Any, ...]]:
         return (self.__class__, (), self.serialize())
 
     def __getstate__(self):
@@ -681,7 +680,7 @@ class Element(Mixin, Jsonable):
         return self.uuid != getattr(other, "uuid", None)
 
 
-def get_lineage(element: "Element") -> Tuple[str, ...]:
+def get_lineage(element: "Element") -> tuple[str, ...]:
     return tuple(
         obj.module if isinstance(obj, Element) else obj.__module__
         for obj in element.__class__.__mro__[1:-3]

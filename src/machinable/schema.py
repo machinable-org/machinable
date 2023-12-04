@@ -9,10 +9,10 @@ class Element(BaseModel):
     uuid: str = Field(default_factory=lambda: uuid7(as_type="hex"))
     kind: str = "Element"
     module: Optional[str] = None
-    version: List[Union[str, Dict]] = []
-    config: Optional[Dict] = None
-    predicate: Optional[Dict] = None
-    lineage: Tuple[str, ...] = ()
+    version: list[Union[str, dict]] = []
+    config: Optional[dict] = None
+    predicate: Optional[dict] = None
+    lineage: tuple[str, ...] = ()
 
     @property
     def timestamp(self) -> float:
@@ -49,7 +49,7 @@ class Project(Interface):
 class Execution(Interface):
     kind: str = "Execution"
     seed: int = Field(default_factory=generate_seed)
-    resources: Optional[Dict] = None
+    resources: Optional[dict] = None
 
 
 class Schedule(Interface):
