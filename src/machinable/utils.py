@@ -1,8 +1,9 @@
 import types
 from types import ModuleType
-from typing import Any, Callable, List, Mapping, Optional, Tuple, Union
+from typing import Any, Callable, List, Optional, Tuple, Union
 
 import sys
+from collections.abc import Mapping
 
 if sys.version_info >= (3, 11):
     from typing import Self
@@ -94,7 +95,7 @@ def is_directory_version(version: VersionType) -> bool:
     return False
 
 
-def joinpath(filepath: Union[str, List[str]]) -> str:
+def joinpath(filepath: Union[str, list[str]]) -> str:
     if isinstance(filepath, str):
         return filepath
 
@@ -215,7 +216,7 @@ def generate_nickname(categories=None, glue="_"):
 
 
 def load_file(
-    filepath: Union[str, List[str]],
+    filepath: Union[str, list[str]],
     default: Any = sentinel,
     opener=open,
     **opener_kwargs,
@@ -265,7 +266,7 @@ def load_file(
 
 
 def save_file(
-    filepath: Union[str, List[str]],
+    filepath: Union[str, list[str]],
     data: Any,
     makedirs: Union[bool, Callable] = True,
     opener=open,
@@ -388,7 +389,7 @@ def find_subclass_in_module(
     return default
 
 
-def find_installed_extensions(key: str) -> List[Tuple[str, ModuleType]]:
+def find_installed_extensions(key: str) -> list[tuple[str, ModuleType]]:
     return [
         (module.name, module.load())
         for module in importlib_metadata.entry_points().get(

@@ -190,7 +190,7 @@ def test_rerepeated_execution(tmp_storage):
     project = Project("./tests/samples/project").__enter__()
 
     class NoScope(Scope):
-        def __call__(self) -> Dict:
+        def __call__(self) -> dict:
             return {"random": random.randint(0, 99999)}
 
     # first execution

@@ -12,7 +12,7 @@ class Aimstack(Storage):
         repo: str = "./storage"
         system_tracking_interval: Optional[int] = None
         log_system_params: Optional[bool] = False
-        include: List[str] = Field(
+        include: list[str] = Field(
             default_factory=lambda: ["machinable.component"]
         )
 

@@ -4,7 +4,7 @@
 
 # Unreleased
 
-No current changes
+- Drop support for Python 3.8
 
 # v4.6.3
 

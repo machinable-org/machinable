@@ -18,7 +18,7 @@ class _ModelPrototype(BaseModel):
     pass
 
 
-def from_element(element: "Element") -> Tuple[dict, Optional[BaseModel]]:
+def from_element(element: "Element") -> tuple[dict, Optional[BaseModel]]:
     if not isclass(element):
         element = element.__class__
 
@@ -44,7 +44,7 @@ def from_element(element: "Element") -> Tuple[dict, Optional[BaseModel]]:
     return asdict(config()), None
 
 
-def match_method(definition: str) -> Optional[Tuple[str, str]]:
+def match_method(definition: str) -> Optional[tuple[str, str]]:
     fn_match = re.match(r"(?P<method>\w+)\s?\((?P<args>.*)\)", definition)
     if fn_match is None:
         return None
