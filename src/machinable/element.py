@@ -10,6 +10,8 @@ if sys.version_info >= (3, 11):
 else:
     from typing_extensions import Self
 
+import inspect
+
 import arrow
 import dill as pickle
 import machinable
@@ -179,6 +181,27 @@ def extract(
     return compact_element[0], normversion(compact_element[1:])
 
 
+def extend(
+    module: Union[str, "Element", collections.abc.Iterable, None] = None,
+    version: VersionType = None,
+):
+    if module is None or isinstance(module, str):
+        # default
+        return module, version
+
+    if inspect.isclass(module):
+        # in-session
+        return module, version
+
+    if isinstance(module, Element):
+        # object instance
+        return module.module, module.version() + normversion(version)
+
+    # iterable
+    m, v = extract(module)
+    return m, normversion(v) + normversion(version)
+
+
 def equaljson(a: Any, b: Any) -> bool:
     return json.dumps(a, sort_keys=True, default=serialize) == json.dumps(
         b, sort_keys=True, default=serialize
@@ -220,7 +243,7 @@ def instantiate(
         ) from _ex
 
 
-_CONNECTIONS = collections.defaultdict(lambda: [])
+_CONNECTIONS = collections.defaultdict(list)
 
 
 class Element(Mixin, Jsonable):

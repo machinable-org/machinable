@@ -9,6 +9,7 @@ from machinable.element import (
     compact,
     defaultversion,
     equalversion,
+    extend,
     extract,
     normversion,
     transfer_to,
@@ -337,6 +338,30 @@ def test_equalversion():
     assert not equalversion(
         ({"a": 1, "b": 2}, "test"), ("test", {"b": 2, "a": 1})
     )
+
+
+def test_extend():
+    assert extend("test") == ("test", None)
+    assert extend(Element) == (Element, None)
+    e = Element()
+    assert extend(e) == ("machinable.element", [])
+    assert extend(e, ["test"]) == ("machinable.element", ["test"])
+
+    assert extend(["t", {"version": True}]) == ("t", [{"version": True}])
+    assert extend(["t", {"a": "b"}], {"c": "d"}) == (
+        "t",
+        [{"a": "b"}, {"c": "d"}],
+    )
+    assert extend(["t", "a", "b"], "c") == ("t", ["a", "b", "c"])
+
+    with pytest.raises(ValueError):
+        extend(["t", ["a", "b"]], {"test"})
+
+    with pytest.raises(ValueError):
+        extend([], {"test"})
+
+    with pytest.raises(ValueError):
+        extend([{"not": "str"}], {"test"})
 
 
 def test_uuid_to_id():

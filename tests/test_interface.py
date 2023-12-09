@@ -10,6 +10,15 @@ from machinable.utils import load_file
 def test_interface_get():
     assert isinstance(get(), Interface)
     assert isinstance(get("machinable.schedule"), Schedule)
+    # extensions
+    a = Interface({"a": "a", "one": 1})
+    b = get(a, {"a": "b"})
+    assert b.config.a == "b"
+    assert b.config.one == 1
+    assert get(["machinable.interface", {"a": "a"}], [None]).config.a == "a"
+    assert (
+        get(["machinable.interface", {"a": "a"}], [{"a": "b"}]).config.a == "b"
+    )
 
 
 def test_interface_to_directory(tmp_path):

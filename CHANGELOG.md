@@ -4,7 +4,7 @@
 
 # Unreleased
 
-No current changes
+- Support element list or instance in `get` for easy extension
 
 # v4.6.3
 

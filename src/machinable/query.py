@@ -1,5 +1,5 @@
 from machinable.collection import InterfaceCollection
-from machinable.element import normversion
+from machinable.element import extend, normversion
 from machinable.interface import Interface
 from machinable.types import Optional, Union, VersionType
 
@@ -11,6 +11,7 @@ class Query:
         version: VersionType = None,
         **kwargs,
     ) -> Interface:
+        module, version = extend(module, version)
         return Interface.get(module, version, **kwargs)
 
     # modifiers
@@ -21,6 +22,7 @@ class Query:
         version: VersionType = None,
         **kwargs,
     ) -> "InterfaceCollection":
+        module, version = extend(module, version)
         return Interface.find(module, version, **kwargs)
 
     def new(
@@ -29,6 +31,7 @@ class Query:
         version: VersionType = None,
         **kwargs,
     ) -> Interface:
+        module, version = extend(module, version)
         return Interface.make(module, version, **kwargs)
 
     def or_none(
@@ -37,6 +40,7 @@ class Query:
         version: VersionType = None,
         **kwargs,
     ) -> Optional[Interface]:
+        module, version = extend(module, version)
         existing = Interface.find(module, version, **kwargs)
         if existing:
             return existing[-1]
@@ -49,6 +53,7 @@ class Query:
         version: VersionType = None,
         **kwargs,
     ) -> Interface:
+        module, version = extend(module, version)
         existing = Interface.find(module, version, **kwargs)
         if existing:
             return existing[-1]
