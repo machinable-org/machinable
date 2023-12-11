@@ -196,27 +196,34 @@ class Component(Interface):
 
         return cached
 
-    def dispatch_code(self, inline: bool = True) -> Optional[str]:
-        connections = [f"Project('{Project.get().path()}').__enter__()"]
+    def dispatch_code(
+        self,
+        inline: bool = True,
+        project_directory: Optional[str] = None,
+        python: Optional[str] = None,
+    ) -> Optional[str]:
+        if project_directory is None:
+            project_directory = Project.get().path()
+        if python is None:
+            python = sys.executable
+        lines = ["from machinable import Project, Element, Component"]
+        # context
+        lines.append(f"Project('{project_directory}').__enter__()")
         for kind, elements in connected_elements.items():
             if kind in ["Project", "Execution"]:
                 continue
             for element in elements:
                 jn = element.as_json().replace('"', '\\"').replace("'", "\\'")
-                connections.append(f"Element.from_json('{jn}').__enter__()")
-        context = "\n".join(connections)
-        code = f"""
-        from machinable import Project, Element, Component
-        {context}
-        component__ = Component.find_by_id('{self.uuid}')
-        component__.dispatch()
-        """
+                lines.append(f"Element.from_json('{jn}').__enter__()")
+        # dispatch
+        lines.append(f"component__ = Component.find_by_id('{self.uuid}')")
+        lines.append("component__.dispatch()")
 
         if inline:
-            code = code.replace("\n        ", ";")[1:-1]
-            return f'{sys.executable} -c "{code}"'
+            code = ";".join(lines)
+            return f'{python} -c "{code}"'
 
-        return code.replace("        ", "")[1:-1]
+        return "\n".join(lines)
 
     # life cycle
 

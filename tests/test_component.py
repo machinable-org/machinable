@@ -1,6 +1,7 @@
 import os
 import stat
 import subprocess
+import sys
 
 import pytest
 from machinable import (
@@ -187,6 +188,13 @@ def test_component_export(tmp_storage):
     c = EscapeTest().commit()
     assert c.config.test
     exec(c.dispatch_code(inline=False))
+
+    assert c.dispatch_code(inline=True).find("\n") == -1
+
+    out = c.dispatch_code(inline=True).replace(f'{sys.executable} -c "', "")[
+        :-1
+    ]
+    exec(out)
 
 
 def test_component_predicates(tmp_storage):

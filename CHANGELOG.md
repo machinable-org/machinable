@@ -5,6 +5,7 @@
 # Unreleased
 
 - Support element list or instance in `get` for easy extension
+- Configurable project and python in component dispatch code
 
 # v4.6.3
 
