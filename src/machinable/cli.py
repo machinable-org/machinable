@@ -105,12 +105,16 @@ def main(args: Optional[List] = None):
         print(version)
         return 0
 
-    if action == "get":
+    if action.startswith("get"):
+        get = machinable.get
+        if action != "get":
+            get = getattr(get, action.split(".")[-1])
+
         elements, methods = parse(args)
         contexts = []
         component = None
         for module, *version in elements:
-            element = machinable.get(module, version)
+            element = get(module, version)
             contexts.append(element.__enter__())
             if isinstance(element, machinable.Component):
                 component = element
