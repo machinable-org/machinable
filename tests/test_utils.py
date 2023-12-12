@@ -192,3 +192,22 @@ def test_joinpath():
     assert utils.joinpath([e.id, "b"]) == f"{e.id}/b"
     assert utils.joinpath(["a", ""]) == "a/"
     assert utils.joinpath([None, "a", None, "b"]) == "a/b"
+
+
+def test_chmodx(tmp_path):
+    script = utils.save_file(str(tmp_path / "test.sh"), 'echo "HELLO"')
+    assert not os.access(script, os.X_OK)
+    utils.chmodx(script)
+    assert os.access(script, os.X_OK)
+
+
+def test_run_and_stream(tmp_path):
+    script = utils.chmodx(
+        utils.save_file(str(tmp_path / "test.sh"), 'echo "HELLO"')
+    )
+
+    o = []
+    utils.run_and_stream(
+        script, shell=True, stdout_handler=lambda x: o.append(x)
+    )
+    assert o[0] == "HELLO\n"

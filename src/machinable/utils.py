@@ -2,6 +2,7 @@ import types
 from types import ModuleType
 from typing import Any, Callable, List, Mapping, Optional, Tuple, Union
 
+import stat
 import sys
 
 if sys.version_info >= (3, 11):
@@ -18,6 +19,8 @@ import re
 import string
 import subprocess
 import sys
+from collections import deque
+from concurrent.futures import ThreadPoolExecutor
 from importlib import metadata as importlib_metadata
 from keyword import iskeyword
 from pathlib import Path
@@ -476,6 +479,47 @@ def unflatten_dict(
         return flat
 
     return d
+
+
+def run_and_stream(
+    args,
+    *,
+    stdout_handler: Callable = print,
+    stderr_handler: Callable = print,
+    check: bool = True,
+    text: bool = True,
+    env: Optional[dict] = sentinel,
+    **kwargs,
+) -> int:
+    if env is sentinel:
+        # workaround, see https://stackoverflow.com/a/60070753
+        env = os.environ
+
+    with subprocess.Popen(
+        args,
+        text=text,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        **kwargs,
+    ) as process:
+        with ThreadPoolExecutor(2) as pool:
+
+            def _st(stream, handler):
+                # reduced memory iteration
+                deque((handler(line) for line in stream), maxlen=0)
+
+            pool.submit(_st, process.stdout, stdout_handler)
+            pool.submit(_st, process.stderr, stderr_handler)
+        exit_code = process.wait()
+        if check and exit_code:
+            raise subprocess.CalledProcessError(exit_code, process.args)
+    return exit_code
+
+
+def chmodx(filepath: str) -> str:
+    st = os.stat(filepath)
+    os.chmod(filepath, st.st_mode | stat.S_IEXEC)
+    return filepath
 
 
 def get_diff(repository: str) -> Optional[str]:
