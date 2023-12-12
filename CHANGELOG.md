@@ -7,6 +7,7 @@
 - Support element list or instance in `get` for easy extension
 - Configurable project and python in component dispatch code
 - Adds shell helpers `utils.run_and_stream` and `utils.chmodx`
+- Add get action to CLI to closely match Python API
 
 # v4.6.3
 

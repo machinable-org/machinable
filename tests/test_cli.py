@@ -5,24 +5,26 @@ from machinable.cli import main
 
 
 def test_cli_main(capfd, tmp_storage):
-    # main
-    assert main(["--version"]) == 0
+    # version
+    assert main(["version"]) == 0
     out, err = capfd.readouterr()
     assert out == get_version() + "\n"
 
+    # get
     with Project("tests/samples/project"):
-        main(["hello", "--launch"])
+        main(["get", "hello", "--launch"])
         out, err = capfd.readouterr()
         assert out == "Hello World!\n"
-        main(["hello", "name=Test", "--launch"])
+        main(["get", "hello", "name=Test", "--launch"])
         out, err = capfd.readouterr()
         assert out == "Hello Test!\n"
-        main(["hello", "name=Twice", "--launch", "--__call__"])
+        main(["get", "hello", "name=Twice", "--launch", "--__call__"])
         out, err = capfd.readouterr()
         assert out == "Hello Twice!\nHello Twice!\n"
 
+    # help
     assert main([]) == 0
-    assert main(["--help"]) == 0
+    assert main(["help"]) == 0
 
 
 def test_cli_from_cli():
@@ -48,6 +50,6 @@ def test_cli_to_cli():
 
 
 def test_cli_installation():
-    assert os.system("machinable --help") == 0
-    assert os.system("machinable --version") == 0
+    assert os.system("machinable help") == 0
+    assert os.system("machinable version") == 0
     assert os.WEXITSTATUS(os.system("machinable --invalid")) == 128

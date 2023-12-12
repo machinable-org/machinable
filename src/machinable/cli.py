@@ -73,43 +73,62 @@ def main(args: Optional[List] = None):
             # user implemented CLI, forward exit code
             return args
 
-    elements, methods = parse(args)
+    if len(args) == 0:
+        print("\nhelp")
+        print("\nversion")
+        print("\nget")
+        return 0
 
-    if len(elements) == 0 and len(methods) <= 1:
-        method = methods[0] if len(methods) == 1 else None
-        if method == "version":
-            version = machinable.get_version()
-            print(version)
-            return 0
+    action, args = args[0], args[1:]
 
-        if method == "help" or method is None:
-            print("\nmachinable [element_module...] [version...] --method")
+    if action == "help":
+        h = "get"
+        if len(args) > 0:
+            h = args[0]
+
+        if h == "get":
+            print("\nmachinable get [element_module...] [version...] --method")
             print("\nExample:")
             print(
-                "\tmachinable my_component ~ver arg=1 nested.arg=2 --launch\n"
+                "\tmachinable get my_component ~ver arg=1 nested.arg=2 --launch\n"
             )
             return 0
+        elif h == "version":
+            print("\nmachinable version")
+            return 0
+        else:
+            print("Unrecognized option")
+            return 128
 
-        print("Invalid argument: ", method)
-        return 128
+    if action == "version":
+        version = machinable.get_version()
+        print(version)
+        return 0
 
-    contexts = []
-    component = None
-    for module, *version in elements:
-        element = machinable.get(module, version)
-        contexts.append(element.__enter__())
-        if isinstance(element, machinable.Component):
-            component = element
+    if action == "get":
+        elements, methods = parse(args)
+        contexts = []
+        component = None
+        for module, *version in elements:
+            element = machinable.get(module, version)
+            contexts.append(element.__enter__())
+            if isinstance(element, machinable.Component):
+                component = element
 
-    if component is None:
-        raise ValueError("You have to provide an component")
+        if component is None:
+            raise ValueError("You have to provide an component")
 
-    for method in methods:
-        # check if cli_{method} exists before falling back on {method}
-        target = getattr(component, f"cli_{method}", getattr(component, method))
-        target()
+        for method in methods:
+            # check if cli_{method} exists before falling back on {method}
+            target = getattr(
+                component, f"cli_{method}", getattr(component, method)
+            )
+            target()
 
-    for context in reversed(contexts):
-        context.__exit__()
+        for context in reversed(contexts):
+            context.__exit__()
 
-    return 0
+        return 0
+
+    print("Invalid argument")
+    return 128
