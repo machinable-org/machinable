@@ -466,15 +466,6 @@ class Element(Mixin, Jsonable):
                 if self.__model__.config is not None:
                     self._config = OmegaConf.create(self.__model__.config)
                 else:
-                    # register resolvers
-                    for name in dir(self):
-                        if name.startswith("resolver_") and len(name) > 9:
-                            method = getattr(self, name, None)
-                            if callable(method):
-                                OmegaConf.register_new_resolver(
-                                    name=name[9:], resolver=method, replace=True
-                                )
-
                     # config method resolver
                     OmegaConf.register_new_resolver(
                         name="config_method",
@@ -550,6 +541,8 @@ class Element(Mixin, Jsonable):
 
                     # save to model
                     self.__model__.config = OmegaConf.to_container(self._config)
+
+                    OmegaConf.clear_resolver("config_method")
             except Exception as _ex:
                 raise ConfigurationError(str(_ex)) from _ex
 
