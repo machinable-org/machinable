@@ -6,7 +6,7 @@ from uuid_extensions import uuid7, uuid_to_datetime
 
 
 class Element(BaseModel):
-    uuid: str = Field(default_factory=lambda: uuid7(as_type="hex"))
+    uuid: str = Field(default_factory=lambda: uuid7(as_type="str")[::-1])
     kind: str = "Element"
     module: Optional[str] = None
     version: List[Union[str, Dict]] = []
@@ -16,7 +16,7 @@ class Element(BaseModel):
 
     @property
     def timestamp(self) -> float:
-        return uuid_to_datetime(self.uuid).timestamp()
+        return uuid_to_datetime(self.uuid[::-1]).timestamp()
 
 
 class Storage(Element):

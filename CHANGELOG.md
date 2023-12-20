@@ -2,6 +2,10 @@
 
 <!-- Please add changes under the Unreleased section that reads 'No current changes' otherwise -->
 
+# Unreleased
+
+- Use reversed uuid7 non-hex notation for easier tab-complete
+
 # v4.7.0
 
 - Support element list or instance in `get` for easy extension

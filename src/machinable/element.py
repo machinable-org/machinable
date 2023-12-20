@@ -281,8 +281,7 @@ class Element(Mixin, Jsonable):
 
     @property
     def id(self) -> str:
-        # use last 6 characters since initial characters represent the timestamp
-        return self.uuid[-6:]
+        return self.uuid[:6]
 
     @property
     def timestamp(self) -> float:
