@@ -191,6 +191,14 @@ def test_interface_modifiers(tmp_storage):
     with pytest.raises(ValueError):
         get.or_fail("interface.dummy", {"a": 2})
 
+    # preferring cached
+    d1 = get.new("dummy").commit()
+    d2 = get.new("dummy").launch()
+    d3 = get.new("dummy").commit()
+    assert get("dummy") == d3
+    assert get.prefer_cached("dummy") == d2
+    assert not get.prefer_cached("dummy", {"a": -100}).is_committed()
+
     project.__exit__()
 
 

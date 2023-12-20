@@ -61,3 +61,19 @@ class Query:
         raise ValueError(
             f"Could not find {module}{normversion(version)} ({kwargs})"
         )
+
+    def prefer_cached(
+        self,
+        module: Union[None, str, Interface] = None,
+        version: VersionType = None,
+        **kwargs,
+    ) -> Optional[Interface]:
+        module, version = extend(module, version)
+        existing = Interface.find(module, version, **kwargs)
+        if existing:
+            for i in range(len(existing) - 1):
+                if existing[i].cached():
+                    return existing[i]
+            return existing[-1]
+
+        return Interface.make(module, version, **kwargs)
