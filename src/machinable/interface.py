@@ -83,7 +83,9 @@ class Relation:
             )
 
             if related is not None:
-                related = [Interface.find_by_id(r.uuid) for r in related]
+                related = [
+                    Interface.find_by_id(r.uuid, fetch=False) for r in related
+                ]
 
                 if self.multiple is False:
                     related = related[0] if len(related) > 0 else None
@@ -330,34 +332,35 @@ class Interface(Element):
         return os.path.exists(self.local_directory())
 
     @classmethod
-    def find_by_id(cls, uuid: str) -> Optional["Interface"]:
+    def find_by_id(cls, uuid: str, fetch: bool = True) -> Optional["Interface"]:
         from machinable.index import Index
 
         index = Index.get()
 
-        if not index.find_by_id(uuid):
+        model = index.find_by_id(uuid)
+
+        if not model:
             return None
+
+        if fetch is False and not model.module.startswith("__session__"):
+            return cls.from_model(model)
 
         local_directory = index.local_directory(uuid)
 
         if not os.path.exists(local_directory):
             # try to fetch storage
-            from machinable.storage import Storage
+            from machinable.storage import fetch
 
-            available = False
-            for storage in Storage.connected():
-                if storage.retrieve(uuid, local_directory):
-                    available = True
-                    break
-
-            if not available:
+            if not fetch(uuid, local_directory):
                 return None
 
         return cls.from_directory(local_directory)
 
     @classmethod
-    def find_many_by_id(cls, uuids: List[str]) -> "InterfaceCollection":
-        return cls.collect([cls.find_by_id(uuid) for uuid in uuids])
+    def find_many_by_id(
+        cls, uuids: List[str], fetch: bool = True
+    ) -> "InterfaceCollection":
+        return cls.collect([cls.find_by_id(uuid, fetch) for uuid in uuids])
 
     @classmethod
     def find(
@@ -374,7 +377,7 @@ class Interface(Element):
                 context["predicate"].update(scope())
             return cls.collect(
                 [
-                    cls.find_by_id(interface.uuid)
+                    cls.find_by_id(interface.uuid, fetch=False)
                     for interface in Index.get().find_by_context(context)
                 ]
             ).filter(lambda i: i.matches(context))
@@ -390,7 +393,7 @@ class Interface(Element):
 
         return cls.collect(
             [
-                cls.find_by_id(interface.uuid)
+                cls.find_by_id(interface.uuid, fetch=False)
                 for interface in Index.get().find_by_context(context)
             ]
         ).filter(lambda i: i.matches(context))
@@ -437,6 +440,26 @@ class Interface(Element):
                     )
 
         return self
+
+    def fetch(
+        self, directory: Optional[str] = None, force: bool = False
+    ) -> bool:
+        if "fetched" in self._cache and not force:
+            return True
+
+        if directory is None:
+            from machinable.index import Index
+
+            directory = Index.get().local_directory(self.uuid)
+
+        if not os.path.exists(directory) or force:
+            from machinable.storage import fetch
+
+            if not fetch(self.uuid, directory):
+                return False
+
+        self._cache["fetched"] = True
+        return True
 
     def local_directory(self, *append: str, create: bool = False) -> str:
         from machinable.index import Index

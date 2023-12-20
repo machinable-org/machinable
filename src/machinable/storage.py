@@ -38,3 +38,13 @@ class Storage(Interface):
     def retrieve(self, uuid: str, local_directory: str) -> bool:
         ...
         return False
+
+
+def fetch(uuid: str, directory: str) -> bool:
+    available = False
+    for storage in Storage.connected():
+        if storage.retrieve(uuid, directory):
+            available = True
+            break
+
+    return available

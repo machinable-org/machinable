@@ -4,6 +4,7 @@
 
 # Unreleased
 
+- Use index and lazy directory fetch for faster interface retrieval
 - Add storage relation symlink for easier directory navigation
 - Use reversed uuid7 non-hex notation for easier tab-complete
 

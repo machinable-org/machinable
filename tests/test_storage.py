@@ -25,7 +25,7 @@ def test_storage(tmp_path):
             shutil.copytree(
                 os.path.join(self.config.directory, uuid),
                 local_directory,
-                # dirs_exist_ok=True, -> not available in Python 3.7
+                dirs_exist_ok=True,
             )
 
             return True
@@ -53,9 +53,11 @@ def test_storage(tmp_path):
     assert not os.path.exists(interface1.local_directory())
     assert not os.path.exists(interface2.local_directory())
     interface1_reload = get("dummy")
+    interface1_reload.fetch()
     assert os.path.exists(interface1_reload.local_directory())
     assert not os.path.exists(interface2.local_directory())
     interface2_reload = get("dummy", {"a": 5})
+    interface2_reload.fetch()
     assert os.path.exists(interface2.local_directory())
 
     project.__exit__()
