@@ -139,8 +139,11 @@ belongs_to_many = _relation(BelongsToMany)
 
 def _uuid_symlink(directory, uuid):
     dst = os.path.join(directory, uuid[:6])
-    os.makedirs(dst, exist_ok=True)
-    os.symlink("../../" + uuid, os.path.join(dst, "link"))
+    try:
+        os.makedirs(dst, exist_ok=True)
+        os.symlink("../../" + uuid, os.path.join(dst, "link"))
+    except OSError:
+        pass
 
     return uuid
 

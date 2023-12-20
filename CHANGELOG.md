@@ -4,6 +4,10 @@
 
 # Unreleased
 
+- Ignore errors during storage symlink creation
+
+# v4.8.0
+
 - Only unflatten version at the top-level by default
 - Adds `get.prefer_cached` modifier
 - Uses index and lazy directory fetch for faster interface retrieval
