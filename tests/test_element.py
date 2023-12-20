@@ -188,6 +188,14 @@ def test_element_config():
     # flattening
     assert Dummy({"beta.test": False}).config.beta.test is False
 
+    class T(Element):
+        pass
+
+    t = T({"a.b": {"c.d": 1}, "q": 2, "f.g.p": -1})
+    assert t.config.a.b["c.d"] == 1
+    assert t.config.q == 2
+    assert t.config.f.g.p == -1
+
     # config methods
 
     class Methods(Element):

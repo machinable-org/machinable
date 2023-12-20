@@ -4,6 +4,7 @@
 
 # Unreleased
 
+- Only unflatten version at the top-level by default
 - Adds `get.prefer_cached` modifier
 - Uses index and lazy directory fetch for faster interface retrieval
 - Adds storage relation symlink for easier directory navigation

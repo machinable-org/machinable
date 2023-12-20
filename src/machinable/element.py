@@ -92,7 +92,7 @@ def normversion(version: VersionType = None) -> List[Union[str, dict]]:
         if isinstance(item, collections.abc.Mapping):
             # convert to dict and unflatten
             return unflatten_dict(
-                OmegaConf.to_container(OmegaConf.create(item))
+                OmegaConf.to_container(OmegaConf.create(item)), recursive=False
             )
 
         return item
