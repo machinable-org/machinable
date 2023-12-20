@@ -135,6 +135,14 @@ has_many = _relation(HasMany)
 belongs_to_many = _relation(BelongsToMany)
 
 
+def _uuid_symlink(directory, uuid):
+    dst = os.path.join(directory, uuid[:6])
+    os.makedirs(dst, exist_ok=True)
+    os.symlink("../../" + uuid, os.path.join(dst, "link"))
+
+    return uuid
+
+
 class Interface(Element):
     kind = "Interface"
     default = None
@@ -415,11 +423,16 @@ class Interface(Element):
         if relations:
             for k, v in self.__related__.items():
                 if hasattr(v, "uuid"):
-                    save_file([directory, "related", k], v.uuid)
+                    save_file(
+                        [directory, "related", k],
+                        _uuid_symlink(directory, v.uuid),
+                    )
                 elif v:
                     save_file(
                         [directory, "related", k],
-                        "\n".join([i.uuid for i in v]),
+                        "\n".join(
+                            [_uuid_symlink(directory, i.uuid) for i in v]
+                        ),
                         mode="w",
                     )
 

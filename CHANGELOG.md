@@ -4,6 +4,7 @@
 
 # Unreleased
 
+- Add storage relation symlink for easier directory navigation
 - Use reversed uuid7 non-hex notation for easier tab-complete
 
 # v4.7.0

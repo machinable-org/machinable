@@ -192,3 +192,14 @@ def test_interface_modifiers(tmp_storage):
         get.or_fail("interface.dummy", {"a": 2})
 
     project.__exit__()
+
+
+def test_symlink_relations(tmp_storage):
+    project = Project("./tests/samples/project").__enter__()
+
+    component = get("dummy").launch()
+    assert os.path.isfile(
+        component.execution.component_directory("link", ".machinable")
+    )
+
+    project.__exit__()
