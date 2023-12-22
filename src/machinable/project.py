@@ -284,7 +284,7 @@ class Project(Interface):
             module = "__session__" + element_class.__name__
         else:
             # import from project
-            if not isinstance(element_class, Element):
+            if element_class is None:
                 element_class = import_element(self.path(), module, base_class)
 
         element = instantiate(
