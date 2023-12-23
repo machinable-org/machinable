@@ -12,6 +12,9 @@ class TestProject(Project):
         if module == "@test":
             return "basic", None
 
+        if module == "dummy_version_extend":
+            return ["dummy", {"a": 100}], None
+
         return super().on_resolve_element(module)
 
     def get_host_info(self):

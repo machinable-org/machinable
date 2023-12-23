@@ -12,7 +12,13 @@ import urllib.request
 
 import machinable
 from machinable import schema
-from machinable.element import Element, get_lineage, instantiate, normversion
+from machinable.element import (
+    Element,
+    extend,
+    get_lineage,
+    instantiate,
+    normversion,
+)
 from machinable.errors import ConfigurationError
 from machinable.interface import Interface
 from machinable.types import VersionType
@@ -279,6 +285,8 @@ class Project(Interface):
         **constructor_kwargs,
     ) -> "Element":
         module, element_class = self.provider().on_resolve_element(module)
+
+        module, version = extend(module, version)
 
         if not isinstance(module, str):
             # interactive session element

@@ -46,4 +46,7 @@ def test_project_events(tmp_storage):
     with pytest.raises(ValueError):
         Component.instance("!invalid")
 
+    # extension
+    assert Component.instance("dummy_version_extend").config.a == 100
+
     project.__exit__()
