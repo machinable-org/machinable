@@ -1,7 +1,6 @@
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
 
 import getpass
-import hashlib
 import importlib
 import os
 import platform
@@ -334,15 +333,8 @@ class Project(Interface):
 
         remote = remotes[module]
         directory = self.path("_machinable/remotes")
-
-        # compute hash that conforms with PEP8
-        hash_object = hashlib.sha256(module.encode())
-        hex_dig = hash_object.hexdigest()
-        hex_dig = "".join(e for e in hex_dig if e.isalnum())
-        if not hex_dig[0].isalpha():
-            hex_dig = "_" + hex_dig
-
-        filename = os.path.join(directory, hex_dig + ".py")
+        remote_module = module.replace(".", "_")
+        filename = os.path.join(directory, remote_module + ".py")
 
         # obtain from remote if not existing
         if not os.path.exists(filename):
@@ -350,7 +342,7 @@ class Project(Interface):
 
             if remote.startswith("url+"):
                 # download
-                with urllib.request.urlopen(remote[3:]) as response, open(
+                with urllib.request.urlopen(remote[4:]) as response, open(
                     filename, "wb"
                 ) as out_file:
                     data = response.read()
@@ -372,7 +364,8 @@ class Project(Interface):
 
         try:
             element_class = find_subclass_in_module(
-                import_from_directory(hex_dig, directory, or_fail=True), Element
+                import_from_directory(remote_module, directory, or_fail=True),
+                Element,
             )
             if element_class is None:
                 raise ModuleNotFoundError(
