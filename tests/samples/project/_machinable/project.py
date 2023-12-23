@@ -12,9 +12,16 @@ class TestProject(Project):
         if module == "@test":
             return "basic", None
 
-        return module, None
+        return super().on_resolve_element(module)
 
     def get_host_info(self):
         info = super().get_host_info()
         info["dummy"] = "data"
         return info
+
+    def on_resolve_remotes(self):
+        return {
+            "!hello": "file+" + self.path("hello.py"),
+            "!hello-link": "link+" + self.path("hello.py"),
+            "!invalid": "test",
+        }
