@@ -25,7 +25,7 @@ def test_slurm_execution(tmp_path):
     if directory is not None:
         tmp_path = Path(directory) / component.uuid
     with Index(str(tmp_path)):
-        with Project("docs/examples/slurm-and-mpi-execution"):
+        with Project("docs/examples/slurm-execution"):
             # standard submission
             with Execution.get(
                 "slurm",

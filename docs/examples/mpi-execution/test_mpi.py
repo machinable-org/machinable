@@ -23,7 +23,7 @@ def test_mpi_execution(tmp_path):
     with Index(
         {"directory": str(tmp_path), "database": str(tmp_path / "test.sqlite")}
     ):
-        with Project("docs/examples/slurm-and-mpi-execution"):
+        with Project("docs/examples/mpi-execution"):
             component = MpiExample()
             with Execution.get("mpi"):
                 component.launch()

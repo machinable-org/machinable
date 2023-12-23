@@ -500,6 +500,7 @@ def run_and_stream(
         text=text,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
+        env=env,
         **kwargs,
     ) as process:
         with ThreadPoolExecutor(2) as pool:
@@ -512,7 +513,9 @@ def run_and_stream(
             pool.submit(_st, process.stderr, stderr_handler)
         exit_code = process.wait()
         if check and exit_code:
-            raise subprocess.CalledProcessError(exit_code, process.args)
+            raise subprocess.CalledProcessError(
+                exit_code, process.args, process.stdout, process.stderr
+            )
     return exit_code
 
 

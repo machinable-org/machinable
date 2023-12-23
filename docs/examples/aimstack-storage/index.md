@@ -16,6 +16,6 @@ get("aimstack", {"repo": "./path/to/aim-repo"}).__enter__()
 
 ::: code-group
 
-<<< @/examples/aim-ui-storage/aimstack.py
+<<< @/examples/aimstack-storage/aimstack.py
 
 :::

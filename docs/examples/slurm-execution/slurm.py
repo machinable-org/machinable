@@ -1,10 +1,35 @@
 from typing import Literal, Optional
 
+import os
 import subprocess
+import sys
 import time
 
-from machinable import Execution
+import yaml
+from machinable import Execution, Project
 from machinable.errors import ExecutionFailed
+from machinable.utils import chmodx, run_and_stream
+from pydantic import BaseModel, ConfigDict
+
+
+def yes_or_no() -> bool:
+    choice = input().lower()
+    return {"": True, "yes": True, "y": True, "no": False, "n": False}[choice]
+
+
+def confirm(execution: Execution) -> bool:
+    sys.stdout.write(
+        "\n".join(execution.pending_executables.map(lambda x: x.module))
+    )
+    sys.stdout.write(
+        f"\nSubmitting {len(execution.pending_executables)} jobs ({len(execution.executables)} total). Proceed? [Y/n]: "
+    )
+    if yes_or_no():
+        sys.stdout.write("yes\n")
+        return True
+    else:
+        sys.stdout.write("no\n")
+        return False
 
 
 class Job:
@@ -13,7 +38,7 @@ class Job:
         self.details = self._fetch_details()
 
     def _fetch_details(self) -> dict:
-        cmd = ["scontrol", "show", "job", self.job_id]
+        cmd = ["scontrol", "show", "job", str(self.job_id)]
         result = subprocess.run(cmd, capture_output=True, text=True)
         if result.returncode != 0:
             return None
@@ -56,30 +81,50 @@ class Job:
         return self.details
 
     def cancel(self) -> bool:
-        cmd = ["scancel", self.job_id]
+        cmd = ["scancel", str(self.job_id)]
         result = subprocess.run(cmd, capture_output=True)
         return result.returncode == 0
 
 
 class Slurm(Execution):
-    class Config:
-        mpi: Optional[str] = None
+    class Config(BaseModel):
+        model_config = ConfigDict(extra="forbid")
+
+        nodes: int = 1
+        ranks: int = 1
+        partition: str = "development"
+        preamble: Optional[str] = "mpirun"
         throttle: float = 0.5
         confirm: bool = True
+        copy_project_source: bool = True
+        resume_failed: bool = False
 
     def on_before_dispatch(self):
         if self.config.confirm:
-            print(
-                f"Submitting {len(self.pending_executables)} jobs ({len(self.executables)} total). Proceed? [Y/n]: "
-            )
-            choice = input().lower()
-            return {"": True, "yes": True, "y": True, "no": False, "n": False}[
-                choice
-            ]
+            return confirm(self)
+
+    def on_compute_default_resources(self, executable):
+        resources = {}
+        resources["-p"] = self.config.partition
+        resources["--nodes"] = executable.config.get("nodes", self.config.nodes)
+        resources["-t"] = "2:00:00"
+        resources["--ntasks-per-node"] = executable.config.get(
+            "ranks", self.config.ranks
+        )
+
+        return resources
 
     def __call__(self):
         jobs = {}
         for executable in self.pending_executables:
+            source_code = Project.get().path()
+            if self.config.copy_project_source:
+                print("Copy project source code ...")
+                source_code = self.local_directory(executable.id, "source_code")
+                cmd = ["rsync", "-a", Project.get().path(""), source_code]
+                print(" ".join(cmd))
+                run_and_stream(cmd, check=True)
+
             script = "#!/usr/bin/env bash\n"
 
             # check if job is already launched
@@ -89,6 +134,18 @@ class Slurm(Execution):
                         f"{executable.id} is already launched with job_id={job.job_id}, skipping ..."
                     )
                     continue
+
+            # check if failed
+            if not self.config.resume_failed:
+                if (
+                    executable.executions.filter(
+                        lambda x: x.is_incomplete(executable)
+                    ).count()
+                    > 0
+                ):
+                    raise ExecutionFailed(
+                        f"{executable.module} <{executable.id}> has previously been executed unsuccessfully. Set `resume_failed` to True to allow resubmission."
+                    )
 
             resources = self.computed_resources(executable)
 
@@ -109,8 +166,8 @@ class Slurm(Execution):
             if "--job-name" not in resources:
                 resources["--job-name"] = f"{executable.id}"
             if "--output" not in resources:
-                resources["--output"] = self.local_directory(
-                    executable.id, "output.log"
+                resources["--output"] = os.path.abspath(
+                    self.local_directory(executable.id, "output.log")
                 )
             if "--open-mode" not in resources:
                 resources["--open-mode"] = "append"
@@ -123,46 +180,39 @@ class Slurm(Execution):
                 if v not in [None, True]:
                     line += f"={v}"
                 sbatch_arguments.append(line)
+
             script += "\n".join(sbatch_arguments) + "\n"
 
-            if self.config.mpi:
-                n = int(resources.get("--nodes", 0)) * int(
-                    resources.get("--ntasks-per-node", 0)
-                )
-                if n >= 1:
-                    script += f"{self.config.mpi} -n {n} "
+            if self.config.preamble:
+                script += self.config.preamble
+                if script[-1] != " ":
+                    script += " "
 
-            script += executable.dispatch_code()
+            script += executable.dispatch_code(project_directory=source_code)
+
+            print(f"Submitting job {executable} with resources: ")
+            print(yaml.dump(resources))
 
             # submit to slurm
-            process = subprocess.Popen(
-                ["sbatch"],
-                stdout=subprocess.PIPE,
-                stderr=subprocess.STDOUT,
-                stdin=subprocess.PIPE,
+            script_file = chmodx(
+                self.save_file([executable.id, "slurm.sh"], script)
             )
 
-            process.stdin.write(script.encode("utf8"))
+            cmd = ["sbatch", script_file]
+            print(" ".join(cmd))
 
-            stdoutput, _ = process.communicate()
+            output = subprocess.run(
+                cmd, text=True, check=True, env=os.environ, capture_output=True
+            )
 
-            returncode = process.returncode
-
-            if returncode != 0:
-                raise ExecutionFailed(
-                    self.__repr__(),
-                    returncode,
-                    stdoutput.decode("utf8").strip(),
-                )
-
-            output = stdoutput.decode("utf8").strip()
+            print(output.stdout)
 
             try:
-                job_id = int(output.rsplit(" ", maxsplit=1)[-1])
+                job_id = int(output.stdout.rsplit(" ", maxsplit=1)[-1])
             except ValueError:
                 job_id = False
             print(
-                f"{output}  named `{resources['--job-name']}` for {executable.local_directory()} (output at {resources['--output']})"
+                f"{job_id}  named `{resources['--job-name']}` for {executable.local_directory()} (output at {resources['--output']})"
             )
 
             # save job information
