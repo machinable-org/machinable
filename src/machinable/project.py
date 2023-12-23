@@ -4,9 +4,11 @@ import getpass
 import importlib
 import os
 import platform
+import shutil
 import socket
 import subprocess
 import sys
+import urllib.request
 
 import machinable
 from machinable import schema
@@ -284,7 +286,7 @@ class Project(Interface):
             module = "__session__" + element_class.__name__
         else:
             # import from project
-            if not isinstance(element_class, Element):
+            if element_class is None:
                 element_class = import_element(self.path(), module, base_class)
 
         element = instantiate(
@@ -323,6 +325,65 @@ class Project(Interface):
             "machinable_version": machinable.get_version(),
         }
 
+    def resolve_remotes(self, module: str) -> Optional[Element]:
+        remotes = self.on_resolve_remotes()
+
+        if module not in remotes:
+            return None
+
+        remote = remotes[module]
+        directory = self.path("_machinable/remotes")
+        remote_module = module.replace(".", "_")
+        filename = os.path.join(directory, remote_module + ".py")
+
+        # obtain from remote if not existing
+        if not os.path.exists(filename):
+            os.makedirs(directory, exist_ok=True)
+
+            if remote.startswith("url+"):
+                # download
+                with urllib.request.urlopen(remote[4:]) as response, open(
+                    filename, "wb"
+                ) as out_file:
+                    data = response.read()
+                    out_file.write(data)
+            elif remote.startswith("link+"):
+                # symlink
+                try:
+                    if os.path.islink(filename):
+                        os.remove(filename)
+                    os.symlink(remote[5:], filename)
+                    print(remote[5:])
+                except OSError:
+                    pass
+            elif remote.startswith("file+"):
+                # copy
+                shutil.copy(remote[5:], filename)
+            else:
+                raise ValueError(f"Unknown remote type {remote}")
+
+        try:
+            element_class = find_subclass_in_module(
+                import_from_directory(remote_module, directory, or_fail=True),
+                Element,
+            )
+            if element_class is None:
+                raise ModuleNotFoundError(
+                    "Could not find an element in remote module"
+                )
+            return element_class
+        except ModuleNotFoundError as _ex:
+            raise ValueError(
+                f"Invalid remote import: {remote} for {module} at {filename}"
+            ) from _ex
+
+    def on_resolve_remotes(self) -> Dict[str, str]:
+        """Event triggered during remote resolution
+
+        Return a dictionary of module names and their remote source.
+        """
+        return {}
+
     def on_resolve_element(
         self, module: Union[str, Element]
     ) -> Tuple[Union[str, Element], Optional[Element]]:
@@ -330,6 +391,15 @@ class Project(Interface):
 
         Return altered module and/or resolved Element class to be used instead.
         """
+        if isinstance(module, str):
+            try:
+                return self._cache["on_resolve_element"][module]
+            except KeyError:
+                self._cache.setdefault("on_resolve_element", {})
+                v = module, self.resolve_remotes(module)
+                self._cache["on_resolve_element"][module] = v
+                return v
+
         return module, None
 
     def on_resolve_vendor(

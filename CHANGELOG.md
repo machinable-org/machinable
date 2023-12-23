@@ -4,6 +4,8 @@
 
 # Unreleased
 
+- Resolve remotes during project element import
+- Allow arbitrary classes within on_resolve_element
 - Ignore errors during storage symlink creation
 
 # v4.8.0

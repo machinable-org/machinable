@@ -1,5 +1,7 @@
 import os
+import shutil
 
+import pytest
 from machinable import Component, Project
 
 
@@ -33,5 +35,15 @@ def test_project_events(tmp_storage):
 
     component = Component.instance("dummy")
     component.launch()
+
+    # remotes
+    shutil.rmtree(
+        "tests/samples/project/_machinable/remotes", ignore_errors=True
+    )
+    Component.instance("!hello")()
+    Component.instance("!hello-link")()
+    assert os.path.exists("tests/samples/project/_machinable/remotes")
+    with pytest.raises(ValueError):
+        Component.instance("!invalid")
 
     project.__exit__()
