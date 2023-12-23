@@ -2,7 +2,7 @@
 
 <!-- Please add changes under the Unreleased section that reads 'No current changes' otherwise -->
 
-# Unreleased
+# v4.8.1
 
 - Allow version extension via on_resolve_element
 - Resolve remotes during project element import
