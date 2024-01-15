@@ -2,7 +2,7 @@
 
 <!-- Please add changes under the Unreleased section that reads 'No current changes' otherwise -->
 
-# Unreleased
+# v4.8.2
 
 - Fix issue where extra data from schema is not reloaded from index
 
