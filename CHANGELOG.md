@@ -2,6 +2,10 @@
 
 <!-- Please add changes under the Unreleased section that reads 'No current changes' otherwise -->
 
+# Unreleased
+
+- Fix issue where extra data from schema is not reloaded from index
+
 # v4.8.1
 
 - Allow version extension via on_resolve_element

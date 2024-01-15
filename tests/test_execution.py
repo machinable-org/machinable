@@ -265,3 +265,12 @@ def test_rerepeated_execution(tmp_storage):
     assert len(execution5.executables) == 2
 
     project.__exit__()
+
+
+def test_execution_from_index(tmp_storage):
+    with Project("tests/samples/project"):
+        c = get("exec", resources={"a": 1}).commit()
+        cp = Execution.find_by_id(c.uuid, fetch=False)
+        assert c.seed == c.seed
+        assert c.__model__.resources == cp.__model__.resources
+        assert cp.__model__.resources["a"] == 1

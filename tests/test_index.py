@@ -46,6 +46,7 @@ def test_index_commit(tmp_path):
         "null",
         "[]",
         v.timestamp,
+        "{}",
     )
     assert i.commit(v) is True
     with index.db(i.config.database) as db:

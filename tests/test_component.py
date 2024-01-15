@@ -227,3 +227,11 @@ def test_component_interactive_session(tmp_storage):
     exec(t.dispatch_code(inline=False) + "\nassert component__.is_valid()")
     # retrieval
     assert t == get(T)
+
+
+def test_component_from_index(tmp_storage):
+    with Project("tests/samples/project"):
+        c = Component.make("dummy", {"a": 9}).commit()
+        cp = Component.find_by_id(c.uuid, fetch=False)
+        assert c.seed == c.seed
+        assert c.nickname == cp.nickname

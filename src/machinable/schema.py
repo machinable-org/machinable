@@ -18,6 +18,9 @@ class Element(BaseModel):
     def timestamp(self) -> float:
         return uuid_to_datetime(self.uuid[::-1]).timestamp()
 
+    def extra(self) -> Dict:
+        return {}
+
 
 class Storage(Element):
     kind: str = "Storage"
@@ -41,6 +44,9 @@ class Component(Interface):
     seed: int = Field(default_factory=generate_seed)
     nickname: str = Field(default_factory=generate_nickname)
 
+    def extra(self) -> Dict:
+        return {"seed": self.seed, "nickname": self.nickname}
+
 
 class Project(Interface):
     kind: str = "Project"
@@ -50,6 +56,9 @@ class Execution(Interface):
     kind: str = "Execution"
     seed: int = Field(default_factory=generate_seed)
     resources: Optional[Dict] = None
+
+    def extra(self) -> Dict:
+        return {"seed": self.seed, "resources": self.resources}
 
 
 class Schedule(Interface):
