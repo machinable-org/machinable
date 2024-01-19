@@ -228,6 +228,24 @@ def test_component_interactive_session(tmp_storage):
     # retrieval
     assert t == get(T)
 
+    # redefine
+
+    class T(Component):
+        def extended(self):
+            return True
+
+        def is_valid(self):
+            return True
+
+    rt = get(T)
+    assert rt.extended()
+
+    class TT(T):
+        pass
+
+    rtt = get(TT)
+    assert rtt != rt
+
 
 def test_component_from_index(tmp_storage):
     with Project("tests/samples/project"):

@@ -15,6 +15,7 @@ from typing import Callable
 import os
 from functools import partial
 
+import dill as pickle
 from machinable import errors, schema
 from machinable.collection import Collection, InterfaceCollection
 from machinable.element import _CONNECTIONS as connected_elements
@@ -352,9 +353,9 @@ class Interface(Element):
 
         if not os.path.exists(local_directory):
             # try to fetch storage
-            from machinable.storage import fetch
+            from machinable.storage import fetch as fetch_from_storage
 
-            if not fetch(uuid, local_directory):
+            if not fetch_from_storage(uuid, local_directory):
                 return None
 
         return cls.from_directory(local_directory)
@@ -374,6 +375,8 @@ class Interface(Element):
     ) -> "InterfaceCollection":
         from machinable.index import Index
 
+        index = Index.get()
+
         if module is None:
             context = {"predicate": {}}
             for scope in connected_elements["Scope"]:
@@ -381,7 +384,7 @@ class Interface(Element):
             return cls.collect(
                 [
                     cls.find_by_id(interface.uuid, fetch=False)
-                    for interface in Index.get().find_by_context(context)
+                    for interface in index.find_by_context(context)
                 ]
             ).filter(lambda i: i.matches(context))
 
@@ -394,12 +397,28 @@ class Interface(Element):
         if context is None:
             return cls.collect([])
 
-        return cls.collect(
-            [
-                cls.find_by_id(interface.uuid, fetch=False)
-                for interface in Index.get().find_by_context(context)
-            ]
-        ).filter(lambda i: i.matches(context))
+        found = []
+
+        for model in index.find_by_context(context):
+            if not model.module.startswith("__session__"):
+                found.append(cls.from_model(model))
+                continue
+
+            local_directory = index.local_directory(model.uuid)
+            if not os.path.exists(local_directory):
+                from machinable.storage import fetch as fetch_from_storage
+
+                if not fetch_from_storage(model.uuid, local_directory):
+                    continue
+
+            # if in-session object, we need to update the pickled update
+            #  since it might have changed
+            assert not isinstance(module, str)
+            save_file([local_directory, "dump.p"], pickle.dumps(module))
+
+            found.append(cls.from_directory(local_directory))
+
+        return cls.collect(found).filter(lambda i: i.matches(context))
 
     @classmethod
     def from_directory(cls, directory: str) -> Self:
