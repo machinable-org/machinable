@@ -2,6 +2,10 @@
 
 <!-- Please add changes under the Unreleased section that reads 'No current changes' otherwise -->
 
+# Unreleased
+
+- Improved Globus storage example
+
 # v4.8.3
 
 - Ensure that committed in-session interface code is being updated

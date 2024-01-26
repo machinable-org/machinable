@@ -466,6 +466,9 @@ class Interface(Element):
     def fetch(
         self, directory: Optional[str] = None, force: bool = False
     ) -> bool:
+        if not self.is_committed():
+            return False
+
         if "fetched" in self._cache and not force:
             return True
 
