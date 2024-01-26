@@ -2,7 +2,7 @@
 
 <!-- Please add changes under the Unreleased section that reads 'No current changes' otherwise -->
 
-# Unreleased
+# v4.8.4
 
 - Adds Interface.related()
 - Improved Globus storage example
