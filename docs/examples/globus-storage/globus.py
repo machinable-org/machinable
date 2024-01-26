@@ -1,5 +1,3 @@
-from typing import TYPE_CHECKING
-
 import os
 
 from globus_sdk import (
@@ -9,11 +7,12 @@ from globus_sdk import (
     TransferData,
 )
 from globus_sdk.scopes import TransferScopes
-from globus_sdk.services.auth.errors import AuthAPIError
 from globus_sdk.services.transfer.errors import TransferAPIError
+from globus_sdk.services.auth.errors import AuthAPIError
 from globus_sdk.tokenstorage import SimpleJSONFileAdapter
 from machinable import Storage
 from pydantic import BaseModel, Field
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from machinable import Interface
@@ -56,7 +55,10 @@ class Globus(Storage):
             if not self.auth_file.file_exists():
                 # do a login flow, getting back initial tokens
                 self.auth_client.oauth2_start_flow(
-                    requested_scopes=f"{TransferScopes.all}[*https://auth.globus.org/scopes/{self.config.remote_endpoint_id}/data_access]",
+                    requested_scopes=[
+                        f"{TransferScopes.all}[*https://auth.globus.org/scopes/{self.config.remote_endpoint_id}/data_access]",
+                        f"{TransferScopes.all}[*https://auth.globus.org/scopes/{self.config.local_endpoint_id}/data_access]",
+                    ],
                     refresh_tokens=True,
                 )
                 authorize_url = self.auth_client.oauth2_get_authorize_url()
