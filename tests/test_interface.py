@@ -116,6 +116,24 @@ def test_interface_relations(tmp_storage):
     assert {v.uuid for v in a1.many_c} == {c1.uuid, c2.uuid}
 
 
+def test_interface_related(tmp_storage):
+    with Project("./tests/samples/project") as p:
+        i = Interface.make("dummy")
+        i.push_related("project", p)
+        i.launch()
+    assert i.related().all() == [p, i.execution]
+    child = i.derive().launch()
+    assert i.related().all() == [p, child, i.execution]
+    assert child.related().all() == [i, child.execution]
+
+    assert len(i.related(deep=True)) == 5
+
+    grandchild = Interface(derived_from=child).commit()
+    assert child.derived.all() == [grandchild]
+    assert child.related().all() == [grandchild, i, child.execution]
+    assert len(i.related(deep=True)) == 6
+
+
 def test_interface_commit(tmp_storage):
     with Project("./tests/samples/project"):
         Interface.make("interface.dummy").commit()

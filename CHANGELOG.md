@@ -4,6 +4,7 @@
 
 # Unreleased
 
+- Adds Interface.related()
 - Improved Globus storage example
 
 # v4.8.3

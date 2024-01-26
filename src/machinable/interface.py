@@ -153,8 +153,10 @@ class Interface(Element):
     kind = "Interface"
     default = None
     # class level relationship information
-    # note that the actual data is kept
-    # in the __related__ object propery
+    # note that the actual data is kept in
+    # the __related__ object propery and
+    # existence should be checked on
+    # actual interface instance
     __relations__: Optional[Dict[str, Relation]] = None
 
     def __init__(
@@ -276,6 +278,29 @@ class Interface(Element):
     @has_many
     def uses() -> InterfaceCollection:
         return Interface
+
+    def related(self, deep: bool = False) -> InterfaceCollection:
+        """Returns a collection of related interfaces"""
+        collection = []
+        for k, v in self.__relations__.items():
+            if getattr(self, k, False) is False:
+                continue
+            if v.multiple:
+                collection.extend(getattr(self, k))
+            else:
+                r = getattr(self, k)
+                if r is not None:
+                    collection.append(r)
+
+        if deep:
+            seen = set([self.uuid])
+            for i in collection:
+                if not hasattr(i, "related") or i.uuid in seen:
+                    continue
+                collection.extend(i.related(deep=False).all())
+                seen.add(i.uuid)
+
+        return InterfaceCollection(collection).unique(lambda x: x.uuid)
 
     def to_cli(self) -> str:
         cli = [self.module]

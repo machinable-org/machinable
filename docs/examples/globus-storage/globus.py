@@ -1,3 +1,5 @@
+from typing import TYPE_CHECKING
+
 import os
 
 from globus_sdk import (
@@ -7,12 +9,11 @@ from globus_sdk import (
     TransferData,
 )
 from globus_sdk.scopes import TransferScopes
-from globus_sdk.services.transfer.errors import TransferAPIError
 from globus_sdk.services.auth.errors import AuthAPIError
+from globus_sdk.services.transfer.errors import TransferAPIError
 from globus_sdk.tokenstorage import SimpleJSONFileAdapter
 from machinable import Storage
 from pydantic import BaseModel, Field
-from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from machinable import Interface
