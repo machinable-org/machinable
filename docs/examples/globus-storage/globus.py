@@ -9,6 +9,7 @@ from globus_sdk import (
     TransferData,
 )
 from globus_sdk.scopes import TransferScopes
+from globus_sdk.services.auth.errors import AuthAPIError
 from globus_sdk.services.transfer.errors import TransferAPIError
 from globus_sdk.tokenstorage import SimpleJSONFileAdapter
 from machinable import Storage
@@ -122,13 +123,21 @@ class Globus(Storage):
 
             return task_id
         except TransferAPIError as e:
-            if e.code == "Conflict":
+            if (
+                e.code == "Conflict"
+                and e.message
+                == "A transfer with identical paths has not yet completed"
+            ):
                 return False
             elif e.code == "ConsentRequired":
                 raise RuntimeError(
                     f"You do not have the right permissions. Try removing {self.config.auth_filepath} and authenticating again with the appropriate identity provider."
                 ) from e
             raise e
+        except AuthAPIError as e:
+            raise RuntimeError(
+                f"Authentication failed. Try removing {self.config.auth_filepath} and authenticating again with the appropriate identity provider."
+            ) from e
 
     def update(self, interface: "Interface") -> None:
         return self.commit(interface)

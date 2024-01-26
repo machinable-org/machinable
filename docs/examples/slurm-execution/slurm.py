@@ -117,6 +117,14 @@ class Slurm(Execution):
     def __call__(self):
         jobs = {}
         for executable in self.pending_executables:
+            # check if job is already launched
+            if job := Job.find_by_name(executable.id):
+                if job.status in ["PENDING", "RUNNING"]:
+                    print(
+                        f"{executable.id} is already launched with job_id={job.job_id}, skipping ..."
+                    )
+                    continue
+
             source_code = Project.get().path()
             if self.config.copy_project_source:
                 print("Copy project source code ...")
@@ -126,14 +134,6 @@ class Slurm(Execution):
                 run_and_stream(cmd, check=True)
 
             script = "#!/usr/bin/env bash\n"
-
-            # check if job is already launched
-            if job := Job.find_by_name(executable.id):
-                if job.status in ["PENDING", "RUNNING"]:
-                    print(
-                        f"{executable.id} is already launched with job_id={job.job_id}, skipping ..."
-                    )
-                    continue
 
             # check if failed
             if not self.config.resume_failed:
