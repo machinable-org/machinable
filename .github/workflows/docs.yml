@@ -32,7 +32,7 @@ jobs:
           source .venv/bin/activate
           python docs/.vitepress/pydocgen.py
       - name: Install vitepress
-        uses: bahmutov/npm-install@v1.8.34
+        uses: bahmutov/npm-install@v1.8.38
       - name: Build
         run: |
           /home/runner/work/machinable/machinable/node_modules/vitepress/bin/vitepress.js build docs
