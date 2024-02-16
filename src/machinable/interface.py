@@ -27,6 +27,7 @@ from machinable.utils import (
     load_file,
     save_file,
 )
+from uuid_extensions import uuid7
 
 
 class Relation:
@@ -293,7 +294,7 @@ class Interface(Element):
                     collection.append(r)
 
         if deep:
-            seen = set([self.uuid])
+            seen = {self.uuid}
             for i in collection:
                 if not hasattr(i, "related") or i.uuid in seen:
                     continue

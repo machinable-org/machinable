@@ -3,8 +3,8 @@ from typing import Any, Dict, List, Optional, Union
 import copy
 import json
 import os
+import time
 from contextlib import contextmanager
-from datetime import datetime
 
 try:
     from pysqlite3 import dbapi2 as sqlite3
@@ -34,7 +34,7 @@ def interface_row_factory(cursor, row) -> schema.Interface:
         version=json.loads(row[6]),
         predicate=json.loads(row[7]),
         lineage=json.loads(row[8]),
-        timestamp=float(row[9]),
+        timestamp=int(row[9]),
         **json.loads(row[10]),
     )
 
@@ -55,7 +55,7 @@ def migrate(db: sqlite3.Connection) -> None:
                 version json,
                 predicate json,
                 lineage json,
-                'timestamp' real,
+                'timestamp' bigint,
                 extra json
             )"""
         )
@@ -66,7 +66,7 @@ def migrate(db: sqlite3.Connection) -> None:
                 uuid text NOT NULL REFERENCES 'index' (uuid),
                 related_uuid text NOT NULL REFERENCES 'index' (uuid),
                 'priority' integer NOT NULL DEFAULT 0,
-                'timestamp' real,
+                'timestamp' bigint,
                 UNIQUE (uuid, related_uuid, relation)
             )"""
         )
@@ -183,7 +183,7 @@ class Index(Interface):
         uuid: str,
         related_uuid: Union[str, List[str]],
         priority: int = 0,
-        timestamp: Optional[float] = None,
+        timestamp: Optional[int] = None,
     ) -> None:
         if isinstance(related_uuid, (list, tuple)):
             for r in related_uuid:
@@ -198,7 +198,7 @@ class Index(Interface):
                 # already exists
                 return
             if timestamp is None:
-                timestamp = datetime.now().timestamp()
+                timestamp = time.time_ns()
             cur.execute(
                 """INSERT INTO 'relations' (
                     relation,

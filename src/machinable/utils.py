@@ -15,7 +15,6 @@ import inspect
 import json
 import os
 import random
-import re
 import string
 import subprocess
 import sys
@@ -70,9 +69,11 @@ def generate_seed(random_state=None):
     return random_state.randint(0, 2**31 - 1)
 
 
-def timestamp_to_directory(timestamp: float) -> str:
+def timestamp_to_directory(timestamp: int) -> str:
     return (
-        arrow.get(timestamp).strftime("%Y-%m-%dT%H%M%S_%f%z").replace("+", "_")
+        arrow.get(timestamp / 1e9)
+        .strftime("%Y-%m-%dT%H%M%S_%f%z")
+        .replace("+", "_")
     )
 
 

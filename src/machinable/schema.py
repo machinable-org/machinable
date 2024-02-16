@@ -1,8 +1,11 @@
 from typing import TYPE_CHECKING, Dict, List, Optional, Tuple, Union
 
+import time
+
 from machinable.utils import generate_nickname, generate_seed
 from pydantic import BaseModel, Field, PrivateAttr
-from uuid_extensions import uuid7, uuid_to_datetime
+from uuid_extensions import uuid7
+from uuid_extensions.uuid7 import timestamp_ns
 
 
 class Element(BaseModel):
@@ -15,8 +18,8 @@ class Element(BaseModel):
     lineage: Tuple[str, ...] = ()
 
     @property
-    def timestamp(self) -> float:
-        return uuid_to_datetime(self.uuid[::-1]).timestamp()
+    def timestamp(self) -> int:
+        return timestamp_ns(self.uuid[::-1])
 
     def extra(self) -> Dict:
         return {}

@@ -2,6 +2,10 @@
 
 <!-- Please add changes under the Unreleased section that reads 'No current changes' otherwise -->
 
+# Unreleased
+
+- Use nanoseconds since epoch in timestamp
+
 # v4.8.4
 
 - Adds Interface.related()

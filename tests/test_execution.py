@@ -25,7 +25,7 @@ def test_execution(tmp_storage):
 
     execution = Execution().add(Component())
     assert len(execution.executables) == 1
-    assert isinstance(execution.timestamp, float)
+    assert isinstance(execution.timestamp, int)
 
     # add
     component = Component()

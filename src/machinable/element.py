@@ -284,11 +284,11 @@ class Element(Mixin, Jsonable):
         return self.uuid[:6]
 
     @property
-    def timestamp(self) -> float:
+    def timestamp(self) -> int:
         return self.__model__.timestamp
 
     def created_at(self) -> DatetimeType:
-        return arrow.get(self.__model__.timestamp)
+        return arrow.get(self.__model__.timestamp / 1e9)
 
     def version(
         self, version: VersionType = sentinel, overwrite: bool = False
