@@ -245,7 +245,9 @@ def test_rerepeated_execution(tmp_storage):
     failed.save_file("repaired", "yes")
     with Execution() as execution3:
         failed.launch()
-    assert failed.execution == execution3
+    assert (
+        failed.execution == execution3
+    ), f"{failed.execution.uuid} != {execution3.uuid}"
     assert failed.execution.is_finished()
     assert not failed.execution.is_resumed()
     assert len(execution2.executables) == 2

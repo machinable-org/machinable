@@ -229,3 +229,15 @@ def test_symlink_relations(tmp_storage):
     )
 
     project.__exit__()
+
+
+def test_interface_hash(tmp_storage):
+    assert Interface().hash == 12 * "0"
+
+    a = Interface().commit()
+    b = Interface({"a": 1}).commit()
+
+    assert a.hash != b.hash
+
+    c = Interface({"a": 1}).commit()
+    assert b.hash == c.hash

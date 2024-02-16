@@ -2,14 +2,13 @@ from typing import TYPE_CHECKING, Dict, List, Optional, Tuple, Union
 
 import time
 
-from machinable.utils import generate_nickname, generate_seed
+from machinable.utils import empty_uuid, generate_nickname, generate_seed
 from pydantic import BaseModel, Field, PrivateAttr
-from uuid_extensions import uuid7
 from uuid_extensions.uuid7 import timestamp_ns
 
 
 class Element(BaseModel):
-    uuid: str = Field(default_factory=lambda: uuid7(as_type="str")[::-1])
+    uuid: str = Field(default_factory=empty_uuid)
     kind: str = "Element"
     module: Optional[str] = None
     version: List[Union[str, Dict]] = []
@@ -19,7 +18,11 @@ class Element(BaseModel):
 
     @property
     def timestamp(self) -> int:
-        return timestamp_ns(self.uuid[::-1])
+        return timestamp_ns(self.uuid)
+
+    @property
+    def hash(self) -> str:
+        return self.uuid[-12:]
 
     def extra(self) -> Dict:
         return {}

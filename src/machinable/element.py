@@ -281,7 +281,11 @@ class Element(Mixin, Jsonable):
 
     @property
     def id(self) -> str:
-        return self.uuid[:6]
+        return self.uuid[11:13] + self.uuid[14:18]
+
+    @property
+    def hash(self) -> str:
+        return self.__model__.hash
 
     @property
     def timestamp(self) -> int:

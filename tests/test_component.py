@@ -142,12 +142,16 @@ class ExportComponent(Component):
 
 def test_component_export(tmp_storage):
     component = ExportComponent()
+
     script = component.dispatch_code(inline=False)
 
     with pytest.raises(AttributeError):
         exec(script)
 
     e = Execution().add(component).commit()
+
+    script = component.dispatch_code(inline=False)
+
     assert not component.execution.is_started()
 
     exec(script)

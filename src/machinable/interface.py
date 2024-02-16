@@ -26,6 +26,7 @@ from machinable.utils import (
     joinpath,
     load_file,
     save_file,
+    update_uuid_payload,
 )
 from uuid_extensions import uuid7
 
@@ -140,7 +141,7 @@ belongs_to_many = _relation(BelongsToMany)
 
 
 def _uuid_symlink(directory, uuid):
-    dst = os.path.join(directory, uuid[:6])
+    dst = os.path.join(directory, uuid[11:13] + uuid[14:18])
     try:
         os.makedirs(dst, exist_ok=True)
         os.symlink("../../" + uuid, os.path.join(dst, "link"))
@@ -228,13 +229,14 @@ class Interface(Element):
         if index.find_by_id(self.uuid) is not None:
             return self
 
+        context = self.compute_context()
+        self.__model__.uuid = update_uuid_payload(self.__model__.uuid, context)
+
         # ensure that configuration and predicate has been computed
         assert self.config is not None
         self.__model__.predicate = self.compute_predicate()
 
         # commit to index
-        self.to_directory(self.local_directory(create=True))
-        index.commit(self.__model__)
         for k, v in self.__related__.items():
             if v is None:
                 continue
@@ -246,6 +248,8 @@ class Interface(Element):
                     index.create_relation(r.name, u, self.uuid)
                 else:
                     index.create_relation(r.name, self.uuid, u)
+        self.to_directory(self.local_directory(create=True))
+        index.commit(self.__model__)
 
         # commit to storage
         from machinable.storage import Storage
