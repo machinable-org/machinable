@@ -22,6 +22,7 @@ from machinable.element import _CONNECTIONS as connected_elements
 from machinable.element import Element, get_dump, get_lineage
 from machinable.types import VersionType
 from machinable.utils import (
+    id_from_uuid,
     is_directory_version,
     joinpath,
     load_file,
@@ -141,7 +142,7 @@ belongs_to_many = _relation(BelongsToMany)
 
 
 def _uuid_symlink(directory, uuid):
-    dst = os.path.join(directory, uuid[11:13] + uuid[14:18])
+    dst = os.path.join(directory, id_from_uuid(uuid))
     try:
         os.makedirs(dst, exist_ok=True)
         os.symlink("../../" + uuid, os.path.join(dst, "link"))

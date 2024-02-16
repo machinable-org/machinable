@@ -18,7 +18,10 @@ class Element(BaseModel):
 
     @property
     def timestamp(self) -> int:
-        return timestamp_ns(self.uuid)
+        try:
+            return timestamp_ns(self.uuid)
+        except ValueError:
+            return 0
 
     @property
     def hash(self) -> str:

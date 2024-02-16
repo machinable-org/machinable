@@ -140,6 +140,10 @@ def empty_uuid() -> str:
     return timestamp_part + null_part
 
 
+def id_from_uuid(uuid: str) -> str:
+    return uuid[11:13] + uuid[14:18]
+
+
 def resolve_at_alias(module: str, scope: Optional[str] = None) -> str:
     if module.startswith("@"):
         module = module.replace(
