@@ -64,7 +64,10 @@ class Globus(Storage):
                     refresh_tokens=True,
                 )
                 authorize_url = self.auth_client.oauth2_get_authorize_url()
-                print(f"Please go to this URL and login:\n\n{authorize_url}\n", flush=True)
+                print(
+                    f"Please go to this URL and login:\n\n{authorize_url}\n",
+                    flush=True,
+                )
                 time.sleep(0.05)
                 auth_code = input("Please enter the code here: ").strip()
                 tokens = self.auth_client.oauth2_exchange_code_for_tokens(

@@ -16,20 +16,21 @@ class MPI(Execution):
         mpi: Optional[str] = "mpirun"
         ranks: Optional[int] = None
         nodes: Optional[int] = None
-        resume_failed: bool = False
+        resume: bool = False
 
     def __call__(self):
         for executable in self.pending_executables:
-            # check if failed
-            if not self.config.resume_failed:
+            # check if failed or active
+            if not self.config.resume:
                 if (
                     executable.executions.filter(
                         lambda x: x.is_incomplete(executable)
+                        or x.is_active(executable)
                     ).count()
                     > 0
                 ):
                     raise ExecutionFailed(
-                        f"{executable.module} <{executable.id}> has previously been executed unsuccessfully. Set `resume_failed` to True to allow resubmission."
+                        f"{executable.module} <{executable.id}> has previously been executed or is currently running. Set `resume` to True to allow resubmission."
                     )
 
             # automatically infer the ranks and nodes from the executable
@@ -62,7 +63,9 @@ class MPI(Execution):
                 cmd.append(script_file)
                 print(" ".join(cmd))
 
-                with open(executable.local_directory("output.log"), "w") as f:
+                with open(
+                    executable.local_directory("output.log"), "w", buffering=1
+                ) as f:
                     run_and_stream(
                         cmd,
                         stdout_handler=lambda o: [
