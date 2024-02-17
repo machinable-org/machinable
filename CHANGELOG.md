@@ -7,6 +7,7 @@
 - Use nanoseconds since epoch in timestamp
 - Adds `get.from_directory` and `get.by_id` to query
 - Introduces stable IDs based on the commit-context
+- Saves inverse relations in local directory
 
 # v4.8.4
 

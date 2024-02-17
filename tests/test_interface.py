@@ -30,9 +30,33 @@ def test_interface_to_directory(tmp_path):
     i = Interface(derived_from=Interface(), uses=[Interface(), Interface()])
     i.to_directory(str(tmp_path / "test2"))
     assert load_file(str(tmp_path / "test2" / ".machinable")) == i.uuid
-    assert load_file(str(tmp_path / "test2" / "related" / "uses")) == "\n".join(
-        [i.uuid for i in i.uses]
+    assert (
+        load_file(str(tmp_path / "test2" / "related" / "uses"))
+        == "\n".join([i.uuid for i in i.uses]) + "\n"
     )
+
+
+def test_interface_to_directory_inverse_relations(tmp_storage):
+    a = Interface()
+    b = Interface(uses=a)
+    b.commit()
+
+    assert a.used_by[0] == b
+
+    assert os.listdir(b.local_directory("related")) == ["uses"]
+    assert b.load_file(["related", "uses"]) == a.uuid + "\n"
+    assert os.listdir(a.local_directory("related")) == ["used_by"]
+    assert a.load_file(["related", "used_by"]) == b.uuid + "\n"
+
+    c = b.derive().commit()
+
+    assert os.listdir(b.local_directory("related")) == ["uses", "derived"]
+    assert b.load_file(["related", "derived"]) == c.uuid + "\n"
+    assert os.listdir(c.local_directory("related")) == ["ancestor"]
+    assert c.load_file(["related", "ancestor"]) == b.uuid + "\n"
+
+    d = b.derive().commit()
+    assert b.load_file(["related", "derived"]) == c.uuid + "\n" + d.uuid + "\n"
 
 
 def test_interface_from_directory(tmp_path):

@@ -183,7 +183,11 @@ class Interface(Element):
         self._relation_cache = {}
         if self.__relations__ is None:
             self.__relations__ = {}
+        # relation_names = defaultdict(lambda: 0)
         for name, relation in self.__relations__.items():
+            # if relation_names[relation.name] > 2:
+            #     raise RuntimeError(f"Relationship name '{relation.name}' is ambigous. Set key on '{relation.fn.__name__}' to distinguish.")
+            # relation_names[relation.name] += 1
             if relation.multiple:
                 self.__related__[name] = relation.collect([])
             else:
@@ -249,8 +253,10 @@ class Interface(Element):
                     index.create_relation(r.name, u, self.uuid)
                 else:
                     index.create_relation(r.name, self.uuid, u)
-        self.to_directory(self.local_directory(create=True))
         index.commit(self.__model__)
+
+        # save to directory
+        self.to_directory(self.local_directory(create=True))
 
         # commit to storage
         from machinable.storage import Storage
@@ -271,18 +277,22 @@ class Interface(Element):
 
         return Project
 
-    @has_many(cached=False)
+    @has_many(cached=False, key="derivatives")
     def derived() -> InterfaceCollection:
         """Returns a collection of derived interfaces"""
         return Interface
 
-    @belongs_to
+    @belongs_to(key="derivatives")
     def ancestor() -> Optional["Interface"]:
         """Returns parent interface or None if interface is independent"""
         return Interface
 
-    @has_many
+    @has_many(key="using")
     def uses() -> InterfaceCollection:
+        return Interface
+
+    @belongs_to_many(key="using")
+    def used_by() -> InterfaceCollection:
         return Interface
 
     def related(self, deep: bool = False) -> InterfaceCollection:
@@ -478,19 +488,33 @@ class Interface(Element):
             save_file([directory, "dump.p"], self.__model__._dump)
         if relations:
             for k, v in self.__related__.items():
-                if hasattr(v, "uuid"):
-                    save_file(
-                        [directory, "related", k],
-                        _uuid_symlink(directory, v.uuid),
-                    )
-                elif v:
-                    save_file(
-                        [directory, "related", k],
-                        "\n".join(
-                            [_uuid_symlink(directory, i.uuid) for i in v]
-                        ),
-                        mode="w",
-                    )
+                if not v:
+                    continue
+                r = self.__relations__[k]
+                if not r.multiple:
+                    v = [v]
+                save_file(
+                    [directory, "related", k],
+                    "\n".join([_uuid_symlink(directory, i.uuid) for i in v])
+                    + "\n",
+                    mode="a",
+                )
+                # inverse
+                for i in v:
+                    try:
+                        ir = [
+                            _
+                            for _ in i.__relations__.values()
+                            if _.name == r.name and _ is not r
+                        ][0]
+                        save_file(
+                            [i.local_directory(), "related", ir.fn.__name__],
+                            _uuid_symlink(i.local_directory(), self.uuid)
+                            + "\n",
+                            mode="a",
+                        )
+                    except:
+                        pass
 
         return self
 
