@@ -14,6 +14,7 @@ from machinable import (
     schema,
 )
 from machinable.element import Element
+from pydantic import BaseModel, Field
 
 
 def test_component(tmp_storage):
@@ -216,6 +217,15 @@ def test_component_predicates(tmp_storage):
     p.__exit__()
 
 
+class PydanticConf(Component):
+    class Config(BaseModel):
+        a: int = Field(1, title="test")
+        b: float = 0.1
+
+    def __call__(self):
+        print(self.config)
+
+
 def test_component_interactive_session(tmp_storage):
     class T(Component):
         def is_valid(self):
@@ -249,6 +259,11 @@ def test_component_interactive_session(tmp_storage):
 
     rtt = get(TT)
     assert rtt != rt
+
+    t = get(PydanticConf, {"a": 2})
+    t.launch()
+    t2 = get(PydanticConf, {"a": 2})
+    assert t == t2
 
 
 def test_component_from_index(tmp_storage):

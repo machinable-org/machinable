@@ -19,7 +19,7 @@ class Element(BaseModel):
     @property
     def timestamp(self) -> int:
         try:
-            return timestamp_ns(self.uuid)
+            return timestamp_ns(self.uuid, suppress_error=False)
         except ValueError:
             return 0
 
