@@ -408,6 +408,21 @@ class Interface(Element):
         return cls.collect([cls.find_by_id(uuid, fetch) for uuid in uuids])
 
     @classmethod
+    def find_by_hash(
+        cls, context_hash: str, fetch: bool = True
+    ) -> Optional["Interface"]:
+        from machinable.index import Index
+
+        index = Index.get()
+
+        return cls.collect(
+            [
+                cls.find_by_id(m.uuid, fetch)
+                for m in index.find_by_hash(context_hash)
+            ]
+        )
+
+    @classmethod
     def find(
         cls,
         module: Union[str, "Element"],

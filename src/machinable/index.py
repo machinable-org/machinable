@@ -253,6 +253,19 @@ class Index(Interface):
 
             return [interface_row_factory(cur, row) for row in query.fetchall()]
 
+    def find_by_hash(self, context_hash: str) -> List[schema.Interface]:
+        with db(self.config.database, create=False) as _db:
+            if not _db:
+                return []
+            cur = _db.cursor()
+
+            query = cur.execute(
+                """SELECT * FROM 'index' WHERE uuid LIKE ?""",
+                (f"%{context_hash}",),
+            )
+
+            return [interface_row_factory(cur, row) for row in query.fetchall()]
+
     def find_related(
         self, relation: str, uuid: str, inverse: bool = False
     ) -> Union[None, List[schema.Interface]]:

@@ -283,3 +283,16 @@ def test_interface_uuid(tmp_storage):
     assert dummy.uuid == new_uuid
     assert dummy.timestamp == 0
     assert str(dummy.created_at()).startswith("1970-01-01")
+
+
+def test_interface_find_by_hash(tmp_storage):
+    dummy = Interface({"a": 1}).commit()
+    dummy2 = Interface().commit()
+    dummy3 = Interface().commit()
+
+    assert dummy.hash != dummy2.hash
+    assert dummy2.hash == dummy3.hash
+    assert dummy2.uuid != dummy3.uuid
+
+    assert Interface.find_by_hash(dummy.hash)[0] == dummy
+    assert len(Interface.find_by_hash(dummy2.hash)) == 2

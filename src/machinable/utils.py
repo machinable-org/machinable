@@ -119,13 +119,17 @@ def random_str(length: int, random_state=None):
     )
 
 
-def update_uuid_payload(uuid: str, payload: dict) -> str:
+def compute_object_hash(payload: dict) -> str:
     json_str = json.dumps(
         payload, sort_keys=True, separators=(",", ":"), default=serialize
     )
 
     hash_obj = hashlib.sha256(json_str.encode())
-    hash_hex = hash_obj.hexdigest()
+    return hash_obj.hexdigest()
+
+
+def update_uuid_payload(uuid: str, payload: dict) -> str:
+    hash_hex = compute_object_hash(payload)
 
     timestamp_part = uuid[:24]
     new_random_part = hash_hex[:12]

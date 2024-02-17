@@ -123,6 +123,23 @@ def test_index_find_by_context(tmp_path):
     )
 
 
+def test_index_find_by_hash(tmp_path):
+    i = index.Index({"database": str(tmp_path / "index.sqlite")})
+    v = schema.Interface(module="machinable", predicate={"a": 0, "b": 0})
+    i.commit(v)
+    assert i.find_by_hash(v.hash) == [v]
+
+    v2 = schema.Interface(module="machinable")
+    v2.uuid = v.uuid[:24] + v2.uuid[:12]
+    i.commit(v2)
+    assert i.find_by_hash(v2.hash) == [v2]
+
+    v3 = schema.Interface(module="machinable", predicate={"a": 1})
+    i.commit(v3)
+
+    assert i.find_by_hash("0" * 12) == [v, v3]
+
+
 def test_index_find_related(tmp_path):
     i, v1, v2, v3, v4 = test_index_create_relation(tmp_path, setup=True)
 
