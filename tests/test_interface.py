@@ -4,7 +4,7 @@ import pytest
 from machinable import Interface, Project, Schedule, Scope, get
 from machinable.collection import ComponentCollection
 from machinable.interface import belongs_to, belongs_to_many, has_many, has_one
-from machinable.utils import load_file
+from machinable.utils import load_file, random_str
 
 
 def test_interface_get():
@@ -229,3 +229,33 @@ def test_symlink_relations(tmp_storage):
     )
 
     project.__exit__()
+
+
+def test_interface_hash(tmp_storage):
+    assert Interface().hash == 12 * "0"
+
+    a = Interface().commit()
+    b = Interface({"a": 1}).commit()
+
+    assert a.hash != b.hash
+
+    c = Interface({"a": 1}).commit()
+    assert b.hash == c.hash
+
+
+def test_interface_uuid(tmp_storage):
+    dummy = Interface().commit()
+    directory = dummy.local_directory()
+
+    # replace uuid with random male-formed string
+    model = dummy.load_file("model.json")
+    model["uuid"] = new_uuid = random_str(len(model["uuid"]))
+    dummy.save_file("model.json", model)
+
+    del dummy
+
+    dummy = Interface.from_directory(directory)
+
+    assert dummy.uuid == new_uuid
+    assert dummy.timestamp == 0
+    assert str(dummy.created_at()).startswith("1970-01-01")

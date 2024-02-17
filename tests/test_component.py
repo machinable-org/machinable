@@ -142,12 +142,16 @@ class ExportComponent(Component):
 
 def test_component_export(tmp_storage):
     component = ExportComponent()
+
     script = component.dispatch_code(inline=False)
 
     with pytest.raises(AttributeError):
         exec(script)
 
     e = Execution().add(component).commit()
+
+    script = component.dispatch_code(inline=False)
+
     assert not component.execution.is_started()
 
     exec(script)
@@ -245,6 +249,13 @@ def test_component_interactive_session(tmp_storage):
 
     rtt = get(TT)
     assert rtt != rt
+
+    from tests.samples.in_session import InSession
+
+    t = get(InSession, {"a": 2})
+    t.launch()
+    t2 = get(InSession, {"a": 2})
+    assert t == t2
 
 
 def test_component_from_index(tmp_storage):

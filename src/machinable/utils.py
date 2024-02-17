@@ -10,6 +10,7 @@ if sys.version_info >= (3, 11):
 else:
     from typing_extensions import Self
 
+import hashlib
 import importlib
 import inspect
 import json
@@ -31,6 +32,7 @@ import jsonlines
 import omegaconf
 from flatten_dict import unflatten as _unflatten_dict
 from omegaconf.omegaconf import OmegaConf
+from uuid_extensions import uuid7
 
 sentinel = object()
 
@@ -115,6 +117,31 @@ def random_str(length: int, random_state=None):
         )
         for _ in range(length)
     )
+
+
+def update_uuid_payload(uuid: str, payload: dict) -> str:
+    json_str = json.dumps(
+        payload, sort_keys=True, separators=(",", ":"), default=serialize
+    )
+
+    hash_obj = hashlib.sha256(json_str.encode())
+    hash_hex = hash_obj.hexdigest()
+
+    timestamp_part = uuid[:24]
+    new_random_part = hash_hex[:12]
+
+    return f"{timestamp_part}{new_random_part}"
+
+
+def empty_uuid() -> str:
+    uuid = uuid7(as_type="str")
+    timestamp_part = uuid[:24]
+    null_part = "0" * 12
+    return timestamp_part + null_part
+
+
+def id_from_uuid(uuid: str) -> str:
+    return uuid[11:13] + uuid[14:18]
 
 
 def resolve_at_alias(module: str, scope: Optional[str] = None) -> str:

@@ -24,13 +24,13 @@ from machinable.mixin import Mixin
 from machinable.types import DatetimeType, ElementType, VersionType
 from machinable.utils import (
     Jsonable,
+    id_from_uuid,
     sentinel,
     serialize,
     unflatten_dict,
     update_dict,
 )
 from omegaconf import DictConfig, OmegaConf
-from uuid_extensions import uuid_to_datetime
 
 
 class ConfigMethod:
@@ -281,7 +281,11 @@ class Element(Mixin, Jsonable):
 
     @property
     def id(self) -> str:
-        return self.uuid[:6]
+        return id_from_uuid(self.uuid)
+
+    @property
+    def hash(self) -> str:
+        return self.__model__.hash
 
     @property
     def timestamp(self) -> int:
