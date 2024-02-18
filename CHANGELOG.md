@@ -10,6 +10,7 @@
 - Saves inverse relations and relationship meta-data in local directory
 - Adds index.import_directory method
 - Allows search by short ID instead of UUID
+- Adds storage upload/download methods
 
 # v4.8.4
 

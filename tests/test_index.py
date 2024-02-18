@@ -2,6 +2,7 @@ import os
 import shutil
 import sqlite3
 
+import pytest
 from machinable import Component, index, schema
 
 
@@ -166,6 +167,18 @@ def test_index_find_related(tmp_path):
     q = i.find_related("test_many_to_many", v3.uuid, inverse=True)
     assert len(q) == 2
     assert _matches(q, [v1, v2])
+
+
+def test_index_find(tmp_path):
+    i = index.Index({"database": str(tmp_path / "index.sqlite")})
+    v = schema.Interface(module="machinable", predicate={"a": 0, "b": 0})
+    i.commit(v)
+    assert i.find_by_hash(v.hash) == i.find(v, by="hash")
+    assert i.find_by_id(v.uuid) == i.find(v, by="uuid")[0]
+    assert i.find_by_id(v.id) == i.find(v, by="id")[0]
+
+    with pytest.raises(ValueError):
+        i.find(v.hash, by="invalid")
 
 
 def test_index_import_directory(tmp_path):
