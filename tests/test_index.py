@@ -1,7 +1,8 @@
 import os
+import shutil
 import sqlite3
 
-from machinable import index, schema
+from machinable import Component, index, schema
 
 
 def _is_migrated(db):
@@ -165,3 +166,33 @@ def test_index_find_related(tmp_path):
     q = i.find_related("test_many_to_many", v3.uuid, inverse=True)
     assert len(q) == 2
     assert _matches(q, [v1, v2])
+
+
+def test_index_import_directory(tmp_path):
+    local_index = index.Index(str(tmp_path / "local"))
+    remote_index = index.Index(str(tmp_path / "remote"))
+
+    with remote_index:
+        a = Component().launch()
+        b = Component({"a": 1}, uses=a).launch()
+        a_source_dir = a.local_directory()
+        b_source_dir = b.local_directory()
+        assert b.uses[0] == a
+
+    assert local_index.find_by_id(a.uuid) is None
+    local_index.import_directory(a_source_dir, relations=False)
+    local_index.import_directory(b_source_dir, file_importer=shutil.move)
+    assert local_index.find_by_id(a.uuid) is not None
+    assert local_index.find_by_id(b.uuid) is not None
+    assert os.path.exists(local_index.local_directory(a.uuid))
+    assert os.path.exists(local_index.local_directory(b.uuid))
+
+    assert os.path.exists(a_source_dir)
+    assert not os.path.exists(b_source_dir)
+
+    assert local_index.find_related("Interface.Interface.using", b.uuid)
+
+    with local_index:
+        c = Component.find_by_id(b.uuid)
+        r = c.uses
+        assert r[0] == a

@@ -383,20 +383,19 @@ class Interface(Element):
         index = Index.get()
 
         model = index.find_by_id(uuid)
-
         if not model:
             return None
 
         if fetch is False and not model.module.startswith("__session__"):
             return cls.from_model(model)
 
-        local_directory = index.local_directory(uuid)
+        local_directory = index.local_directory(model.uuid)
 
         if not os.path.exists(local_directory):
             # try to fetch storage
             from machinable.storage import fetch as fetch_from_storage
 
-            if not fetch_from_storage(uuid, local_directory):
+            if not fetch_from_storage(model.uuid, local_directory):
                 return None
 
         return cls.from_directory(local_directory)
@@ -496,11 +495,27 @@ class Interface(Element):
 
         return cls.from_model(interface)
 
-    def to_directory(self, directory: str, relations=True) -> Self:
+    def to_directory(self, directory: str, relations: bool = True) -> Self:
         save_file([directory, ".machinable"], self.__model__.uuid)
         save_file([directory, "model.json"], self.__model__)
         if self.__model__._dump is not None:
             save_file([directory, "dump.p"], self.__model__._dump)
+
+        def _write_meta(d, r, uuid, related_uuid):
+            save_file(
+                [d, "related", "metadata.jsonl"],
+                {
+                    "uuid": uuid,
+                    "related_uuid": related_uuid,
+                    "name": r.name,
+                    "multiple": r.multiple,
+                    "inverse": r.inverse,
+                    "cached": r.cached,
+                    "fn": r.fn.__name__,
+                },
+                mode="a",
+            )
+
         if relations:
             for k, v in self.__related__.items():
                 if not v:
@@ -508,12 +523,18 @@ class Interface(Element):
                 r = self.__relations__[k]
                 if not r.multiple:
                     v = [v]
+                # forward
                 save_file(
                     [directory, "related", k],
                     "\n".join([_uuid_symlink(directory, i.uuid) for i in v])
                     + "\n",
                     mode="a",
                 )
+                for u in v:
+                    if r.inverse:
+                        _write_meta(directory, r, u.uuid, self.uuid)
+                    else:
+                        _write_meta(directory, r, self.uuid, u.uuid)
                 # inverse
                 for i in v:
                     try:
@@ -528,6 +549,14 @@ class Interface(Element):
                             + "\n",
                             mode="a",
                         )
+                        if ir.inverse:
+                            _write_meta(
+                                i.local_directory(), ir, i.uuid, self.uuid
+                            )
+                        else:
+                            _write_meta(
+                                i.local_directory(), ir, self.uuid, i.uuid
+                            )
                     except:
                         pass
 

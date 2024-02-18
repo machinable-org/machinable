@@ -2,7 +2,12 @@ from typing import TYPE_CHECKING, Dict, List, Optional, Tuple, Union
 
 import time
 
-from machinable.utils import empty_uuid, generate_nickname, generate_seed
+from machinable.utils import (
+    empty_uuid,
+    generate_nickname,
+    generate_seed,
+    id_from_uuid,
+)
 from pydantic import BaseModel, Field, PrivateAttr
 from uuid_extensions.uuid7 import timestamp_ns
 
@@ -26,6 +31,10 @@ class Element(BaseModel):
     @property
     def hash(self) -> str:
         return self.uuid[-12:]
+
+    @property
+    def id(self) -> str:
+        return id_from_uuid(self.uuid)
 
     def extra(self) -> Dict:
         return {}

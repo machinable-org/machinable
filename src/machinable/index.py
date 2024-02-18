@@ -1,10 +1,12 @@
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Callable, Dict, List, Literal, Optional, Union
 
 import copy
 import json
 import os
+import shutil
 import time
 from contextlib import contextmanager
+from functools import partial
 
 try:
     from pysqlite3 import dbapi2 as sqlite3
@@ -15,7 +17,7 @@ from machinable import schema
 from machinable.element import get_lineage
 from machinable.interface import Interface
 from machinable.types import VersionType
-from machinable.utils import is_directory_version, serialize
+from machinable.utils import is_directory_version, load_file, serialize
 
 
 def _jn(data: Any) -> str:
@@ -211,14 +213,39 @@ class Index(Interface):
             )
             _db.commit()
 
+    def find(
+        self,
+        interface: Union[schema.Interface, Interface],
+        by: Literal["id", "uuid", "hash"] = "hash",
+    ) -> List[schema.Interface]:
+        if by in ["id", "uuid"]:
+            found = self.find_by_id(interface.uuid)
+            if not found:
+                return []
+            return [found]
+
+        if by == "hash":
+            return self.find_by_hash(interface.hash)
+
+        raise ValueError(
+            f"Invalid field: {by}. Must be one of 'id', 'uuid', 'hash'."
+        )
+
     def find_by_id(self, uuid: str) -> Optional[schema.Interface]:
         with db(self.config.database, create=False) as _db:
             if not _db:
                 return None
             cur = _db.cursor()
-            row = cur.execute(
-                """SELECT * FROM 'index' WHERE uuid=?""", (uuid,)
-            ).fetchone()
+            if len(uuid) == 6:  # short id
+                print(f"%{uuid[:2]}-{uuid[2:]}-%")
+                row = cur.execute(
+                    """SELECT * FROM 'index' WHERE uuid LIKE ?""",
+                    (f"%{uuid[:2]}-{uuid[2:]}-%",),
+                ).fetchone()
+            else:
+                row = cur.execute(
+                    """SELECT * FROM 'index' WHERE uuid=?""", (uuid,)
+                ).fetchone()
             if row is None:
                 return None
             return interface_row_factory(cur, row)
@@ -292,3 +319,32 @@ class Index(Interface):
                     (uuid, relation),
                 ).fetchall()
             return [interface_row_factory(cur, row) for row in rows or []]
+
+    def import_directory(
+        self,
+        directory: str,
+        relations: bool = True,
+        file_importer: Callable[[str, str], None] = partial(
+            shutil.copytree, symlinks=True
+        ),
+    ):
+        data = load_file([directory, "model.json"])
+        model = getattr(schema, data["kind"])
+
+        interface = model(**data)
+
+        if relations:
+            relations = load_file([directory, "related", "metadata.jsonl"], [])
+        else:
+            relations = []
+
+        # transfer into local directory
+        src = os.path.abspath(directory)
+        dst = os.path.abspath(self.local_directory(interface.uuid))
+        if src != dst:
+            file_importer(src, dst)
+
+        # create index entry
+        self.commit(interface)
+        for r in relations:
+            self.create_relation(r["name"], r["uuid"], r["related_uuid"])

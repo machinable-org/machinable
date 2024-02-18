@@ -43,16 +43,24 @@ def test_interface_to_directory_inverse_relations(tmp_storage):
 
     assert a.used_by[0] == b
 
-    assert os.listdir(b.local_directory("related")) == ["uses"]
+    def _related(interface, expected):
+        x = os.listdir(interface.local_directory("related"))
+        try:
+            x.remove("metadata.jsonl")
+        except:
+            pass
+        return x == expected
+
+    assert _related(b, ["uses"])
     assert b.load_file(["related", "uses"]) == a.uuid + "\n"
-    assert os.listdir(a.local_directory("related")) == ["used_by"]
+    assert _related(a, ["used_by"])
     assert a.load_file(["related", "used_by"]) == b.uuid + "\n"
 
     c = b.derive().commit()
 
-    assert os.listdir(b.local_directory("related")) == ["uses", "derived"]
+    assert _related(b, ["uses", "derived"])
     assert b.load_file(["related", "derived"]) == c.uuid + "\n"
-    assert os.listdir(c.local_directory("related")) == ["ancestor"]
+    assert _related(c, ["ancestor"])
     assert c.load_file(["related", "ancestor"]) == b.uuid + "\n"
 
     d = b.derive().commit()
@@ -296,3 +304,13 @@ def test_interface_find_by_hash(tmp_storage):
 
     assert Interface.find_by_hash(dummy.hash)[0] == dummy
     assert len(Interface.find_by_hash(dummy2.hash)) == 2
+
+
+def test_interface_find_by_id(tmp_storage):
+    dummy = Interface({"a": 1}).commit()
+    dummy2 = Interface().commit()
+    dummy3 = Interface().commit()
+
+    assert dummy == Interface.find_by_id(dummy.uuid)
+    assert dummy2 == Interface.find_by_id(dummy2.id)
+    assert dummy3 == Interface.find_by_id(dummy3.id)

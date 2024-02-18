@@ -7,7 +7,9 @@
 - Use nanoseconds since epoch in timestamp
 - Adds `get.from_directory` and `get.by_id` to query
 - Introduces stable IDs based on the commit-context
-- Saves inverse relations in local directory
+- Saves inverse relations and relationship meta-data in local directory
+- Adds index.import_directory method
+- Allows search by short ID instead of UUID
 
 # v4.8.4
 
