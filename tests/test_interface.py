@@ -44,23 +44,23 @@ def test_interface_to_directory_inverse_relations(tmp_storage):
     assert a.used_by[0] == b
 
     def _related(interface, expected):
-        x = os.listdir(interface.local_directory("related"))
+        x = sorted(os.listdir(interface.local_directory("related")))
         try:
             x.remove("metadata.jsonl")
         except:
             pass
-        return x == expected
+        assert x == expected
 
-    assert _related(b, ["uses"])
+    _related(b, ["uses"])
     assert b.load_file(["related", "uses"]) == a.uuid + "\n"
-    assert _related(a, ["used_by"])
+    _related(a, ["used_by"])
     assert a.load_file(["related", "used_by"]) == b.uuid + "\n"
 
     c = b.derive().commit()
 
-    assert _related(b, ["uses", "derived"])
+    _related(b, ["derived", "uses"])
     assert b.load_file(["related", "derived"]) == c.uuid + "\n"
-    assert _related(c, ["ancestor"])
+    _related(c, ["ancestor"])
     assert c.load_file(["related", "ancestor"]) == b.uuid + "\n"
 
     d = b.derive().commit()
@@ -164,6 +164,21 @@ def test_interface_related(tmp_storage):
     assert child.derived.all() == [grandchild]
     assert child.related().all() == [grandchild, i, child.execution]
     assert len(i.related(deep=True)) == 6
+
+
+def test_interface_related_iterator(tmp_storage):
+    with Project("./tests/samples/project") as p:
+        i = Interface.make("dummy")
+        i.push_related("project", p)
+        i.launch()
+    assert len(list(i.related_iterator())) == 2
+    it = i.related_iterator()
+    interface, relation, seen = next(it)
+    assert interface == p
+    assert i.uuid in seen
+    interface, relation, seen = next(it)
+    assert interface == i.execution
+    assert p.uuid in seen
 
 
 def test_interface_commit(tmp_storage):

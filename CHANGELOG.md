@@ -4,6 +4,10 @@
 
 # Unreleased
 
+- Adds `Interface.related_iterator()`
+
+# v4.9.0
+
 - Use nanoseconds since epoch in timestamp
 - Adds `get.from_directory` and `get.by_id` to query
 - Introduces stable IDs based on the commit-context

@@ -627,8 +627,9 @@ class Element(Mixin, Jsonable):
         return self
 
     def serialize(self) -> Dict:
-        # ensure that configuration has been parsed
+        # ensure that configuration has been parsed and predicated computed
         assert self.config is not None
+        self.__model__.predicate = self.compute_predicate()
         return self.__model__.model_dump()
 
     @classmethod

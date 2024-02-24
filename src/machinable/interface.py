@@ -318,6 +318,22 @@ class Interface(Element):
 
         return InterfaceCollection(collection).unique(lambda x: x.uuid)
 
+    def related_iterator(self):
+        seen = {self.uuid}
+        for relation_attribute, relationship in self.__relations__.items():
+            if getattr(self, relation_attribute, False) is False:
+                continue
+            related = getattr(self, relation_attribute)
+            if not related:
+                continue
+            if not relationship.multiple:
+                related = [related]
+            for r in related:
+                if r.uuid in seen:
+                    continue
+                yield r, relationship, seen
+                seen.add(r.uuid)
+
     def to_cli(self) -> str:
         cli = [self.module]
         for v in self.__model__.version:
