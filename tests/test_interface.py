@@ -271,9 +271,7 @@ def test_symlink_relations(tmp_storage):
     project = Project("./tests/samples/project").__enter__()
 
     component = get("dummy").launch()
-    assert os.path.isfile(
-        component.execution.component_directory("link", ".machinable")
-    )
+    assert os.path.isfile(component.execution.component_directory("link"))
 
     project.__exit__()
 

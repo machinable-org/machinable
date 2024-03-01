@@ -4,6 +4,10 @@
 
 # Unreleased
 
+- Use text-based link relation by default
+
+# v4.9.0
+
 - Adds `Interface.related_iterator()`
 
 # v4.9.0
