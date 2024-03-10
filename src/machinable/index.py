@@ -32,7 +32,7 @@ def interface_row_factory(cursor, row) -> schema.Interface:
         uuid=row[0],
         kind=row[1],
         module=row[2],
-        config=None,
+        config=json.loads(row[3]),
         version=json.loads(row[6]),
         predicate=json.loads(row[7]),
         lineage=json.loads(row[8]),
@@ -143,10 +143,15 @@ class Index(Interface):
             ).fetchone():
                 # already exists
                 return False
-            config = copy.deepcopy(model.config or {})
-            default = config.pop("_default_", {})
-            version = config.pop("_version_", [])
-            update = config.pop("_update_", {})
+            config = copy.deepcopy(model.config)
+            if config:
+                default = config.pop("_default_", {})
+                version = config.pop("_version_", [])
+                update = config.pop("_update_", {})
+            else:
+                default = {}
+                version = []
+                update = {}
 
             cur.execute(
                 """INSERT INTO 'index' (
@@ -237,7 +242,6 @@ class Index(Interface):
                 return None
             cur = _db.cursor()
             if len(uuid) == 6:  # short id
-                print(f"%{uuid[:2]}-{uuid[2:]}-%")
                 row = cur.execute(
                     """SELECT * FROM 'index' WHERE uuid LIKE ?""",
                     (f"%{uuid[:2]}-{uuid[2:]}-%",),
@@ -277,7 +281,6 @@ class Index(Interface):
                 )
             else:
                 query = cur.execute("""SELECT * FROM 'index'""")
-
             return [interface_row_factory(cur, row) for row in query.fetchall()]
 
     def find_by_hash(self, context_hash: str) -> List[schema.Interface]:

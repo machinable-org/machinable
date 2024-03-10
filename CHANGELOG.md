@@ -2,6 +2,10 @@
 
 <!-- Please add changes under the Unreleased section that reads 'No current changes' otherwise -->
 
+# Unreleased
+
+- Ensure that config field is always reloaded from index to avoid incorrect recomputation
+
 # v4.9.1
 
 - Use text-based link relation by default
