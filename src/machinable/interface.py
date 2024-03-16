@@ -182,6 +182,9 @@ class Interface(Element):
         )
         self.__model__._dump = get_dump(self)
 
+        self._kwargs["uses"] = uses
+        self._kwargs["derived_from"] = derived_from
+
         # initialize relation data
         self.__related__ = {}
         self._relation_cache = {}
