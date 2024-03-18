@@ -4,6 +4,7 @@
 
 # Unreleased
 
+- Always use first CLI argument as target to allow non-component targets
 - Ensure that config field is always reloaded from index to avoid incorrect recomputation
 
 # v4.9.1

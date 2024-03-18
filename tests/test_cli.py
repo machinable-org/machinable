@@ -1,5 +1,6 @@
 import os
 
+import pytest
 from machinable import Component, Project, from_cli, get_version
 from machinable.cli import main
 
@@ -22,6 +23,17 @@ def test_cli_main(capfd, tmp_storage):
         out, err = capfd.readouterr()
         assert out == "Hello Twice!\nHello Twice!\n"
         assert main(["get.new", "hello", "--launch"]) == 0
+
+        with pytest.raises(ValueError):
+            main(["get"])
+
+        out, err = capfd.readouterr()
+        main(["get", "interface.dummy", "--__call__"])
+        out, err = capfd.readouterr()
+        assert out == "Hello world!\n"
+        main(["get", "hello", "name=there", "interface.dummy", "--__call__"])
+        out, err = capfd.readouterr()
+        assert out == "Hello there!\n"
 
     # help
     assert main([]) == 0

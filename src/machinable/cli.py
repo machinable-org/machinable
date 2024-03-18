@@ -113,14 +113,15 @@ def main(args: Optional[List] = None):
         elements, methods = parse(args)
         contexts = []
         component = None
-        for module, *version in elements:
+        for i, (module, *version) in enumerate(elements):
             element = get(module, version)
-            contexts.append(element.__enter__())
-            if isinstance(element, machinable.Component):
+            if i == 0:
                 component = element
+            else:
+                contexts.append(element.__enter__())
 
         if component is None:
-            raise ValueError("You have to provide an component")
+            raise ValueError("You have to provide at least one interface")
 
         for method in methods:
             # check if cli_{method} exists before falling back on {method}
