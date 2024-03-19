@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Literal, Optional, Union
 
 import shutil
 import sys
@@ -16,22 +16,25 @@ class MPI(Execution):
         mpi: Optional[str] = "mpirun"
         ranks: Optional[int] = None
         nodes: Optional[int] = None
-        resume: bool = False
+        resume_failed: Union[bool, Literal["new", "skip"]] = False
 
     def __call__(self):
         for executable in self.pending_executables:
-            # check if failed or active
-            if not self.config.resume:
+            if self.config.resume_failed is not True:
                 if (
                     executable.executions.filter(
                         lambda x: x.is_incomplete(executable)
-                        or x.is_active(executable)
                     ).count()
                     > 0
                 ):
-                    raise ExecutionFailed(
-                        f"{executable.module} <{executable.id}> has previously been executed or is currently running. Set `resume` to True to allow resubmission."
-                    )
+                    if self.config.resume_failed == "new":
+                        executable = executable.new()
+                    if self.config.resume_failed == "skip":
+                        continue
+                    else:
+                        raise ExecutionFailed(
+                            f"{executable.module} <{executable.id})> has previously been executed unsuccessfully. Set `resume_failed` to True, 'new' or 'skip' to handle resubmission."
+                        )
 
             # automatically infer the ranks and nodes from the executable
             # (if the executable does not expose `ranks`, `nodes` will be ignored)
@@ -60,20 +63,28 @@ class MPI(Execution):
                             str(nodes),
                         ]
                     )
+
                 cmd.append(script_file)
                 print(" ".join(cmd))
 
                 with open(
-                    executable.local_directory("output.log"), "w", buffering=1
+                    self.local_directory(executable.id, "output.log"),
+                    "w",
+                    buffering=1,
                 ) as f:
-                    run_and_stream(
-                        cmd,
-                        stdout_handler=lambda o: [
-                            sys.stdout.write(o),
-                            f.write(o),
-                        ],
-                        stderr_handler=lambda o: [
-                            sys.stderr.write(o),
-                            f.write(o),
-                        ],
-                    )
+                    try:
+                        run_and_stream(
+                            cmd,
+                            stdout_handler=lambda o: [
+                                sys.stdout.write(o),
+                                f.write(o),
+                            ],
+                            stderr_handler=lambda o: [
+                                sys.stderr.write(o),
+                                f.write(o),
+                            ],
+                        )
+                    except KeyboardInterrupt as _ex:
+                        raise KeyboardInterrupt(
+                            "Interrupting `" + " ".join(cmd) + "`"
+                        ) from _ex

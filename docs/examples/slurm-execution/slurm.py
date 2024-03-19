@@ -1,4 +1,4 @@
-from typing import Literal, Optional
+from typing import Literal, Optional, Union
 
 import os
 import subprocess
@@ -97,7 +97,7 @@ class Slurm(Execution):
         throttle: float = 0.5
         confirm: bool = True
         copy_project_source: bool = True
-        resume_failed: bool = False
+        resume_failed: Union[bool, Literal["new", "skip"]] = False
 
     def on_before_dispatch(self):
         if self.config.confirm:
@@ -125,6 +125,22 @@ class Slurm(Execution):
                     )
                     continue
 
+            if self.config.resume_failed is not True:
+                if (
+                    executable.executions.filter(
+                        lambda x: x.is_incomplete(executable)
+                    ).count()
+                    > 0
+                ):
+                    if self.config.resume_failed == "new":
+                        executable = executable.new()
+                    if self.config.resume_failed == "skip":
+                        continue
+                    else:
+                        raise ExecutionFailed(
+                            f"{executable.module} <{executable.id})> has previously been executed unsuccessfully. Set `resume_failed` to True, 'new' or 'skip' to handle resubmission."
+                        )
+
             source_code = Project.get().path()
             if self.config.copy_project_source:
                 print("Copy project source code ...")
@@ -134,18 +150,6 @@ class Slurm(Execution):
                 run_and_stream(cmd, check=True)
 
             script = "#!/usr/bin/env bash\n"
-
-            # check if failed
-            if not self.config.resume_failed:
-                if (
-                    executable.executions.filter(
-                        lambda x: x.is_incomplete(executable)
-                    ).count()
-                    > 0
-                ):
-                    raise ExecutionFailed(
-                        f"{executable.module} <{executable.id}> has previously been executed unsuccessfully. Set `resume_failed` to True to allow resubmission."
-                    )
 
             resources = self.computed_resources(executable)
 
