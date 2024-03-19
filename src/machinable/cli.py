@@ -42,7 +42,7 @@ def parse(args: List) -> Tuple[List["ElementType"], str]:
             version.append(arg)
         elif arg.startswith("--"):
             # method
-            methods.append(arg[2:])
+            methods.append((len(elements), arg[2:]))
         else:
             # module
             _push(elements, dotlist, version)
@@ -115,7 +115,7 @@ def main(args: Optional[List] = None):
         component = None
         for i, (module, *version) in enumerate(elements):
             element = get(module, version)
-            if i == 0:
+            if i == len(elements) - 1:
                 component = element
             else:
                 contexts.append(element.__enter__())
@@ -123,12 +123,15 @@ def main(args: Optional[List] = None):
         if component is None:
             raise ValueError("You have to provide at least one interface")
 
-        for method in methods:
+        for i, method in methods:
             # check if cli_{method} exists before falling back on {method}
             target = getattr(
                 component, f"cli_{method}", getattr(component, method)
             )
-            target()
+            if callable(target):
+                target()
+            else:
+                print(target)
 
         for context in reversed(contexts):
             context.__exit__()

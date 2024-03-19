@@ -31,7 +31,7 @@ def test_cli_main(capfd, tmp_storage):
         main(["get", "interface.dummy", "--__call__"])
         out, err = capfd.readouterr()
         assert out == "Hello world!\n"
-        main(["get", "hello", "name=there", "interface.dummy", "--__call__"])
+        main(["get", "interface.dummy", "hello", "name=there", "--__call__"])
         out, err = capfd.readouterr()
         assert out == "Hello there!\n"
 
