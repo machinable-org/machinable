@@ -4,6 +4,7 @@
 
 # Unreleased
 
+- Adds `Execution().deferred()` to prevent automatic dispatch
 - Respect CLI context order
 
 # v4.9.2

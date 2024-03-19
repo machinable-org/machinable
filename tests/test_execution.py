@@ -96,6 +96,24 @@ def test_execution_dispatch(tmp_storage):
         assert not invalid.is_mounted()
 
 
+def test_execution_deferral(tmp_storage):
+    with Execution().deferred() as execution:
+        component = Component().launch()
+
+    assert not component.cached()
+    assert not execution.is_started()
+    execution.dispatch()
+    assert execution.is_finished()
+    assert component.cached()
+
+    component = Component()
+    assert not component.cached()
+    with Execution().deferred() as execution:
+        execution.deferred(False)
+        component.launch()
+    assert component.cached()
+
+
 def test_execution_context(tmp_storage):
     with Execution(schedule=None) as execution:
         e1 = Component()

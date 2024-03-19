@@ -67,6 +67,11 @@ class Execution(Interface):
             self.push_related("schedule", schedule)
         self._executable_ = None
         self._resources = {}
+        self._defer_dispatch = False
+
+    def deferred(self, defer: bool = True):
+        self._defer_dispatch = defer
+        return self
 
     @classmethod
     def collect(cls, executions) -> "ExecutionCollection":
@@ -462,6 +467,8 @@ class Execution(Interface):
     def __exit__(self, *args):
         if len(args) == 3 and any(map(lambda x: x is not None, args)):
             # error occurred
+            super().__exit__()
+        elif self._defer_dispatch:
             super().__exit__()
         else:
             try:
