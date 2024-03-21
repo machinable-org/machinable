@@ -19,6 +19,7 @@ class Element(BaseModel):
     version: List[Union[str, Dict]] = []
     config: Optional[Dict] = None
     predicate: Optional[Dict] = None
+    context: Optional[Dict] = None
     lineage: Tuple[str, ...] = ()
 
     @property

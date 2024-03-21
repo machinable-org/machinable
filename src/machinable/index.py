@@ -35,6 +35,7 @@ def interface_row_factory(cursor, row) -> schema.Interface:
         config=json.loads(row[3]),
         version=json.loads(row[6]),
         predicate=json.loads(row[7]),
+        context=json.loads(row[11] or "null"),
         lineage=json.loads(row[8]),
         timestamp=int(row[9]),
         **json.loads(row[10]),
@@ -76,6 +77,12 @@ def migrate(db: sqlite3.Connection) -> None:
         db.commit()
         version += 1
     if version == 1:
+        # updates
+        cur.execute("""ALTER TABLE 'index' ADD COLUMN 'context' json""")
+        cur.execute("PRAGMA user_version = 2;")
+        db.commit()
+        version += 1
+    if version == 2:
         # future migrations
         ...
 
@@ -163,10 +170,11 @@ class Index(Interface):
                     config_default,
                     version,
                     predicate,
+                    context,
                     lineage,
                     'timestamp',
                     extra
-                ) VALUES (?,?,?,?,?,?,?,?,?,?,?)""",
+                ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)""",
                 (
                     model.uuid,
                     model.kind,
@@ -176,6 +184,7 @@ class Index(Interface):
                     _jn(default),
                     _jn(version),
                     _jn(model.predicate),
+                    _jn(model.context),
                     _jn(model.lineage),
                     model.timestamp,
                     _jn(model.extra()),
@@ -264,11 +273,16 @@ class Index(Interface):
             equals = []
             for field, value in context.items():
                 if field == "predicate":
-                    for p, v in value.items():
-                        keys.append(f"json_extract(predicate, '$.{p}')=?")
-                        equals.append(v)
+                    if hasattr(value, "items") and len(value) > 0:
+                        # empty dict is a wildcard, so we only add
+                        # condition if len(value) > 0
+                        for p, v in value.items():
+                            keys.append(
+                                f"json_extract(context, '$.{field}.{p}')=?"
+                            )
+                            equals.append(v)
                 else:
-                    keys.append(f"{field}=?")
+                    keys.append(f"json_extract(context, '$.{field}')=?")
                     equals.append(value)
 
             if len(keys) > 0:

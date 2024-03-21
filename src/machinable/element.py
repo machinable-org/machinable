@@ -270,6 +270,7 @@ class Element(Mixin, Jsonable):
         self.__mixins__ = {}
         self._config: Optional[DictConfig] = None
         self._predicate: Optional[DictConfig] = None
+        self._context: Optional[DictConfig] = None
         self._cache = {}
         self._kwargs = {}
 
@@ -462,6 +463,15 @@ class Element(Mixin, Jsonable):
         return self._predicate
 
     @property
+    def context(self) -> Optional[DictConfig]:
+        if self._context is None:
+            if self.__model__.context is None:
+                return None
+            self._context = OmegaConf.create(self.__model__.context)
+
+        return self._context
+
+    @property
     def config(self) -> DictConfig:
         """Element configuration"""
         if self._config is None:
@@ -580,7 +590,7 @@ class Element(Mixin, Jsonable):
         return getattr(schema, cls.kind)
 
     def matches(self, context: Optional[Dict] = None) -> bool:
-        if context is None:
+        if context is None or self.context is None:
             # full constraint, match none
             return False
 
@@ -589,31 +599,20 @@ class Element(Mixin, Jsonable):
             return True
 
         for field, value in context.items():
-            if field in (
-                "uuid",
-                "kind",
-                "module",
-            ):
-                if not equaljson(getattr(self, field), value):
-                    return False
-            elif field == "config":
-                if not equaljson(
-                    {
-                        k: v
-                        for k, v in self.config.items()
-                        if k not in ["_default_", "_version_", "_update_"]
-                    },
-                    value,
-                ):
-                    return False
-            elif field == "predicate":
-                for p, v in value.items():
-                    if p not in self.predicate:
-                        return False
-                    if not equaljson(self.predicate[p], v):
-                        return False
+            if field == "predicate":
+                if hasattr(value, "items") and len(value) > 0:
+                    for p, v in value.items():
+                        if field not in self.context:
+                            return False
+                        if p not in self.context[field]:
+                            return False
+                        if not equaljson(self.context[field][p], v):
+                            return False
             else:
-                raise ValueError("Invalid context field: {field}")
+                if field not in self.context:
+                    return False
+                if not equaljson(self.context[field], value):
+                    return False
 
         return True
 

@@ -7,7 +7,7 @@ from machinable import Component, index, schema
 
 
 def _is_migrated(db):
-    return db.cursor().execute("PRAGMA user_version;").fetchone()[0] == 1
+    return db.cursor().execute("PRAGMA user_version;").fetchone()[0] == 2
 
 
 def _matches(q, v):
@@ -51,6 +51,7 @@ def test_index_commit(tmp_path):
         "[]",
         v.timestamp,
         "{}",
+        "null",
     )
     assert i.commit(v) is True
     with index.db(i.config.database) as db:
@@ -98,7 +99,9 @@ def test_index_find(tmp_path):
 
 def test_index_find_by_context(tmp_path):
     i = index.Index({"database": str(tmp_path / "index.sqlite")})
-    v = schema.Interface(module="machinable", predicate={"a": 0, "b": 0})
+    v = schema.Interface(
+        context=dict(module="machinable", predicate={"a": 0, "b": 0})
+    )
     i.commit(v)
     assert len(i.find_by_context(dict(module="machinable"))) == 1
     assert (

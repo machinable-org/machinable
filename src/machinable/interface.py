@@ -241,7 +241,7 @@ class Interface(Element):
         if index.find_by_id(self.uuid) is not None:
             return self
 
-        context = self.compute_context()
+        self.__model__.context = context = self.compute_context()
         self.__model__.uuid = update_uuid_payload(self.__model__.uuid, context)
 
         # ensure that configuration and predicate has been computed
