@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Annotated, Optional
 
 from uuid import uuid4
 
@@ -16,8 +16,9 @@ from machinable.element import (
     uuid_to_id,
 )
 from machinable.errors import ConfigurationError
-from machinable.utils import Connectable
+from machinable.utils import Connectable, file_hash
 from omegaconf import OmegaConf
+from pydantic.functional_validators import BeforeValidator
 
 
 def test_element_defaults():
@@ -280,6 +281,35 @@ def test_element_config_schema():
     schema = Nesting({"value": {"a": "1", "b": 1}})
     assert schema.config.value.a == "1"
     assert schema.config.value.b == 1.0
+
+
+def test_element_config_transform(tmp_path):
+    class Test(Element):
+        class Config(pydantic.BaseModel):
+            test: str = "???"
+            tf: Annotated[str, BeforeValidator(lambda x: x + x)] = "default"
+
+    t = Test({"test": "me"})
+    assert t.config.test == "me"
+    assert t.config.tf == "defaultdefault"
+    assert t.config._default_.tf == "default"
+    t = Test({"test": "me", "tf": "hello"})
+    assert t.config.test == "me"
+    assert t.config.tf == "hellohello"
+    assert t.config._default_.tf == "default"
+    assert t.config._update_.tf == "hello"
+
+    with open(tmp_path / "test.txt", "w") as f:
+        f.write("test")
+
+    class FileTest(Element):
+        class Config(pydantic.BaseModel):
+            file: Annotated[str, BeforeValidator(file_hash)] = "default"
+
+    t = FileTest({"file": str(tmp_path / "test.txt")})
+    assert t.config.file == "a71079d42853"
+    assert t.config._default_.file == "default"
+    assert t.config._update_.file == str(tmp_path / "test.txt")
 
 
 def test_normversion():
