@@ -18,7 +18,12 @@ import machinable
 import omegaconf
 from machinable import schema
 from machinable.collection import ElementCollection
-from machinable.config import from_element, match_method, rewrite_config_methods
+from machinable.config import (
+    from_element,
+    match_method,
+    rewrite_config_methods,
+    to_dict,
+)
 from machinable.errors import ConfigurationError, MachinableError
 from machinable.mixin import Mixin
 from machinable.types import DatetimeType, ElementType, VersionType
@@ -429,7 +434,7 @@ class Element(Mixin, Jsonable):
         return {
             "module": self.module,
             "config": {
-                k: v
+                k: to_dict(v)
                 for k, v in self.config.items()
                 if k not in ["_default_", "_version_", "_update_"]
             },
