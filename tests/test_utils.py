@@ -211,3 +211,11 @@ def test_run_and_stream(tmp_path):
         script, shell=True, stdout_handler=lambda x: o.append(x)
     )
     assert o[0] == "HELLO\n"
+
+
+def test_file_hash(tmp_path):
+    file = utils.save_file(str(tmp_path / "test.txt"), "test")
+    assert utils.file_hash(file) == "a71079d42853"
+    assert utils.file_hash(tmp_path / "test.txt") == "a71079d42853"
+    with pytest.raises(FileNotFoundError):
+        utils.file_hash("not-existing")

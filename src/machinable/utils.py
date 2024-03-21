@@ -128,6 +128,14 @@ def compute_object_hash(payload: dict) -> str:
     return hash_obj.hexdigest()
 
 
+def file_hash(filepath: str):
+    hash_obj = hashlib.blake2b()
+    with open(str(filepath), "rb") as file:
+        while chunk := file.read(8192):
+            hash_obj.update(chunk)
+    return hash_obj.hexdigest()[:12]
+
+
 def update_uuid_payload(uuid: str, payload: dict) -> str:
     hash_hex = compute_object_hash(payload)
 

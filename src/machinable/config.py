@@ -1,5 +1,5 @@
-__all__ = ["Field", "field_validator", "Model"]
-from typing import TYPE_CHECKING, Any, Optional, Tuple, Union
+__all__ = ["to_dict"]
+from typing import TYPE_CHECKING, Annotated, Any, Optional, Tuple, Union
 
 import collections
 import re
@@ -8,7 +8,7 @@ from dataclasses import asdict, dataclass, is_dataclass
 from inspect import isclass
 
 import omegaconf
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel
 
 if TYPE_CHECKING:
     from machinable.element import Element
