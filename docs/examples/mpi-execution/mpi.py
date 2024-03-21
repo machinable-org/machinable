@@ -28,8 +28,8 @@ class MPI(Execution):
                     > 0
                 ):
                     if self.config.resume_failed == "new":
-                        executable = executable.new()
-                    if self.config.resume_failed == "skip":
+                        executable = executable.new().commit()
+                    elif self.config.resume_failed == "skip":
                         continue
                     else:
                         raise ExecutionFailed(
