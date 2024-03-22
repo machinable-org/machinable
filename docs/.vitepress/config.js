@@ -88,6 +88,10 @@ export default defineConfig({
               text: 'Slurm',
               link: '/examples/slurm-execution/'
             },
+            {
+              text: 'Require',
+              link: '/examples/require-execution/'
+            },
           ]
         },
       ]
