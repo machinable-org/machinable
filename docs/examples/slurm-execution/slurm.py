@@ -105,9 +105,15 @@ class Slurm(Execution):
         resources = {}
         resources["-p"] = "development"
         resources["-t"] = "2:00:00"
-        if isinstance(nodes := executable.config.get("nodes", False), int):
+        if (nodes := executable.config.get("nodes", False)) not in [
+            None,
+            False,
+        ]:
             resources["--nodes"] = nodes
-        if isinstance(ranks := executable.config.get("ranks", False), int):
+        if (ranks := executable.config.get("ranks", False)) not in [
+            None,
+            False,
+        ]:
             resources["--ntasks-per-node"] = ranks
 
         return resources
@@ -207,11 +213,18 @@ class Slurm(Execution):
             cmd = ["sbatch", script_file]
             print(" ".join(cmd))
 
-            output = subprocess.run(
-                cmd, text=True, check=True, env=os.environ, capture_output=True
-            )
-
-            print(output.stdout)
+            try:
+                output = subprocess.run(
+                    cmd,
+                    text=True,
+                    check=True,
+                    env=os.environ,
+                    capture_output=True,
+                )
+                print(output.stdout)
+            except subprocess.CalledProcessError as _ex:
+                print(_ex.output)
+                raise _ex
 
             try:
                 job_id = int(output.stdout.rsplit(" ", maxsplit=1)[-1])
