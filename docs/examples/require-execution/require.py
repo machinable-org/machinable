@@ -28,6 +28,8 @@ class Require(Execution):
         raise RuntimeError(
             "Execution is required:\n- "
             + "\n- ".join(
-                self.pending_executables.map(lambda x: x.module + " <" + x.id + ">")
+                self.pending_executables.map(
+                    lambda x: x.module + " <" + x.id + ">"
+                )
             )
         )

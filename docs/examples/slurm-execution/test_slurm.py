@@ -9,6 +9,10 @@ from machinable import Component, Execution, Index, Project
 
 
 class SlurmComponent(Component):
+    class Config:
+        ranks: int = 1
+        nodes: int = 1
+
     def __call__(self):
         print("Hello world from Slurm")
         self.save_file("test_run.json", {"success": True})

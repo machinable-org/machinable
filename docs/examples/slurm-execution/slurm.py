@@ -90,10 +90,8 @@ class Slurm(Execution):
     class Config(BaseModel):
         model_config = ConfigDict(extra="forbid")
 
-        nodes: int = 1
-        ranks: int = 1
-        partition: str = "development"
-        preamble: Optional[str] = "mpirun"
+        preamble: Optional[str] = ""
+        mpi: Optional[str] = "mpirun"
         throttle: float = 0.5
         confirm: bool = True
         copy_project_source: bool = True
@@ -105,12 +103,12 @@ class Slurm(Execution):
 
     def on_compute_default_resources(self, executable):
         resources = {}
-        resources["-p"] = self.config.partition
-        resources["--nodes"] = executable.config.get("nodes", self.config.nodes)
+        resources["-p"] = "development"
         resources["-t"] = "2:00:00"
-        resources["--ntasks-per-node"] = executable.config.get(
-            "ranks", self.config.ranks
-        )
+        if isinstance(nodes := executable.config.get("nodes", False), int):
+            resources["--nodes"] = nodes
+        if isinstance(ranks := executable.config.get("ranks", False), int):
+            resources["--ntasks-per-node"] = ranks
 
         return resources
 
@@ -133,8 +131,8 @@ class Slurm(Execution):
                     > 0
                 ):
                     if self.config.resume_failed == "new":
-                        executable = executable.new()
-                    if self.config.resume_failed == "skip":
+                        executable = executable.new().commit()
+                    elif self.config.resume_failed == "skip":
                         continue
                     else:
                         raise ExecutionFailed(
@@ -152,6 +150,7 @@ class Slurm(Execution):
             script = "#!/usr/bin/env bash\n"
 
             resources = self.computed_resources(executable)
+            mpi = executable.config.get("mpi", self.config.mpi)
 
             # usage dependencies
             if "--dependency" not in resources and (
@@ -185,12 +184,15 @@ class Slurm(Execution):
                     line += f"={v}"
                 sbatch_arguments.append(line)
 
-            script += "\n".join(sbatch_arguments) + "\n"
+            script += "\n".join(sbatch_arguments) + "\n\n"
 
             if self.config.preamble:
                 script += self.config.preamble
-                if script[-1] != " ":
-                    script += " "
+
+            if mpi:
+                if mpi[-1] != " ":
+                    mpi += " "
+                script += mpi
 
             script += executable.dispatch_code(project_directory=source_code)
 

@@ -13,10 +13,18 @@ class MPI(Execution):
     class Config(BaseModel):
         model_config = ConfigDict(extra="forbid")
 
+        preamble: Optional[str] = ""
         mpi: Optional[str] = "mpirun"
-        ranks: Optional[int] = None
-        nodes: Optional[int] = None
         resume_failed: Union[bool, Literal["new", "skip"]] = False
+
+    def on_compute_default_resources(self, executable):
+        resources = {}
+
+        ranks = executable.config.get("ranks", False)
+        if ranks not in [None, False]:
+            resources["-n"] = int(ranks)
+
+        return resources
 
     def __call__(self):
         for executable in self.pending_executables:
@@ -36,36 +44,46 @@ class MPI(Execution):
                             f"{executable.module} <{executable.id})> has previously been executed unsuccessfully. Set `resume_failed` to True, 'new' or 'skip' to handle resubmission."
                         )
 
-            # automatically infer the ranks and nodes from the executable
-            # (if the executable does not expose `ranks`, `nodes` will be ignored)
-            if (ranks := self.config.ranks) == -1:
-                ranks = executable.config.get("ranks", False)
-            if (nodes := self.config.nodes) == -1:
-                nodes = executable.config.get("nodes", None)
-            if self.config.mpi is None or ranks is False:
-                # single-threaded execution
+            resources = self.computed_resources(executable)
+            mpi = executable.config.get("mpi", self.config.mpi)
+
+            if mpi is None:
                 executable.dispatch()
             else:
-                # run using MPI
+                script = "#!/usr/bin/env bash\n"
+
+                if self.config.preamble:
+                    script += self.config.preamble
+
+                script += executable.dispatch_code()
+
                 script_file = chmodx(
                     self.save_file(
                         [executable.id, "mpi.sh"],
-                        "#!/usr/bin/env bash\n\n" + executable.dispatch_code(),
+                        script,
                     )
                 )
-                cmd = [shutil.which(self.config.mpi)]
-                if isinstance(ranks, int):
-                    cmd.extend(["-n", str(ranks)])
-                if isinstance(nodes, int):
-                    cmd.extend(
-                        [
-                            "-N",
-                            str(nodes),
-                        ]
-                    )
 
+                cmd = [shutil.which(self.config.mpi)]
+                for k, v in resources.items():
+                    if v not in [None, True]:
+                        if k.startswith("--"):
+                            cmd.append(f"{k}={v}")
+                        else:
+                            cmd.extend([k, str(v)])
+                    else:
+                        cmd.append(k)
                 cmd.append(script_file)
+
                 print(" ".join(cmd))
+
+                self.save_file(
+                    [executable.id, "mpi.json"],
+                    data={
+                        "cmd": cmd,
+                        "script": script,
+                    },
+                )
 
                 with open(
                     self.local_directory(executable.id, "output.log"),

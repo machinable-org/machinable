@@ -25,7 +25,7 @@ def test_mpi_execution(tmp_path):
     ):
         with Project("docs/examples/mpi-execution"):
             component = MpiExample()
-            with Execution.get("mpi"):
+            with Execution.get("mpi", resources={"-n": 2}):
                 component.launch()
             assert component.execution.is_finished()
             assert component.load_file("test.txt") == "hello"
