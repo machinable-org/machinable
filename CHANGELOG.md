@@ -4,6 +4,7 @@
 
 # Unreleased
 
+- Adds `Interface.future()`
 - Enable custom context lookups in index
 - Adds `utils.file_hash`
 - Adds `Execution().deferred()` to prevent automatic dispatch

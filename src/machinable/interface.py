@@ -211,6 +211,7 @@ class Interface(Element):
             self._relation_cache["ancestor"] = True
 
         self._deferred_data = {}
+        self._futures_stack = set()
 
     @classmethod
     def collect(cls, elements) -> InterfaceCollection:
@@ -647,6 +648,17 @@ class Interface(Element):
         file = save_file(self.local_directory(filepath), data, makedirs=True)
 
         return file
+
+    def future(self) -> Optional[Self]:
+        from machinable.execution import Execution
+
+        if Execution.is_connected():
+            return None
+
+        if len(self._futures_stack) > 0:
+            return None
+
+        return self
 
     # a posteriori modifiers
 

@@ -327,3 +327,31 @@ def test_interface_find_by_id(tmp_storage):
     assert dummy == Interface.find_by_id(dummy.uuid)
     assert dummy2 == Interface.find_by_id(dummy2.id)
     assert dummy3 == Interface.find_by_id(dummy3.id)
+
+
+def test_interface_future(tmp_storage):
+    p = Project("./tests/samples/project").__enter__()
+
+    class T(Interface):
+        def test(self):
+            c = get("dummy")
+            assert c.future() is None
+            assert len(c._futures_stack) == 0
+            assert list(self._futures_stack) == [c.id]
+
+            self.future() is None
+
+            c.launch()
+            assert c.future() is c
+            assert len(self._futures_stack) == 0
+            with get("machinable.execution").deferred() as execution:
+                assert c.future() is None
+
+            assert execution.executables[0] is c
+
+            assert self.future() is self
+
+    t = T()
+    t.test()
+
+    p.__exit__()

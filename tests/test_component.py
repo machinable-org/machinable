@@ -264,3 +264,49 @@ def test_component_from_index(tmp_storage):
         cp = Component.find_by_id(c.uuid, fetch=False)
         assert c.seed == c.seed
         assert c.nickname == cp.nickname
+
+
+def test_component_future(tmp_storage):
+    c = Component()
+    assert c.future() is None
+    assert len(c._futures_stack) == 0
+    c.launch()
+    assert c.future() is c
+    with Execution().deferred() as execution:
+        assert c.future() is None
+
+    assert execution.executables[0] is c
+
+    # future tracking
+    class T(Component):
+        def test(self):
+            c = Component()
+            assert c.future() is None
+            assert len(c._futures_stack) == 0
+            assert list(self._futures_stack) == [c.id]
+            c.launch()
+            assert c.future() is c
+            assert len(self._futures_stack) == 0
+            with Execution().deferred() as execution:
+                assert c.future() is None
+
+            assert execution.executables[0] is c
+
+        def test_await(self):
+            c = Component()
+            c.launch()
+            c = Component()
+            assert c.future() is None
+            return c.id
+
+    t = T()
+    assert t.future() is None
+    t.test()
+    assert len(t._futures_stack) == 0
+
+    t.commit().cached(True)
+    assert t.future() is t
+
+    u = t.test_await()
+    assert list(t._futures_stack) == [u]
+    assert t.future() is None
