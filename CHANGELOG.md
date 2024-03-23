@@ -4,6 +4,7 @@
 
 # Unreleased
 
+- Support interface **kwargs in CLI
 - Adds `get.cached_or_fail`
 - Move `_machinable/project` to `interface/project`
 - Adds `Interface.future()`

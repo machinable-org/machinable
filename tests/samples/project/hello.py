@@ -10,3 +10,6 @@ class Hello(Component):
 
     def __call__(self):
         print(f"Hello {self.config.name}!")
+
+    def resources(self):
+        print(self.execution.computed_resources(self))

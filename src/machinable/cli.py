@@ -9,7 +9,8 @@ if TYPE_CHECKING:
     from machinable.types import ElementType, VersionType
 
 
-def parse(args: List) -> Tuple[List["ElementType"], str]:
+def parse(args: List) -> tuple:
+    kwargs = []
     methods = []
     elements = []
     dotlist = []
@@ -28,7 +29,13 @@ def parse(args: List) -> Tuple[List["ElementType"], str]:
                 _elements.append(_version)
 
     for arg in args:
-        if "=" in arg:
+        if arg.startswith("**kwargs="):
+            kwargs.append(
+                OmegaConf.to_container(OmegaConf.from_dotlist([arg[2:]]))[
+                    "kwargs"
+                ]
+            )
+        elif "=" in arg:
             # dotlist
             dotlist.append(arg)
         elif arg.startswith("~"):
@@ -52,17 +59,25 @@ def parse(args: List) -> Tuple[List["ElementType"], str]:
             if arg.startswith("."):
                 arg = "interface" + arg
             elements.append([arg])
+            if len(elements) - 1 > len(kwargs):
+                kwargs.append({})
+            if len(elements) - 1 != len(kwargs):
+                raise ValueError(f"Multiple **kwargs for {arg}")
 
     _push(elements, dotlist, version)
+    if len(elements) > len(kwargs):
+        kwargs.append({})
+    if len(elements) != len(kwargs):
+        raise ValueError(f"Multiple **kwargs for last interface")
 
-    return elements, methods
+    return elements, kwargs, methods
 
 
 def from_cli(args: Optional[List] = None) -> "VersionType":
     if args is None:
         args = sys.argv[1:]
 
-    elements, _ = parse(args)
+    elements, _, _ = parse(args)
 
     return sum(elements, [])
 
@@ -113,11 +128,11 @@ def main(args: Optional[List] = None):
         if action != "get":
             get = getattr(get, action.split(".")[-1])
 
-        elements, methods = parse(args)
+        elements, kwargs, methods = parse(args)
         contexts = []
         component = None
         for i, (module, *version) in enumerate(elements):
-            element = get(module, version)
+            element = get(module, version, **kwargs[i])
             if i == len(elements) - 1:
                 component = element
             else:

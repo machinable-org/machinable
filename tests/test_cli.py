@@ -35,12 +35,58 @@ def test_cli_main(capfd, tmp_storage):
         out, err = capfd.readouterr()
         assert out == "Hello there!\n"
 
+        main(
+            [
+                "get",
+                "machinable.execution",
+                "**kwargs={'resources': {'a': 1}}",
+                "hello",
+                "name=there",
+                "--resources",
+            ]
+        )
+        out, err = capfd.readouterr()
+        assert out == "{'a': 1}\n"
+
+        with pytest.raises(ValueError):
+            main(
+                [
+                    "get",
+                    "machinable.execution",
+                    "**kwargs={'resources': {'a': 1}}",
+                    "**kwargs={}",
+                    "hello",
+                    "name=there",
+                    "**kwargs={'test': 'me'}" "--resources",
+                ]
+            )
+
+        out, err = capfd.readouterr()
+        main(
+            [
+                "get",
+                "machinable.execution",
+                "**kwargs={'resources': {'a': 1}}",
+                "--__model__",
+            ]
+        )
+        out, err = capfd.readouterr()
+        assert "resources={'a': 1}" in out
+
+        with pytest.raises(ValueError):
+            main(
+                [
+                    "get",
+                    "machinable.execution",
+                    "**kwargs={'resources': {'a': 1}}",
+                    "**kwargs={}",
+                ]
+            )
+
     # help
     assert main([]) == 0
     assert main(["help"]) == 0
 
-
-def test_cli_from_cli():
     assert isinstance(from_cli(), list)
     assert from_cli([]) == []
     assert from_cli(["~test", "a=1", "a.b=2"]) == ["~test", {"a": {"b": 2}}]
