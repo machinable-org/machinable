@@ -255,6 +255,10 @@ def test_interface_modifiers(tmp_storage):
     assert get.or_fail("interface.dummy").is_committed()
     with pytest.raises(ValueError):
         get.or_fail("interface.dummy", {"a": 2})
+    with pytest.raises(ValueError):
+        get.cached_or_fail("interface.dummy")
+    d = get("hello").launch()
+    assert get.cached_or_fail("hello") == d
 
     # preferring cached
     d1 = get.new("dummy").commit()

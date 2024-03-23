@@ -68,6 +68,25 @@ class Query:
             f"Could not find {module}{normversion(version)} ({kwargs})"
         )
 
+    def cached_or_fail(
+        self,
+        module: Union[None, str, Interface] = None,
+        version: VersionType = None,
+        **kwargs,
+    ) -> Interface:
+        module, version = extend(module, version)
+        existing = Interface.find(module, version, **kwargs)
+        if existing:
+            for candidate in existing:
+                if not hasattr(candidate, "cached"):
+                    continue
+                if candidate.cached():
+                    return candidate
+
+        raise ValueError(
+            f"Could not find {module}{normversion(version)} ({kwargs})"
+        )
+
     def prefer_cached(
         self,
         module: Union[None, str, Interface] = None,
