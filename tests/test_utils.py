@@ -158,13 +158,6 @@ def test_mixins():
             return 1
 
 
-def test_resolve_at_alias():
-    assert utils.resolve_at_alias("") == ""
-    assert utils.resolve_at_alias("@") == "_machinable"
-    assert utils.resolve_at_alias("@test") == "_machinable.test"
-    assert utils.resolve_at_alias("@test", "foo") == "_machinable.foo.test"
-
-
 def test_directory_version():
     for case in [
         None,

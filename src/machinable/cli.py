@@ -48,6 +48,9 @@ def parse(args: List) -> Tuple[List["ElementType"], str]:
             _push(elements, dotlist, version)
             dotlist = []
             version = []
+            # auto-complete `.project` -> `interface.project`
+            if arg.startswith("."):
+                arg = "interface" + arg
             elements.append([arg])
 
     _push(elements, dotlist, version)

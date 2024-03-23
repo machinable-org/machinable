@@ -4,6 +4,7 @@
 
 # Unreleased
 
+- Move `_machinable/project` to `interface/project`
 - Adds `Interface.future()`
 - Enable custom context lookups in index
 - Adds `utils.file_hash`

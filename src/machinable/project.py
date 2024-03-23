@@ -196,7 +196,7 @@ class Project(Interface):
             lineage=get_lineage(self),
         )
         self._parent: Optional[Project] = None
-        self._provider: str = "_machinable/project"
+        self._provider: str = "interface/project"
         self._resolved_provider: Optional[Project] = None
 
     def provider(self, reload: Union[str, bool] = False) -> "Project":
@@ -340,7 +340,7 @@ class Project(Interface):
             return None
 
         remote = remotes[module]
-        directory = self.path("_machinable/remotes")
+        directory = self.path("interface/remotes")
         remote_module = module.replace(".", "_")
         filename = os.path.join(directory, remote_module + ".py")
 

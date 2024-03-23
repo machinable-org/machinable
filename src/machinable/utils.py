@@ -156,17 +156,6 @@ def id_from_uuid(uuid: str) -> str:
     return uuid[11:13] + uuid[14:18]
 
 
-def resolve_at_alias(module: str, scope: Optional[str] = None) -> str:
-    if module.startswith("@"):
-        module = module.replace(
-            "@", f"_machinable.{(scope + '.') if scope is not None else ''}"
-        )
-        if module.endswith("."):
-            module = module[:-1]
-
-    return module
-
-
 # These words are picked under two objectives:
 #  (i) complex enough to make them memorizable
 #  (ii) pronunciation should not pose uneccessary challenges

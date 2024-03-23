@@ -3,7 +3,7 @@
 tests/.hypothesis
 **/vendor/.cache
 .hypothesis
-tests/samples/project/_machinable/remotes
+tests/samples/project/interface/remotes
 
 # Docs
 node_modules
