@@ -242,12 +242,16 @@ class Interface(Element):
         if index.find_by_id(self.uuid) is not None:
             return self
 
+        self.on_before_commit()
+
         self.__model__.context = context = self.compute_context()
         self.__model__.uuid = update_uuid_payload(self.__model__.uuid, context)
 
         # ensure that configuration and predicate has been computed
         assert self.config is not None
         self.__model__.predicate = self.compute_predicate()
+
+        self.on_commit()
 
         # commit to index
         for k, v in self.__related__.items():
@@ -277,7 +281,19 @@ class Interface(Element):
             self.save_file(filepath, data)
         self._deferred_data = {}
 
+        self.on_after_commit()
+
         return self
+
+    def on_before_commit(self):
+        """Event hook before interface is committed."""
+
+    def on_commit(self):
+        """Event hook during interface commit when uuid, config, context
+        and predicate have been computed and commit is about to be performed"""
+
+    def on_after_commit(self):
+        """Event hook after interface has been committed."""
 
     @belongs_to
     def project():

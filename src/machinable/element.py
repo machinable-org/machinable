@@ -561,6 +561,8 @@ class Element(Mixin, Jsonable):
                     self.__model__.config = OmegaConf.to_container(self._config)
 
                     OmegaConf.clear_resolver("config_method")
+
+                    self.on_after_configure()
             except Exception as _ex:
                 raise ConfigurationError(str(_ex)) from _ex
 
@@ -659,6 +661,12 @@ class Element(Mixin, Jsonable):
         This may be used to apply computed configuration updates
         Do not use to validate the configuration but use validators in the config schema
         that are applied at a later stage.
+        """
+
+    def on_after_configure(self) -> None:
+        """Configuration event operating on the resolved, read-only configuration
+        This may be used to validate given the interface instance. If validation
+        can be performed without the instance, use a config schema instead.
         """
 
     def _clear_caches(self) -> None:
