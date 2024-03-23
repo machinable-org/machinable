@@ -4,6 +4,11 @@
 
 # Unreleased
 
+No current changes
+
+# v4.10.0
+
+- New configure and commit events
 - Support interface **kwargs in CLI
 - Adds `get.cached_or_fail`
 - Move `_machinable/project` to `interface/project`
