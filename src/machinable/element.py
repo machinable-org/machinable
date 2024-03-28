@@ -99,6 +99,8 @@ def normversion(version: VersionType = None) -> List[Union[str, dict]]:
             return unflatten_dict(
                 OmegaConf.to_container(OmegaConf.create(item)), recursive=False
             )
+        if isinstance(item, str) and "~" in item:
+            return item.strip().replace("\n", "").replace(" ", "")
 
         return item
 

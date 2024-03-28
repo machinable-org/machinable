@@ -5,6 +5,7 @@
 # Unreleased
 
 - Consistent `future()` behavior for Interface and Component
+- Support multi-line version arguments
 
 # v4.10.0
 

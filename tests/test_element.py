@@ -183,6 +183,17 @@ def test_element_config():
     assert Dummy("~custom(3)").config.alpha == 3
     assert Dummy("~custom(alpha=5)").config.alpha == 5
 
+    # multi-line
+    ml = Dummy(
+        """
+        ~custom(
+        alpha=10
+        )
+    """
+    )
+    assert ml.config.alpha == 10
+    assert ml.version() == ["~custom(alpha=10)"]
+
     # ingores None
     assert Dummy((None, {"alpha": -1}, None)).config.alpha == -1
 
