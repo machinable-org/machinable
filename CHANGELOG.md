@@ -4,7 +4,7 @@
 
 # Unreleased
 
-No current changes
+- Consistent `future()` behavior for Interface and Component
 
 # v4.10.0
 

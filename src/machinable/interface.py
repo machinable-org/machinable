@@ -1,5 +1,6 @@
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
 
+import inspect
 import shlex
 import sys
 
@@ -665,13 +666,43 @@ class Interface(Element):
 
         return file
 
+    def launch(self) -> Self:
+        ...
+
+    def cached(self):
+        from machinable.execution import Execution
+
+        with Execution().deferred() as e:
+            self.launch()
+        return e.executables.reduce(
+            lambda result, x: result and x.cached(), True
+        )
+
     def future(self) -> Optional[Self]:
         from machinable.execution import Execution
 
         if Execution.is_connected():
+            self.launch()
             return None
 
-        if len(self._futures_stack) > 0:
+        ready = self.cached()
+
+        # if this is called within an interface, we keep
+        #  track of the state for later reference
+        outer = None
+        stack = inspect.stack()
+        try:
+            outer = stack[1][0].f_locals.get("self", None)
+        finally:
+            del stack
+
+        if isinstance(outer, Interface) and outer != self:
+            if ready:
+                outer._futures_stack.discard(self.id)
+            else:
+                outer._futures_stack.add(self.id)
+
+        if not ready or len(self._futures_stack) > 0:
             return None
 
         return self

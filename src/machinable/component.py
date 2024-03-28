@@ -199,34 +199,6 @@ class Component(Interface):
 
         return cached
 
-    def future(self) -> Optional[Self]:
-        from machinable.execution import Execution
-
-        if Execution.is_connected():
-            self.launch()
-            return None
-
-        ready = self.cached()
-
-        # if this is called within an interface, we keep
-        #  track of the state for later reference
-        stack = inspect.stack()
-        try:
-            outer = stack[1][0].f_locals.get("self", None)
-        finally:
-            del stack
-
-        if isinstance(outer, Interface):
-            if ready:
-                outer._futures_stack.discard(self.id)
-            else:
-                outer._futures_stack.add(self.id)
-
-        if not ready or len(self._futures_stack) > 0:
-            return None
-
-        return self
-
     def dispatch_code(
         self,
         inline: bool = True,

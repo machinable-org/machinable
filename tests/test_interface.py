@@ -256,7 +256,7 @@ def test_interface_modifiers(tmp_storage):
     with pytest.raises(ValueError):
         get.or_fail("interface.dummy", {"a": 2})
     with pytest.raises(ValueError):
-        get.cached_or_fail("interface.dummy")
+        get.cached_or_fail("dummy")
     d = get("hello").launch()
     assert get.cached_or_fail("hello") == d
 
