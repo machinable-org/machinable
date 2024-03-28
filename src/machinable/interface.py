@@ -213,6 +213,7 @@ class Interface(Element):
 
         self._deferred_data = {}
         self._futures_stack = set()
+        self._future_launch = False
 
     @classmethod
     def collect(cls, elements) -> InterfaceCollection:
@@ -682,7 +683,16 @@ class Interface(Element):
         from machinable.execution import Execution
 
         if Execution.is_connected():
-            self.launch()
+            if self._future_launch is True:
+                # prevent recursion
+                return None
+
+            try:
+                self._future_launch = True
+                self.launch()
+            finally:
+                self._future_launch = False
+
             return None
 
         ready = self.cached()

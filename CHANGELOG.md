@@ -4,7 +4,7 @@
 
 # Unreleased
 
-No current changes
+- Prevent recursions in self.future() calls
 
 # v4.10.1
 
