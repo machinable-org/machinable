@@ -4,6 +4,8 @@ from typing import Any, Callable, List, Mapping, Optional, Tuple, Union
 
 import stat
 import sys
+import tokenize
+from io import BytesIO
 
 if sys.version_info >= (3, 11):
     from typing import Self
@@ -455,6 +457,61 @@ def update_dict(
         else:
             d[k] = val
     return d
+
+
+def norm_version_call(version: str):
+    code = version.replace("~", "").strip()
+    tokens = tokenize.tokenize(BytesIO(code.encode("utf-8")).readline)
+    normalized_tokens = []
+
+    last_token_type = None
+    for toknum, tokval, _, _, _ in tokens:
+        if toknum in [
+            tokenize.ENCODING,
+            tokenize.ENDMARKER,
+            tokenize.NEWLINE,
+            tokenize.NL,
+        ]:
+            # skip encoding, endmarker, newlines
+            continue
+        if toknum == tokenize.STRING:
+            # string literals are preserved
+            normalized_tokens.append(tokval)
+        elif toknum == tokenize.OP:
+            # remove spaces before and after operators
+            if (
+                tokval == "="
+                and normalized_tokens
+                and normalized_tokens[-1] == " "
+            ):
+                normalized_tokens.pop()
+            normalized_tokens.append(tokval)
+        elif toknum in [tokenize.NAME, tokenize.NUMBER]:
+            if last_token_type not in [
+                None,
+                tokenize.OP,
+                tokenize.NL,
+                tokenize.NEWLINE,
+            ] and not (
+                last_token_type == tokenize.OP
+                and normalized_tokens[-1] in ["(", ","]
+            ):
+                normalized_tokens.append(" ")
+            normalized_tokens.append(tokval)
+        last_token_type = toknum
+
+    if "~" in version:
+        normalized_tokens = ["~"] + normalized_tokens
+
+    normalized_code = "".join(normalized_tokens)
+    normalized_code = (
+        normalized_code.replace(" (", "(")
+        .replace("( ", "(")
+        .replace(" )", ")")
+        .replace(", ", ",")
+        .replace(" ,", ",")
+    )
+    return normalized_code
 
 
 def dot_splitter(flat_key):

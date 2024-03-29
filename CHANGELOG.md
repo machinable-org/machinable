@@ -4,6 +4,7 @@
 
 # Unreleased
 
+- Improved version call normalizer
 - Prevent recursions in self.future() calls
 
 # v4.10.1

@@ -30,6 +30,7 @@ from machinable.types import DatetimeType, ElementType, VersionType
 from machinable.utils import (
     Jsonable,
     id_from_uuid,
+    norm_version_call,
     sentinel,
     serialize,
     unflatten_dict,
@@ -100,7 +101,7 @@ def normversion(version: VersionType = None) -> List[Union[str, dict]]:
                 OmegaConf.to_container(OmegaConf.create(item)), recursive=False
             )
         if isinstance(item, str) and "~" in item:
-            return item.strip().replace("\n", "").replace(" ", "")
+            return norm_version_call(item)
 
         return item
 

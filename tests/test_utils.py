@@ -212,3 +212,19 @@ def test_file_hash(tmp_path):
     assert utils.file_hash(tmp_path / "test.txt") == "a71079d42853"
     with pytest.raises(FileNotFoundError):
         utils.file_hash("not-existing")
+
+
+@pytest.mark.parametrize(
+    "input_code, expected",
+    [
+        ("foo(1, bar=2)", "foo(1,bar=2)"),
+        ("foo( 1, bar = 2 )", "foo(1,bar=2)"),
+        ("\nfoo(\n1,\nbar = 2\n)\n", "foo(1,bar=2)"),
+        ("foo(' hello ', bar=2)", "foo(' hello ',bar=2)"),
+        ("foo(bar= 'world', baz =3)", "foo(bar='world',baz=3)"),
+        ("~foo(bar= '  world',)", "~foo(bar='  world',)"),
+        (" ~foo(bar= 'world')", "~foo(bar='world')"),
+    ],
+)
+def test_norm_version_call(input_code, expected):
+    assert utils.norm_version_call(input_code) == expected
