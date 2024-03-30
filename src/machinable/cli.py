@@ -29,16 +29,7 @@ def parse(args: List) -> tuple:
                 _elements.append(_version)
 
     for arg in args:
-        if arg.startswith("**kwargs="):
-            kwargs.append(
-                OmegaConf.to_container(OmegaConf.from_dotlist([arg[2:]]))[
-                    "kwargs"
-                ]
-            )
-        elif "=" in arg:
-            # dotlist
-            dotlist.append(arg)
-        elif arg.startswith("~"):
+        if arg.startswith("~"):
             # version
             if len(dotlist) > 0:
                 # parse preceding dotlist
@@ -47,9 +38,18 @@ def parse(args: List) -> tuple:
                 )
                 dotlist = []
             version.append(arg)
+        elif arg.startswith("**kwargs="):
+            kwargs.append(
+                OmegaConf.to_container(OmegaConf.from_dotlist([arg[2:]]))[
+                    "kwargs"
+                ]
+            )
         elif arg.startswith("--"):
             # method
             methods.append((len(elements), arg[2:]))
+        elif "=" in arg:
+            # dotlist
+            dotlist.append(arg)
         else:
             # module
             _push(elements, dotlist, version)
@@ -69,7 +69,6 @@ def parse(args: List) -> tuple:
         kwargs.append({})
     if len(elements) != len(kwargs):
         raise ValueError(f"Multiple **kwargs for last interface")
-
     return elements, kwargs, methods
 
 

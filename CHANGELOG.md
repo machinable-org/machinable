@@ -4,6 +4,7 @@
 
 # Unreleased
 
+- Fix CLI version parsing issue
 - Improved version call normalizer
 - Prevent recursions in self.future() calls
 
