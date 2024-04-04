@@ -92,6 +92,8 @@ class Slurm(Execution):
 
         preamble: Optional[str] = ""
         mpi: Optional[str] = "mpirun"
+        mpi_args: str = ""
+        python: Optional[str] = None
         throttle: float = 0.5
         confirm: bool = True
         copy_project_source: bool = True
@@ -157,6 +159,8 @@ class Slurm(Execution):
 
             resources = self.computed_resources(executable)
             mpi = executable.config.get("mpi", self.config.mpi)
+            mpi_args = executable.config.get("mpi_args", self.config.mpi_args)
+            python = self.config.python or sys.executable
 
             # usage dependencies
             if "--dependency" not in resources and (
@@ -198,9 +202,14 @@ class Slurm(Execution):
             if mpi:
                 if mpi[-1] != " ":
                     mpi += " "
-                script += mpi
+                mpi = mpi + mpi_args
+                if mpi[-1] != " ":
+                    mpi += " "
+                python = mpi + python
 
-            script += executable.dispatch_code(project_directory=source_code)
+            script += executable.dispatch_code(
+                project_directory=source_code, python=python
+            )
 
             print(f"Submitting job {executable} with resources: ")
             print(yaml.dump(resources))
