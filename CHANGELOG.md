@@ -2,7 +2,7 @@
 
 <!-- Please add changes under the Unreleased section that reads 'No current changes' otherwise -->
 
-# Unreleased
+# v4.10.2
 
 - Eager callable resolution in versions
 - Allow module dependencies in on_resolve_remotes
