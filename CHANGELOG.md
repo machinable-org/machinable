@@ -4,6 +4,7 @@
 
 # Unreleased
 
+- Allow module dependencies in on_resolve_remotes
 - Fix CLI version parsing issue
 - Improved version call normalizer
 - Prevent recursions in self.future() calls

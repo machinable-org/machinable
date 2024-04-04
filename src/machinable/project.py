@@ -340,6 +340,12 @@ class Project(Interface):
             return None
 
         remote = remotes[module]
+
+        if isinstance(remote, (list, tuple)):
+            remote, *dependencies = remote
+            for dependency in dependencies:
+                self.resolve_remotes(dependency)
+
         directory = self.path("interface/remotes")
         remote_module = module.replace(".", "_")
         filename = os.path.join(directory, remote_module + ".py")
@@ -368,7 +374,7 @@ class Project(Interface):
                 # copy
                 shutil.copy(remote[5:], filename)
             else:
-                raise ValueError(f"Unknown remote type {remote}")
+                raise ValueError(f"Unknown remote type for {module}: {remote}")
 
         try:
             element_class = find_subclass_in_module(

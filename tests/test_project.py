@@ -43,6 +43,20 @@ def test_project_events(tmp_storage):
     assert os.path.exists("tests/samples/project/interface/remotes")
     with pytest.raises(ValueError):
         Component.instance("!invalid")
+    shutil.rmtree("tests/samples/project/interface/remotes", ignore_errors=True)
+    Component.instance("!multi")()
+    assert os.path.isfile("tests/samples/project/interface/remotes/!multi.py")
+    assert os.path.isfile(
+        "tests/samples/project/interface/remotes/!hello-link.py"
+    )
+    shutil.rmtree("tests/samples/project/interface/remotes", ignore_errors=True)
+    Component.instance("!multichain")()
+    assert os.path.isfile("tests/samples/project/interface/remotes/!multi.py")
+    assert os.path.isfile(
+        "tests/samples/project/interface/remotes/!hello-link.py"
+    )
+    with pytest.raises(ValueError):
+        Component.instance("!multi-invalid")
 
     # extension
     assert Component.instance("dummy_version_extend").config.a == 100

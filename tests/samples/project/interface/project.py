@@ -27,4 +27,7 @@ class TestProject(Project):
             "!hello": "file+" + self.path("hello.py"),
             "!hello-link": "link+" + self.path("hello.py"),
             "!invalid": "test",
+            "!multi": ["file+" + self.path("hello.py"), "!hello-link"],
+            "!multichain": ["file+" + self.path("hello.py"), "!multi"],
+            "!multi-invalid": ["file+" + self.path("hello.py"), "!invalid"],
         }
