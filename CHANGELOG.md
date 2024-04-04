@@ -4,6 +4,7 @@
 
 # Unreleased
 
+- Eager callable resolution in versions
 - Allow module dependencies in on_resolve_remotes
 - Fix CLI version parsing issue
 - Improved version call normalizer

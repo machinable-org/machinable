@@ -192,7 +192,7 @@ class Project(Interface):
         super().__init__(version=version)
         self.__model__ = schema.Project(
             kind=self.kind,
-            version=normversion(version),
+            version=self.__model__.version,
             lineage=get_lineage(self),
         )
         self._parent: Optional[Project] = None

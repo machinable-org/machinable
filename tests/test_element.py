@@ -262,6 +262,24 @@ def test_element_config():
     assert c.config.b.c == 2
 
 
+def test_element_lambdas():
+    e = Element([lambda _: {"a": 2 * 3}])
+    assert e.config.a == 6
+    e = Element(lambda self: {"a": self.__module__})
+    assert e.config.a == "machinable.element"
+    assert e.version() == [{"a": "machinable.element"}]
+    e = Element([{"a": 1}, lambda _: {"a": 2}])
+    assert e.config.a == 2
+
+    class T(Element):
+        def version_test(self):
+            return {"a": 3}
+
+    assert T("~test").config.a == 3
+    assert T(["~test", lambda _: {"a": 2}]).config.a == 2
+    assert T([{"a": 1}, lambda c: c.version_test()]).config.a == 3
+
+
 def test_element_config_schema():
     class Basic(Element):
         class Config(pydantic.BaseModel):

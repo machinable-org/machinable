@@ -265,6 +265,19 @@ class Element(Mixin, Jsonable):
         super().__init__()
         if Element._module_ is None:
             Element._module_ = self.__module__
+
+        # resolve callables
+        if not isinstance(
+            version,
+            (
+                list,
+                tuple,
+                omegaconf.listconfig.ListConfig,
+            ),
+        ):
+            version = [version]
+        version = [v(self) if callable(v) else v for v in version]
+
         self.__model__ = getattr(schema, self.kind, schema.Element)(
             kind=self.kind,
             module=Element._module_,
