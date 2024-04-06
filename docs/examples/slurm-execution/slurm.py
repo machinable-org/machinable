@@ -98,6 +98,7 @@ class Slurm(Execution):
         confirm: bool = True
         copy_project_source: bool = True
         resume_failed: Union[bool, Literal["new", "skip"]] = False
+        dry: bool = False
 
     def on_before_dispatch(self):
         if self.config.confirm:
@@ -148,7 +149,7 @@ class Slurm(Execution):
                         )
 
             source_code = Project.get().path()
-            if self.config.copy_project_source:
+            if self.config.copy_project_source and not self.config.dry:
                 print("Copy project source code ...")
                 source_code = self.local_directory(executable.id, "source_code")
                 cmd = ["rsync", "-a", Project.get().path(""), source_code]
@@ -159,7 +160,13 @@ class Slurm(Execution):
 
             resources = self.computed_resources(executable)
             mpi = executable.config.get("mpi", self.config.mpi)
-            mpi_args = executable.config.get("mpi_args", self.config.mpi_args)
+            mpi_args = self.config.mpi_args
+            ranks = executable.config.get("ranks", None)
+            if ranks is not None:
+                if mpi_args:
+                    mpi_args = mpi_args.replace("{ranks}", str(ranks))
+                else:
+                    mpi_args = "-n " + str(executable.config.get("ranks"))
             python = self.config.python or sys.executable
 
             # usage dependencies
@@ -199,6 +206,12 @@ class Slurm(Execution):
             if self.config.preamble:
                 script += self.config.preamble
 
+            # add debug information
+            script += "\n"
+            script += f"# {executable.module} <{executable.id}>\n"
+            script += f"# {executable.local_directory()}>\n"
+            script += "\n"
+
             if mpi:
                 if mpi[-1] != " ":
                     mpi += " "
@@ -222,6 +235,19 @@ class Slurm(Execution):
             cmd = ["sbatch", script_file]
             print(" ".join(cmd))
 
+            self.save_file(
+                [executable.id, "slurm.json"],
+                data={
+                    "job_id": None,
+                    "cmd": sbatch_arguments,
+                    "script": script,
+                },
+            )
+
+            if self.config.dry:
+                print("Dry run ... ", executable)
+                continue
+
             try:
                 output = subprocess.run(
                     cmd,
@@ -243,7 +269,7 @@ class Slurm(Execution):
                 f"{job_id}  named `{resources['--job-name']}` for {executable.local_directory()} (output at {resources['--output']})"
             )
 
-            # save job information
+            # update job information
             jobs[executable.id] = job_id
             self.save_file(
                 [executable.id, "slurm.json"],

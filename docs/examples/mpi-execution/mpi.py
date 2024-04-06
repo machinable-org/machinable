@@ -1,6 +1,5 @@
 from typing import Literal, Optional, Union
 
-import shutil
 import sys
 
 from machinable import Execution
@@ -15,7 +14,9 @@ class MPI(Execution):
 
         preamble: Optional[str] = ""
         mpi: Optional[str] = "mpirun"
+        python: Optional[str] = None
         resume_failed: Union[bool, Literal["new", "skip"]] = False
+        dry: bool = False
 
     def on_compute_default_resources(self, executable):
         resources = {}
@@ -40,69 +41,84 @@ class MPI(Execution):
                     elif self.config.resume_failed == "skip":
                         continue
                     else:
-                        raise ExecutionFailed(
-                            f"{executable.module} <{executable.id})> has previously been executed unsuccessfully. Set `resume_failed` to True, 'new' or 'skip' to handle resubmission."
-                        )
+                        msg = f"{executable.module} <{executable.id})> has previously been executed unsuccessfully. Set `resume_failed` to True, 'new' or 'skip' to handle resubmission."
+                        if self.config.dry:
+                            print("Dry run ... ", msg)
+                            continue
+
+                        raise ExecutionFailed(msg)
 
             resources = self.computed_resources(executable)
             mpi = executable.config.get("mpi", self.config.mpi)
+            python = self.config.python or sys.executable
+
+            script = "#!/usr/bin/env bash\n"
+
+            if self.config.preamble:
+                script += self.config.preamble
+
+            # add debug information
+            script += "\n"
+            script += f"# {executable.module} <{executable.id}>\n"
+            script += f"# {executable.local_directory()}>\n"
+            script += "\n"
+
+            script += executable.dispatch_code(python=python)
+
+            script_file = chmodx(
+                self.save_file(
+                    [executable.id, "mpi.sh"],
+                    script,
+                )
+            )
 
             if mpi is None:
-                executable.dispatch()
+                cmd = []
             else:
-                script = "#!/usr/bin/env bash\n"
-
-                if self.config.preamble:
-                    script += self.config.preamble
-
-                script += executable.dispatch_code()
-
-                script_file = chmodx(
-                    self.save_file(
-                        [executable.id, "mpi.sh"],
-                        script,
-                    )
-                )
-
-                cmd = [shutil.which(self.config.mpi)]
-                for k, v in resources.items():
-                    if v not in [None, True]:
-                        if k.startswith("--"):
-                            cmd.append(f"{k}={v}")
-                        else:
-                            cmd.extend([k, str(v)])
+                cmd = [mpi]
+            for k, v in resources.items():
+                if v is None or v is True:
+                    cmd.append(k)
+                else:
+                    if k.startswith("--"):
+                        cmd.append(f"{k}={v}")
                     else:
-                        cmd.append(k)
-                cmd.append(script_file)
+                        cmd.extend([k, str(v)])
 
-                print(" ".join(cmd))
+            cmd.append(script_file)
 
-                self.save_file(
-                    [executable.id, "mpi.json"],
-                    data={
-                        "cmd": cmd,
-                        "script": script,
-                    },
-                )
+            print(" ".join(cmd))
 
-                with open(
-                    self.local_directory(executable.id, "output.log"),
-                    "w",
-                    buffering=1,
-                ) as f:
-                    try:
-                        run_and_stream(
-                            cmd,
-                            stdout_handler=lambda o: [
-                                sys.stdout.write(o),
-                                f.write(o),
-                            ],
-                            stderr_handler=lambda o: [
-                                sys.stderr.write(o),
-                                f.write(o),
-                            ],
-                        )
-                    except KeyboardInterrupt as _ex:
-                        raise KeyboardInterrupt(
-                            "Interrupting `" + " ".join(cmd) + "`"
-                        ) from _ex
+            self.save_file(
+                [executable.id, "mpi.json"],
+                data={
+                    "cmd": cmd,
+                    "script": script,
+                },
+            )
+
+            if self.config.dry:
+                print("Dry run ... ", executable)
+                continue
+
+            with open(
+                self.local_directory(executable.id, "output.log"),
+                "w",
+                buffering=1,
+            ) as f:
+                try:
+                    run_and_stream(
+                        cmd,
+                        stdout_handler=lambda o: [
+                            sys.stdout.write(o),
+                            f.write(o),
+                        ],
+                        stderr_handler=lambda o: [
+                            sys.stderr.write(o),
+                            f.write(o),
+                        ],
+                    )
+                except KeyboardInterrupt as _ex:
+                    raise KeyboardInterrupt(
+                        "Interrupting `" + " ".join(cmd) + "`"
+                    ) from _ex
