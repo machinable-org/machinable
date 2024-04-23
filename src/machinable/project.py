@@ -374,7 +374,9 @@ class Project(Interface):
                 # copy
                 shutil.copy(remote[5:], filename)
             else:
-                raise ValueError(f"Unknown remote type for {module}: {remote}")
+                raise ValueError(
+                    f"Unknown remote type for {module}: {remote} (target file is {filename}"
+                )
 
         try:
             element_class = find_subclass_in_module(

@@ -144,15 +144,17 @@ class Slurm(Execution):
                     elif self.config.resume_failed == "skip":
                         continue
                     else:
-                        raise ExecutionFailed(
-                            f"{executable.module} <{executable.id})> has previously been executed unsuccessfully. Set `resume_failed` to True, 'new' or 'skip' to handle resubmission."
-                        )
+                        err = f"{executable.module} <{executable.id})> has previously been executed unsuccessfully. Set `resume_failed` to True, 'new' or 'skip' to handle resubmission."
+                        if self.config.dry:
+                            print(err)
+                        else:
+                            raise ExecutionFailed(err)
 
             source_code = Project.get().path()
             if self.config.copy_project_source and not self.config.dry:
                 print("Copy project source code ...")
                 source_code = self.local_directory(executable.id, "source_code")
-                cmd = ["rsync", "-a", Project.get().path(""), source_code]
+                cmd = ["rsync", "-rLptgoD", Project.get().path(""), source_code]
                 print(" ".join(cmd))
                 run_and_stream(cmd, check=True)
 
