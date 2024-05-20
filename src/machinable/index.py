@@ -17,13 +17,7 @@ from machinable import schema
 from machinable.element import get_lineage
 from machinable.interface import Interface
 from machinable.types import VersionType
-from machinable.utils import is_directory_version, load_file, serialize
-
-
-def _jn(data: Any) -> str:
-    return json.dumps(
-        data, sort_keys=True, separators=(",", ":"), default=serialize
-    )
+from machinable.utils import is_directory_version, load_file, normjson
 
 
 def interface_row_factory(cursor, row) -> schema.Interface:
@@ -179,15 +173,15 @@ class Index(Interface):
                     model.uuid,
                     model.kind,
                     model.module,
-                    _jn(config),
-                    _jn(update),
-                    _jn(default),
-                    _jn(version),
-                    _jn(model.predicate),
-                    _jn(model.context),
-                    _jn(model.lineage),
+                    normjson(config),
+                    normjson(update),
+                    normjson(default),
+                    normjson(version),
+                    normjson(model.predicate),
+                    normjson(model.context),
+                    normjson(model.lineage),
                     model.timestamp,
-                    _jn(model.extra()),
+                    normjson(model.extra()),
                 ),
             )
             _db.commit()
@@ -289,7 +283,7 @@ class Index(Interface):
                 query = cur.execute(
                     """SELECT * FROM 'index' WHERE """ + (" AND ".join(keys)),
                     [
-                        v if isinstance(v, (str, int, float)) else _jn(v)
+                        v if isinstance(v, (str, int, float)) else normjson(v)
                         for v in equals
                     ],
                 )

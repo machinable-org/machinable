@@ -1,9 +1,15 @@
 import os
 
 import pytest
-from machinable import Interface, Project, Schedule, Scope, get
+from machinable import Component, Interface, Project, Schedule, Scope, get
 from machinable.collection import ComponentCollection
-from machinable.interface import belongs_to, belongs_to_many, has_many, has_one
+from machinable.interface import (
+    belongs_to,
+    belongs_to_many,
+    cachable,
+    has_many,
+    has_one,
+)
 from machinable.utils import load_file, random_str
 
 
@@ -359,3 +365,69 @@ def test_interface_future(tmp_storage):
     t.test()
 
     p.__exit__()
+
+
+def test_interface_cachable(tmp_storage):
+    counts = {
+        "test": 0,
+        "test2": 0,
+        "test3": 0,
+    }
+
+    class T(Interface):
+        @cachable(memory=False)
+        def test(self):
+            counts["test"] += 1
+            return counts["test"]
+
+        @cachable(file=False)
+        def test2(self, a=0, k="test"):
+            counts["test2"] += 1
+            return counts["test2"] * 100 + a
+
+    # not cached if not cached
+    t = T()
+    assert t.cached()
+    assert t.test() == 1
+    assert t.test() == 1
+    t.commit()
+    assert t.test2() == 100
+    assert t.test2() == 100
+    counts["test2"] = -1
+    assert t.test2() == 100
+    assert t.test2(5) == 5  # = (-1 + 1) * 100 + 5
+
+    class C(Component):
+        @cachable()
+        def test3(self, a=0, k="test"):
+            counts["test3"] += 1
+            return counts["test3"] * 100 + a
+
+    c = C().commit()
+    assert not c.cached()
+    assert c.test3() == 100
+    assert c.test3() == 200
+
+    c.launch()  # cache
+
+    assert c.test3() == 300
+    assert c.test3() == 300
+
+    key = [k for k in c._cache if k.startswith(".cachable_")][0]
+    del c._cache[key]
+    os.remove(c.local_directory(key))
+    assert c.test3() == 400
+    assert c.test3() == 400
+
+    assert c.test3(5) == 505
+    assert c.test3(5) == 505
+
+    assert c.test3(5, k="reset") == 605
+    assert c.test3(5, k="reset") == 605
+
+    assert c.test3() == 400
+    assert c.test3(5) == 505
+
+    # not jsonable disables cache
+    assert c.test3(k=slice(1)) == 700
+    assert c.test3(k=slice(1)) == 800

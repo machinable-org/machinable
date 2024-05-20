@@ -11,7 +11,7 @@ if sys.version_info >= (3, 11):
 else:
     from typing_extensions import Self
 
-from typing import Callable
+from typing import Callable, Literal
 
 import os
 from functools import partial
@@ -27,10 +27,69 @@ from machinable.utils import (
     is_directory_version,
     joinpath,
     load_file,
+    object_hash,
     save_file,
     update_uuid_payload,
 )
 from uuid_extensions import uuid7
+
+
+def cachable(
+    memory: bool = True,
+    file: bool = True,
+    fail_mode: Literal["ignore", "raise", "warn"] = "ignore",
+) -> Callable:
+    if not memory and not file:
+        raise ValueError(
+            "At least one of memory or file cache must be enabled."
+        )
+
+    def _decorator(fn: Callable) -> Callable:
+        def _wrapper(self, *args, **kwargs):
+            if not self.cached():
+                return fn(self, *args, **kwargs)
+            try:
+                key = object_hash(
+                    {"fn": fn.__name__, "args": args, "kwargs": kwargs}
+                )[:8]
+            except TypeError:
+                if fail_mode == "raise":
+                    raise
+                else:
+                    if fail_mode == "warn":
+                        print(
+                            f"Warning: Caching disabled for {fn.__name__} due to unhashable arguments."
+                        )
+                    return fn(self, *args, **kwargs)
+
+            fp = f".cachable_{key}.p"
+
+            # in-memory cache
+            if memory and fp in self._cache:
+                return self._cache[fp]
+
+            # file cache
+            if file:
+                miss = object()
+                cached = self.load_file(fp, miss)
+
+                if cached is miss:
+                    result = fn(self, *args, **kwargs)
+                    self.save_file(fp, result)
+                    if memory:
+                        self._cache[fp] = result
+                    return result
+            else:
+                cached = fn(self, *args, **kwargs)
+
+            if memory:
+                self._cache[fp] = cached
+
+            return cached
+
+        return _wrapper
+
+    return _decorator
 
 
 class Relation:

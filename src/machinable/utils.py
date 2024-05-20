@@ -58,6 +58,14 @@ def serialize(obj):
         raise TypeError(f"Unserializable object {obj} of type {type(obj)}")
 
 
+def normjson(
+    data: Any, default: Optional[Callable[[Any], Any]] = serialize
+) -> str:
+    return json.dumps(
+        data, sort_keys=True, separators=(",", ":"), default=default
+    )
+
+
 def generate_seed(random_state=None):
     """Generates a seed from a random state
 
@@ -121,11 +129,10 @@ def random_str(length: int, random_state=None):
     )
 
 
-def compute_object_hash(payload: dict) -> str:
-    json_str = json.dumps(
-        payload, sort_keys=True, separators=(",", ":"), default=serialize
-    )
-
+def object_hash(
+    payload: Any, default: Optional[Callable[[Any], Any]] = serialize
+) -> str:
+    json_str = normjson(payload, default=default)
     hash_obj = hashlib.sha256(json_str.encode())
     return hash_obj.hexdigest()
 
@@ -139,7 +146,7 @@ def file_hash(filepath: str):
 
 
 def update_uuid_payload(uuid: str, payload: dict) -> str:
-    hash_hex = compute_object_hash(payload)
+    hash_hex = object_hash(payload)
 
     timestamp_part = uuid[:24]
     new_random_part = hash_hex[:12]

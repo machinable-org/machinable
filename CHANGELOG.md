@@ -2,6 +2,10 @@
 
 <!-- Please add changes under the Unreleased section that reads 'No current changes' otherwise -->
 
+# Unreleased
+
+- Adds `@cachable` decorator utility
+
 # v4.10.2
 
 - Eager callable resolution in versions
