@@ -303,7 +303,9 @@ class Interface(Element):
         if index.find_by_id(self.uuid) is not None:
             return self
 
-        self.on_before_commit()
+        if self.on_before_commit() is False:
+            # allow on_before_commit to abort
+            return self
 
         self.__model__.context = context = self.compute_context()
         self.__model__.uuid = update_uuid_payload(self.__model__.uuid, context)
@@ -312,7 +314,9 @@ class Interface(Element):
         assert self.config is not None
         self.__model__.predicate = self.compute_predicate()
 
-        self.on_commit()
+        if self.on_commit() is False:
+            # allow on_commit to abort
+            return self
 
         # commit to index
         for k, v in self.__related__.items():
