@@ -411,14 +411,18 @@ class Execution(Interface):
     ):
         """True if not finished and last heartbeat occurred less than 30 seconds ago"""
         executable = self.executable(executable)
-        if not self.heartbeat_at(
-            executable,
+
+        if self.is_finished(executable):
+            return False
+
+        if not (
+            heartbeat := self.heartbeat_at(
+                executable,
+            )
         ):
             return False
 
-        return (not self.is_finished(executable)) and (
-            (arrow.now() - self.heartbeat_at(executable)).seconds < 30
-        )
+        return (arrow.now() - heartbeat).seconds < 30
 
     def is_live(
         self,
