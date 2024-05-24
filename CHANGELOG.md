@@ -4,6 +4,7 @@
 
 # Unreleased
 
+- Adds save/load_attribute helper
 - Adds `@cachable` decorator utility
 
 # v4.10.2

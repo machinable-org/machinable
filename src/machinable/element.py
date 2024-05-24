@@ -30,6 +30,7 @@ from machinable.types import DatetimeType, ElementType, VersionType
 from machinable.utils import (
     Jsonable,
     id_from_uuid,
+    joinpath,
     norm_version_call,
     sentinel,
     serialize,
@@ -292,6 +293,7 @@ class Element(Mixin, Jsonable):
         self._config: Optional[DictConfig] = None
         self._predicate: Optional[DictConfig] = None
         self._context: Optional[DictConfig] = None
+        self._attributes = {}
         self._cache = {}
         self._kwargs = {}
 
@@ -653,6 +655,22 @@ class Element(Mixin, Jsonable):
         assert self.config is not None
         self.__model__.predicate = self.compute_predicate()
         return self.__model__.model_dump()
+
+    def save_attribute(self, name: Union[str, List[str]], data: Any) -> str:
+        name = joinpath(name)
+
+        self._attributes[name] = data
+
+        return name
+
+    def load_attribute(
+        self, name: Union[str, List[str]], default=None
+    ) -> Optional[Any]:
+        name = joinpath(name)
+
+        data = self._attributes.get(name, None)
+
+        return data if data is not None else default
 
     @classmethod
     def unserialize(cls, serialized):

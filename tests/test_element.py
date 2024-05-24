@@ -482,3 +482,18 @@ def test_connectable():
             assert Dummy.get() is dummy_1
         assert Dummy.get() is not dummy_1
         assert not Dummy.is_connected()
+
+
+def test_element_attributes():
+    t = Element()
+
+    assert t.load_attribute("test") is None
+    assert t.save_attribute("test", None) == "test"
+    assert t.load_attribute("test") is None
+    t.save_attribute("test", "hello")
+    assert t.load_attribute("test") == "hello"
+    assert t.save_attribute(["test", "me"], True) == "test/me"
+    assert t.load_attribute("test/me")
+
+    t = Element()
+    assert t.load_attribute("test") is None
