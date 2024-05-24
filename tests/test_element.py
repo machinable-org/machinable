@@ -1,4 +1,11 @@
-from typing import Annotated, Optional
+from typing import Optional
+
+import sys
+
+if sys.version_info <= (3, 8):
+    from typing import Annotated
+else:
+    from typing_extensions import Annotated
 
 from uuid import uuid4
 

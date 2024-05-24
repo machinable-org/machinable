@@ -1,5 +1,5 @@
 __all__ = ["to_dict"]
-from typing import TYPE_CHECKING, Annotated, Any, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any, Optional, Tuple, Union
 
 import collections
 import re
