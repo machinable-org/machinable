@@ -39,7 +39,7 @@ def test_cli_main(capfd, tmp_storage):
             [
                 "get",
                 "machinable.execution",
-                "**kwargs={'resources': {'a': 1}}",
+                "**resources={'a': 1}",
                 "hello",
                 "name=there",
                 "--resources",
@@ -48,40 +48,29 @@ def test_cli_main(capfd, tmp_storage):
         out, err = capfd.readouterr()
         assert out == "{'a': 1}\n"
 
-        with pytest.raises(ValueError):
-            main(
-                [
-                    "get",
-                    "machinable.execution",
-                    "**kwargs={'resources': {'a': 1}}",
-                    "**kwargs={}",
-                    "hello",
-                    "name=there",
-                    "**kwargs={'test': 'me'}" "--resources",
-                ]
-            )
+        main(
+            [
+                "get",
+                "machinable.execution",
+                "**resources={'a': 1}",
+                "**resources={'a': 2}",
+                "--__model__",
+            ]
+        )
+        out, err = capfd.readouterr()
+        assert "resources={'a': 2}" in out
 
         out, err = capfd.readouterr()
         main(
             [
                 "get",
                 "machinable.execution",
-                "**kwargs={'resources': {'a': 1}}",
+                "**resources={'a': 1}",
                 "--__model__",
             ]
         )
         out, err = capfd.readouterr()
         assert "resources={'a': 1}" in out
-
-        with pytest.raises(ValueError):
-            main(
-                [
-                    "get",
-                    "machinable.execution",
-                    "**kwargs={'resources': {'a': 1}}",
-                    "**kwargs={}",
-                ]
-            )
 
     # help
     assert main([]) == 0

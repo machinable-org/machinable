@@ -4,6 +4,7 @@
 
 # Unreleased
 
+- Simplified `**kwargs` arguments in CLI
 - Adds save/load_attribute helper
 - Adds `@cachable` decorator utility
 

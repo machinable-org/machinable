@@ -16,34 +16,34 @@ def parse(args: List) -> tuple:
     dotlist = []
     version = []
 
-    def _push(_elements, _dotlist, _version):
-        if len(dotlist) > 0:
-            _version.append(
-                OmegaConf.to_container(OmegaConf.from_dotlist(_dotlist))
-            )
-
-        if len(_version) > 0:
-            if len(_elements) > 0:
-                _elements[-1].extend(_version)
+    def _parse_dotlist():
+        if len(dotlist) == 0:
+            return
+        _ver = {}
+        for k, v in OmegaConf.to_container(
+            OmegaConf.from_dotlist(dotlist)
+        ).items():
+            if k.startswith("**"):
+                kwargs[-1][k[2:]] = v
             else:
-                _elements.append(_version)
+                _ver[k] = v
+        version.append(_ver)
+
+    def _push():
+        if len(version) == 0:
+            return
+
+        if len(elements) > 0:
+            elements[-1].extend(version)
+        else:
+            elements.append(version)
 
     for arg in args:
         if arg.startswith("~"):
             # version
-            if len(dotlist) > 0:
-                # parse preceding dotlist
-                version.append(
-                    OmegaConf.to_container(OmegaConf.from_dotlist(dotlist))
-                )
-                dotlist = []
+            _parse_dotlist()
+            dotlist = []
             version.append(arg)
-        elif arg.startswith("**kwargs="):
-            kwargs.append(
-                OmegaConf.to_container(OmegaConf.from_dotlist([arg[2:]]))[
-                    "kwargs"
-                ]
-            )
         elif arg.startswith("--"):
             # method
             methods.append((len(elements), arg[2:]))
@@ -52,23 +52,19 @@ def parse(args: List) -> tuple:
             dotlist.append(arg)
         else:
             # module
-            _push(elements, dotlist, version)
+            _parse_dotlist()
+            _push()
             dotlist = []
             version = []
             # auto-complete `.project` -> `interface.project`
             if arg.startswith("."):
                 arg = "interface" + arg
             elements.append([arg])
-            if len(elements) - 1 > len(kwargs):
-                kwargs.append({})
-            if len(elements) - 1 != len(kwargs):
-                raise ValueError(f"Multiple **kwargs for {arg}")
+            kwargs.append({})
 
-    _push(elements, dotlist, version)
-    if len(elements) > len(kwargs):
-        kwargs.append({})
-    if len(elements) != len(kwargs):
-        raise ValueError(f"Multiple **kwargs for last interface")
+    _parse_dotlist()
+    _push()
+
     return elements, kwargs, methods
 
 
