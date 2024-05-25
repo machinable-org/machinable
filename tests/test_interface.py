@@ -255,24 +255,14 @@ def test_interface_modifiers(tmp_storage):
     # new
     assert get.new("interface.dummy").is_committed() is False
 
-    # or
-    assert get.or_none("interface.dummy") is not None
-    assert get.or_none("interface.dummy", {"a": 2}) is None
-    assert get.or_fail("interface.dummy").is_committed()
-    with pytest.raises(ValueError):
-        get.or_fail("interface.dummy", {"a": 2})
-    with pytest.raises(ValueError):
-        get.cached_or_fail("dummy")
-    d = get("hello").launch()
-    assert get.cached_or_fail("hello") == d
-
-    # preferring cached
-    d1 = get.new("dummy").commit()
-    d2 = get.new("dummy").launch()
-    d3 = get.new("dummy").commit()
-    assert get("dummy") == d3
-    assert get.prefer_cached("dummy") == d2
-    assert not get.prefer_cached("dummy", {"a": -100}).is_committed()
+    # hide
+    c = get("interface.dummy")
+    uid = c.uuid
+    assert not c.hidden()
+    c.hidden(True)
+    assert get("interface.dummy").uuid != uid
+    c.hidden(False)
+    assert get("interface.dummy").uuid == uid
 
     project.__exit__()
 

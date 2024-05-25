@@ -1403,7 +1403,7 @@ class ElementCollection(Collection):
         context = instance.compute_context()
 
         for candidate in self:
-            if candidate.matches(context):
+            if candidate.matches(context) and not candidate.hidden():
                 return candidate
 
         return instance

@@ -468,7 +468,7 @@ class Interface(Element):
             module,
             version,
             **kwargs,
-        )
+        ).filter(lambda x: not x.hidden())
 
         if candidates:
             return candidates[-1]
@@ -779,6 +779,22 @@ class Interface(Element):
             return None
 
         return self
+
+    def hidden(
+        self, hidden: Optional[bool] = None, reason: str = "user"
+    ) -> bool:
+        if hidden is None:
+            return self.load_file("hidden", None) is not None
+        elif hidden is True:
+            self.save_file("hidden", str(reason))
+            return True
+        elif hidden is False:
+            try:
+                os.remove(self.local_directory("hidden"))
+            except OSError:
+                pass
+
+        return hidden
 
     # a posteriori modifiers
 

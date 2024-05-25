@@ -195,7 +195,10 @@ class Component(Interface):
             self.save_file("cached", str(reason))
             return True
         elif cached is False:
-            os.remove(self.local_directory("cached"), ignore_errors=True)
+            try:
+                os.remove(self.local_directory("cached"))
+            except OSError:
+                pass
 
         return cached
 
