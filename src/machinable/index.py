@@ -20,7 +20,7 @@ from machinable.types import VersionType
 from machinable.utils import is_directory_version, load_file, normjson
 
 
-def interface_row_factory(cursor, row) -> schema.Interface:
+def interface_row_factory(row) -> schema.Interface:
     model = getattr(schema, row[1], schema.Interface)
     return model(
         uuid=row[0],
@@ -79,6 +79,8 @@ def migrate(db: sqlite3.Connection) -> None:
     if version == 2:
         # future migrations
         ...
+
+    cur.close()
 
 
 def load(database: str, create=False) -> sqlite3.Connection:
@@ -142,6 +144,7 @@ class Index(Interface):
             if cur.execute(
                 """SELECT uuid FROM 'index' WHERE uuid=?""", (model.uuid,)
             ).fetchone():
+                cur.close()
                 # already exists
                 return False
             config = copy.deepcopy(model.config)
@@ -185,6 +188,7 @@ class Index(Interface):
                 ),
             )
             _db.commit()
+            cur.close()
         return True
 
     def create_relation(
@@ -205,6 +209,7 @@ class Index(Interface):
                 """SELECT id FROM 'relations' WHERE uuid=? AND related_uuid=? AND relation=?""",
                 (uuid, related_uuid, relation),
             ).fetchone():
+                cur.close()
                 # already exists
                 return
             if timestamp is None:
@@ -220,6 +225,7 @@ class Index(Interface):
                 (relation, uuid, related_uuid, priority, timestamp),
             )
             _db.commit()
+            cur.close()
 
     def find(
         self,
@@ -253,15 +259,15 @@ class Index(Interface):
                 row = cur.execute(
                     """SELECT * FROM 'index' WHERE uuid=?""", (uuid,)
                 ).fetchone()
+            cur.close()
             if row is None:
                 return None
-            return interface_row_factory(cur, row)
+            return interface_row_factory(row)
 
     def find_by_context(self, context: Dict) -> List[schema.Interface]:
         with db(self.config.database, create=False) as _db:
             if not _db:
                 return []
-            cur = _db.cursor()
 
             keys = []
             equals = []
@@ -279,6 +285,7 @@ class Index(Interface):
                     keys.append(f"json_extract(context, '$.{field}')=?")
                     equals.append(value)
 
+            cur = _db.cursor()
             if len(keys) > 0:
                 query = cur.execute(
                     """SELECT * FROM 'index' WHERE """ + (" AND ".join(keys)),
@@ -286,23 +293,25 @@ class Index(Interface):
                         v if isinstance(v, (str, int, float)) else normjson(v)
                         for v in equals
                     ],
-                )
+                ).fetchall()
             else:
-                query = cur.execute("""SELECT * FROM 'index'""")
-            return [interface_row_factory(cur, row) for row in query.fetchall()]
+                query = cur.execute("""SELECT * FROM 'index'""").fetchall()
+            cur.close()
+            return [interface_row_factory(row) for row in query]
 
     def find_by_hash(self, context_hash: str) -> List[schema.Interface]:
         with db(self.config.database, create=False) as _db:
             if not _db:
                 return []
-            cur = _db.cursor()
 
+            cur = _db.cursor()
             query = cur.execute(
                 """SELECT * FROM 'index' WHERE uuid LIKE ?""",
                 (f"%{context_hash}",),
-            )
+            ).fetchall()
+            cur.close()
 
-            return [interface_row_factory(cur, row) for row in query.fetchall()]
+            return [interface_row_factory(row) for row in query]
 
     def find_related(
         self, relation: str, uuid: str, inverse: bool = False
@@ -329,7 +338,8 @@ class Index(Interface):
                     """,
                     (uuid, relation),
                 ).fetchall()
-            return [interface_row_factory(cur, row) for row in rows or []]
+            cur.close()
+            return [interface_row_factory(row) for row in rows or []]
 
     def import_directory(
         self,

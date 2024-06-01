@@ -4,6 +4,7 @@
 
 # Unreleased
 
+- Option to hide interfaces from get
 - Simplified `**kwargs` arguments in CLI
 - Adds save/load_attribute helper
 - Adds `@cachable` decorator utility
