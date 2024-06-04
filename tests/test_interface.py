@@ -191,6 +191,11 @@ def test_interface_commit(tmp_storage):
     with Project("./tests/samples/project"):
         Interface.make("interface.dummy").commit()
 
+    i = Interface()
+    assert not i.is_staged()
+    i.commit()
+    assert i.is_staged()
+
 
 def tes_interface_save_file(tmp_storage):
     component = Interface().commit()

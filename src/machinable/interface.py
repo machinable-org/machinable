@@ -289,6 +289,17 @@ class Interface(Element):
             self.__related__[key] = value
         self._relation_cache[key] = True
 
+    def is_staged(self):
+        return self.__model__.uuid[-12:] != "0" * 12
+
+    def stage(self):
+        self.__model__.context = context = self.compute_context()
+        self.__model__.uuid = update_uuid_payload(self.__model__.uuid, context)
+
+        # ensure that configuration and predicate has been computed
+        assert self.config is not None
+        self.__model__.predicate = self.compute_predicate()
+
     def is_committed(self) -> bool:
         from machinable.index import Index
 
@@ -307,12 +318,8 @@ class Interface(Element):
             # allow on_before_commit to abort
             return self
 
-        self.__model__.context = context = self.compute_context()
-        self.__model__.uuid = update_uuid_payload(self.__model__.uuid, context)
-
-        # ensure that configuration and predicate has been computed
-        assert self.config is not None
-        self.__model__.predicate = self.compute_predicate()
+        if not self.is_staged():
+            self.stage()
 
         if self.on_commit() is False:
             # allow on_commit to abort
