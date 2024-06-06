@@ -116,6 +116,9 @@ class Execution(Interface):
     def pending_executables(self) -> ComponentCollection:
         return self.executables.filter(lambda e: not e.cached())
 
+    def on_add(self, executable: Component):
+        """Event when executable is added"""
+
     def add(
         self,
         executable: Union[Component, List[Component]],
@@ -128,13 +131,19 @@ class Execution(Interface):
         if self.executables.contains(lambda x: x == executable):
             return self
 
+        self.on_add(executable)
+
         self.push_related("executables", executable)
 
         return self
 
     def commit(self) -> Self:
         # ensure that configuration is parsed
-        self.executables.map(lambda x: x.config and x.predicate)
+        for executable in self.executables:
+            assert executable.config is not None
+
+        for executable in self.executables:
+            executable.commit()
 
         return super().commit()
 

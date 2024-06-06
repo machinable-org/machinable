@@ -106,9 +106,10 @@ class Component(Interface):
         self.fetch()
 
         if Execution.is_connected():
-            # commit only, defer execution
+            # stage only, defer execution
+            if not self.is_staged():
+                self.stage()
             Execution.get().add(self)
-            self.commit()
         else:
             self.current_execution_context.add(self)
             self.current_execution_context.dispatch()
