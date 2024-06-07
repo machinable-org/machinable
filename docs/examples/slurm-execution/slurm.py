@@ -5,8 +5,10 @@ import subprocess
 import sys
 import time
 
+import arrow
 import yaml
 from machinable import Execution, Project
+from machinable.config import to_dict
 from machinable.errors import ExecutionFailed
 from machinable.utils import chmodx, run_and_stream
 from pydantic import BaseModel, ConfigDict
@@ -101,7 +103,7 @@ class Slurm(Execution):
         dry: bool = False
 
     def on_before_dispatch(self):
-        if self.config.confirm:
+        if self.config.confirm and not self.config.dry:
             return confirm(self)
 
     def on_compute_default_resources(self, executable):
@@ -167,8 +169,6 @@ class Slurm(Execution):
             if ranks is not None:
                 if mpi_args:
                     mpi_args = mpi_args.replace("{ranks}", str(ranks))
-                else:
-                    mpi_args = "-n " + str(executable.config.get("ranks"))
             python = self.config.python or sys.executable
 
             # usage dependencies
@@ -208,12 +208,6 @@ class Slurm(Execution):
             if self.config.preamble:
                 script += self.config.preamble
 
-            # add debug information
-            script += "\n"
-            script += f"# {executable.module} <{executable.id}>\n"
-            script += f"# {executable.local_directory()}>\n"
-            script += "\n"
-
             if mpi:
                 if mpi[-1] != " ":
                     mpi += " "
@@ -228,6 +222,16 @@ class Slurm(Execution):
 
             print(f"Submitting job {executable} with resources: ")
             print(yaml.dump(resources))
+
+            # add debug information
+            script += "\n\n"
+            script += f"# generated at: {arrow.now()}\n"
+            script += f"# {executable.module} <{executable.id}>\n"
+            script += f"# {executable.local_directory()}\n\n"
+            script += "# " + yaml.dump(executable.version()).replace(
+                "\n", "\n# "
+            )
+            script += "\n"
 
             # submit to slurm
             script_file = chmodx(
