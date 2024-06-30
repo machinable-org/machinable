@@ -436,3 +436,12 @@ def test_interface_cachable(tmp_storage):
     # not jsonable disables cache
     assert c.test3(k=slice(1)) == 700
     assert c.test3(k=slice(1)) == 800
+
+
+def test_interface_update(tmp_storage):
+    i = get("machinable.interface", {"a": 1}).commit()
+    r = get("machinable.interface", {"a": 1})
+    assert r == i
+    assert r.config._update_.a == 1
+    assert r.config._default_ == {}
+    assert r.config._version_ == [{"a": 1}]

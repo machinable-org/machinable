@@ -22,12 +22,18 @@ from machinable.utils import is_directory_version, load_file, normjson
 
 def interface_row_factory(row) -> schema.Interface:
     model = getattr(schema, row[1], schema.Interface)
+    _version = json.loads(row[6])
+    _config = json.loads(row[3])
+    if _config is not None:
+        _config["_update_"] = json.loads(row[4])
+        _config["_default_"] = json.loads(row[5])
+        _config["_version_"] = _version
     return model(
         uuid=row[0],
         kind=row[1],
         module=row[2],
-        config=json.loads(row[3]),
-        version=json.loads(row[6]),
+        config=_config,
+        version=_version,
         predicate=json.loads(row[7]),
         context=json.loads(row[11] or "null"),
         lineage=json.loads(row[8]),
