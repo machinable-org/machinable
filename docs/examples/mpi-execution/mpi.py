@@ -1,5 +1,6 @@
 from typing import Literal, Optional, Union
 
+import os
 import sys
 
 from machinable import Execution
@@ -23,7 +24,10 @@ class MPI(Execution):
 
         ranks = executable.config.get("ranks", False)
         if ranks not in [None, False]:
-            resources["-n"] = int(ranks)
+            if ranks == -1:
+                ranks = os.environ.get("MPI_RANKS", 0)
+            if int(ranks) > 0:
+                resources["-n"] = int(ranks)
 
         return resources
 
