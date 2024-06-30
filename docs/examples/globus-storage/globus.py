@@ -212,7 +212,7 @@ class Globus(Storage):
     def remote_path(self, *append):
         return os.path.join(self.config.remote_endpoint_directory, *append)
 
-    def search_for(self, experiment) -> List[str]:
+    def search_for(self, interface) -> List[str]:
         response = self.transfer_client.operation_ls(
             self.config.remote_endpoint_id,
             path=self.remote_path(),
@@ -220,7 +220,7 @@ class Globus(Storage):
         )
         found = []
         for item in response:
-            if experiment.hash in item["name"]:
+            if interface.hash in item["name"]:
                 found.append(item["name"])
 
         return found

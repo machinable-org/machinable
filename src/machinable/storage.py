@@ -124,6 +124,9 @@ class Storage(Interface):
         ...
         return False
 
+    def search_for(self, interface: "Interface") -> List[str]:
+        raise NotImplementedError()
+
 
 def fetch(uuid: str, directory: str) -> bool:
     available = False
