@@ -205,9 +205,12 @@ has_many = _relation(HasMany)
 belongs_to_many = _relation(BelongsToMany)
 
 
-def _uuid_symlink(directory, uuid, mode="file"):
-    dst = os.path.join(directory, id_from_uuid(uuid))
+def _uuid_symlink(directory, uuid, mode=None):
+    dst = os.path.join(directory, "related", id_from_uuid(uuid))
     try:
+        if mode is None:
+            return uuid
+
         os.makedirs(dst, exist_ok=True)
         if mode == "file":
             with open(os.path.join(dst, "link"), "w") as f:
