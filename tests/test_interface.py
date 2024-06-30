@@ -362,6 +362,16 @@ def test_interface_future(tmp_storage):
     p.__exit__()
 
 
+def test_interface_components(tmp_storage):
+    class T(Interface):
+        def launch(self):
+            get("machinable.component").launch()
+
+    assert len(T().components) == 1
+    t = get("machinable.component")
+    assert t == t.components[0]
+
+
 def test_interface_cachable(tmp_storage):
     counts = {
         "test": 0,

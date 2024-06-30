@@ -68,6 +68,10 @@ class Component(Interface):
         return Execution
 
     @property
+    def components(self) -> "ComponentCollection":
+        return ComponentCollection([self])
+
+    @property
     def execution(self) -> "Execution":
         from machinable.execution import Execution
 

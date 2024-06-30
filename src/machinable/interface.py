@@ -18,7 +18,11 @@ from functools import partial
 
 import dill as pickle
 from machinable import errors, schema
-from machinable.collection import Collection, InterfaceCollection
+from machinable.collection import (
+    Collection,
+    ComponentCollection,
+    InterfaceCollection,
+)
 from machinable.element import _CONNECTIONS as connected_elements
 from machinable.element import Element, get_dump, get_lineage
 from machinable.types import VersionType
@@ -289,16 +293,18 @@ class Interface(Element):
             self.__related__[key] = value
         self._relation_cache[key] = True
 
-    def is_staged(self):
+    def is_staged(self) -> bool:
         return self.__model__.uuid[-12:] != "0" * 12
 
-    def stage(self):
+    def stage(self) -> Self:
         self.__model__.context = context = self.compute_context()
         self.__model__.uuid = update_uuid_payload(self.__model__.uuid, context)
 
         # ensure that configuration and predicate has been computed
         assert self.config is not None
         self.__model__.predicate = self.compute_predicate()
+
+        return self
 
     def is_committed(self) -> bool:
         from machinable.index import Index
@@ -740,12 +746,19 @@ class Interface(Element):
     def launch(self) -> Self:
         ...
 
-    def cached(self):
-        from machinable.execution import Execution
+    @property
+    def components(self) -> "ComponentCollection":
+        if "components" not in self._cache:
+            from machinable.execution import Execution
 
-        with Execution().deferred() as e:
-            self.launch()
-        return e.executables.reduce(
+            with Execution().deferred() as e:
+                self.launch()
+            self._cache["components"] = e.executables
+
+        return self._cache["components"]
+
+    def cached(self):
+        return self.components.reduce(
             lambda result, x: result and x.cached(), True
         )
 
