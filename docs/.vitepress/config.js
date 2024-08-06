@@ -46,7 +46,7 @@ export default defineConfig({
           ]
         },
         {
-          text: 'Core',
+          text: 'Concepts',
           items: [
             {
               text: 'Element',
@@ -59,6 +59,19 @@ export default defineConfig({
             {
               text: 'Component',
               link: '/guide/component'
+            },
+          ]
+        },
+        {
+          text: 'Basics',
+          items: [
+            {
+              text: 'Execution',
+              link: '/guide/execution'
+            },
+            {
+              text: 'CLI',
+              link: '/guide/cli'
             },
           ]
         },
