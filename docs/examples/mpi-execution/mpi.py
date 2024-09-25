@@ -32,6 +32,7 @@ class MPI(Execution):
         return resources
 
     def __call__(self):
+        all_script = ""
         for executable in self.pending_executables:
             if self.config.resume_failed is not True:
                 if (
@@ -91,8 +92,6 @@ class MPI(Execution):
 
             cmd.append(script_file)
 
-            print(" ".join(cmd))
-
             self.save_file(
                 [executable.id, "mpi.json"],
                 data={
@@ -101,9 +100,13 @@ class MPI(Execution):
                 },
             )
 
+            all_script += f"# {executable}\n"
+            all_script += " ".join(cmd) + "\n\n"
+
             if self.config.dry:
-                print("Dry run ... ", executable)
                 continue
+
+            print(" ".join(cmd))
 
             with open(
                 self.local_directory(executable.id, "output.log"),
@@ -126,3 +129,7 @@ class MPI(Execution):
                     raise KeyboardInterrupt(
                         "Interrupting `" + " ".join(cmd) + "`"
                     ) from _ex
+
+        if self.config.dry:
+            print("# Dry run ... \n# ==============\n")
+            print(all_script)
