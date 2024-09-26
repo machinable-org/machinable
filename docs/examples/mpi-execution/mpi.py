@@ -32,7 +32,7 @@ class MPI(Execution):
         return resources
 
     def __call__(self):
-        all_script = ""
+        all_script = "#!/usr/bin/env bash\n"
         for executable in self.pending_executables:
             if self.config.resume_failed is not True:
                 if (
@@ -129,7 +129,9 @@ class MPI(Execution):
                     raise KeyboardInterrupt(
                         "Interrupting `" + " ".join(cmd) + "`"
                     ) from _ex
+                    
+        sp = chmodx(self.save_file('mpi.sh', all_script))
 
         if self.config.dry:
-            print("# Dry run ... \n# ==============\n")
+            print(f"# Dry run ... \n# ==============\n{sp}\n\n")
             print(all_script)
