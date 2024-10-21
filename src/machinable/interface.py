@@ -56,13 +56,13 @@ def cachable(
                 key = object_hash(
                     {"fn": fn.__name__, "args": args, "kwargs": kwargs}
                 )[:8]
-            except TypeError:
+            except TypeError as _ex:
                 if fail_mode == "raise":
                     raise
                 else:
                     if fail_mode == "warn":
                         print(
-                            f"Warning: Caching disabled for {fn.__name__} due to unhashable arguments."
+                            f"Warning: Caching disabled for {fn.__name__} due to unhashable arguments. ({repr(_ex)})"
                         )
                     return fn(self, *args, **kwargs)
 

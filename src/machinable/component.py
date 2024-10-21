@@ -227,7 +227,9 @@ class Component(Interface):
                 jn = element.as_json().replace('"', '\\"').replace("'", "\\'")
                 lines.append(f"Element.from_json('{jn}').__enter__()")
         # dispatch
-        lines.append(f"component__ = Component.find_by_id('{self.uuid}')")
+        lines.append(
+            f"component__ = Component.from_directory('{self.local_directory()}')"
+        )
         lines.append("component__.dispatch()")
 
         if inline:

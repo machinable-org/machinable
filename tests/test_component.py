@@ -145,7 +145,7 @@ def test_component_export(tmp_storage):
 
     script = component.dispatch_code(inline=False)
 
-    with pytest.raises(AttributeError):
+    with pytest.raises(FileNotFoundError):
         exec(script)
 
     e = Execution().add(component).commit()

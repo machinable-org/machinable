@@ -129,8 +129,8 @@ class MPI(Execution):
                     raise KeyboardInterrupt(
                         "Interrupting `" + " ".join(cmd) + "`"
                     ) from _ex
-                    
-        sp = chmodx(self.save_file('mpi.sh', all_script))
+
+        sp = chmodx(self.save_file("mpi.sh", all_script))
 
         if self.config.dry:
             print(f"# Dry run ... \n# ==============\n{sp}\n\n")
