@@ -431,12 +431,5 @@ class Project(Interface):
         Return False to prevent the default automatic resolution
         """
 
-    def on_parse_cli(self):
-        """Triggered when CLI is invoked.
-
-        You may return a list of modified arguments or implement a fully custom CLI here by returning its exit code.
-        """
-        return sys.argv[1:]
-
     def __repr__(self) -> str:
         return f"Project({self.config.directory})"

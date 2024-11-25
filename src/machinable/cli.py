@@ -81,10 +81,7 @@ def main(args: Optional[List] = None):
     import machinable
 
     if args is None:
-        args = Project.get().provider().on_parse_cli()
-        if isinstance(args, int):
-            # user implemented CLI, forward exit code
-            return args
+        args = sys.argv[1:]
 
     if len(args) == 0:
         print("\nhelp")
