@@ -228,7 +228,7 @@ class Component(Interface):
                 lines.append(f"Element.from_json('{jn}').__enter__()")
         # dispatch
         lines.append(
-            f"component__ = Component.from_directory('{self.local_directory()}')"
+            f"component__ = Component.from_directory('{os.path.abspath(self.local_directory())}')"
         )
         lines.append("component__.dispatch()")
 
