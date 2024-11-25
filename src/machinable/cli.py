@@ -1,12 +1,12 @@
-from typing import TYPE_CHECKING, Dict, List, Optional, Tuple
+from typing import TYPE_CHECKING, List, Optional
 
+import os
 import sys
 
-from machinable.project import Project
 from omegaconf import OmegaConf
 
 if TYPE_CHECKING:
-    from machinable.types import ElementType, VersionType
+    from machinable.types import VersionType
 
 
 def parse(args: List) -> tuple:
@@ -116,6 +116,8 @@ def main(args: Optional[List] = None):
         return 0
 
     if action.startswith("get"):
+        sys.path.append(os.getcwd())
+
         get = machinable.get
         if action != "get":
             get = getattr(get, action.split(".")[-1])
