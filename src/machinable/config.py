@@ -45,7 +45,7 @@ def from_element(element: "Element") -> Tuple[dict, Optional[BaseModel]]:
 
 
 def match_method(definition: str) -> Optional[Tuple[str, str]]:
-    fn_match = re.match(r"(?P<method>\w+)\s?\((?P<args>.*)\)", definition)
+    fn_match = re.match(r"^(?P<method>\w+)\s?\((?P<args>[^()]*)\)$", definition)
     if fn_match is None:
         return None
 

@@ -31,6 +31,9 @@ def test_match_method():
     assert match_method("test(1)") == ("test", "1")
     assert match_method("foo") is None
     assert match_method("ma$formed()") is None
+    assert match_method("foo(1) < 1") is None
+    assert match_method("foo(1) + bar(2)") is None
+    assert match_method(" foo(1)") is None
 
 
 def test_rewrite_config_methods():

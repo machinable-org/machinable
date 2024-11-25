@@ -268,6 +268,9 @@ def test_element_config():
     assert c.config.a == 1
     assert c.config.b.c == 2
 
+    # false positive
+    Methods({"method": "max(1,2)<0.1"}).config.method == "max(1,2)<0.1"
+
 
 def test_element_lambdas():
     e = Element([lambda _: {"a": 2 * 3}])
