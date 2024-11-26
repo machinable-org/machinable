@@ -6,6 +6,10 @@
 
 No current changes
 
+# v4.10.5
+
+- Upgrade omegaconf
+
 # v4.10.4
 
 - Respect .gitignore in code rsync

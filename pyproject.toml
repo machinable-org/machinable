@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "machinable"
-version = "4.10.4"
+version = "4.10.5"
 description = "A modular configuration system for research projects"
 license = "MIT"
 authors = ["Frithjof Gressmann <hello@machinable.org>"]
@@ -23,10 +23,10 @@ python = "^3.8"
 flatten-dict = "^0.4"
 jsonlines = ">=3.1,<5.0"
 pydantic = ">=1,<3"
-arrow = "^1.2"
+arrow = "^1.3"
 importlib-metadata = { version = "^6.7", python = "<3.8" }
-omegaconf = "^2.3.0"
-dill = "^0.3.7"
+omegaconf = "2.4.0.dev3"
+dill = "^0.3.9"
 typing-extensions = { version = "^4.7.0", python = "<3.11" }
 uuid7 = "^0.1.0"
 
