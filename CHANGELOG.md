@@ -6,6 +6,13 @@
 
 No current changes
 
+# v4.10.4
+
+- Respect .gitignore in code rsync
+- Prevents false positive config method matches
+- Adds CWD to PATH when using CLI
+- Load from directory in dispatch code
+
 # v4.10.3
 
 - Option to hide interfaces from get
