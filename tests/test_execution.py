@@ -31,7 +31,7 @@ def test_execution(tmp_storage):
     component = Component()
     execution = Execution().add(component)
     assert len(execution.executables) == 1
-    execution.dispatch()
+    execution.launch()
 
     restored = Execution.find_by_id(execution.uuid)
     with pytest.raises(errors.MachinableError):
@@ -91,7 +91,7 @@ def test_execution_dispatch(tmp_storage):
         invalid = T({"a": []})
         execution = Execution().add([valid, invalid])
         with pytest.raises(errors.ConfigurationError):
-            execution.dispatch()
+            execution.launch()
         assert not valid.is_mounted()
         assert not invalid.is_mounted()
 
@@ -102,7 +102,7 @@ def test_execution_deferral(tmp_storage):
 
     assert not component.cached()
     assert not execution.is_started()
-    execution.dispatch()
+    execution.launch()
     assert execution.is_finished()
     assert component.cached()
 

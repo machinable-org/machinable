@@ -613,6 +613,7 @@ class Interface(Element):
         interface = model(**data)
         if interface.module.startswith("__session__"):
             interface._dump = load_file([directory, "dump.p"], None)
+        interface._from_directory = directory
 
         return cls.from_model(interface)
 
@@ -707,9 +708,12 @@ class Interface(Element):
         return True
 
     def local_directory(self, *append: str, create: bool = False) -> str:
-        from machinable.index import Index
+        if self.__model__._from_directory is not None:
+            directory = self.__model__._from_directory
+        else:
+            from machinable.index import Index
 
-        directory = Index.get().local_directory(self.uuid, *append)
+            directory = Index.get().local_directory(self.uuid, *append)
 
         if create:
             os.makedirs(directory, exist_ok=True)

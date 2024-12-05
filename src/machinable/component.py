@@ -4,7 +4,6 @@ import inspect
 import os
 import random
 import sys
-import threading
 
 if sys.version_info >= (3, 11):
     from typing import Self
@@ -13,14 +12,11 @@ else:
 
 from typing import Dict
 
-from machinable import errors, schema
+from machinable import schema
 from machinable.collection import ComponentCollection, ExecutionCollection
-from machinable.element import _CONNECTIONS as connected_elements
 from machinable.element import get_dump, get_lineage
 from machinable.index import Index
-from machinable.interface import Interface, belongs_to, belongs_to_many
-from machinable.project import Project
-from machinable.storage import Storage
+from machinable.interface import Interface, has_many
 from machinable.types import VersionType
 from machinable.utils import generate_seed
 
@@ -51,18 +47,10 @@ class Component(Interface):
             lineage=get_lineage(self),
         )
         self.__model__._dump = get_dump(self)
-        self._current_execution_context = None
+        self._execution = None
 
-    @property
-    def current_execution_context(self) -> "Execution":
-        if self._current_execution_context is None:
-            from machinable.execution import Execution
-
-            self._current_execution_context = Execution.get()
-        return self._current_execution_context
-
-    @belongs_to_many(key="execution_history")
-    def executions() -> ExecutionCollection:
+    @has_many(key="execution_history")
+    def execution_history() -> ExecutionCollection:
         from machinable.execution import Execution
 
         return Execution
@@ -98,9 +86,9 @@ class Component(Interface):
             if Execution.is_connected():
                 related = Execution.get()
             else:
-                related = self.current_execution_context
-
-        related.of(self)
+                if self._execution is None:
+                    self._execution = Execution.get()
+                related = self._execution
 
         return related
 
@@ -115,8 +103,7 @@ class Component(Interface):
                 self.stage()
             Execution.get().add(self)
         else:
-            self.current_execution_context.add(self)
-            self.current_execution_context.dispatch()
+            Execution().add(self).launch()
 
         return self
 
@@ -131,65 +118,6 @@ class Component(Interface):
     @classmethod
     def collect(cls, components) -> "ComponentCollection":
         return ComponentCollection(components)
-
-    def dispatch(self) -> Self:
-        """Dispatch the component lifecycle"""
-        writes_meta_data = (
-            self.on_write_meta_data() is not False and self.is_mounted()
-        )
-        try:
-            self.on_before_dispatch()
-
-            self.on_seeding()
-
-            # meta-data
-            if writes_meta_data:
-                if not self.execution.is_started():
-                    self.execution.update_status(status="started")
-                else:
-                    self.execution.update_status(status="resumed")
-
-                self.execution.save_file(
-                    [self.id, "host.json"],
-                    data=Project.get().provider().get_host_info(),
-                )
-
-            def beat():
-                t = threading.Timer(15, beat)
-                t.daemon = True
-                t.start()
-                self.on_heartbeat()
-                if self.on_write_meta_data() is not False and self.is_mounted():
-                    self.execution.update_status(status="heartbeat")
-                return t
-
-            heartbeat = beat()
-
-            self.__call__()
-
-            self.on_success()
-            self.on_finish(success=True)
-
-            if heartbeat is not None:
-                heartbeat.cancel()
-
-            if writes_meta_data:
-                self.execution.update_status(status="finished")
-                self.cached(True, reason="finished")
-
-            self.on_after_dispatch(success=True)
-        except BaseException as _ex:  # pylint: disable=broad-except
-            self.on_failure(exception=_ex)
-            self.on_finish(success=False)
-            self.on_after_dispatch(success=False)
-            raise errors.ComponentException(
-                f"{self.__class__.__name__} dispatch failed"
-            ) from _ex
-        finally:
-            if writes_meta_data:
-                # propagate changes
-                for storage in Storage.connected():
-                    storage.update(self)
 
     def cached(
         self, cached: Optional[bool] = None, reason: str = "user"
@@ -206,37 +134,6 @@ class Component(Interface):
                 pass
 
         return cached
-
-    def dispatch_code(
-        self,
-        inline: bool = True,
-        project_directory: Optional[str] = None,
-        python: Optional[str] = None,
-    ) -> Optional[str]:
-        if project_directory is None:
-            project_directory = Project.get().path()
-        if python is None:
-            python = sys.executable
-        lines = ["from machinable import Project, Element, Component"]
-        # context
-        lines.append(f"Project('{project_directory}').__enter__()")
-        for kind, elements in connected_elements.items():
-            if kind in ["Project", "Execution"]:
-                continue
-            for element in elements:
-                jn = element.as_json().replace('"', '\\"').replace("'", "\\'")
-                lines.append(f"Element.from_json('{jn}').__enter__()")
-        # dispatch
-        lines.append(
-            f"component__ = Component.from_directory('{os.path.abspath(self.local_directory())}')"
-        )
-        lines.append("component__.dispatch()")
-
-        if inline:
-            code = ";".join(lines)
-            return f'{python} -c "{code}"'
-
-        return "\n".join(lines)
 
     # life cycle
 

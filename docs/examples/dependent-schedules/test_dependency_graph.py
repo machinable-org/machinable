@@ -12,10 +12,10 @@ class Trace(Execution):
     def __call__(self):
         executables = self.pending_executables
         if self.schedule is not None:
-            executables = self.schedule(self.executables)
+            executables = self.schedule(executables)
 
         for executable in executables:
-            executable.dispatch()
+            self.dispatch(executable)
             self.trace.append(executable)
 
     @property

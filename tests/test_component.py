@@ -60,7 +60,7 @@ def test_component_launch(tmp_storage):
         component.launch()
         component.launch()
         component.launch()
-    assert len(execution.executables) == 1
+    assert len(execution.pending_executables) == 0
 
     with Execution():
         e1 = Component().launch()
@@ -81,7 +81,7 @@ def test_component_relations(tmp_storage):
         component = Component.instance("basic")
         execution = Execution().add(component)
         component.push_related("project", project)
-        execution.dispatch()
+        execution.launch()
 
         assert component.project.name() == "project"
         assert component.execution.timestamp == execution.timestamp
@@ -275,7 +275,7 @@ def test_component_future(tmp_storage):
     with Execution().deferred() as execution:
         assert c.future() is None
 
-    assert execution.executables[0] is c
+    assert execution.pending_executables[0] is c
 
     # future tracking
     class T(Component):
@@ -290,7 +290,7 @@ def test_component_future(tmp_storage):
             with Execution().deferred() as execution:
                 assert c.future() is None
 
-            assert execution.executables[0] is c
+            assert execution.pending_executables[0] is c
 
         def test_await(self):
             c = Component()

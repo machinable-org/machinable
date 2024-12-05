@@ -355,7 +355,7 @@ def test_interface_future(tmp_storage):
             with get("machinable.execution").deferred() as execution:
                 assert c.future() is None
 
-            assert execution.executables[0] is c
+            assert execution.pending_executables[0] is c
 
             assert self.future() is self
 

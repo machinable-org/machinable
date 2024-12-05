@@ -3,6 +3,7 @@ from typing import Any, Dict, List, Optional, Union
 import copy
 import os
 import sys
+import threading
 import time
 
 if sys.version_info >= (3, 11):
@@ -13,13 +14,17 @@ else:
 from typing import Literal
 
 import arrow
-from machinable import schema
+from machinable import errors, schema
 from machinable.collection import ComponentCollection, ExecutionCollection
 from machinable.component import Component
+from machinable.element import _CONNECTIONS as connected_elements
 from machinable.element import extract, get_dump, get_lineage
 from machinable.errors import ExecutionFailed
-from machinable.interface import Interface, has_many, has_one
+from machinable.index import Index
+from machinable.interface import Interface, belongs_to, has_one
+from machinable.project import Project
 from machinable.schedule import Schedule
+from machinable.storage import Storage
 from machinable.types import (
     DatetimeType,
     ElementType,
@@ -65,12 +70,21 @@ class Execution(Interface):
             if not isinstance(schedule, Schedule):
                 schedule = Schedule.make(*extract(schedule))
             self.push_related("schedule", schedule)
-        self._executable_ = None
-        self._resources = {}
-        self._defer_dispatch = False
+        self._resources = None
+        self._defer_launch = False
+        self._executables = ComponentCollection()
+        self._of = None
+
+    @belongs_to(key="execution_history")
+    def component() -> "Component":
+        return Component
+
+    @property
+    def executables(self) -> ComponentCollection:
+        return self._executables
 
     def deferred(self, defer: bool = True):
-        self._defer_dispatch = defer
+        self._defer_launch = defer
         return self
 
     @classmethod
@@ -87,30 +101,9 @@ class Execution(Interface):
     def schedule() -> "Schedule":
         return Schedule
 
-    @has_many(key="execution_history")
-    def executables() -> ComponentCollection:
+    @has_one
+    def component(self) -> Optional[Component]:
         return Component
-
-    def executable(
-        self, executable: Optional[Component] = None
-    ) -> Optional[Component]:
-        if executable is not None:
-            return executable
-
-        if self._executable_ is not None:
-            return self._executable_
-
-        # auto-select executable if only one is available
-        if len(self.executables) == 1:
-            return self.executables[0]
-
-        raise ValueError(
-            "No executable selected. Call `execution.of(executable)`, or pass an executable argument."
-        )
-
-    def of(self, executable: Union[None, Component]) -> Self:
-        self._executable_ = executable
-        return self
 
     @property
     def pending_executables(self) -> ComponentCollection:
@@ -133,19 +126,46 @@ class Execution(Interface):
 
         self.on_add(executable)
 
-        self.push_related("executables", executable)
+        self.executables.append(executable)
+
+        self.push_related("execution_history", executable)
 
         return self
 
     def commit(self) -> Self:
         # ensure that configuration is parsed
-        for executable in self.executables:
+        for executable in self.pending_executables:
             assert executable.config is not None
 
-        for executable in self.executables:
+        for executable in self.pending_executables:
             executable.commit()
+            self.of(executable).commit()
 
-        return super().commit()
+        return self
+
+    def of(self, executable):
+        instance = self.clone()
+        instance._deferred_data = self._deferred_data.copy()
+        instance._of = executable
+        return instance
+
+    def local_directory(self, *append: str, create: bool = False) -> str:
+        if self.__model__._from_directory is not None:
+            directory = self.__model__._from_directory
+        else:
+            if self._of is None:
+                directory = ""
+            else:
+                from machinable.index import Index
+
+                directory = Index.get().local_directory(
+                    self._of.uuid, self.uuid, *append
+                )
+
+        if create:
+            os.makedirs(directory, exist_ok=True)
+
+        return directory
 
     def canonicalize_resources(self, resources: Dict) -> Dict:
         return resources
@@ -153,30 +173,19 @@ class Execution(Interface):
     def computed_resources(
         self, executable: Optional["Component"] = None
     ) -> Optional[Dict]:
-        executable = self.executable(executable)
-
-        if executable.id not in self._resources:
+        if self._resources is None:
             # check if resources have been computed
-            resources = self.load_file(
-                [executable.id, "computed_resources.json"], default=None
-            )
+            resources = self.load_file("computed_resources.json", default=None)
             if resources is None:
-                # compute resources
-                resources = self._compute_resources(executable)
-                self.save_file(
-                    [executable.id, "computed_resources.json"], resources
-                )
+                resources = self._compute_resources()
+                self.save_file("computed_resources.json", resources)
 
-            self._resources[executable.id] = resources
+            self._resources = resources
 
-        return self._resources[executable.id]
+        return self._resources
 
-    def _compute_resources(
-        self, executable: Optional["Component"] = None
-    ) -> Dict:
-        default_resources = self.on_compute_default_resources(
-            self.executable(executable)
-        )
+    def _compute_resources(self) -> Dict:
+        default_resources = self.on_compute_default_resources(self.component)
 
         if not self.__model__.resources and default_resources is not None:
             return self.canonicalize_resources(default_resources)
@@ -212,10 +221,7 @@ class Execution(Interface):
 
         return {}
 
-    def dispatch(self) -> Self:
-        if not self.executables:
-            return self
-
+    def launch(self) -> Self:
         if len(self.pending_executables) == 0:
             return self
 
@@ -241,37 +247,123 @@ class Execution(Interface):
 
     def __call__(self) -> None:
         for executable in self.pending_executables:
-            executable.dispatch()
+            self.dispatch(executable)
+
+    def dispatch(self, component) -> Self:
+        """Dispatch the component lifecycle"""
+        writes_meta_data = (
+            component.on_write_meta_data() is not False
+            and component.is_mounted()
+        )
+        try:
+            component.on_before_dispatch()
+
+            component.on_seeding()
+
+            # meta-data
+            if writes_meta_data:
+                if not self.is_started():
+                    self.of(component).update_status(status="started")
+                else:
+                    self.of(component).update_status(status="resumed")
+
+                self.of(component).save_file(
+                    "host.json",
+                    data=Project.get().provider().get_host_info(),
+                )
+
+            def beat():
+                t = threading.Timer(15, beat)
+                t.daemon = True
+                t.start()
+                component.on_heartbeat()
+                if writes_meta_data:
+                    self.of(component).update_status(status="heartbeat")
+                return t
+
+            heartbeat = beat()
+
+            component.__call__()
+
+            component.on_success()
+            component.on_finish(success=True)
+
+            if heartbeat is not None:
+                heartbeat.cancel()
+
+            if writes_meta_data:
+                self.of(component).update_status(status="finished")
+                component.cached(True, reason="finished")
+
+            component.on_after_dispatch(success=True)
+        except BaseException as _ex:
+            component.on_failure(exception=_ex)
+            component.on_finish(success=False)
+            component.on_after_dispatch(success=False)
+            raise errors.ComponentException(
+                f"{self.__class__.__name__} dispatch failed"
+            ) from _ex
+        finally:
+            if writes_meta_data:
+                # propagate changes
+                for storage in Storage.connected():
+                    storage.update(component)
+
+    def dispatch_code(
+        self,
+        component: Component,
+        inline: bool = True,
+        project_directory: Optional[str] = None,
+        python: Optional[str] = None,
+    ) -> Optional[str]:
+        if project_directory is None:
+            project_directory = Project.get().path()
+        if python is None:
+            python = sys.executable
+        lines = [
+            "from machinable import Project, Element, Component, Execution"
+        ]
+        # context
+        lines.append(f"Project('{project_directory}').__enter__()")
+        for kind, elements in connected_elements.items():
+            if kind in ["Project", "Execution"]:
+                continue
+            for element in elements:
+                jn = element.as_json().replace('"', '\\"').replace("'", "\\'")
+                lines.append(f"Element.from_json('{jn}').__enter__()")
+        # dispatch
+        lines.append(
+            f"c_ = Component.from_directory('{os.path.abspath(component.local_directory())}')"
+        )
+        lines.append(
+            f"e_ = Execution.from_directory('{os.path.abspath(self.local_directory())}')"
+        )
+        lines.append("e_.dispatch(c_)")
+
+        if inline:
+            code = ";".join(lines)
+            return f'{python} -c "{code}"'
+
+        self._of = component
+
+        return "\n".join(lines)
 
     @property
-    def host_info(
-        self,
-        executable: Optional["Component"] = None,
-    ) -> Optional[Dict]:
-        executable = self.executable(executable)
-        return self.load_file([executable.id, "host.json"], None)
+    def host_info(self) -> Optional[Dict]:
+        return self.load_file("host.json", None)
 
-    def component_directory(self, *append: str, create: bool = False) -> str:
-        return self.local_directory(
-            self.executable().id, *append, create=create
-        )
-
-    def output_filepath(self, executable: Optional["Component"] = None) -> str:
-        executable = self.executable(executable)
-        return self.local_directory(executable.id, "output.log")
+    def output_filepath(self) -> str:
+        return self.local_directory("output.log")
 
     def output(
         self,
-        executable: Optional["Component"] = None,
         incremental: bool = False,
     ) -> Optional[str]:
         """Returns the output log"""
         if not self.is_mounted():
             return None
 
-        executable = self.executable(executable)
-
-        p = os.path.join(executable.id, "output.log")
+        p = os.path.join("output.log")
 
         if incremental:
             read_length = self._cache.get(f"{p}.read_length", 0)
@@ -281,7 +373,7 @@ class Execution(Interface):
             if output is None:
                 return None
 
-            if self.is_finished(executable):
+            if self.is_finished():
                 self._cache[f"{p}.read_length"] = -1
             else:
                 self._cache[f"{p}.read_length"] = len(output)
@@ -292,7 +384,7 @@ class Execution(Interface):
 
         output = self.load_file(p, None)
 
-        if self.is_finished(executable):
+        if self.is_finished():
             self._cache[p] = output
 
         return output
@@ -303,10 +395,9 @@ class Execution(Interface):
         refresh_every: Union[int, float] = 1,
         stream=print,
     ):
-        executable = self.executable(executable)
         try:
-            while not self.is_started(executable) or self.is_active(executable):
-                output = self.output(executable, incremental=True)
+            while not self.is_started() or self.is_active():
+                output = self.output(incremental=True)
                 if output:
                     stream(output)
                 time.sleep(refresh_every)
@@ -315,12 +406,10 @@ class Execution(Interface):
 
     def update_status(
         self,
-        executable: Optional["Component"] = None,
         status: StatusType = "heartbeat",
         timestamp: Optional[TimestampType] = None,
     ) -> TimestampType:
         _assert_allowed(status)
-        executable = self.executable(executable)
 
         if timestamp is None:
             timestamp = arrow.now()
@@ -331,7 +420,7 @@ class Execution(Interface):
         multiple = status == "resumed"
 
         save_file(
-            self.local_directory(executable.id, f"{status}_at"),
+            self.local_directory(f"{status}_at"),
             str(timestamp) + ("\n" if multiple else ""),
             mode="a" if multiple else "w",
         )
@@ -340,13 +429,11 @@ class Execution(Interface):
 
     def retrieve_status(
         self,
-        executable: Optional["Component"] = None,
         status: StatusType = "heartbeat",
     ) -> Optional[DatetimeType]:
         _assert_allowed(status)
-        executable = self.executable(executable)
 
-        status = self.load_file([executable.id, f"{status}_at"], default=None)
+        status = self.load_file([f"{status}_at"], default=None)
         if status is None:
             return None
 
@@ -361,93 +448,75 @@ class Execution(Interface):
         except arrow.ParserError:
             return None
 
-    def started_at(
-        self, executable: Optional["Component"] = None
-    ) -> Optional[DatetimeType]:
+    def started_at(self) -> Optional[DatetimeType]:
         """Returns the starting time"""
         if not self.is_mounted():
             return None
-        return self.retrieve_status(self.executable(executable), "started")
+        return self.retrieve_status("started")
 
     def resumed_at(
         self,
-        executable: Optional["Component"] = None,
     ) -> Optional[DatetimeType]:
         """Returns the resumed time"""
         if not self.is_mounted():
             return None
-        return self.retrieve_status(self.executable(executable), "resumed")
+        return self.retrieve_status("resumed")
 
-    def heartbeat_at(self, executable: Optional["Component"] = None):
+    def heartbeat_at(self):
         """Returns the last heartbeat time"""
         if not self.is_mounted():
             return None
-        return self.retrieve_status(self.executable(executable), "heartbeat")
+        return self.retrieve_status("heartbeat")
 
     def finished_at(
         self,
-        executable: Optional["Component"] = None,
     ):
         """Returns the finishing time"""
         if not self.is_mounted():
             return None
-        return self.retrieve_status(self.executable(executable), "finished")
+        return self.retrieve_status("finished")
 
     def is_finished(
         self,
-        executable: Optional["Component"] = None,
     ):
         """True if finishing time has been written"""
-        return bool(self.finished_at(executable))
+        return bool(self.finished_at())
 
     def is_started(
         self,
-        executable: Optional["Component"] = None,
     ):
         """True if starting time has been written"""
-        return bool(self.started_at(executable))
+        return bool(self.started_at())
 
     def is_resumed(
         self,
-        executable: Optional["Component"] = None,
     ):
         """True if resumed time has been written"""
-        return bool(self.resumed_at(executable))
+        return bool(self.resumed_at())
 
     def is_active(
         self,
-        executable: Optional["Component"] = None,
     ):
         """True if not finished and last heartbeat occurred less than 30 seconds ago"""
-        executable = self.executable(executable)
-
-        if self.is_finished(executable):
+        if self.is_finished():
             return False
 
-        if not (
-            heartbeat := self.heartbeat_at(
-                executable,
-            )
-        ):
+        if not (heartbeat := self.heartbeat_at()):
             return False
 
         return (arrow.now() - heartbeat).seconds < 30
 
     def is_live(
         self,
-        executable: Optional["Component"] = None,
     ):
         """True if active or finished"""
-        executable = self.executable(executable)
-        return self.is_finished(executable) or self.is_active(executable)
+        return self.is_finished() or self.is_active()
 
     def is_incomplete(
         self,
-        executable: Optional["Component"] = None,
     ):
         """Shorthand for is_started() and not is_live()"""
-        executable = self.executable(executable)
-        return self.is_started(executable) and not self.is_live(executable)
+        return self.is_started() and not self.is_live()
 
     def on_verify_schedule(self) -> bool:
         """Event to verify compatibility of the schedule"""
@@ -470,6 +539,13 @@ class Execution(Interface):
     ) -> Optional[Dict]:
         """Event triggered to compute default resources"""
 
+    def on_before_commit(self, executable):
+        """Event hook before interface is committed."""
+
+    def on_commit(self, executable):
+        """Event hook during interface commit when uuid, config, context
+        and predicate have been computed and commit is about to be performed"""
+
     @property
     def seed(self) -> int:
         return self.__model__.seed
@@ -481,10 +557,10 @@ class Execution(Interface):
         if len(args) == 3 and any(map(lambda x: x is not None, args)):
             # error occurred
             super().__exit__()
-        elif self._defer_dispatch:
+        elif self._defer_launch:
             super().__exit__()
         else:
             try:
-                self.dispatch()
+                self.launch()
             finally:
                 super().__exit__()

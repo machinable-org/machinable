@@ -21,6 +21,7 @@ class Element(BaseModel):
     predicate: Optional[Dict] = None
     context: Optional[Dict] = None
     lineage: Tuple[str, ...] = ()
+    _from_directory: Optional[str] = PrivateAttr(default=None)
 
     @property
     def timestamp(self) -> int:
