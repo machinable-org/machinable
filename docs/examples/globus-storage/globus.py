@@ -187,7 +187,7 @@ class Globus(Storage):
         )
         task_data.add_item(
             self.remote_path(uuid),
-            local_directory,
+            os.path.abspath(local_directory),
         )
         task_doc = self.transfer_client.submit_transfer(task_data)
         task_id = task_doc["task_id"]
