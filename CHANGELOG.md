@@ -4,7 +4,7 @@
 
 # Unreleased
 
-No current changes
+- Support sqlean.py
 
 # v4.10.5
 

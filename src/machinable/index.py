@@ -9,7 +9,9 @@ from contextlib import contextmanager
 from functools import partial
 
 try:
-    from pysqlite3 import dbapi2 as sqlite3
+    import sqlean as sqlite3
+
+    sqlite3.extensions.enable_all()
 except ModuleNotFoundError:
     import sqlite3
 

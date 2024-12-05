@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "machinable"
-version = "4.10.5"
+version = "4.10.6"
 description = "A modular configuration system for research projects"
 license = "MIT"
 authors = ["Frithjof Gressmann <hello@machinable.org>"]
