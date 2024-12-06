@@ -53,8 +53,15 @@ def cachable(
             if not self.cached():
                 return fn(self, *args, **kwargs)
             try:
+                sig = inspect.signature(fn)
+                bound_args = sig.bind(self, *args, **kwargs)
+                bound_args.apply_defaults()
                 key = object_hash(
-                    {"fn": fn.__name__, "args": args, "kwargs": kwargs}
+                    {
+                        "fn": fn.__name__,
+                        "args": bound_args.args[1:],
+                        "kwargs": bound_args.kwargs,
+                    }
                 )[:8]
             except TypeError as _ex:
                 if fail_mode == "raise":

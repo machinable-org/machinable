@@ -440,6 +440,20 @@ def test_interface_cachable(tmp_storage):
     assert c.test3(k=slice(1)) == 700
     assert c.test3(k=slice(1)) == 800
 
+    # default-args
+    class C(Component):
+        @cachable()
+        def test(self, payload="default", a=1):
+            return getattr(self, "latent", "test")
+
+    c = C().launch()
+    assert c.test(a=1) == "test"
+    c.latent = "changed"
+    assert c.test(a=1) == "test"
+    assert c.test(payload="default", a=1) == "test"
+    assert c.test(payload="default") == "test"
+    assert c.test(a=2) == "changed"
+
 
 def test_interface_update(tmp_storage):
     i = get("machinable.interface", {"a": 1}).commit()
