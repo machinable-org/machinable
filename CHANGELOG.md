@@ -4,6 +4,10 @@
 
 # Unreleased
 
+No current changes
+
+# v4.10.6
+
 - Support sqlean.py
 - Include defaults in cachable key
 
