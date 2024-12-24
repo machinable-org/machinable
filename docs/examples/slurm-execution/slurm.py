@@ -84,8 +84,10 @@ class Slurm(Execution):
                 cmd = [
                     "rsync",
                     "-rLptgoD",
-                    "--exclude '.git'",
-                    "--filter='dir-merge,- .gitignore'",
+                    "--exclude",
+                    ".git",
+                    "--filter",
+                    "dir-merge,- .gitignore",
                     Project.get().path(""),
                     source_code,
                 ]
