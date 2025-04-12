@@ -107,6 +107,15 @@ export default defineConfig({
             },
           ]
         },
+        {
+          text: 'Component',
+          items: [
+            {
+              text: 'dmosopt',
+              link: '/examples/dmosopt-component/'
+            },
+          ]
+        },
       ]
     },
     footer: {
