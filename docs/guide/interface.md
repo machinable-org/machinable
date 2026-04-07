@@ -33,7 +33,7 @@ During commit, machinable collects information like a unique ID (e.g. `29f034`),
 
 In practice, however, it may be cumbersome to keep track of long IDs to reload existing interfaces. To avoid this issue, one of the fundamental ideas in the design of machinable is to make retrieval identical to initial instantiation.
 
-Specifically, to instantiate an interface (e.g. `MnistData()`) we can leverage the <Pydoc>machinable.get</Pydoc> function, which takes a class as the first argument and optional constructor arguments.
+Specifically, to instantiate an interface (e.g. `MnistData()`) we can leverage the <Pydoc caption="get()">machinable.query.Query</Pydoc> function, which takes a class as the first argument and optional constructor arguments.
 
 ```python
 from machinable import get
@@ -51,7 +51,7 @@ mnist_reloaded = get(MnistData, {"batch_size": 8})
 assert mnist == mnist_reloaded
 ```
 
-What is happening here is that <Pydoc caption="get()">machinable.get</Pydoc> automatically searches the storage for an interface of type `MnistData` with a `batch_size` of `8`. If such an instance has not been committed yet (like when initially running the code), a new instance with this configuration will be returned. But if such an instance has previously been committed, it will simply be reloaded.
+What is happening here is that <Pydoc caption="get()">machinable.query.Query</Pydoc> automatically searches the storage for an interface of type `MnistData` with a `batch_size` of `8`. If such an instance has not been committed yet (like when initially running the code), a new instance with this configuration will be returned. But if such an instance has previously been committed, it will simply be reloaded.
 
 ## The module convention
 

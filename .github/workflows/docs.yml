@@ -8,38 +8,36 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          version: "latest"
       - name: Set up Python
-        uses: actions/setup-python@v4.7.0
-        with:
-          python-version: "3.x"
-      - name: Install Poetry
-        uses: snok/install-poetry@v1.3
-        with:
-          virtualenvs-create: true
-          virtualenvs-in-project: true
-      - name: Set up cache
-        id: cached-poetry-dependencies
-        uses: actions/cache@v3.3.1
-        with:
-          path: .venv
-          key: venv-${{ runner.os }}-${{ hashFiles('**/poetry.lock') }}
+        run: uv python install 3.13
       - name: Install dependencies
-        run: poetry install --extras "all"
-        if: steps.cached-poetry-dependencies.outputs.cache-hit != 'true'
+        run: uv sync --extra all
       - name: Autogenerate reference documentation
-        run: |
-          source .venv/bin/activate
-          python docs/.vitepress/pydocgen.py
-      - name: Install vitepress
-        uses: bahmutov/npm-install@v1.8.34
+        run: uv run python docs/.vitepress/pydocgen.py
+      - name: Validate pydoc references
+        run: uv run python docs/.vitepress/pydocgen.py --validate
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: docs/package-lock.json
+      - name: Install npm dependencies
+        run: npm ci
+        working-directory: docs
       - name: Build
         run: |
-          /home/runner/work/machinable/machinable/node_modules/vitepress/bin/vitepress.js build docs
-          cp -r docs/.vitepress/public/* docs/.vitepress/dist/
-          cp -r docs/logo docs/.vitepress/dist/
+          npx vitepress build
+          cp -r .vitepress/public/* .vitepress/dist/ 2>/dev/null || true
+          cp -r logo .vitepress/dist/ 2>/dev/null || true
+        working-directory: docs
       - name: Deploy
-        uses: JamesIves/github-pages-deploy-action@v4.4.3
+        uses: JamesIves/github-pages-deploy-action@v4
         with:
           branch: gh-pages
           folder: docs/.vitepress/dist
