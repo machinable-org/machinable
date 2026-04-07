@@ -1,6 +1,5 @@
-from typing import TYPE_CHECKING, Dict, List, Optional, Tuple, Union
-
-import time
+from pydantic import BaseModel, Field, PrivateAttr
+from uuid_extensions.uuid7 import timestamp_ns
 
 from machinable.utils import (
     empty_uuid,
@@ -8,19 +7,17 @@ from machinable.utils import (
     generate_seed,
     id_from_uuid,
 )
-from pydantic import BaseModel, Field, PrivateAttr
-from uuid_extensions.uuid7 import timestamp_ns
 
 
 class Element(BaseModel):
     uuid: str = Field(default_factory=empty_uuid)
     kind: str = "Element"
-    module: Optional[str] = None
-    version: List[Union[str, Dict]] = []
-    config: Optional[Dict] = None
-    predicate: Optional[Dict] = None
-    context: Optional[Dict] = None
-    lineage: Tuple[str, ...] = ()
+    module: str | None = None
+    version: list[str | dict] = []
+    config: dict | None = None
+    predicate: dict | None = None
+    context: dict | None = None
+    lineage: tuple[str, ...] = ()
 
     @property
     def timestamp(self) -> int:
@@ -37,7 +34,7 @@ class Element(BaseModel):
     def id(self) -> str:
         return id_from_uuid(self.uuid)
 
-    def extra(self) -> Dict:
+    def extra(self) -> dict:
         return {}
 
 
@@ -55,7 +52,7 @@ class Scope(Element):
 
 class Interface(Element):
     kind: str = "Interface"
-    _dump: Optional[bytes] = PrivateAttr(default=None)
+    _dump: bytes | None = PrivateAttr(default=None)
 
 
 class Component(Interface):
@@ -63,7 +60,7 @@ class Component(Interface):
     seed: int = Field(default_factory=generate_seed)
     nickname: str = Field(default_factory=generate_nickname)
 
-    def extra(self) -> Dict:
+    def extra(self) -> dict:
         return {"seed": self.seed, "nickname": self.nickname}
 
 
@@ -74,9 +71,9 @@ class Project(Interface):
 class Execution(Interface):
     kind: str = "Execution"
     seed: int = Field(default_factory=generate_seed)
-    resources: Optional[Dict] = None
+    resources: dict | None = None
 
-    def extra(self) -> Dict:
+    def extra(self) -> dict:
         return {"seed": self.seed, "resources": self.resources}
 
 

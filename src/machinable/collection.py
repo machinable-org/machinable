@@ -2,12 +2,11 @@
 # https://github.com/sdispater/backpack/blob/master/backpack/collections/base_collection.py.
 # The copyright and license agreement can be found in the ThirdPartyNotices.txt file at the root of this repository.
 
-from typing import TYPE_CHECKING, Any, Callable, Optional, Union
-
 import copy
 from functools import reduce
 from json import dumps
 from pprint import pprint
+from typing import TYPE_CHECKING, Any, Union
 
 from machinable.types import VersionType
 

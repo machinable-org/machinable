@@ -2,8 +2,6 @@
 
 """Builds a JSON index of available APIs"""
 
-import types
-
 import inspect
 import json
 import os

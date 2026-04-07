@@ -1,5 +1,3 @@
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
-
 import getpass
 import importlib
 import os
@@ -9,6 +7,9 @@ import socket
 import subprocess
 import sys
 import urllib.request
+from typing import TYPE_CHECKING, Any
+
+from pydantic import BaseModel, Field, field_validator
 
 import machinable
 from machinable import schema
@@ -17,7 +18,6 @@ from machinable.element import (
     extend,
     get_lineage,
     instantiate,
-    normversion,
 )
 from machinable.errors import ConfigurationError
 from machinable.interface import Interface
@@ -30,7 +30,6 @@ from machinable.utils import (
     import_from_directory,
     is_directory_version,
 )
-from pydantic import BaseModel, Field, field_validator
 
 if TYPE_CHECKING:
     from machinable.project import Project
@@ -176,7 +175,7 @@ class Project(Interface):
     kind = "Project"
 
     class Config(BaseModel):
-        directory: Optional[str] = Field(default_factory=lambda: os.getcwd())
+        directory: str | None = Field(default_factory=lambda: os.getcwd())
 
         @field_validator("directory")
         def normalize_directory(cls, v):
@@ -195,11 +194,11 @@ class Project(Interface):
             version=self.__model__.version,
             lineage=get_lineage(self),
         )
-        self._parent: Optional[Project] = None
+        self._parent: Project | None = None
         self._provider: str = "interface/project"
-        self._resolved_provider: Optional[Project] = None
+        self._resolved_provider: Project | None = None
 
-    def provider(self, reload: Union[str, bool] = False) -> "Project":
+    def provider(self, reload: str | bool = False) -> "Project":
         """Resolves and returns the provider instance"""
         if isinstance(reload, str):
             self._provider = reload
@@ -221,7 +220,7 @@ class Project(Interface):
         return self._resolved_provider
 
     @property
-    def module(self) -> Optional[str]:
+    def module(self) -> str | None:
         if self.provider().__module__ != "machinable.project":
             return self._provider.replace("/", ".")
 
@@ -256,7 +255,7 @@ class Project(Interface):
 
         return p
 
-    def get_vendors(self) -> List[str]:
+    def get_vendors(self) -> list[str]:
         try:
             return [
                 vendor
@@ -279,7 +278,7 @@ class Project(Interface):
 
     def element(
         self,
-        module: Union[str, Element],
+        module: str | Element,
         version: VersionType = None,
         base_class: Any = None,
         **constructor_kwargs,
@@ -306,7 +305,7 @@ class Project(Interface):
 
         return element
 
-    def get_diff(self) -> Union[str, None]:
+    def get_diff(self) -> str | None:
         return get_diff(self.path())
 
     def exists(self) -> bool:
@@ -333,7 +332,7 @@ class Project(Interface):
             "machinable_version": machinable.get_version(),
         }
 
-    def resolve_remotes(self, module: str) -> Optional[Element]:
+    def resolve_remotes(self, module: str) -> Element | None:
         remotes = self.on_resolve_remotes()
 
         if module not in remotes:
@@ -356,9 +355,10 @@ class Project(Interface):
 
             if remote.startswith("url+"):
                 # download
-                with urllib.request.urlopen(remote[4:]) as response, open(
-                    filename, "wb"
-                ) as out_file:
+                with (
+                    urllib.request.urlopen(remote[4:]) as response,
+                    open(filename, "wb") as out_file,
+                ):
                     data = response.read()
                     out_file.write(data)
             elif remote.startswith("link+"):
@@ -393,7 +393,7 @@ class Project(Interface):
                 f"Invalid remote import: {remote} for {module} at {filename}"
             ) from _ex
 
-    def on_resolve_remotes(self) -> Dict[str, str]:
+    def on_resolve_remotes(self) -> dict[str, str]:
         """Event triggered during remote resolution
 
         Return a dictionary of module names and their remote source.
@@ -401,8 +401,8 @@ class Project(Interface):
         return {}
 
     def on_resolve_element(
-        self, module: Union[str, Element]
-    ) -> Tuple[Union[str, Element], Optional[Element]]:
+        self, module: str | Element
+    ) -> tuple[str | Element, Element | None]:
         """Override element resolution
 
         Return altered module and/or resolved Element class to be used instead.
@@ -420,7 +420,7 @@ class Project(Interface):
 
     def on_resolve_vendor(
         self, name: str, source: str, target: str
-    ) -> Optional[bool]:
+    ) -> bool | None:
         """Event triggered when vendor is resolved
 
         # Arguments

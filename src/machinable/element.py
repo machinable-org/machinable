@@ -1,21 +1,15 @@
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
-
 import collections
 import copy
-import json
-import sys
-
-if sys.version_info >= (3, 11):
-    from typing import Self
-else:
-    from typing_extensions import Self
-
 import inspect
+import json
+from typing import Any, Optional, Self, Union
 
 import arrow
 import dill as pickle
-import machinable
 import omegaconf
+from omegaconf import DictConfig, OmegaConf
+
+import machinable
 from machinable import schema
 from machinable.collection import ElementCollection
 from machinable.config import (
@@ -37,7 +31,6 @@ from machinable.utils import (
     unflatten_dict,
     update_dict,
 )
-from omegaconf import DictConfig, OmegaConf
 
 
 class ConfigMethod:
@@ -72,7 +65,7 @@ class ConfigMethod:
             ) from _ex
 
 
-def normversion(version: VersionType = None) -> List[Union[str, dict]]:
+def normversion(version: VersionType = None) -> list[str | dict]:
     if not isinstance(
         version,
         (
@@ -110,7 +103,7 @@ def normversion(version: VersionType = None) -> List[Union[str, dict]]:
 
 
 def compact(
-    element: Union[str, List[Union[str, dict, None]]],
+    element: str | list[str | dict | None],
     version: VersionType = None,
 ) -> ElementType:
     if isinstance(element, (list, tuple, omegaconf.listconfig.ListConfig)):
@@ -128,8 +121,8 @@ def compact(
 
 
 def defaultversion(
-    module: Optional[str], version: VersionType, element: "Element"
-) -> Tuple[Optional[str], VersionType]:
+    module: str | None, version: VersionType, element: "Element"
+) -> tuple[str | None, VersionType]:
     if module is not None:
         return module, normversion(version)
 
@@ -158,8 +151,8 @@ def defaultversion(
 
 
 def extract(
-    compact_element: Union[str, List[Union[str, dict]], None]
-) -> Tuple[Optional[str], Optional[List[Union[str, dict]]]]:
+    compact_element: str | list[str | dict] | None,
+) -> tuple[str | None, list[str | dict] | None]:
     if compact_element is None:
         return None, None
 
@@ -176,12 +169,12 @@ def extract(
 
     if len(compact_element) == 0:
         raise ValueError(
-            f"Invalid component defintion. Expected str or non-empty list."
+            "Invalid component defintion. Expected str or non-empty list."
         )
 
     if not isinstance(compact_element[0], str):
         raise ValueError(
-            f"Invalid component defintion. First element in list has to be a string."
+            "Invalid component defintion. First element in list has to be a string."
         )
 
     if len(compact_element) == 1:
@@ -258,9 +251,9 @@ _CONNECTIONS = collections.defaultdict(list)
 class Element(Mixin, Jsonable):
     """Element baseclass"""
 
-    kind: Optional[str] = "Element"
+    kind: str | None = "Element"
     default: Optional["Element"] = None
-    _module_: Optional[str] = None
+    _module_: str | None = None
 
     def __init__(self, version: VersionType = None):
         super().__init__()
@@ -290,9 +283,9 @@ class Element(Mixin, Jsonable):
         )
         self.__mixin__ = None
         self.__mixins__ = {}
-        self._config: Optional[DictConfig] = None
-        self._predicate: Optional[DictConfig] = None
-        self._context: Optional[DictConfig] = None
+        self._config: DictConfig | None = None
+        self._predicate: DictConfig | None = None
+        self._context: DictConfig | None = None
         self._attributes = {}
         self._cache = {}
         self._kwargs = {}
@@ -320,7 +313,7 @@ class Element(Mixin, Jsonable):
 
     def version(
         self, version: VersionType = sentinel, overwrite: bool = False
-    ) -> List[Union[str, dict]]:
+    ) -> list[str | dict]:
         if version is sentinel:
             return self.__model__.version
 
@@ -356,7 +349,7 @@ class Element(Mixin, Jsonable):
         return self
 
     @classmethod
-    def connected(cls) -> List["Element"]:
+    def connected(cls) -> list["Element"]:
         return _CONNECTIONS[cls.kind]
 
     @classmethod
@@ -441,7 +434,7 @@ class Element(Mixin, Jsonable):
 
         return instance
 
-    def compute_context(self) -> Optional[Dict]:
+    def compute_context(self) -> dict | None:
         """Computes the context contraints of the element
 
         Returns:
@@ -459,7 +452,7 @@ class Element(Mixin, Jsonable):
             "predicate": self.compute_predicate(),
         }
 
-    def on_compute_predicate(self) -> Dict:
+    def on_compute_predicate(self) -> dict:
         """Event to compute additional predicates that identify this element.
 
         Returns:
@@ -467,7 +460,7 @@ class Element(Mixin, Jsonable):
         """
         return {}
 
-    def compute_predicate(self) -> Dict:
+    def compute_predicate(self) -> dict:
         predicate = self.on_compute_predicate() or {}
 
         # apply scopes
@@ -486,7 +479,7 @@ class Element(Mixin, Jsonable):
         return self._predicate
 
     @property
-    def context(self) -> Optional[DictConfig]:
+    def context(self) -> DictConfig | None:
         if self._context is None:
             if self.__model__.context is None:
                 return None
@@ -587,11 +580,11 @@ class Element(Mixin, Jsonable):
         return self._config
 
     @property
-    def module(self) -> Optional[str]:
+    def module(self) -> str | None:
         return self.__model__.module
 
     @property
-    def lineage(self) -> Tuple[str, ...]:
+    def lineage(self) -> tuple[str, ...]:
         return self.__model__.lineage
 
     @classmethod
@@ -599,7 +592,7 @@ class Element(Mixin, Jsonable):
         return ElementCollection(elements)
 
     @classmethod
-    def model(cls, element: Optional[Any] = None) -> schema.Element:
+    def model(cls, element: Any | None = None) -> schema.Element:
         if element is not None:
             if isinstance(element, cls):
                 return element.__model__
@@ -614,7 +607,7 @@ class Element(Mixin, Jsonable):
 
         return getattr(schema, cls.kind)
 
-    def matches(self, context: Optional[Dict] = None) -> bool:
+    def matches(self, context: dict | None = None) -> bool:
         if context is None or self.context is None:
             # full constraint, match none
             return False
@@ -650,22 +643,20 @@ class Element(Mixin, Jsonable):
 
         return self
 
-    def serialize(self) -> Dict:
+    def serialize(self) -> dict:
         # ensure that configuration has been parsed and predicated computed
         assert self.config is not None
         self.__model__.predicate = self.compute_predicate()
         return self.__model__.model_dump()
 
-    def save_attribute(self, name: Union[str, List[str]], data: Any) -> str:
+    def save_attribute(self, name: str | list[str], data: Any) -> str:
         name = joinpath(name)
 
         self._attributes[name] = data
 
         return name
 
-    def load_attribute(
-        self, name: Union[str, List[str]], default=None
-    ) -> Optional[Any]:
+    def load_attribute(self, name: str | list[str], default=None) -> Any | None:
         name = joinpath(name)
 
         data = self._attributes.get(name, None)
@@ -723,7 +714,7 @@ class Element(Mixin, Jsonable):
         except IndexError:
             pass
 
-    def __reduce__(self) -> Union[str, Tuple[Any, ...]]:
+    def __reduce__(self) -> str | tuple[Any, ...]:
         return (self.__class__, (), self.serialize())
 
     def __getstate__(self):
@@ -747,14 +738,14 @@ class Element(Mixin, Jsonable):
         return self.uuid != getattr(other, "uuid", None)
 
 
-def get_lineage(element: "Element") -> Tuple[str, ...]:
+def get_lineage(element: "Element") -> tuple[str, ...]:
     return tuple(
         obj.module if isinstance(obj, Element) else obj.__module__
         for obj in element.__class__.__mro__[1:-3]
     )
 
 
-def get_dump(element: "Element") -> Optional[bytes]:
+def get_dump(element: "Element") -> bytes | None:
     if element.__model__.module.startswith("__session__"):
         return pickle.dumps(element.__class__)
 

@@ -1,6 +1,5 @@
 import os
 
-import pytest
 from machinable import Component, Interface, Project, Schedule, Scope, get
 from machinable.collection import ComponentCollection
 from machinable.interface import (

@@ -1,16 +1,11 @@
-from typing import Optional
-
-import sys
-
-if sys.version_info <= (3, 8):
-    from typing import Annotated
-else:
-    from typing_extensions import Annotated
-
+from typing import Annotated
 from uuid import uuid4
 
 import pydantic
 import pytest
+from omegaconf import OmegaConf
+from pydantic.functional_validators import BeforeValidator
+
 from machinable import Element, Project
 from machinable.element import (
     compact,
@@ -24,12 +19,10 @@ from machinable.element import (
 )
 from machinable.errors import ConfigurationError
 from machinable.utils import Connectable, file_hash
-from omegaconf import OmegaConf
-from pydantic.functional_validators import BeforeValidator
 
 
 def test_element_defaults():
-    with Project("./tests/samples/project") as project:
+    with Project("./tests/samples/project"):
         Element.set_default("dummy")
         assert Element.instance().module == "dummy"
         assert Element.make().module == "machinable.element"
@@ -81,7 +74,7 @@ def test_element_instantiation():
 
 
 def test_element_lineage():
-    with Project("./tests/samples/project") as project:
+    with Project("./tests/samples/project"):
         element = Element.instance("basic")
         assert element.lineage == (
             "machinable.component",
@@ -138,11 +131,11 @@ def test_element_config():
     class Dummy(Element):
         class Config(pydantic.BaseModel):
             class Beta(pydantic.BaseModel):
-                test: Optional[bool] = None
+                test: bool | None = None
 
             beta: Beta = pydantic.Field(default_factory=Beta)
             a: int = pydantic.Field("through_config_method(1)")
-            b: Optional[int] = None
+            b: int | None = None
             alpha: int = 0
 
         def version_one(self):

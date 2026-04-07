@@ -1,12 +1,12 @@
-from typing import Any, Callable, Dict, List, Literal, Optional, Union
-
 import copy
 import json
 import os
 import shutil
 import time
+from collections.abc import Callable
 from contextlib import contextmanager
 from functools import partial
+from typing import Literal
 
 try:
     import sqlean as sqlite3
@@ -109,7 +109,7 @@ def load(database: str, create=False) -> sqlite3.Connection:
 
 
 @contextmanager
-def db(database: str, create=False) -> Optional[sqlite3.Connection]:
+def db(database: str, create=False) -> sqlite3.Connection | None:
     try:
         database = load(database, create)
         yield database
@@ -203,9 +203,9 @@ class Index(Interface):
         self,
         relation: str,
         uuid: str,
-        related_uuid: Union[str, List[str]],
+        related_uuid: str | list[str],
         priority: int = 0,
-        timestamp: Optional[int] = None,
+        timestamp: int | None = None,
     ) -> None:
         if isinstance(related_uuid, (list, tuple)):
             for r in related_uuid:
@@ -237,9 +237,9 @@ class Index(Interface):
 
     def find(
         self,
-        interface: Union[schema.Interface, Interface],
+        interface: schema.Interface | Interface,
         by: Literal["id", "uuid", "hash"] = "hash",
-    ) -> List[schema.Interface]:
+    ) -> list[schema.Interface]:
         if by in ["id", "uuid"]:
             found = self.find_by_id(interface.uuid)
             if not found:
@@ -253,7 +253,7 @@ class Index(Interface):
             f"Invalid field: {by}. Must be one of 'id', 'uuid', 'hash'."
         )
 
-    def find_by_id(self, uuid: str) -> Optional[schema.Interface]:
+    def find_by_id(self, uuid: str) -> schema.Interface | None:
         with db(self.config.database, create=False) as _db:
             if not _db:
                 return None
@@ -272,7 +272,7 @@ class Index(Interface):
                 return None
             return interface_row_factory(row)
 
-    def find_by_context(self, context: Dict) -> List[schema.Interface]:
+    def find_by_context(self, context: dict) -> list[schema.Interface]:
         with db(self.config.database, create=False) as _db:
             if not _db:
                 return []
@@ -307,7 +307,7 @@ class Index(Interface):
             cur.close()
             return [interface_row_factory(row) for row in query]
 
-    def find_by_hash(self, context_hash: str) -> List[schema.Interface]:
+    def find_by_hash(self, context_hash: str) -> list[schema.Interface]:
         with db(self.config.database, create=False) as _db:
             if not _db:
                 return []
@@ -323,7 +323,7 @@ class Index(Interface):
 
     def find_related(
         self, relation: str, uuid: str, inverse: bool = False
-    ) -> Union[None, List[schema.Interface]]:
+    ) -> None | list[schema.Interface]:
         with db(self.config.database, create=False) as _db:
             if not _db:
                 return None

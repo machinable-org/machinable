@@ -1,12 +1,10 @@
-from typing import Optional, Tuple
-
 import os
 
 from machinable import Project
 from machinable.utils import import_from_directory
 
 
-def _parse_code_string(code_string: str) -> Tuple[Optional[str], Optional[str]]:
+def _parse_code_string(code_string: str) -> tuple[str | None, str | None]:
     code_string = code_string[3:]
     q = code_string.split("[")
     if len(q) == 1:
@@ -86,8 +84,8 @@ def test_docs(tmp_storage, tmp_path):
                             raise RuntimeError(
                                 "Non-test code block without filename"
                             )
-                        code["filename"] = f"test_{c+1}.py"
-                        code["module"] = f"test_{c+1}"
+                        code["filename"] = f"test_{c + 1}.py"
+                        code["module"] = f"test_{c + 1}"
                     with open(
                         os.path.join(wd, str(b), code["filename"]), "w"
                     ) as f:

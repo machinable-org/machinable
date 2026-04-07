@@ -1,5 +1,3 @@
-from typing import Optional, Tuple
-
 from datetime import datetime
 
 from machinable import schema
@@ -7,7 +5,7 @@ from machinable.element import get_dump, get_lineage
 from machinable.scope import Scope
 
 
-def normgroup(group: Optional[str]) -> str:
+def normgroup(group: str | None) -> str:
     if group is None:
         return ""
     if not isinstance(group, str):
@@ -15,7 +13,7 @@ def normgroup(group: Optional[str]) -> str:
     return group.lstrip("/")
 
 
-def resolve_group(group: str) -> Tuple[str, str]:
+def resolve_group(group: str) -> tuple[str, str]:
     group = normgroup(group)
     resolved = datetime.now().strftime(group)
     return group, resolved
@@ -24,7 +22,7 @@ def resolve_group(group: str) -> Tuple[str, str]:
 class Group(schema.Scope):
     kind: str = "Group"
     pattern: str
-    path: Optional[str] = None
+    path: str | None = None
 
 
 class Group(Scope):
@@ -32,7 +30,7 @@ class Group(Scope):
 
     kind = "Group"
 
-    def __init__(self, group: Optional[str] = None):
+    def __init__(self, group: str | None = None):
         super().__init__(version=None)
         pattern, path = resolve_group(group)
         self.__model__ = schema.Group(

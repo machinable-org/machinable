@@ -1,31 +1,24 @@
-import types
-from types import ModuleType
-from typing import Any, Callable, List, Mapping, Optional, Tuple, Union
-
-import stat
-import sys
-import tokenize
-from io import BytesIO
-
-if sys.version_info >= (3, 11):
-    from typing import Self
-else:
-    from typing_extensions import Self
-
 import hashlib
 import importlib
 import inspect
 import json
 import os
 import random
+import stat
 import string
 import subprocess
 import sys
+import tokenize
+import types
 from collections import deque
+from collections.abc import Callable, Mapping
 from concurrent.futures import ThreadPoolExecutor
-from importlib import metadata as importlib_metadata
+from importlib.metadata import entry_points
+from io import BytesIO
 from keyword import iskeyword
 from pathlib import Path
+from types import ModuleType
+from typing import Any, Optional, Self
 from uuid import UUID
 
 import arrow
@@ -38,10 +31,10 @@ from uuid_extensions import uuid7
 
 sentinel = object()
 
-import json
+
+from pydantic import BaseModel
 
 from machinable.types import DatetimeType, VersionType
-from pydantic import BaseModel
 
 
 def serialize(obj):
@@ -59,7 +52,7 @@ def serialize(obj):
 
 
 def normjson(
-    data: Any, default: Optional[Callable[[Any], Any]] = serialize
+    data: Any, default: Callable[[Any], Any] | None = serialize
 ) -> str:
     return json.dumps(
         data, sort_keys=True, separators=(",", ":"), default=default
@@ -110,7 +103,7 @@ def is_directory_version(version: VersionType) -> bool:
     return False
 
 
-def joinpath(filepath: Union[str, List[str]]) -> str:
+def joinpath(filepath: str | list[str]) -> str:
     if isinstance(filepath, str):
         return filepath
 
@@ -130,7 +123,7 @@ def random_str(length: int, random_state=None):
 
 
 def object_hash(
-    payload: Any, default: Optional[Callable[[Any], Any]] = serialize
+    payload: Any, default: Callable[[Any], Any] | None = serialize
 ) -> str:
     json_str = normjson(payload, default=default)
     hash_obj = hashlib.sha256(json_str.encode())
@@ -256,7 +249,7 @@ def generate_nickname(categories=None, glue="_"):
 
 
 def load_file(
-    filepath: Union[str, List[str]],
+    filepath: str | list[str],
     default: Any = sentinel,
     opener=open,
     **opener_kwargs,
@@ -306,9 +299,9 @@ def load_file(
 
 
 def save_file(
-    filepath: Union[str, List[str]],
+    filepath: str | list[str],
     data: Any,
-    makedirs: Union[bool, Callable] = True,
+    makedirs: bool | Callable = True,
     opener=open,
     **opener_kwargs,
 ) -> str:
@@ -373,7 +366,7 @@ def save_file(
 
 def import_from_directory(
     module_name: str, directory: str, or_fail: bool = False
-) -> Optional[ModuleType]:
+) -> ModuleType | None:
     """Imports a module relative to a given absolute directory"""
     # determine the target .py file path
     file_path = os.path.join(directory, module_name.replace(".", "/"))
@@ -409,9 +402,9 @@ def import_from_directory(
 
 
 def find_subclass_in_module(
-    module: Optional[types.ModuleType],
+    module: types.ModuleType | None,
     base_class: Any,
-    default: Optional[Any] = None,
+    default: Any | None = None,
 ) -> Any:
     if module is not None:
         candidates = inspect.getmembers(
@@ -429,17 +422,15 @@ def find_subclass_in_module(
     return default
 
 
-def find_installed_extensions(key: str) -> List[Tuple[str, ModuleType]]:
+def find_installed_extensions(key: str) -> list[tuple[str, ModuleType]]:
     return [
         (module.name, module.load())
-        for module in importlib_metadata.entry_points().get(
-            f"machinable.{key}", []
-        )
+        for module in entry_points().get(f"machinable.{key}", [])
     ]
 
 
 def update_dict(
-    d: Mapping, update: Optional[Mapping] = None, copy: bool = False
+    d: Mapping, update: Mapping | None = None, copy: bool = False
 ) -> Mapping:
     if d is None:
         d = {}
@@ -531,7 +522,7 @@ def dot_splitter(flat_key):
 
 def unflatten_dict(
     d: Mapping,
-    splitter: Union[str, Callable] = dot_splitter,
+    splitter: str | Callable = dot_splitter,
     inverse: bool = False,
     recursive: bool = True,
     copy: bool = True,
@@ -581,7 +572,7 @@ def run_and_stream(
     stderr_handler: Callable = print,
     check: bool = True,
     text: bool = True,
-    env: Optional[dict] = sentinel,
+    env: dict | None = sentinel,
     **kwargs,
 ) -> int:
     if env is sentinel:
@@ -618,7 +609,7 @@ def chmodx(filepath: str) -> str:
     return filepath
 
 
-def get_diff(repository: str) -> Optional[str]:
+def get_diff(repository: str) -> str | None:
     command = ["git", "diff", "--staged"]
     try:
         process = subprocess.run(
@@ -663,7 +654,7 @@ def get_commit(repository: str) -> dict:
     return {"path": None, "commit": None, "is_dirty": None, "branch": None}
 
 
-def get_root_commit(repository: str) -> Optional[str]:
+def get_root_commit(repository: str) -> str | None:
     command = ["git", "rev-list", "--parents", "HEAD"]
     try:
         process = subprocess.run(

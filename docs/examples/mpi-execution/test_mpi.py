@@ -1,6 +1,7 @@
 import shutil
 
 import pytest
+
 from machinable import Component, Execution, Index, Project
 
 try:

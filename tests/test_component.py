@@ -4,14 +4,13 @@ import subprocess
 import sys
 
 import pytest
+
 from machinable import (
     Component,
     Execution,
     Project,
-    Storage,
     errors,
     get,
-    schema,
 )
 from machinable.element import Element
 
@@ -148,7 +147,7 @@ def test_component_export(tmp_storage):
     with pytest.raises(FileNotFoundError):
         exec(script)
 
-    e = Execution().add(component).commit()
+    Execution().add(component).commit()
 
     script = component.dispatch_code(inline=False)
 

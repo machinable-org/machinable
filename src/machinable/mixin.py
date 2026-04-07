@@ -1,7 +1,7 @@
-from typing import TYPE_CHECKING, Any, Callable
-
+from collections.abc import Callable
 from functools import wraps
 from inspect import getattr_static
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from machinable.element import Element

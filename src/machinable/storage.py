@@ -1,5 +1,3 @@
-from typing import TYPE_CHECKING, List, Union
-
 import os
 
 from machinable import schema
@@ -28,7 +26,7 @@ class Storage(Interface):
         )
 
     def upload(
-        self, interface: "Interface", related: Union[bool, int] = True
+        self, interface: "Interface", related: bool | int = True
     ) -> None:
         """
         Upload the interface to the storage
@@ -51,9 +49,9 @@ class Storage(Interface):
     def download(
         self,
         uuid: str,
-        destination: Union[str, None] = None,
-        related: Union[bool, int] = True,
-    ) -> List[str]:
+        destination: str | None = None,
+        related: bool | int = True,
+    ) -> list[str]:
         """
         Download to destination
 
@@ -110,8 +108,7 @@ class Storage(Interface):
 
         return retrieved
 
-    def commit(self, interface: "Interface") -> None:
-        ...
+    def commit(self, interface: "Interface") -> None: ...
 
     def update(self, interface: "Interface") -> None:
         return self.commit(interface)
@@ -124,7 +121,7 @@ class Storage(Interface):
         ...
         return False
 
-    def search_for(self, interface: "Interface") -> List[str]:
+    def search_for(self, interface: "Interface") -> list[str]:
         raise NotImplementedError()
 
 

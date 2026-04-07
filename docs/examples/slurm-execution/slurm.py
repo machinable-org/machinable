@@ -1,30 +1,30 @@
-from typing import Literal, Optional, Union
-
 import os
 import subprocess
 import sys
 import time
+from typing import Literal, Optional
 
 import arrow
 import yaml
+from pydantic import BaseModel, ConfigDict
+
 from machinable import Execution, Project
 from machinable.errors import ExecutionFailed
 from machinable.utils import chmodx, run_and_stream
-from pydantic import BaseModel, ConfigDict
 
 
 class Slurm(Execution):
     class Config(BaseModel):
         model_config = ConfigDict(extra="forbid")
 
-        preamble: Optional[str] = ""
-        mpi: Optional[str] = "mpirun"
+        preamble: str | None = ""
+        mpi: str | None = "mpirun"
         mpi_args: str = ""
-        python: Optional[str] = None
+        python: str | None = None
         throttle: float = 0.5
         confirm: bool = True
         copy_project_source: bool = True
-        resume_failed: Union[bool, Literal["new", "skip"]] = False
+        resume_failed: bool | Literal["new", "skip"] = False
         dry: bool = False
 
     def on_before_dispatch(self):

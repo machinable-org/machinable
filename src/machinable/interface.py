@@ -1,22 +1,13 @@
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
-
 import inspect
-import shlex
-import sys
-
-from flatten_dict import flatten
-
-if sys.version_info >= (3, 11):
-    from typing import Self
-else:
-    from typing_extensions import Self
-
-from typing import Callable, Literal
-
 import os
+import shlex
+from collections.abc import Callable
 from functools import partial
+from typing import Any, Literal, Optional, Self, Union
 
 import dill as pickle
+from flatten_dict import flatten
+
 from machinable import errors, schema
 from machinable.collection import (
     Collection,
@@ -35,7 +26,6 @@ from machinable.utils import (
     save_file,
     update_uuid_payload,
 )
-from uuid_extensions import uuid7
 
 
 def cachable(
@@ -111,8 +101,8 @@ class Relation:
         self,
         fn,
         cached: bool = True,
-        collection: Optional[Collection] = None,
-        key: Optional[str] = None,
+        collection: Collection | None = None,
+        key: str | None = None,
     ) -> None:
         self.fn = fn
         self.cached = cached
@@ -135,7 +125,7 @@ class Relation:
         else:
             return f"{self.related_cls.kind}.{self.cls.kind}.{self.key or 'default'}"
 
-    def collect(self, elements: List["Interface"]) -> Collection:
+    def collect(self, elements: list["Interface"]) -> Collection:
         if self.collection is None:
             return self.related_cls.collect(elements)
         return self.collection(elements)
@@ -192,11 +182,11 @@ class BelongsToMany(Relation):
 
 def _relation(cls: Relation) -> Any:
     def _wrapper(
-        f: Optional[Callable] = None,
+        f: Callable | None = None,
         *,
         cached: bool = True,
-        collection: Optional[Collection] = None,
-        key: Optional[str] = None,
+        collection: Collection | None = None,
+        key: str | None = None,
     ) -> Any:
         if f is None:
             return partial(cls, cached=cached, collection=collection, key=key)
@@ -238,12 +228,12 @@ class Interface(Element):
     # the __related__ object propery and
     # existence should be checked on
     # actual interface instance
-    __relations__: Optional[Dict[str, Relation]] = None
+    __relations__: dict[str, Relation] | None = None
 
     def __init__(
         self,
         version: VersionType = None,
-        uses: Union[None, "Interface", List["Interface"]] = None,
+        uses: Union[None, "Interface", list["Interface"]] = None,
         derived_from: Optional["Interface"] = None,
     ):
         super().__init__(version=version)
@@ -463,7 +453,7 @@ class Interface(Element):
 
     def derive(
         self,
-        module: Union[str, Element, None] = None,
+        module: str | Element | None = None,
         version: VersionType = None,
         **kwargs,
     ) -> Self:
@@ -530,7 +520,7 @@ class Interface(Element):
 
     @classmethod
     def find_many_by_id(
-        cls, uuids: List[str], fetch: bool = True
+        cls, uuids: list[str], fetch: bool = True
     ) -> "InterfaceCollection":
         return cls.collect([cls.find_by_id(uuid, fetch) for uuid in uuids])
 
@@ -690,9 +680,7 @@ class Interface(Element):
 
         return self
 
-    def fetch(
-        self, directory: Optional[str] = None, force: bool = False
-    ) -> bool:
+    def fetch(self, directory: str | None = None, force: bool = False) -> bool:
         if not self.is_committed():
             return False
 
@@ -723,9 +711,7 @@ class Interface(Element):
 
         return directory
 
-    def load_file(
-        self, filepath: Union[str, List[str]], default=None
-    ) -> Optional[Any]:
+    def load_file(self, filepath: str | list[str], default=None) -> Any | None:
         filepath = joinpath(filepath)
         if not self.is_mounted():
             # has write been deferred?
@@ -738,7 +724,7 @@ class Interface(Element):
 
         return data if data is not None else default
 
-    def save_file(self, filepath: Union[str, List[str]], data: Any) -> str:
+    def save_file(self, filepath: str | list[str], data: Any) -> str:
         filepath = joinpath(filepath)
 
         if os.path.isabs(filepath):
@@ -753,8 +739,7 @@ class Interface(Element):
 
         return file
 
-    def launch(self) -> Self:
-        ...
+    def launch(self) -> Self: ...
 
     @property
     def components(self) -> "ComponentCollection":
@@ -772,7 +757,7 @@ class Interface(Element):
             lambda result, x: result and x.cached(), True
         )
 
-    def future(self) -> Optional[Self]:
+    def future(self) -> Self | None:
         from machinable.execution import Execution
 
         if Execution.is_connected():
@@ -810,9 +795,7 @@ class Interface(Element):
 
         return self
 
-    def hidden(
-        self, hidden: Optional[bool] = None, reason: str = "user"
-    ) -> bool:
+    def hidden(self, hidden: bool | None = None, reason: str = "user") -> bool:
         if hidden is None:
             return self.load_file("hidden", None) is not None
         elif hidden is True:

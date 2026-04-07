@@ -1,5 +1,6 @@
-from machinable import Component
 from pydantic import BaseModel, Field
+
+from machinable import Component
 
 
 class InSession(Component):

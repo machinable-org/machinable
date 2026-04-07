@@ -3,6 +3,7 @@ import shutil
 import sqlite3
 
 import pytest
+
 from machinable import Component, index, schema
 
 

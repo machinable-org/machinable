@@ -1,6 +1,7 @@
 import os
 
 import pytest
+
 from machinable import Component, Project, from_cli, get_version
 from machinable.cli import main
 

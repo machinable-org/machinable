@@ -1,5 +1,3 @@
-from typing import Any, Optional
-
 from machinable import Component, errors
 
 

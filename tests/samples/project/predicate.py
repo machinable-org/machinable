@@ -1,8 +1,4 @@
-from typing import Dict, List, Optional, Union
-
 from machinable import Component
-from machinable.interface import Interface
-from machinable.types import VersionType
 
 
 class PredicateComponent(Component):

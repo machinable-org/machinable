@@ -1,11 +1,10 @@
 __all__ = ["to_dict"]
-from typing import TYPE_CHECKING, Any, Optional, Tuple, Union
-
 import collections
 import re
 import warnings
 from dataclasses import asdict, dataclass, is_dataclass
 from inspect import isclass
+from typing import TYPE_CHECKING, Any
 
 import omegaconf
 from pydantic import BaseModel
@@ -18,7 +17,7 @@ class _ModelPrototype(BaseModel):
     pass
 
 
-def from_element(element: "Element") -> Tuple[dict, Optional[BaseModel]]:
+def from_element(element: "Element") -> tuple[dict, BaseModel | None]:
     if not isclass(element):
         element = element.__class__
 
@@ -44,7 +43,7 @@ def from_element(element: "Element") -> Tuple[dict, Optional[BaseModel]]:
     return asdict(config()), None
 
 
-def match_method(definition: str) -> Optional[Tuple[str, str]]:
+def match_method(definition: str) -> tuple[str, str] | None:
     fn_match = re.match(r"^(?P<method>\w+)\s?\((?P<args>[^()]*)\)$", definition)
     if fn_match is None:
         return None
@@ -55,7 +54,7 @@ def match_method(definition: str) -> Optional[Tuple[str, str]]:
 
 
 def rewrite_config_methods(
-    config: Union[collections.abc.Mapping, str, list, tuple]
+    config: collections.abc.Mapping | str | list | tuple,
 ) -> Any:
     if isinstance(config, list):
         return [rewrite_config_methods(v) for v in config]

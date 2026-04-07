@@ -1,4 +1,5 @@
 import pytest
+
 from docs.examples.scopes.group import normgroup, resolve_group
 
 
