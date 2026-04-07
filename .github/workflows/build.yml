@@ -44,5 +44,4 @@ jobs:
         if: matrix.python-version == '3.13'
         run: |
           uv run python docs/.vitepress/pydocgen.py
-          npm ci --prefix docs
-          npx --prefix docs vitepress build
+          cd docs && npm ci && npx vitepress build
