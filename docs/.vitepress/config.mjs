@@ -131,7 +131,4 @@ export default defineConfig({
       text: 'Edit this page on GitHub'
     },
   },
-  markdown: {
-    lineNumbers: false
-  }
 })

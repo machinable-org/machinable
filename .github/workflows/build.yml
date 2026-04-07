@@ -23,6 +23,13 @@ jobs:
         run: uv python install ${{ matrix.python-version }}
       - name: Install dependencies
         run: uv sync --extra all
+      - name: Set up Node.js
+        if: matrix.python-version == '3.13'
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: docs/package-lock.json
       - name: ruff format check
         run: uv run ruff format --check .
       - name: ruff lint check
@@ -31,3 +38,11 @@ jobs:
         run: uv run ec
       - name: Run tests
         run: uv run pytest
+      - name: Validate pydoc references
+        run: uv run python docs/.vitepress/pydocgen.py --validate
+      - name: Build docs
+        if: matrix.python-version == '3.13'
+        run: |
+          uv run python docs/.vitepress/pydocgen.py
+          npm ci --prefix docs
+          npx --prefix docs vitepress build
