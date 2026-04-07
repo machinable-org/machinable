@@ -1,24 +1,15 @@
-from typing import TYPE_CHECKING, List, Optional, Union
-
-import inspect
 import os
 import random
 import sys
 import threading
-
-if sys.version_info >= (3, 11):
-    from typing import Self
-else:
-    from typing_extensions import Self
-
-from typing import Dict
+from typing import TYPE_CHECKING, Optional, Self, Union
 
 from machinable import errors, schema
 from machinable.collection import ComponentCollection, ExecutionCollection
 from machinable.element import _CONNECTIONS as connected_elements
 from machinable.element import get_dump, get_lineage
 from machinable.index import Index
-from machinable.interface import Interface, belongs_to, belongs_to_many
+from machinable.interface import Interface, belongs_to_many
 from machinable.project import Project
 from machinable.storage import Storage
 from machinable.types import VersionType
@@ -35,9 +26,9 @@ class Component(Interface):
     def __init__(
         self,
         version: VersionType = None,
-        uses: Union[None, "Interface", List["Interface"]] = None,
+        uses: Union[None, "Interface", list["Interface"]] = None,
         derived_from: Optional["Interface"] = None,
-        seed: Union[int, None] = None,
+        seed: int | None = None,
     ):
         super().__init__(version=version, uses=uses, derived_from=derived_from)
         if seed is None:
@@ -191,9 +182,7 @@ class Component(Interface):
                 for storage in Storage.connected():
                     storage.update(self)
 
-    def cached(
-        self, cached: Optional[bool] = None, reason: str = "user"
-    ) -> bool:
+    def cached(self, cached: bool | None = None, reason: str = "user") -> bool:
         if cached is None:
             return self.load_file("cached", None) is not None
         elif cached is True:
@@ -210,9 +199,9 @@ class Component(Interface):
     def dispatch_code(
         self,
         inline: bool = True,
-        project_directory: Optional[str] = None,
-        python: Optional[str] = None,
-    ) -> Optional[str]:
+        project_directory: str | None = None,
+        python: str | None = None,
+    ) -> str | None:
         if project_directory is None:
             project_directory = Project.get().path()
         if python is None:
@@ -240,10 +229,9 @@ class Component(Interface):
 
     # life cycle
 
-    def __call__(self) -> None:
-        ...
+    def __call__(self) -> None: ...
 
-    def on_before_dispatch(self) -> Optional[bool]:
+    def on_before_dispatch(self) -> bool | None:
         """Event triggered before the dispatch of the component"""
 
     def on_success(self):
@@ -276,7 +264,7 @@ class Component(Interface):
         """Lifecycle event to implement custom seeding using `self.seed`"""
         random.seed(self.seed)
 
-    def on_write_meta_data(self) -> Optional[bool]:
+    def on_write_meta_data(self) -> bool | None:
         """Event triggered before meta-data such as creation time etc. is written to the storage
 
         Return False to prevent writing of meta-data

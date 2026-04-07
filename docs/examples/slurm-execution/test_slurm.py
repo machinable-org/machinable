@@ -5,6 +5,7 @@ import time
 from pathlib import Path
 
 import pytest
+
 from machinable import Component, Execution, Index, Project
 
 
@@ -63,7 +64,7 @@ def test_slurm_execution(tmp_path):
                 resources=json.loads(
                     os.environ.get("MACHINABLE_SLURM_TEST_RESOURCES", "{}")
                 ),
-            ) as e:
+            ):
                 A = SlurmComponent(uses=component).launch()
                 A.save_file("name", "A")
                 B = SlurmComponent().launch()

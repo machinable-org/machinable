@@ -1,10 +1,9 @@
-from typing import Dict
-
 import random
 
 import pytest
-from machinable import Component, Execution, Project, Scope, errors, get
 from pydantic import BaseModel
+
+from machinable import Component, Execution, Project, Scope, errors, get
 
 
 def test_execution(tmp_storage):
@@ -208,7 +207,7 @@ def test_rerepeated_execution(tmp_storage):
     project = Project("./tests/samples/project").__enter__()
 
     class NoScope(Scope):
-        def __call__(self) -> Dict:
+        def __call__(self) -> dict:
             return {"random": random.randint(0, 99999)}
 
     # first execution
@@ -263,9 +262,9 @@ def test_rerepeated_execution(tmp_storage):
     failed.save_file("repaired", "yes")
     with Execution() as execution3:
         failed.launch()
-    assert (
-        failed.execution == execution3
-    ), f"{failed.execution.uuid} != {execution3.uuid}"
+    assert failed.execution == execution3, (
+        f"{failed.execution.uuid} != {execution3.uuid}"
+    )
     assert failed.execution.is_finished()
     assert not failed.execution.is_resumed()
     assert len(execution2.executables) == 2

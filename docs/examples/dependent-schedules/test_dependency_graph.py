@@ -52,15 +52,15 @@ def test_dependency_graph(tmp_path):
                 a = get(A).launch()
                 b = get(B, uses=[a]).launch()
                 c = get(C, uses=[a]).launch()
-                d = get(D, uses=[b, c]).launch()
-                e = get(E, uses=[c]).launch()
+                get(D, uses=[b, c]).launch()
+                get(E, uses=[c]).launch()
 
             assert execution.name_trace == ["A", "C", "E", "B", "D"]
 
             with Trace(schedule=get("dependency_graph")) as execution:
-                a2 = Element.make(A).launch()
+                Element.make(A).launch()
                 b = get(B, uses=[a]).launch()
                 c = get(C, uses=[a]).launch()
-                d2 = Element.make(D, uses=[b, c]).launch()
-                e = get(E, uses=[c]).launch()
+                Element.make(D, uses=[b, c]).launch()
+                get(E, uses=[c]).launch()
             assert execution.name_trace == ["D", "A"]

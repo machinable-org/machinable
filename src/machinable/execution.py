@@ -1,18 +1,10 @@
-from typing import Any, Dict, List, Optional, Union
-
 import copy
 import os
-import sys
 import time
-
-if sys.version_info >= (3, 11):
-    from typing import Self
-else:
-    from typing_extensions import Self
-
-from typing import Literal
+from typing import Literal, Optional, Self
 
 import arrow
+
 from machinable import schema
 from machinable.collection import ComponentCollection, ExecutionCollection
 from machinable.component import Component
@@ -48,8 +40,8 @@ class Execution(Interface):
     def __init__(
         self,
         version: VersionType = None,
-        resources: Optional[Dict] = None,
-        schedule: Union[Schedule, ElementType, None] = None,
+        resources: dict | None = None,
+        schedule: Schedule | ElementType | None = None,
     ):
         super().__init__(version)
         self.__model__ = schema.Execution(
@@ -77,10 +69,10 @@ class Execution(Interface):
     def collect(cls, executions) -> "ExecutionCollection":
         return ExecutionCollection(executions)
 
-    def compute_context(self) -> Optional[Dict]:
+    def compute_context(self) -> dict | None:
         return None  # do not retrieve existing execution
 
-    def on_compute_predicate(self) -> Dict:
+    def on_compute_predicate(self) -> dict:
         return {"resources": self.__model__.resources}
 
     @has_one
@@ -92,8 +84,8 @@ class Execution(Interface):
         return Component
 
     def executable(
-        self, executable: Optional[Component] = None
-    ) -> Optional[Component]:
+        self, executable: Component | None = None
+    ) -> Component | None:
         if executable is not None:
             return executable
 
@@ -108,7 +100,7 @@ class Execution(Interface):
             "No executable selected. Call `execution.of(executable)`, or pass an executable argument."
         )
 
-    def of(self, executable: Union[None, Component]) -> Self:
+    def of(self, executable: None | Component) -> Self:
         self._executable_ = executable
         return self
 
@@ -121,7 +113,7 @@ class Execution(Interface):
 
     def add(
         self,
-        executable: Union[Component, List[Component]],
+        executable: Component | list[Component],
     ) -> Self:
         if isinstance(executable, (list, tuple)):
             for _executable in executable:
@@ -147,12 +139,12 @@ class Execution(Interface):
 
         return super().commit()
 
-    def canonicalize_resources(self, resources: Dict) -> Dict:
+    def canonicalize_resources(self, resources: dict) -> dict:
         return resources
 
     def computed_resources(
         self, executable: Optional["Component"] = None
-    ) -> Optional[Dict]:
+    ) -> dict | None:
         executable = self.executable(executable)
 
         if executable.id not in self._resources:
@@ -173,7 +165,7 @@ class Execution(Interface):
 
     def _compute_resources(
         self, executable: Optional["Component"] = None
-    ) -> Dict:
+    ) -> dict:
         default_resources = self.on_compute_default_resources(
             self.executable(executable)
         )
@@ -247,7 +239,7 @@ class Execution(Interface):
     def host_info(
         self,
         executable: Optional["Component"] = None,
-    ) -> Optional[Dict]:
+    ) -> dict | None:
         executable = self.executable(executable)
         return self.load_file([executable.id, "host.json"], None)
 
@@ -264,7 +256,7 @@ class Execution(Interface):
         self,
         executable: Optional["Component"] = None,
         incremental: bool = False,
-    ) -> Optional[str]:
+    ) -> str | None:
         """Returns the output log"""
         if not self.is_mounted():
             return None
@@ -300,7 +292,7 @@ class Execution(Interface):
     def stream_output(
         self,
         executable: Optional["Component"] = None,
-        refresh_every: Union[int, float] = 1,
+        refresh_every: int | float = 1,
         stream=print,
     ):
         executable = self.executable(executable)
@@ -317,7 +309,7 @@ class Execution(Interface):
         self,
         executable: Optional["Component"] = None,
         status: StatusType = "heartbeat",
-        timestamp: Optional[TimestampType] = None,
+        timestamp: TimestampType | None = None,
     ) -> TimestampType:
         _assert_allowed(status)
         executable = self.executable(executable)
@@ -342,7 +334,7 @@ class Execution(Interface):
         self,
         executable: Optional["Component"] = None,
         status: StatusType = "heartbeat",
-    ) -> Optional[DatetimeType]:
+    ) -> DatetimeType | None:
         _assert_allowed(status)
         executable = self.executable(executable)
 
@@ -363,7 +355,7 @@ class Execution(Interface):
 
     def started_at(
         self, executable: Optional["Component"] = None
-    ) -> Optional[DatetimeType]:
+    ) -> DatetimeType | None:
         """Returns the starting time"""
         if not self.is_mounted():
             return None
@@ -372,7 +364,7 @@ class Execution(Interface):
     def resumed_at(
         self,
         executable: Optional["Component"] = None,
-    ) -> Optional[DatetimeType]:
+    ) -> DatetimeType | None:
         """Returns the resumed time"""
         if not self.is_mounted():
             return None
@@ -456,7 +448,7 @@ class Execution(Interface):
 
         return False
 
-    def on_before_dispatch(self) -> Optional[bool]:
+    def on_before_dispatch(self) -> bool | None:
         """Event triggered before dispatch of an execution
 
         Return False to prevent the dispatch
@@ -467,7 +459,7 @@ class Execution(Interface):
 
     def on_compute_default_resources(
         self, executable: "Component"
-    ) -> Optional[Dict]:
+    ) -> dict | None:
         """Event triggered to compute default resources"""
 
     @property

@@ -1,4 +1,5 @@
 """machinable"""
+
 __all__ = [
     "Element",
     "Interface",
@@ -12,10 +13,11 @@ __all__ = [
     "mixin",
     "Schedule",
     "get",
+    "from_cli",
 ]
 __doc__ = """A modular system for machinable research code"""
 
-from importlib import metadata as importlib_metadata
+from importlib.metadata import PackageNotFoundError, version
 
 from machinable.cli import from_cli
 from machinable.component import Component
@@ -33,8 +35,8 @@ from machinable.storage import Storage
 
 def get_version() -> str:
     try:
-        return importlib_metadata.version(__name__)
-    except importlib_metadata.PackageNotFoundError:  # pragma: no cover
+        return version(__name__)
+    except PackageNotFoundError:  # pragma: no cover
         return "unknown"
 
 

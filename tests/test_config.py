@@ -1,4 +1,5 @@
 import omegaconf
+
 from machinable.config import (
     from_element,
     match_method,

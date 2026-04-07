@@ -1,5 +1,4 @@
 # Note that most query testing can be found in test_interface_modifiers
-import pytest
 from machinable import Component, get
 
 

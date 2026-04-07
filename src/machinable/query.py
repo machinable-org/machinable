@@ -1,11 +1,11 @@
 from machinable.collection import InterfaceCollection
-from machinable.element import extend, normversion
+from machinable.element import extend
 from machinable.interface import Interface
-from machinable.types import Optional, Union, VersionType
+from machinable.types import VersionType
 
 
 class Query:
-    def by_id(self, uuid: str) -> Optional[Interface]:
+    def by_id(self, uuid: str) -> Interface | None:
         return Interface.find_by_id(uuid)
 
     def from_directory(self, directory: str) -> Interface:
@@ -13,7 +13,7 @@ class Query:
 
     def __call__(
         self,
-        module: Union[str, Interface, None] = None,
+        module: str | Interface | None = None,
         version: VersionType = None,
         **kwargs,
     ) -> Interface:
@@ -24,7 +24,7 @@ class Query:
 
     def all(
         self,
-        module: Union[None, str, Interface] = None,
+        module: str | Interface | None = None,
         version: VersionType = None,
         **kwargs,
     ) -> "InterfaceCollection":
@@ -33,7 +33,7 @@ class Query:
 
     def new(
         self,
-        module: Union[None, str, Interface] = None,
+        module: str | Interface | None = None,
         version: VersionType = None,
         **kwargs,
     ) -> Interface:

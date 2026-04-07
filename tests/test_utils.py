@@ -2,6 +2,7 @@ import os
 import subprocess
 
 import pytest
+
 from machinable import get_version, utils
 from machinable.element import Element
 

@@ -1,22 +1,22 @@
-from typing import Literal, Optional, Union
-
 import os
 import sys
+from typing import Literal
+
+from pydantic import BaseModel, ConfigDict
 
 from machinable import Execution
 from machinable.errors import ExecutionFailed
 from machinable.utils import chmodx, run_and_stream
-from pydantic import BaseModel, ConfigDict
 
 
 class MPI(Execution):
     class Config(BaseModel):
         model_config = ConfigDict(extra="forbid")
 
-        preamble: Optional[str] = ""
-        mpi: Optional[str] = "mpirun"
-        python: Optional[str] = None
-        resume_failed: Union[bool, Literal["new", "skip"]] = False
+        preamble: str | None = ""
+        mpi: str | None = "mpirun"
+        python: str | None = None
+        resume_failed: bool | Literal["new", "skip"] = False
         dry: bool = False
 
     def on_compute_default_resources(self, executable):

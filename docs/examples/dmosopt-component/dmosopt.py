@@ -1,25 +1,29 @@
-from machinable import Component
-from machinable.interface import cachable
-from mpi4py import MPI
-from pydantic import BaseModel, ConfigDict, Field, field_validator, TypeAdapter
-from dmosopt import dmosopt
-from dmosopt import config
-from machinable.config import to_dict
-from typing import Dict, Optional, List, Callable, Literal, Set, Any, Union, Tuple
-from numbers import Number
 import copy
-from machinable.config import match_method
+import datetime
+import inspect
 import os
 import sys
-import inspect
+from collections.abc import Callable
+from numbers import Number
+from typing import (
+    Any,
+    Literal,
+    Optional,
+    Union,
+)
+
+import distwq
 import h5py
-from dmosopt.MOASMO import get_best, epsilon_get_best
-from dmosopt import indicators
 import numpy as np
 import pandas as pd
-import datetime
-import distwq
+from dmosopt import config, dmosopt, indicators
+from dmosopt.MOASMO import epsilon_get_best, get_best
+from mpi4py import MPI
+from pydantic import BaseModel, ConfigDict, Field, TypeAdapter, field_validator
 
+from machinable import Component
+from machinable.config import match_method, to_dict
+from machinable.interface import cachable
 
 sys_excepthook = sys.excepthook
 
@@ -39,64 +43,64 @@ class Dmosopt(Component):
     class Config(BaseModel):
         model_config = ConfigDict(extra="forbid")
 
-        dopt_params: Dict = Field("???")
-        time_limit: Optional[int] = None
+        dopt_params: dict = Field("???")
+        time_limit: int | None = None
         feasible: bool = True
         return_features: bool = False
         return_constraints: bool = False
         spawn_workers: bool = False
         sequential_spawn: bool = False
-        spawn_startup_wait: Optional[int] = None
-        spawn_executable: Optional[str] = None
-        spawn_args: List[str] = []
+        spawn_startup_wait: int | None = None
+        spawn_executable: str | None = None
+        spawn_args: list[str] = []
         nprocs_per_worker: int = 1
         collective_mode: Literal["gather", "sendrecv"] = "gather"
         verbose: bool = True
         worker_debug: bool = False
-        nodes: Optional[str] = None
-        ranks: Optional[int] = None
+        nodes: str | None = None
+        ranks: int | None = None
 
         @field_validator("dopt_params", mode="before")
         @classmethod
-        def valid_optimization_settings(cls, params: Dict) -> Dict:
+        def valid_optimization_settings(cls, params: dict) -> dict:
             _t = {
                 "opt_id": str,
-                "obj_fun_name": Optional[str],
-                "obj_fun_init_name": Optional[str],
-                "obj_fun_init_args": Dict,
-                "controller_init_fun_name": Optional[str],
-                "controller_init_fun_args": Dict,
-                "reduce_fun_name": Optional[str],
-                "reduce_fun_args": Union[List, Tuple],
-                "broker_fun_name": Optional[str],
-                "broker_module_name": Optional[str],
+                "obj_fun_name": str | None,
+                "obj_fun_init_name": str | None,
+                "obj_fun_init_args": dict,
+                "controller_init_fun_name": str | None,
+                "controller_init_fun_args": dict,
+                "reduce_fun_name": str | None,
+                "reduce_fun_args": Union[list, tuple],
+                "broker_fun_name": str | None,
+                "broker_module_name": str | None,
                 # DistOptimizer
-                "objective_names": Union[str, List[str]],
+                "objective_names": Union[str, list[str]],
                 "feature_dtypes": str,
-                "constraint_names": Union[str, List[str]],
+                "constraint_names": Union[str, list[str]],
                 "n_initial": int,
                 "initial_maxiter": int,
                 "initial_method": Union[
                     Callable,
                     Literal["glp", "slh", "lh", "mc", "sobol"],
-                    Dict[str, Any],
+                    dict[str, Any],
                     str,
                 ],
-                "dynamic_initial_sampling": Optional[str],
-                "dynamic_initial_sampling_kwargs": Optional[Dict],
+                "dynamic_initial_sampling": str | None,
+                "dynamic_initial_sampling_kwargs": dict | None,
                 "verbose": bool,
-                "problem_ids": Optional[Set],
-                "problem_parameters": Optional[Dict],
-                "space": Optional[
-                    Dict[str, Tuple[Union[int, float], Union[int, float]]]
-                ],
+                "problem_ids": set | None,
+                "problem_parameters": dict | None,
+                "space": Optional[dict[str, tuple[int | float, int | float]]],
                 "population_size": int,
                 "num_generations": int,
                 "resample_fraction": float,
-                "distance_metric": Union[Callable, Literal["crowding", "euclidean"]],
+                "distance_metric": Union[
+                    Callable, Literal["crowding", "euclidean"]
+                ],
                 "n_epochs": int,
                 "save_eval": bool,
-                "file_path": Optional[str],
+                "file_path": str | None,
                 "save": bool,
                 "save_surrogate_evals": bool,
                 "save_optimizer_params": bool,
@@ -117,18 +121,20 @@ class Dmosopt(Component):
                     ],
                     None,
                 ],
-                "surrogate_method_kwargs": Dict,
-                "surrogate_custom_training": Optional[str],
-                "surrogate_custom_training_kwargs": Optional[Dict],
-                "optimizer_name": Union[Literal["nsga2", "age", "smpso", "cmaes"], str],
-                "optimizer_kwargs": Union[Dict, List[Dict]],
+                "surrogate_method_kwargs": dict,
+                "surrogate_custom_training": str | None,
+                "surrogate_custom_training_kwargs": dict | None,
+                "optimizer_name": Union[
+                    Literal["nsga2", "age", "smpso", "cmaes"], str
+                ],
+                "optimizer_kwargs": Union[dict, list[dict]],
                 "sensitivity_method_name": Literal["dgsm", "fast"],
-                "sensitivity_method_kwargs": Dict,
+                "sensitivity_method_kwargs": dict,
                 "local_random": Any,
-                "random_seed": Optional[int],
-                "feasibility_method_name": Optional[str],
-                "feasibility_method_kwargs": Dict,
-                "termination_conditions": Union[bool, Dict, None],
+                "random_seed": int | None,
+                "feasibility_method_name": str | None,
+                "feasibility_method_kwargs": dict,
+                "termination_conditions": Union[bool, dict, None],
                 #
                 "di_crossover": Any,  #
                 "di_mutation": Any,  #
@@ -137,7 +143,9 @@ class Dmosopt(Component):
             payload = copy.deepcopy(to_dict(params))
             for k, v in payload.items():
                 if k == "feature_names":
-                    raise ValueError("Use feature_dtypes instead of feature_names")
+                    raise ValueError(
+                        "Use feature_dtypes instead of feature_names"
+                    )
                 if k not in _t:
                     raise ValueError(f"Invalid option: {k}")
                 if isinstance(v, str) and match_method(v):
@@ -167,7 +175,11 @@ class Dmosopt(Component):
                 ("reduce_fun_name", {}, None),
                 ("broker_fun_name", {}, None),
                 ("initial_method", config.default_sampling_methods, None),
-                ("dynamic_initial_sampling", {}, "dynamic_initial_sampling_kwargs"),
+                (
+                    "dynamic_initial_sampling",
+                    {},
+                    "dynamic_initial_sampling_kwargs",
+                ),
                 (
                     "surrogate_method_name",
                     config.default_surrogate_methods,
@@ -178,7 +190,11 @@ class Dmosopt(Component):
                     config.default_feasibility_methods,
                     "feasibility_method_kwargs",
                 ),
-                ("surrogate_custom_training", {}, "surrogate_custom_training_kwargs"),
+                (
+                    "surrogate_custom_training",
+                    {},
+                    "surrogate_custom_training_kwargs",
+                ),
                 ("optimizer_name", config.default_optimizers, None),
                 (
                     "sensitivity_method_name",
@@ -303,7 +319,10 @@ class Dmosopt(Component):
             constants = self.config.dopt_params.problem_parameters
         return {
             **constants,
-            **{k: x[n] for n, k in enumerate(self.config.dopt_params.space.keys())},
+            **{
+                k: x[n]
+                for n, k in enumerate(self.config.dopt_params.space.keys())
+            },
         }
 
     def evaluate_objective_at(self, x):
@@ -319,7 +338,9 @@ class Dmosopt(Component):
                 self.config.dopt_params.obj_fun_init_name
             )(**self.config.dopt_params.obj_fun_init_args)
         else:
-            obj_fun = config.import_object_by_path(self.config.dopt_params.obj_fun_name)
+            obj_fun = config.import_object_by_path(
+                self.config.dopt_params.obj_fun_name
+            )
 
         return obj_fun(p)
 
@@ -346,7 +367,9 @@ class Dmosopt(Component):
         return os.path.abspath(self.local_directory("dmosopt.h5"))
 
     def on_write_meta_data(self):
-        return MPI.COMM_WORLD.Get_rank() == getattr(distwq, "controller_rank", 0)
+        return MPI.COMM_WORLD.Get_rank() == getattr(
+            distwq, "controller_rank", 0
+        )
 
     def on_commit(self):
         if MPI.COMM_WORLD.Get_rank() != getattr(distwq, "controller_rank", 0):
@@ -355,8 +378,8 @@ class Dmosopt(Component):
     @cachable(file=False)
     def load_h5(
         self,
-        filepath: Optional[str] = None,
-        opt_id: Optional[str] = None,
+        filepath: str | None = None,
+        opt_id: str | None = None,
         problem_id: int = 0,
     ):
         if filepath is None:
@@ -392,10 +415,13 @@ class Dmosopt(Component):
 
             # features
             if f"{opt_id}/feature_enum" in h5:
-                feature_enum = h5py.check_enum_dtype(h5[f"{opt_id}/feature_enum"].dtype)
+                feature_enum = h5py.check_enum_dtype(
+                    h5[f"{opt_id}/feature_enum"].dtype
+                )
                 feature_enum_T = {v: k for k, v in feature_enum.items()}
                 feature_names = [
-                    feature_enum_T[s[0]] for s in iter(h5[f"{opt_id}/feature_spec"])
+                    feature_enum_T[s[0]]
+                    for s in iter(h5[f"{opt_id}/feature_spec"])
                 ]
                 features = pd.DataFrame(
                     [
@@ -405,40 +431,55 @@ class Dmosopt(Component):
                     columns=feature_names,
                 )
                 if self.feature_names:
-                    features = features[self.feature_names]  # sort for consistency
+                    features = features[
+                        self.feature_names
+                    ]  # sort for consistency
             else:
                 features = None
 
             # objectives
-            objective_enum = h5py.check_enum_dtype(h5[f"{opt_id}/objective_enum"].dtype)
+            objective_enum = h5py.check_enum_dtype(
+                h5[f"{opt_id}/objective_enum"].dtype
+            )
             objective_enum_T = {v: k for k, v in objective_enum.items()}
             objective_names = [
-                objective_enum_T[s[0]] for s in iter(h5[f"{opt_id}/objective_spec"])
+                objective_enum_T[s[0]]
+                for s in iter(h5[f"{opt_id}/objective_spec"])
             ]
             objectives = pd.DataFrame(
-                h5[f"{opt_id}/{problem_id}/objectives"][:], columns=objective_names
+                h5[f"{opt_id}/{problem_id}/objectives"][:],
+                columns=objective_names,
             )
             if self.objective_names:
-                objectives = objectives[self.objective_names]  # sort for consistency
+                objectives = objectives[
+                    self.objective_names
+                ]  # sort for consistency
 
             # parameters
-            parameter_enum = h5py.check_enum_dtype(h5[f"{opt_id}/parameter_enum"].dtype)
+            parameter_enum = h5py.check_enum_dtype(
+                h5[f"{opt_id}/parameter_enum"].dtype
+            )
             parameter_enum_T = {v: k for k, v in parameter_enum.items()}
             parameter_names = [
-                parameter_enum_T[s[0]] for s in iter(h5[f"{opt_id}/parameter_spec"])
+                parameter_enum_T[s[0]]
+                for s in iter(h5[f"{opt_id}/parameter_spec"])
             ]
             parameters = pd.DataFrame(
-                h5[f"{opt_id}/{problem_id}/parameters"][:], columns=parameter_names
+                h5[f"{opt_id}/{problem_id}/parameters"][:],
+                columns=parameter_names,
             )
             # order such that it stays consistent with the space definition
             parameters = parameters[list(self.config.dopt_params.space.keys())]
 
             # predictions
             predictions = pd.DataFrame(
-                h5[f"{opt_id}/{problem_id}/predictions"][:], columns=objective_names
+                h5[f"{opt_id}/{problem_id}/predictions"][:],
+                columns=objective_names,
             )
             if self.objective_names:
-                predictions = predictions[self.objective_names]  # sort for consistency
+                predictions = predictions[
+                    self.objective_names
+                ]  # sort for consistency
 
             # metadata
             metadata = None
@@ -459,8 +500,8 @@ class Dmosopt(Component):
         self,
         include="xyc",
         region: list | tuple | None = None,
-        filepath: Optional[str] = None,
-        opt_id: Optional[str] = None,
+        filepath: str | None = None,
+        opt_id: str | None = None,
         problem_id: int = 0,
     ):
         mask = slice(None)
@@ -497,7 +538,7 @@ class Dmosopt(Component):
 
     @cachable(file=False)
     def load_h5_optimizer_data(
-        self, filepath: Optional[str] = None, opt_id: Optional[str] = None
+        self, filepath: str | None = None, opt_id: str | None = None
     ):
         if filepath is None:
             filepath = self.output_filepath
@@ -518,7 +559,9 @@ class Dmosopt(Component):
                     stats.append(
                         {
                             n: v
-                            for n, v in zip(epoch_stats[0].dtype.names, epoch_stats[0])
+                            for n, v in zip(
+                                epoch_stats[0].dtype.names, epoch_stats[0]
+                            )
                         }
                     )
 
@@ -548,8 +591,8 @@ class Dmosopt(Component):
     @cachable(file=False)
     def load_h5_surrogate_evals(
         self,
-        filepath: Optional[str] = None,
-        opt_id: Optional[str] = None,
+        filepath: str | None = None,
+        opt_id: str | None = None,
         problem_id: int = 0,
     ):
         if filepath is None:
@@ -574,7 +617,8 @@ class Dmosopt(Component):
                 )
                 objective_enum_T = {v: k for k, v in objective_enum.items()}
                 objective_names = [
-                    objective_enum_T[s[0]] for s in iter(h5[f"{opt_id}/objective_spec"])
+                    objective_enum_T[s[0]]
+                    for s in iter(h5[f"{opt_id}/objective_spec"])
                 ]
                 objectives = pd.DataFrame(
                     h5[f"/{opt_id}/surrogate_evals/objectives"][:],
@@ -588,7 +632,8 @@ class Dmosopt(Component):
                 )
                 parameter_enum_T = {v: k for k, v in parameter_enum.items()}
                 parameter_names = [
-                    parameter_enum_T[s[0]] for s in iter(h5[f"{opt_id}/parameter_spec"])
+                    parameter_enum_T[s[0]]
+                    for s in iter(h5[f"{opt_id}/parameter_spec"])
                 ]
                 parameters = pd.DataFrame(
                     h5[f"/{opt_id}/surrogate_evals/parameters"][:],
@@ -604,7 +649,9 @@ class Dmosopt(Component):
 
     def infer_num_initial_samples(self, problem_id: int = 0) -> int:
         with h5py.File(self.output_filepath, "r") as h5:
-            epochs = h5[f"{self.config.dopt_params.opt_id}/{problem_id}/epochs"][:]
+            epochs = h5[
+                f"{self.config.dopt_params.opt_id}/{problem_id}/epochs"
+            ][:]
 
         self.inferred_num_initial_samples = len(epochs[epochs == 0])
 
@@ -672,7 +719,13 @@ class Dmosopt(Component):
             else:
                 sort_by = None
 
-        best = {"x": best_x, "y": best_y, "f": best_f, "c": best_c, "epoch": best_epoch}
+        best = {
+            "x": best_x,
+            "y": best_y,
+            "f": best_f,
+            "c": best_c,
+            "epoch": best_epoch,
+        }
 
         # apply sort
         if sort_by is not None:
@@ -681,12 +734,20 @@ class Dmosopt(Component):
                     best[k] = best[k][sort_by]
 
         if as_dataframes:
-            best["x"] = pd.DataFrame(best["x"], columns=data["parameters"].columns)
-            best["y"] = pd.DataFrame(best["y"], columns=data["objectives"].columns)
+            best["x"] = pd.DataFrame(
+                best["x"], columns=data["parameters"].columns
+            )
+            best["y"] = pd.DataFrame(
+                best["y"], columns=data["objectives"].columns
+            )
             if best["f"] is not None:
-                best["f"] = pd.DataFrame(best["f"], columns=data["features"].columns)
+                best["f"] = pd.DataFrame(
+                    best["f"], columns=data["features"].columns
+                )
             if best["c"] is not None:
-                best["c"] = pd.DataFrame(best["c"], columns=data["constraints"].columns)
+                best["c"] = pd.DataFrame(
+                    best["c"], columns=data["constraints"].columns
+                )
             if best["epoch"] is not None:
                 best["epoch"] = pd.DataFrame(best["epoch"], columns=["epoch"])
 
@@ -859,7 +920,10 @@ class Dmosopt(Component):
 
     @property
     def num_initial_samples(self) -> int:
-        if self.config.dopt_params.get("dynamic_initial_sampling", None) is not None:
+        if (
+            self.config.dopt_params.get("dynamic_initial_sampling", None)
+            is not None
+        ):
             n_initial = getattr(self, "inferred_num_initial_samples", None)
             if n_initial is None:
                 return self.infer_num_initial_samples()
@@ -876,22 +940,29 @@ class Dmosopt(Component):
     def num_evals_per_epoch(self) -> int:
         if (
             self.surrogate_method_name is None
-            and self.config.dopt_params.get("surrogate_custom_training", None) is None
+            and self.config.dopt_params.get("surrogate_custom_training", None)
+            is None
         ):
-            return self.population_size * self.num_generations + self.num_resample
+            return (
+                self.population_size * self.num_generations + self.num_resample
+            )
 
         return self.num_resample
 
     @property
     def num_evals_total(self) -> int:
         # n_epochs - 1 since epoch 0 is using the initial sampling, so there are no additional evals
-        return self.num_initial_samples + (self.n_epochs - 1) * self.num_evals_per_epoch
+        return (
+            self.num_initial_samples
+            + (self.n_epochs - 1) * self.num_evals_per_epoch
+        )
 
     @property
     def num_max_surrogate_evals(self) -> int:
         if (
             self.surrogate_method_name is None
-            and self.config.dopt_params.get("surrogate_custom_training", None) is None
+            and self.config.dopt_params.get("surrogate_custom_training", None)
+            is None
         ):
             return 0
 
@@ -906,7 +977,7 @@ class Dmosopt(Component):
         return evals
 
     @property
-    def space(self) -> dict[str, Tuple[Number, Number]]:
+    def space(self) -> dict[str, tuple[Number, Number]]:
         return self.config.dopt_params.get("space", {})
 
     @property
@@ -924,11 +995,15 @@ class Dmosopt(Component):
             ] + [
                 (
                     (
-                        int(self.num_initial_samples + (self.num_evals_per_epoch * e))
+                        int(
+                            self.num_initial_samples
+                            + (self.num_evals_per_epoch * e)
+                        )
                         if not from_zero
                         else 0
                     ),
-                    self.num_initial_samples + (self.num_evals_per_epoch * (e + 1)),
+                    self.num_initial_samples
+                    + (self.num_evals_per_epoch * (e + 1)),
                 )
                 for e in range(self.n_epochs - 1)
             ]
@@ -937,7 +1012,10 @@ class Dmosopt(Component):
         change_indices = np.where(np.diff(epoch_array) != 0)[0] + 1
         all_indices = np.concatenate(([0], change_indices, [len(epoch_array)]))
         return [
-            (int(all_indices[i]) if not from_zero else 0, int(all_indices[i + 1]))
+            (
+                int(all_indices[i]) if not from_zero else 0,
+                int(all_indices[i + 1]),
+            )
             for i in range(len(all_indices) - 1)
         ]
 
@@ -956,7 +1034,11 @@ class Dmosopt(Component):
         if self.num_features == 0:
             if data["features"] is not None:
                 inconsistencies.append(
-                    ("num_features", self.num_features, data["features"].shape[1])
+                    (
+                        "num_features",
+                        self.num_features,
+                        data["features"].shape[1],
+                    )
                 )
         elif self.num_features != data["features"].shape[1]:
             inconsistencies.append(
@@ -983,7 +1065,11 @@ class Dmosopt(Component):
                 )
         elif self.num_constraints != data["constraints"].shape[1]:
             inconsistencies.append(
-                ("num_constraints", self.num_constraints, data["constraints"].shape[1])
+                (
+                    "num_constraints",
+                    self.num_constraints,
+                    data["constraints"].shape[1],
+                )
             )
             if self.constraint_names != data["constraints"].columns.tolist():
                 inconsistencies.append(
@@ -997,7 +1083,11 @@ class Dmosopt(Component):
         # num_parameters
         if self.num_parameters != data["parameters"].shape[1]:
             inconsistencies.append(
-                ("num_parameters", self.num_parameters, data["parameters"].shape[1])
+                (
+                    "num_parameters",
+                    self.num_parameters,
+                    data["parameters"].shape[1],
+                )
             )
             if (
                 self.config.dopt_params.space.keys()

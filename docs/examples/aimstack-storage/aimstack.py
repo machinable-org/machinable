@@ -1,18 +1,17 @@
-from typing import List, Optional
-
 import os
 
 import aim
-from machinable import Interface, Storage
 from pydantic import BaseModel, Field
+
+from machinable import Interface, Storage
 
 
 class Aimstack(Storage):
     class Config(BaseModel):
         repo: str = "./storage"
-        system_tracking_interval: Optional[int] = None
-        log_system_params: Optional[bool] = False
-        include: List[str] = Field(
+        system_tracking_interval: int | None = None
+        log_system_params: bool | None = False
+        include: list[str] = Field(
             default_factory=lambda: ["machinable.component"]
         )
 

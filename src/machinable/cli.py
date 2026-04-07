@@ -1,7 +1,6 @@
-from typing import TYPE_CHECKING, List, Optional
-
 import os
 import sys
+from typing import TYPE_CHECKING
 
 from omegaconf import OmegaConf
 
@@ -9,7 +8,7 @@ if TYPE_CHECKING:
     from machinable.types import VersionType
 
 
-def parse(args: List) -> tuple:
+def parse(args: list) -> tuple:
     kwargs = []
     methods = []
     elements = []
@@ -68,7 +67,7 @@ def parse(args: List) -> tuple:
     return elements, kwargs, methods
 
 
-def from_cli(args: Optional[List] = None) -> "VersionType":
+def from_cli(args: list | None = None) -> "VersionType":
     if args is None:
         args = sys.argv[1:]
 
@@ -77,7 +76,7 @@ def from_cli(args: Optional[List] = None) -> "VersionType":
     return sum(elements, [])
 
 
-def main(args: Optional[List] = None):
+def main(args: list | None = None):
     import machinable
 
     if args is None:

@@ -1,7 +1,6 @@
-from typing import TYPE_CHECKING, List
-
 import os
 import time
+from typing import TYPE_CHECKING
 
 from globus_sdk import (
     NativeAppAuthClient,
@@ -13,8 +12,9 @@ from globus_sdk.scopes import TransferScopes
 from globus_sdk.services.auth.errors import AuthAPIError
 from globus_sdk.services.transfer.errors import TransferAPIError
 from globus_sdk.tokenstorage import SimpleJSONFileAdapter
-from machinable import Storage
 from pydantic import BaseModel, Field
+
+from machinable import Storage
 
 if TYPE_CHECKING:
     from machinable import Interface
@@ -212,7 +212,7 @@ class Globus(Storage):
     def remote_path(self, *append):
         return os.path.join(self.config.remote_endpoint_directory, *append)
 
-    def search_for(self, interface) -> List[str]:
+    def search_for(self, interface) -> list[str]:
         response = self.transfer_client.operation_ls(
             self.config.remote_endpoint_id,
             path=self.remote_path(),

@@ -11,45 +11,23 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ["3.8", "3.9", "3.10", "3.11"]
+        python-version: ["3.11", "3.12", "3.13"]
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          version: "latest"
       - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v4.7.0
-        with:
-          python-version: ${{ matrix.python-version }}
-      - name: Install Poetry
-        uses: snok/install-poetry@v1.3
-        with:
-          virtualenvs-create: true
-          virtualenvs-in-project: true
-      - name: Set up cache
-        id: cached-poetry-dependencies
-        uses: actions/cache@v3.3.1
-        with:
-          path: .venv
-          key: venv-${{ runner.os }}-${{ hashFiles('**/poetry.lock') }}
+        run: uv python install ${{ matrix.python-version }}
       - name: Install dependencies
-        run: poetry install --extras "all"
-        if: steps.cached-poetry-dependencies.outputs.cache-hit != 'true'
-      - name: black formatting check
-        run: |
-          source .venv/bin/activate
-          black --config pyproject.toml --check ./
-      - name: pyuprade check
-        run: |
-          source .venv/bin/activate
-          pyupgrade --py38-plus
-      - name: isort check
-        run: |
-          source .venv/bin/activate
-          isort . --settings-path pyproject.toml --check
+        run: uv sync --extra all
+      - name: ruff format check
+        run: uv run ruff format --check .
+      - name: ruff lint check
+        run: uv run ruff check .
       - name: editorconfig check
-        run: |
-          source .venv/bin/activate
-          ec
+        run: uv run ec
       - name: Run tests
-        run: |
-          source .venv/bin/activate
-          pytest
+        run: uv run pytest
