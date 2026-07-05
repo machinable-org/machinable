@@ -36,6 +36,35 @@ is ten thousand containerized tasks with complex fan-in, use a workflow engine; 
 problem is keeping track of what you ran, with which configuration, and what it
 produced, that is what machinable is for.
 
+### Snakemake
+
+[Snakemake](https://snakemake.readthedocs.io/en/stable/) is the archetype of the
+file-keyed family and deserves its own comparison. A workflow is a set of rules
+declaring input and output files; wildcards expand a rule across samples or parameters;
+the engine derives the DAG from the filenames and re-runs a rule when its outputs are
+missing or stale (newer releases also consider changed params, code, or software
+environment). Per-rule shell commands make it language-agnostic, and conda/container
+integration makes the graph portable. Three differences matter in practice:
+
+- **What is addressed.** In Snakemake, a parameter that matters must surface in a file
+  path (`results/{sample}/lr{lr}/model.pt`), because files are what the DAG is keyed
+  on. machinable inverts this, making the canonical configuration the identity from
+  which the record directory follows, so nothing needs encoding into filenames and
+  adding a parameter never restructures your results tree.
+- **What triggers recomputation.** Snakemake recomputes on staleness, whenever outputs
+  are missing or older than inputs. machinable recomputes only what has never run;
+  an existing record is valid until you invalidate it explicitly (`cached(False)`),
+  which suits research loops where inputs rarely change but configurations multiply.
+- **Unit of reuse.** A Snakemake rule produces files, and downstream analysis starts
+  from those paths. A machinable interface is a configured object that outlives the
+  run, so analyses, plots, and [inferences](/guide/inference) are methods you call
+  against the stored results rather than scripts pointed at a directory layout.
+
+As with the other engines, the relationship is complementary. An interface's
+`__call__` can invoke a Snakemake workflow as its computation, with machinable
+recording which configurations of that workflow ran, while Snakemake handles the
+file-level fan-out inside each run.
+
 ### redun
 
 [redun](https://insitro.github.io/redun/design.html) is the closest relative and worth
