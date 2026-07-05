@@ -898,7 +898,7 @@ wheels = [
 
 [[package]]
 name = "machinable"
-version = "4.10.6"
+version = "5.0.0"
 source = { editable = "." }
 dependencies = [
     { name = "arrow" },
