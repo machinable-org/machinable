@@ -56,11 +56,13 @@ function ma { PYTHONPATH=.:$PYTHONPATH machinable get machinable.storage directo
 ```bash
 machinable version          # print the installed version
 machinable fetch            # download declared remotes without importing them
+machinable console URL      # attach the terminal console to a running API server
 machinable mcp --project .  # launch the research MCP server (see Agents & MCP)
 machinable help get         # usage
 ```
 
 `machinable fetch` supports [inspecting remote code](./storage.md#remotes-shareable-interfaces)
-before it ever executes.
+before it ever executes. `machinable console` is documented with the
+[API server](./server.md#the-console).
 
 The `machinable mcp` server is documented in [Agents & MCP → Setup](/mcp/setup).

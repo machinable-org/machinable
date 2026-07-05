@@ -5,6 +5,7 @@ from __future__ import annotations
 import os
 import sys
 import threading
+import time
 from typing import TYPE_CHECKING
 
 from pydantic import BaseModel
@@ -21,7 +22,10 @@ class Server(Interface):
     class Config(BaseModel):
         host: str = "127.0.0.1"
         port: int = 8000
-        tui: bool = True
+        # attach the terminal console (machinable[console]) to the server:
+        # None = auto (attach when installed and running in a terminal),
+        # True = required (error when not installed), False = headless.
+        console: bool | None = None
         reload: bool = False
         api_token: str | None = None
         log_level: str = "info"
@@ -39,7 +43,7 @@ class Server(Interface):
         source_base_dir: str | None = None
 
     def launch(self) -> None:  # ty: ignore[invalid-method-override]
-        """Start uvicorn with an optional Textual TUI."""
+        """Start uvicorn, attaching the terminal console when configured."""
         try:
             import uvicorn
         except ImportError as ex:
@@ -60,9 +64,26 @@ class Server(Interface):
             source_token=self.config.source_token,
             source_base_dir=self.config.source_base_dir,
         )
-        tui = self.config.tui and sys.stdout.isatty() and not self.config.reload
-        if tui:
-            self._run_with_tui(app, uvicorn)
+
+        run_console = None
+        interactive = sys.stdout.isatty() and not self.config.reload
+        if self.config.console is not False and interactive:
+            try:
+                from machinable.console import run_console
+            except ImportError as ex:
+                if self.config.console:  # explicitly requested, so fail loudly
+                    raise ImportError(
+                        "The machinable console requires textual. "
+                        "Install with: pip install 'machinable[console]' "
+                        "or launch with console=false."
+                    ) from ex
+                print(
+                    "Running headless; install the terminal console with: "
+                    "pip install 'machinable[console]'",
+                    file=sys.stderr,
+                )
+        if run_console is not None:
+            self._run_with_console(app, uvicorn, run_console)
             return
 
         uvicorn.run(
@@ -73,16 +94,7 @@ class Server(Interface):
             log_level=self.config.log_level,
         )
 
-    def _run_with_tui(self, app: FastAPI, uvicorn) -> None:
-        try:
-            from machinable.api.tui import run_tui
-        except ImportError as ex:
-            raise ImportError(
-                "textual is required for the machinable API TUI. "
-                "Install with: pip install 'machinable[api]' "
-                "or launch with tui=false."
-            ) from ex
-
+    def _run_with_console(self, app: FastAPI, uvicorn, run_console) -> None:
         config = uvicorn.Config(
             app,
             host=self.config.host,
@@ -92,16 +104,17 @@ class Server(Interface):
         server = uvicorn.Server(config)
         thread = threading.Thread(target=server.run, daemon=True)
         thread.start()
+        # let uvicorn bind before the console's first requests
+        while not server.started and thread.is_alive():
+            time.sleep(0.05)
 
         def stop_server() -> None:
             server.should_exit = True
 
         try:
-            run_tui(
-                host=self.config.host,
-                port=self.config.port,
-                project_dir=self.config.project or os.getcwd(),
-                app=app,
+            run_console(
+                url=f"http://{self.config.host}:{self.config.port}",
+                token=self.config.api_token,
                 on_quit=stop_server,
             )
         finally:
