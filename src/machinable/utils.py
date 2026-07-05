@@ -682,7 +682,15 @@ def safe_path(base: str, rel: str) -> str:
     source/chunks, MCP source tools), using
     ``realpath`` so a symlink inside the tree cannot point the write/read outside it.
     """
-    if not rel or "\x00" in rel or os.path.isabs(rel):
+    # reject rooted paths explicitly: os.path.isabs alone is platform-dependent
+    # (Windows Python 3.13 treats driveless "/etc/passwd" as relative)
+    if (
+        not rel
+        or "\x00" in rel
+        or rel[0] in "/\\"
+        or (len(rel) > 1 and rel[1] == ":")
+        or os.path.isabs(rel)
+    ):
         raise ValueError("Invalid path")
     norm = rel.replace("\\", "/").strip("/")
     if not norm or any(part in ("..", "") for part in norm.split("/")):

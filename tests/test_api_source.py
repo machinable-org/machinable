@@ -76,13 +76,19 @@ def test_source_path_helpers_confine_and_map(tmp_path):
     assert safe_resolve(base, "a/b.py") == os.path.realpath(
         os.path.join(base, "a", "b.py")
     )
-    # paths that escape the base must be rejected
-    for bad in ["../x.py", "a/../../x.py", "", "..\\x.py"]:
+    # paths that escape the base or are rooted must be rejected, on every
+    # platform (isabs alone disagrees across posixpath/ntpath)
+    for bad in [
+        "../x.py",
+        "a/../../x.py",
+        "",
+        "..\\x.py",
+        "/etc/passwd",
+        "\\etc\\passwd",
+        "C:\\x.py",
+    ]:
         with pytest.raises(HTTPException):
             safe_resolve(base, bad)
-    # a leading-slash path is treated as relative and stays confined under base
-    confined = safe_resolve(base, "/etc/passwd")
-    assert confined == base or confined.startswith(base + os.sep)
 
     assert file_to_module("pkg/mod.py") == "pkg.mod"
     assert file_to_module("pkg/__init__.py") == "pkg"
