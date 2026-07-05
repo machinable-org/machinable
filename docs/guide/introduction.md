@@ -2,23 +2,31 @@
 
 ## What is machinable?
 
-_machinable_ is a Python API for research code. It provides an object-oriented skeleton that helps you develop and experiment in a unified interface while handling tedious housekeeping behind the scenes.
+**machinable** is a Python system for research code. It gives your experiments an
+object-oriented skeleton, the [`Interface`](./interface.md), and handles the tedious
+housekeeping (configuration, execution, storage, results, provenance) behind a single
+abstraction.
 
-The key idea is to unify the running of code and the retrieval of produced results in one abstraction. A detailed discussion of this approach can be found in the [about section](../about/approach.md), but for now, here is a minimal example that illustrates the idea.
+The core idea is to unify running code and retrieving its results. You write a piece of
+research code once; machinable makes running it and reading back what it produced the
+same operation. Because results are content-addressed, asking for the same thing twice
+is free.
 
-1. Write some code
+Here is the whole idea in one example.
+
+**1. Write some code** as an `Interface` with a typed `Config`:
 
 ::: code-group
 
 ```python [montecarlo.py]
 from random import random
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
-from machinable import Component
+from machinable import Interface
 
 
-class EstimatePi(Component):
+class EstimatePi(Interface):
     class Config(BaseModel):
         samples: int = 100
 
@@ -28,107 +36,69 @@ class EstimatePi(Component):
             x, y = random(), random()
             count += int((x**2 + y**2) <= 1)
         pi = 4 * count / self.config.samples
-
-        self.save_file(
-            "result.json",
-            {"count": count, "pi": pi},
-        )
+        self.save_file("result.json", {"count": count, "pi": pi})
 
     def summary(self):
-        if self.execution.is_finished():
-            print(
-                f"After {self.config.samples} samples, "
-                f"PI is approximately {self.load_file('result.json')['pi']}."
-            )
+        pi = self.load_file("result.json")["pi"]
+        print(f"After {self.config.samples} samples, PI is approximately {pi}.")
 ```
-
-<!-- TEST
-
-```python
-from machinable import get
-get("montecarlo", {"samples": 150}).launch().summary()
-```
-
--->
 
 :::
 
-2. Run and inspect it using a unified abstraction
+**2. Run it and read its results** through one abstraction:
 
 ::: code-group
 
 ```python [Python]
 from machinable import get
 
-# Imports component in `montecarlo.py` with samples=150;
-# if an component with this configuration exists, it
-# is automatically reloaded.
+# Resolve the interface in montecarlo.py with samples=150.
+# If a run with this exact configuration already exists, it is reloaded.
 experiment = get("montecarlo", {"samples": 150})
 
-# Executes the component unless it's already been computed
+# Compute it unless it has already been computed (content-addressed).
 experiment.launch()
 
 experiment.summary()
 # >>> After 150 samples, PI is approximately 3.1466666666666665.
 ```
 
-```python [Jupyter]
->>> from machinable import get
->>> experiment = get("montecarlo", {"samples": 150})
->>> experiment.launch()
-Component <24aee0f>
->>> experiment.summary()
-After 150 samples, PI is approximately 3.1466666666666665.
->>> experiment.execution.nickname
-'chocolate_mosquito'
->>> experiment.finished_at().humanize()
-'finished just now'
->>> experiment.local_directory()
-'./storage/24aee0fd05024400b116593d1436e9f5'
-```
-
 ```bash [CLI]
-$ machinable montecarlo samples=150 --launch --summary
-> After 150 samples, PI is approximately 3.1466666666666665.
+$ machinable get montecarlo samples=150 --launch --summary
+> After 150 samples, PI is approximately 3.146666...
 ```
 
 :::
 
-The above example demonstrates the two core principles of _machinable_ code:
+The same `get(...)` call resolves an interface, reloads it if it already ran, and gives
+you back an object whose methods (`summary()`, your own analysis) read the stored
+results. Run it again with `samples=150` and nothing recomputes; machinable recognizes
+it as the same experiment.
 
-- **Enforced modularity** The Monte Carlo algorithm is encapsulated in its own module that can be instantiated with different configuration settings.
-- **Unified representation** Running code is handled through the same interface that is used to retrieve produced results; multiple invocations simply reload and display the results without re-running the experiment.
+## The principles
 
-You may already have questions - don't worry. We will cover the details in the rest of the documentation. For now, please read along so you can have a high-level understanding of what machinable offers.
+- **Modularity.** Each unit of research is an `Interface` in its own module, configured
+  by a typed `Config`. The Monte-Carlo algorithm above is reusable and parameterizable.
+- **Content-addressing.** A run's identity is a hash of its module and canonical
+  configuration. Identical configurations share one stored record, so sweeps are
+  incremental and results are reproducible by construction. See
+  [Identity & dedup](./identity.md).
+- **Code all the way down.** There is no metrics schema and no sweep DSL. Grids,
+  measurements, and even statistical questions are ordinary interface code; machinable
+  supplies identity, storage, search, and a few contracts. This is also what lets an AI
+  agent drive machinable; see [Agents & MCP](/mcp/overview).
 
-## What it is not
+## Where to go next
 
-Research is extremely diverse so machinable primarily aims to be an **API-spec** that leaves concrete feature implementation to the user. Check out the [examples](../examples/) to learn what this looks like in practice.
-
-## Where to go from here
-
-::: info :gear: &nbsp; Installation
-
-We recommend [installing machinable](./installation.md) to try things out while following along.
-
-:::
-
-::: info :student: &nbsp; [Continue with the Guide](./element.md)
-
-Designed to learn concepts hands-on. Starts with the bare minimum of concepts necessary to start using machinable. Along the way, it will provide pointers to sections that discuss concepts in more detail or cover more advanced functionality.
-
-:::
-
-::: info :arrow_right: &nbsp; [Check out the How-to guides](../examples/index.md)
-
-Explore real-world examples that demonstrate advanced concepts
-
-:::
-
-::: info :open_book: &nbsp; [Consult the Reference](../reference/index.md)
-
-Describes available APIs in full detail.
-
-:::
-
-
+- New here? Start with [Installation](./installation.md) and the
+  [Quickstart](./quickstart.md).
+- Learn the model: [Interfaces](./interface.md) → [Configuration](./configuration.md) →
+  [Versions](./versions.md) → [Results & files](./results.md) →
+  [Execution](./execution.md) → [Identity](./identity.md).
+- Work with it: the [CLI](./cli.md), [Collections](./collections.md), and the
+  [API server](./server.md).
+- Ask questions: [Inference](./inference.md), or let an agent do it via
+  [Agents & MCP](/mcp/overview).
+- Going deeper: [advanced configuration](./advanced-configuration.md),
+  [execution in depth](./advanced-execution.md), and
+  [storage & the index](./storage.md).

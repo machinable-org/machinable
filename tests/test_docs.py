@@ -28,7 +28,7 @@ def test_docs(tmp_storage, tmp_path):
             code_blocks = []
             doc = os.path.join(root, file)
             print(f"Parsing {doc}")
-            with open(doc) as f:
+            with open(doc, encoding="utf-8") as f:
                 lines = f.readlines()
                 codeblock = None
                 in_code_block = False
@@ -81,14 +81,10 @@ def test_docs(tmp_storage, tmp_path):
                         code["module"] = os.path.splitext(code["filename"])[0]
                     else:
                         if not code["is_test"]:
-                            raise RuntimeError(
-                                "Non-test code block without filename"
-                            )
+                            raise RuntimeError("Non-test code block without filename")
                         code["filename"] = f"test_{c + 1}.py"
                         code["module"] = f"test_{c + 1}"
-                    with open(
-                        os.path.join(wd, str(b), code["filename"]), "w"
-                    ) as f:
+                    with open(os.path.join(wd, str(b), code["filename"]), "w") as f:
                         f.write(code["content"])
                     tests.append(code)
 

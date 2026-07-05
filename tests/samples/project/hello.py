@@ -1,11 +1,10 @@
-from dataclasses import dataclass
+from pydantic import BaseModel
 
-from machinable import Component
+from machinable import Execution
 
 
-class Hello(Component):
-    @dataclass
-    class Config:
+class Hello(Execution):
+    class Config(BaseModel):
         name: str = "World"
 
     def __call__(self):
@@ -13,3 +12,6 @@ class Hello(Component):
 
     def resources(self):
         print(self.execution.computed_resources(self))
+
+    def greet(self, name="you", repeat=1):
+        return " ".join([f"Hi {name}!"] * repeat)

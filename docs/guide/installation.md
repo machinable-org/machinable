@@ -1,21 +1,43 @@
 # Installation
 
-machinable is available via [pip](https://pypi.org/project/machinable/). Install the current release
+machinable is available on [PyPI](https://pypi.org/project/machinable/):
 
 ```bash
 $ pip install machinable
 ```
 
-::: info
-machinable currently supports Python 3.8 and higher
+::: info Python version
+machinable targets modern Python (3.11+)
 :::
 
-Note that machinable requires the sqlite json1 extension, otherwise, you will likely see the error message:
-`sqlite3.OperationalError: no such function: json_extract`. In this case, an easy way to obtain a suitable sqlite version is to install [sqlean.py](https://github.com/nalgeon/sqlean.py): 
 
+## Optional extras
+
+| Extra | Install | Adds |
+| --- | --- | --- |
+| `all` | `pip install machinable[all]` | `numpy` + `pandas`, needed for `Collection.as_dataframe()` and array analysis |
+| `mcp` | `pip install machinable[mcp]` | `fastmcp` + `scipy` + `pandas` for the [Agents & MCP](/mcp/overview) server and reference inferences |
+
+## SQLite requirement
+
+machinable's index uses the SQLite `json1` extension. If your Python's bundled SQLite
+lacks it you will see:
+
+```
+sqlite3.OperationalError: no such function: json_extract
+```
+
+The simplest fix is to install [sqlean.py](https://github.com/nalgeon/sqlean.py), which
+machinable detects and uses automatically:
 
 ```bash
 $ pip install sqlean.py
 ```
 
+## Verify
 
+```bash
+$ machinable version
+```
+
+Then continue with the [Quickstart](./quickstart.md).

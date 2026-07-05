@@ -2,7 +2,7 @@ import os
 
 import pytest
 
-from machinable import Component, Project, from_cli, get_version
+from machinable import Execution, Project, from_cli, get_version
 from machinable.cli import main
 
 
@@ -24,6 +24,24 @@ def test_cli_main(capfd, tmp_storage):
         out, err = capfd.readouterr()
         assert out == "Hello Twice!\nHello Twice!\n"
         assert main(["get.new", "hello", "--launch"]) == 0
+
+        # method arguments follow the ~version(a=1) convention
+        out, err = capfd.readouterr()
+        main(["get", "hello", "--greet(name='CLI', repeat=2)"])
+        out, err = capfd.readouterr()
+        assert out == "Hi CLI! Hi CLI!\n"
+        # nested parentheses in arguments are fine
+        main(["get", "hello", "--greet(repeat=int(min(2, 3)))"])
+        out, err = capfd.readouterr()
+        assert out == "Hi you! Hi you!\n"
+        # without arguments, a returned value is printed as well
+        main(["get", "hello", "--greet"])
+        out, err = capfd.readouterr()
+        assert out == "Hi you!\n"
+        # invalid arguments fail cleanly
+        assert main(["get", "hello", "--greet(nope=1)"]) == 128
+        out, err = capfd.readouterr()
+        assert "Invalid arguments" in out
 
         with pytest.raises(ValueError):
             main(["get"])
@@ -84,21 +102,22 @@ def test_cli_main(capfd, tmp_storage):
 
 
 def test_cli_to_cli():
-    assert Component().to_cli() == "machinable.component"
+    assert Execution().to_cli() == "machinable.execution"
     assert (
-        Component(["~test", {"a": {"b": 1}}, "~foo"]).to_cli()
-        == "machinable.component ~test a.b=1 ~foo"
+        Execution(["~test", {"a": {"b": 1}}, "~foo"]).to_cli()
+        == "machinable.execution ~test a.b=1 ~foo"
     )
     assert (
-        Component([{"a": {"b": 1}}, {"c": 1}]).to_cli()
-        == "machinable.component a.b=1 c=1"
+        Execution([{"a": {"b": 1}}, {"c": 1}]).to_cli()
+        == "machinable.execution a.b=1 c=1"
     )
-    assert (
-        Component({"a": "t m ."}).to_cli() == "machinable.component a='t m .'"
-    )
+    assert Execution({"a": "t m ."}).to_cli() == "machinable.execution a='t m .'"
 
 
 def test_cli_installation():
-    assert os.system("machinable help") == 0
-    assert os.system("machinable version") == 0
-    assert os.WEXITSTATUS(os.system("machinable --invalid")) == 128
+    import sys
+
+    python = sys.executable
+    assert os.system(f"{python} -m machinable.cli help") == 0
+    assert os.system(f"{python} -m machinable.cli version") == 0
+    assert os.system(f"{python} -m machinable.cli --invalid") != 0

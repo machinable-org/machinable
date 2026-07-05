@@ -8,14 +8,14 @@ class TestProject(Project):
     def version_global_ver(self, works=False):
         return works
 
-    def on_resolve_element(self, module):
+    def on_resolve_interface(self, module):
         if module == "@test":
             return "basic", None
 
         if module == "dummy_version_extend":
             return ["dummy", {"a": 100}], None
 
-        return super().on_resolve_element(module)
+        return super().on_resolve_interface(module)
 
     def get_host_info(self):
         info = super().get_host_info()

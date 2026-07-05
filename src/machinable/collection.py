@@ -1,8 +1,10 @@
+"""Collections: ordered containers of live interfaces and executions."""
+
 # This file contains modified 3rd party source code from
 # https://github.com/sdispater/backpack/blob/master/backpack/collections/base_collection.py.
-# The copyright and license agreement can be found in the ThirdPartyNotices.txt file at the root of this repository.
+# The copyright and license agreement can be found in the ThirdPartyNotices.txt file
+# at the root of this repository.
 
-import copy
 from functools import reduce
 from json import dumps
 from pprint import pprint
@@ -14,9 +16,8 @@ long = int
 unicode = str
 basestring = str
 
-
 if TYPE_CHECKING:
-    from machinable.component import Component
+    from machinable.interface import Interface
 
 
 def _get_value(val):
@@ -27,8 +28,7 @@ def _get_value(val):
 
 
 def data_get(target, key, default=None):
-    """
-    Get an item from a list, a dict or an object using "dot" notation.
+    """Get an item from a list, a dict or an object using "dot" notation.
 
     :param target: The target element
     :type target: list or dict or object
@@ -48,7 +48,7 @@ def data_get(target, key, default=None):
         key = key.split(".")
 
     for segment in key:
-        if isinstance(target, (list, tuple)):
+        if isinstance(target, list | tuple):
             try:
                 target = target[segment]
             except IndexError:
@@ -71,8 +71,10 @@ def data_get(target, key, default=None):
 
 
 class Collection:
+    """Ordered container of live items with filter/map/reduce-style helpers."""
+
     def __init__(self, items=None):
-        """Creates a new Collection
+        """Creates a new Collection.
 
         # Arguments
         items: ``list``|``Collection``|``map`` of items to collect
@@ -86,12 +88,12 @@ class Collection:
 
     @property
     def items(self):
-        """Items of the collection"""
+        """Items of the collection."""
         return self._items
 
     @classmethod
     def make(cls, items=None):
-        """Create a new Collection instance if the value isn't one already
+        """Create a new Collection instance if the value isn't one already.
 
         # Arguments
         items: ``list``|``Collection``|``map`` of items to collect
@@ -115,63 +117,8 @@ class Collection:
         """
         return self.items
 
-    def avg(self, key=None):
-        """Get the average value of a given key.
-
-        # Arguments
-        key: The key to get the average for
-
-        ``` python
-        Collection([1, 2, 3, 4, 5]).avg()
-        # 3
-        ```
-
-        If the collection contains nested objects or dictionaries, you must pass
-        a key to use for determining which values to calculate the average:
-
-        ``` python
-        collection = Collection([
-            {'name': 'JavaScript: The Good Parts', 'pages': 176},
-            {'name': 'JavaScript: The Defnitive Guide', 'pages': 1096}
-        ])
-        # 636
-        collection.avg('pages')
-        ```
-        """
-        count = self.count()
-
-        if count:
-            return self.sum(key) / count
-
-    def chunk(self, size):
-        """Chunk the underlying collection.
-
-        The `chunk` method breaks the collection into multiple, smaller
-        collections of a given size:
-
-        ``` python
-        collection = Collection([1, 2, 3, 4, 5, 6, 7])
-
-        chunks = collection.chunk(4)
-
-        chunks.serialize()
-
-        # [[1, 2, 3, 4], [5, 6, 7]]
-        ```
-
-        # Arguments
-        size: The chunk size
-        """
-        chunks = self._chunk(size)
-
-        return self.__class__(list(map(self.__class__, chunks)))
-
-    def _chunk(self, size):
-        items = self.items
-        return [items[i : i + size] for i in range(0, len(items), size)]
-
     def count(self):
-        """Returns the total number of items in the collection:
+        """Returns the total number of items in the collection.
 
         ``` python
         collection = Collection([1, 2, 3, 4])
@@ -192,7 +139,7 @@ class Collection:
         return len(self._items)
 
     def contains(self, key, value=None):
-        """Determines if an element is in the collection
+        """Determines if an element is in the collection.
 
         # Arguments
         key: ``Integer``|``String``|``callable`` The element
@@ -250,45 +197,10 @@ class Collection:
     def __contains__(self, item):
         return self.contains(item)
 
-    def collapse(self):
-        """Collapses a collection of lists into a flat collection
-
-        ``` python
-        collection = Collection([[1, 2, 3], [4, 5, 6], [7, 8, 9]])
-        collapsed = collection.collapse()
-        collapsed.all()
-        # [1, 2, 3, 4, 5, 6, 7, 8, 9]
-        ```
-        """
-        results = []
-
-        items = self.items
-
-        for values in items:
-            if isinstance(values, Collection):
-                values = values.all()
-
-            results += values
-
-        return self.__class__(results)
-
-    def diff(self, items):
-        """Compares the collection against another collection, a `list` or a `dict`
-
-        # Arguments
-        items: The items to diff with
-
-        ``` python
-        collection = Collection([1, 2, 3, 4, 5])
-        diff = collection.diff([2, 4, 6, 8])
-        diff.all()
-        # [1, 3, 5]
-        ```
-        """
-        return self.__class__([i for i in self.items if i not in items])
-
     def each(self, callback):
-        """Iterates over the items in the collection and passes each item to a given callback
+        """Iterates over the items in the collection and passes each item.
+
+        to a given callback
 
         # Arguments
         callback: ``callable`` The callback to execute
@@ -318,69 +230,10 @@ class Collection:
 
         return self
 
-    def every(self, step, offset=0):
-        """Create a new collection consisting of every n-th element.
-
-        # Arguments
-        step: ``int`` The step size
-        offset: ``int`` The start offset
-
-        ``` python
-        collection = Collection(['a', 'b', 'c', 'd', 'e', 'f'])
-
-        collection.every(4).all()
-
-        # ['a', 'e']
-        ```
-
-        You can optionally pass the offset as the second argument:
-
-        ``` python
-        collection.every(4, 1).all()
-
-        # ['b', 'f']
-        ```
-        """
-        new = []
-
-        for position, item in enumerate(self.items):
-            if position % step == offset:
-                new.append(item)
-
-        return self.__class__(new)
-
-    def without(self, *keys):
-        """Get all items except for those with the specified keys.
-
-        # Arguments
-        keys: ``tuple`` The keys to remove
-        """
-        items = copy.copy(self.items)
-
-        keys = reversed(sorted(keys))
-
-        for key in keys:
-            del items[key]
-
-        return self.__class__(items)
-
-    def only(self, *keys):
-        """
-        Get the items with the specified keys.
-
-        # Arguments
-        keys: ``tuple`` The keys to keep
-        """
-        items = []
-
-        for key, value in enumerate(self.items):
-            if key in keys:
-                items.append(value)
-
-        return self.__class__(items)
-
     def filter(self, callback=None):
-        """Filters the collection by a given callback, keeping only those items that pass a given truth test
+        """Filters the collection by a given callback, keeping only those items.
+
+        that pass a given truth test
 
         # Arguments
         callback: ``callable``|``None`` The filter callback
@@ -400,35 +253,8 @@ class Collection:
 
         return self.__class__(list(filter(None, self.items)))
 
-    def where(self, key, value):
-        """Filter items by the given key value pair.
-
-        # Arguments
-        key: The key to filter by
-        value: The value to filter by
-
-        ``` python
-        collection = Collection([
-            {'name': 'Desk', 'price': 200},
-            {'name': 'Chair', 'price': 100},
-            {'name': 'Bookcase', 'price': 150},
-            {'name': 'Door', 'price': 100},
-        ])
-
-        filtered = collection.where('price', 100)
-
-        filtered.all()
-
-        # [
-        #     {'name': 'Chair', 'price': 100},
-        #     {'name': 'Door', 'price': 100}
-        # ]
-        ```
-        """
-        return self.filter(lambda item: data_get(item, key) == value)
-
     def first(self, callback=None, default=None):
-        """Returns the first element in the collection that passes a given truth test
+        """Returns the first element in the collection that passes a given truth test.
 
         # Arguments
         callback: Optional callable truth condition to find first element
@@ -464,125 +290,8 @@ class Collection:
         else:
             return default
 
-    def flatten(self):
-        """Flattens a multi-dimensional collection into a single dimension
-
-        ``` python
-        collection = Collection([1, 2, [3, 4, 5, {'foo': 'bar'}]])
-
-        flattened = collection.flatten()
-
-        flattened.all()
-
-        # [1, 2, 3, 4, 5, 'bar']
-        ```
-        """
-
-        def _flatten(d):
-            if isinstance(d, dict):
-                for v in d.values():
-                    yield from _flatten(v)
-            elif isinstance(d, list):
-                for list_v in d:
-                    yield from _flatten(list_v)
-            else:
-                yield d
-
-        return self.__class__(list(_flatten(self.items)))
-
-    def forget(self, *keys):
-        """Remove an item from the collection by key.
-
-        # Arguments
-        keys: The keys to remove
-
-        ``` python
-        collection = Collection([1, 2, 3, 4, 5])
-        collection.forget(1)
-        collection.all()
-        # [1, 3, 4, 5]
-        ```
-
-        ::: warning
-        Unlike most other collection methods, `forget` does not return a new
-        modified collection; it modifies the collection it is called on.
-        :::
-        """
-        keys = reversed(sorted(keys))
-
-        for key in keys:
-            del self[key]
-
-        return self
-
-    def get(self, key, default=None):
-        """Returns the item at a given key. If the key does not exist, `None` is returned
-
-        # Arguments
-        key: The index of the element
-        default: The default value to return
-
-        ``` python
-        collection = Collection([1, 2, 3])
-        collection.get(3)
-        # None
-        ```
-
-        You can optionally pass a default value as the second argument:
-
-        ``` python
-        collection = Collection([1, 2, 3])
-        collection.get(3, 'default-value')
-        # default-value
-        ```
-        """
-        try:
-            return self.items[key]
-        except IndexError:
-            return _get_value(default)
-
-    def implode(self, value, glue=""):
-        """Joins the items in a collection. Its arguments depend on the type of items in the collection.
-
-        # Arguments
-        value: The value
-        glue: The glue
-
-        If the collection contains dictionaries or objects, you must pass the
-        key of the attributes you wish to join, and the "glue" string you wish
-        to place between the values:
-
-        ``` python
-        collection = Collection([
-            {'account_id': 1, 'product': 'Desk'},
-            {'account_id': 2, 'product': 'Chair'}
-        ])
-
-        collection.implode('product', ', ')
-
-        # Desk, Chair
-        ```
-
-        If the collection contains simple strings, simply pass the "glue" as the
-        only argument to the method:
-
-        ``` python
-        collection = Collection(['foo', 'bar', 'baz'])
-
-        collection.implode('-')
-
-        # foo-bar-baz
-        ```
-        """
-        first = self.first()
-
-        if not isinstance(first, basestring):
-            return glue.join(self.pluck(value).all())
-
-        return value.join(self.items)
-
     def last(self, callback=None, default=None):
-        """Returns the last element in the collection that passes a given truth test
+        """Returns the last element in the collection that passes a given truth test.
 
         # Arguments
         callback: Optional ``callable`` truth condition
@@ -618,53 +327,11 @@ class Collection:
         else:
             return default
 
-    def pluck(self, value, key=None):
-        """Retrieves all of the collection values for a given key
-
-        # Arguments
-        value: Value
-        key: Optional key
-
-        ``` python
-        collection = Collection([
-            {'product_id': 1, 'product': 'Desk'},
-            {'product_id': 2, 'product': 'Chair'}
-        ])
-
-        plucked = collection.pluck('product')
-
-        plucked.all()
-
-        # ['Desk', 'Chair']
-        ```
-
-        You can also specify how you wish the resulting collection to be keyed:
-
-        ``` python
-        plucked = collection.pluck('name', 'product_id')
-
-        plucked
-
-        # {1: 'Desk', 2: 'Chair'}
-        ```
-        """
-        if self.items is None:
-            return self.__class__([])
-
-        if key:
-            return dict(
-                map(
-                    lambda x: (data_get(x, key), data_get(x, value)), self.items
-                )
-            )
-        else:
-            results = list(map(lambda x: data_get(x, value), self.items))
-
-        return self.__class__(results)
-
     def map(self, callback):
-        """Iterates through the collection and passes each value to the given callback.
-        The callback is free to modify the item and return it, thus forming a new collection of modified items
+        """Iterates through the collection, passing each value to a callback.
+
+        The callback is free to modify the item and return it, thus forming
+        a new collection of modified items
 
         # Arguments
         callback: The map function
@@ -688,81 +355,6 @@ class Collection:
         """
         return self.__class__(list(map(callback, self.items)))
 
-    def max(self, key=None):
-        """Get the max value of a given key.
-
-        # Arguments
-        key: The key
-        """
-
-        def _max(result, item):
-            val = data_get(item, key)
-
-            if result is None or val > result:
-                return val
-
-            return result
-
-        return self.reduce(_max)
-
-    def min(self, key=None):
-        """Get the min value of a given key.
-
-        key: The key
-        """
-
-        def _min(result, item):
-            val = data_get(item, key)
-
-            if result is None or val < result:
-                return val
-
-            return result
-
-        return self.reduce(_min)
-
-    def pop(self, key=None):
-        """Removes and returns the last item from the collection.
-        If no index is specified, returns the last item.
-
-        # Arguments
-        key: The index of the item to return
-
-
-        ``` python
-        collection = Collection([1, 2, 3, 4, 5])
-        collection.pop()
-        # 5
-
-        collection.all()
-        # [1, 2, 3, 4]
-        ```
-        """
-        if key is None:
-            key = -1
-
-        return self.items.pop(key)
-
-    def prepend(self, value):
-        """Adds an item to the beginning of the collection
-
-        # Arguments
-        value: The value to push
-
-        ``` python
-        collection = Collection([1, 2, 3, 4])
-
-        collection.prepend(0)
-
-        collection.all()
-
-        # [0, 1, 2, 3, 4]
-        ```
-        """
-        self.items.insert(0, value)
-
-        return self
-
     def append(self, value):
         """Add an item onto the end of the collection.
 
@@ -783,54 +375,10 @@ class Collection:
 
         return self
 
-    def pull(self, key, default=None):
-        """Removes and returns an item from the collection by its key
-
-        # Arugments
-        key: The key
-        default: The default value
-
-        ``` python
-        collection = Collection([1, 2, 3, 4])
-
-        collection.pull(1)
-
-        collection.all()
-
-        # [1, 3, 4]
-        ```
-        """
-        val = self.get(key, default)
-
-        self.forget(key)
-
-        return val
-
-    def put(self, key, value):
-        """Sets the given key and value in the collection
-
-        # Arguments
-        key: The key
-        value: The value
-
-        ``` python
-        collection = Collection([1, 2, 3, 4])
-        collection.put(1, 5)
-        collection.all()
-
-        # [1, 5, 3, 4]
-        ```
-
-        ::: tip
-        It is equivalent to ``collection[1] = 5``
-        :::
-        """
-        self[key] = value
-
-        return self
-
     def reduce(self, callback, initial=None):
-        """Reduces the collection to a single value, passing the result of each iteration into the subsequent iteration
+        """Reduces the collection to a single value, passing the result of.
+
+        each iteration into the subsequent iteration
 
         # Arguments
         callback: The callback
@@ -855,32 +403,8 @@ class Collection:
         """
         return reduce(callback, self.items, initial)
 
-    def reject(self, callback):
-        """Filters the collection using the given callback. The callback should return `True` for any items it wishes
-        to remove from the resulting collection
-
-        # Arguments
-        callback: The truth test
-
-        ``` python
-        collection = Collection([1, 2, 3, 4])
-
-        filtered = collection.reject(lambda item: item > 2)
-
-        filtered.all()
-
-        # [1, 2]
-        ```
-
-        For the inverse of `reject`, see the [filter](#filter) method.
-        """
-        if self._use_as_callable(callback):
-            return self.filter(lambda item: not callback(item))
-
-        return self.filter(lambda item: item != callback)
-
     def reverse(self):
-        """Reverses the order of the collection's items
+        """Reverses the order of the collection's items.
 
         ``` python
         collection = Collection([1, 2, 3, 4, 5])
@@ -892,7 +416,7 @@ class Collection:
         return self.__class__(list(reversed(self.items)))
 
     def sort(self, callback=None, reverse=False):
-        """Sorts the collection
+        """Sorts the collection.
 
         # Arguments
         callback: Sort callable
@@ -915,83 +439,8 @@ class Collection:
         else:
             return self.__class__(sorted(items, reverse=reverse))
 
-    def sum(self, callback=None):
-        """Returns the sum of all items in the collection
-
-        callback: The callback
-
-        ``` python
-        Collection([1, 2, 3, 4, 5]).sum()
-
-        # 15
-        ```
-
-        If the collection contains dictionaries or objects, you must pass a key
-        to use for determining which values to sum:
-
-        ``` python
-        collection = Collection([
-            {'name': 'JavaScript: The Good Parts', 'pages': 176},
-            {'name': 'JavaScript: The Defnitive Guide', 'pages': 1096}
-        ])
-
-        collection.sum('pages')
-
-        # 1272
-        ```
-
-        In addition, you can pass your own callback to determine which values of
-        the collection to sum:
-
-        ``` python
-        collection = Collection([
-            {'name': 'Chair', 'colors': ['Black']},
-            {'name': 'Desk', 'colors': ['Black', 'Mahogany']},
-            {'name': 'Bookcase', 'colors': ['Red', 'Beige', 'Brown']}
-        ])
-
-        collection.sum(lambda product: len(product['colors']))
-
-        # 6
-        ```
-        """
-        if callback is None:
-            return sum(self.items)
-
-        callback = self._value_retriever(callback)
-
-        return self.reduce(lambda result, item: (result or 0) + callback(item))
-
-    def take(self, limit):
-        """
-        Take the first or last n items.
-
-        # Arguments
-        limit: The number of items to take
-
-        ``` python
-        collection = Collection([0, 1, 2, 3, 4, 5])
-        chunk = collection.take(3)
-        chunk.all()
-        # [0, 1, 2]
-        ```
-
-        You can also pass a negative integer to take the specified amount of
-        items from the end of the collection:
-
-        ``` python
-        chunk = collection.chunk(-2)
-        chunk.all()
-        # [4, 5]
-        ```
-        """
-        if limit < 0:
-            return self[limit:]
-
-        return self[:limit]
-
     def unique(self, key=None):
-        """Returns all of the unique items in the collection
+        """Returns all of the unique items in the collection.
 
         # Arguments
         key: The key to check uniqueness on
@@ -1053,38 +502,22 @@ class Collection:
 
         key = self._value_retriever(key)
 
-        exists = []
-
-        def _check(item):
+        seen = []
+        result = []
+        for item in self.items:
             id_ = key(item)
-            if id_ in exists:
-                return True
+            if id_ not in seen:
+                seen.append(id_)
+                result.append(item)
 
-            exists.append(id_)
-
-        return self.reject(_check)
-
-    def zip(self, *items):
-        """Merges together the values of the given list with the values of the collection at the corresponding index
-
-        # Argument
-        *items: Zip items
-
-        ``` python
-        collection = Collection(['Chair', 'Desk'])
-        zipped = collection.zip([100, 200])
-        zipped.all()
-        # [('Chair', 100), ('Desk', 200)]
-        ```
-        """
-        return self.__class__(list(zip(self.items, *items)))
+        return self.__class__(result)
 
     def empty(self):
-        """Returns `True` if the collection is empty; otherwise, `False` is returned"""
+        """Returns `True` if the collection is empty; otherwise, `False` is returned."""
         return self.count() == 0
 
     def merge(self, items):
-        """Merges the given list into the collection
+        """Merges the given list into the collection.
 
         # Arguments
         items: The items to merge
@@ -1111,35 +544,8 @@ class Collection:
 
         return self
 
-    def transform(self, callback):
-        """Transform each item in the collection using a callback.
-
-        Iterates over the collection and calls the given callback with each item in the collection.
-        The items in the collection will be replaced by the values returned by the callback.
-
-        # Arguments
-        callback: The callback
-
-        ``` python
-        collection = Collection([1, 2, 3, 4, 5])
-        collection.transform(lambda item: item * 2)
-        collection.all()
-
-        # [2, 4, 6, 8, 10]
-        ```
-
-        ::: warning
-        Unlike most other collection methods, `transform` modifies the
-        collection itself. If you wish to create a new collection instead, use
-        the [map](#map) method.
-        :::
-        """
-        self._items = self.map(callback).all()
-
-        return self
-
     def serialize(self):
-        """Converts the collection into a `list`
+        """Converts the collection into a `list`.
 
         ``` python
         collection = Collection([User.find(1)])
@@ -1164,13 +570,14 @@ class Collection:
         return list(map(_serialize, self.items))
 
     def pprint(self, pformat="json"):
+        """Pretty-print the collection (``json`` or Python ``pprint``)."""
         if pformat == "json":
             print(dumps(self.all(), indent=4, sort_keys=True, default=str))
         else:
             pprint(self.all())
 
     def as_json(self, **options):
-        """Converts the collection into JSON
+        """Converts the collection into JSON.
 
         # Arguments
         options: JSON encoding options
@@ -1185,109 +592,16 @@ class Collection:
         """
         return dumps(self.serialize(), **options)
 
-    def as_numpy(self):
-        """Converts the collection into a numpy array"""
-        import numpy as np
-
-        return np.array(self.items)
-
     def as_dataframe(self):
-        """Returns collection as Pandas dataframe"""
-        data = {k: [] for k in self._items[0].serialize().keys()}
-        for item in self._items:
-            for k, v in item.serialize().items():
-                data[k].append(v)
+        """Return the collection as a pandas DataFrame (one row per item).
+
+        This is the bridge into pandas and the way to analyze results. ``Collection``
+        itself is a minimal handle for selecting/iterating/launching live
+        interfaces; all aggregation, grouping, and reshaping is pandas.
+        """
         import pandas
 
-        return pandas.DataFrame.from_dict(data)
-
-    def as_table(self, mode="html", headers=(), **kwargs):
-        """Converts the collection into a table
-
-        # Arguments
-        mode: String 'html' or any other mode of the tabulate package
-        headers: Optional header row
-        **kwargs: Options to pass to tabulate
-        """
-        if len(self) == 0:
-            return ""
-
-        try:
-            iter(self.first())
-        except TypeError:
-            raise ValueError(
-                "Collection items are not iterable to form columns"
-            )
-
-        try:
-            from tabulate import tabulate
-
-            return tabulate(
-                self.items, headers=headers, tablefmt=mode, **kwargs
-            )
-        except ImportError:
-            if mode != "html":
-                raise ValueError(
-                    "The tabulate package is required to render non-html tables"
-                )
-
-            return "<table><tr>{}</tr></table>".format(
-                "</tr><tr>".join(
-                    "<td>{}</td>".format("</td><td>".join(str(_) for _ in row))
-                    for row in self
-                )
-            )
-
-    def pluck_or_none(self, value, key=None, none=None):
-        """Pluck method that returns None if key is not present
-
-        # Arguments
-        value: Value
-        key: Key
-        none: Return value if key is not present
-        """
-        try:
-            return self.pluck(value, key)
-        except KeyError:
-            return Collection([none] * len(self))
-
-    def pluck_or_nan(self, value, key=None):
-        """Pluck method that returns NaNs if key is not present
-
-        # Arguments
-        value: Value
-        key: Key
-        """
-        return self.pluck_or_none(value, key, none=float("nan"))
-
-    def section(self, of, reduce=None):
-        """Performs horizontal reduce through the collection
-
-        # Arguments
-        of: ``Callable`` Selector of reduce values
-        reduce: Optional ``callable`` reduce method
-        """
-        if not callable(reduce):
-
-            def reduce(x):
-                return x
-
-        selection = self.map(of)
-
-        if len(self) == 1:
-            return selection
-
-        try:
-            rows = min(len(e) for e in selection)
-        except TypeError:
-            return selection
-
-        section = [
-            reduce([element[row] for element in selection])
-            for row in range(rows)
-        ]
-
-        return self.__class__(section)
+        return pandas.DataFrame([item.serialize() for item in self._items])
 
     def _value_retriever(self, value):
         if self._use_as_callable(value):
@@ -1361,84 +675,136 @@ class Collection:
 
 
 def collect(elements):
+    """Wrap ``elements`` in a :class:`Collection`."""
     return Collection(elements)
 
 
-class ElementCollection(Collection):
-    def as_dataframe(self):
-        """Returns collection as Pandas dataframe"""
-        data = {k: [] for k in self._items[0].serialize().keys()}
-        for item in self._items:
-            for k, v in item.serialize().items():
-                data[k].append(v)
-        import pandas
+class InterfaceCollection(Collection):
+    """A collection of interfaces."""
 
-        return pandas.DataFrame.from_dict(data)
+    def as_dataframe(self):
+        """Flat, queryable DataFrame: one row per interface, config as columns.
+
+        Columns: ``uuid``, ``module``, ``version`` (the compact version list),
+        ``cached``, ``label``, ``created_by``, and ``config.<field>`` for each
+        resolved config key. The intended analysis surface: round-trip back to
+        live interfaces via ``Interface.find_many_by_id(df.uuid)``.
+        """
+        import pandas
+        from omegaconf import OmegaConf
+
+        rows = []
+        for item in self._items:
+            row = {
+                "uuid": item.uuid,
+                "module": item.module,
+                "version": item.version(),
+                "cached": item.cached(),
+                "label": item.label,
+                "created_by": item.created_by,
+            }
+            config = item.config
+            if config is not None:
+                resolved = OmegaConf.to_container(config, resolve=True)
+                if isinstance(resolved, dict):
+                    for key, value in resolved.items():
+                        if not str(key).startswith("_"):
+                            row[f"config.{key}"] = value
+            rows.append(row)
+        return pandas.DataFrame(rows)
 
     def filter_by_module(self, module):
+        """The subset with the given module."""
         return self.filter(lambda x: x.module == module)
 
-    def filter_by_context(
+    def filter_by_fingerprint(
         self,
         module: str,
         version: VersionType = None,
         **kwargs,
     ):
-        from machinable import Element
+        """The subset matching the fingerprint of ``module`` + ``version``."""
+        from machinable.interface import Interface
 
-        instance = Element.make(module, version, **kwargs)
+        instance = Interface.make(module, version, **kwargs)
 
-        return self.filter(lambda x: x.matches(instance.compute_context()))
+        return self.filter(lambda x: x.matches(instance.matching_fingerprint()))
 
     def singleton(
         self,
         module: str,
         version: VersionType = None,
         **kwargs,
-    ) -> Union[Any, "Component"]:
-        from machinable import Element
+    ) -> Union[Any, "Interface"]:
+        """The single matching element, or a fresh instance if none matches."""
+        from machinable.interface import Interface
 
-        instance = Element.make(module, version, **kwargs)
-        context = instance.compute_context()
+        instance = Interface.make(module, version, **kwargs)
+        fingerprint = instance.matching_fingerprint()
 
         for candidate in self:
-            if candidate.matches(context) and not candidate.hidden():
+            if candidate.matches(fingerprint) and not candidate.hidden():
                 return candidate
 
         return instance
 
     def __str__(self):
-        return f"Elements <{len(self.items)}>"
+        return f"Interfaces <{len(self.items)}>"
 
-
-class InterfaceCollection(ElementCollection):
-    pass
-
-
-class ComponentCollection(InterfaceCollection):
-    def __str__(self):
-        if len(self.items) > 15:
-            items = ", ".join([repr(item) for item in self.items[:5]])
-            items += " ... "
-            items += ", ".join([repr(item) for item in self.items[-5:]])
-        else:
-            items = ", ".join([repr(item) for item in self.items])
-        return f"Components ({len(self.items)}) <{items}>"
-
-    def launch(self) -> "ComponentCollection":
-        """Executes all components in the collection"""
-        for component in self:
-            component.launch()
+    def launch(self) -> "InterfaceCollection":
+        """Executes all interfaces in the collection."""
+        for interface in self:
+            interface.launch()
 
         return self
 
 
-class ExecutionCollection(ElementCollection):
+class ExecutionCollection(Collection):
+    """A collection of executions."""
+
+    def launch(self) -> "ExecutionCollection":
+        """Launch every execution in the collection."""
+        for execution in self:
+            execution.launch()
+
+        return self
+
+    def filter_by_fingerprint(
+        self,
+        module: str,
+        version: VersionType = None,
+        **kwargs,
+    ):
+        """The subset matching the fingerprint of ``module`` + ``version``."""
+        from machinable.interface import Interface
+
+        instance = Interface.make(module, version, **kwargs)
+
+        return self.filter(lambda x: x.matches(instance.matching_fingerprint()))
+
+    def singleton(
+        self,
+        module: str,
+        version: VersionType = None,
+        **kwargs,
+    ) -> Union[Any, "Interface"]:
+        """The single matching element, or a fresh instance if none matches."""
+        from machinable.interface import Interface
+
+        instance = Interface.make(module, version, **kwargs)
+        fingerprint = instance.matching_fingerprint()
+
+        for candidate in self:
+            if candidate.matches(fingerprint) and not candidate.hidden():
+                return candidate
+
+        return instance
+
     def __str__(self):
         return f"Executions <{len(self.items)}>"
 
     def status(self, status="started"):
-        """Filters the collection by a status attribute
+        """Filters the collection by a status attribute.
 
         # Arguments
         status: String, status field: 'started', 'finished', 'alive'

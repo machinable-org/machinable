@@ -16,10 +16,8 @@ jobs:
       - name: Set up Python
         run: uv python install 3.13
       - name: Install dependencies
-        run: uv sync --extra all
-      - name: Autogenerate reference documentation
-        run: uv run python docs/.vitepress/pydocgen.py
-      - name: Validate pydoc references
+        run: uv sync --all-extras
+      - name: Validate reference links
         run: uv run python docs/.vitepress/pydocgen.py --validate
       - name: Set up Node.js
         uses: actions/setup-node@v6
@@ -31,8 +29,12 @@ jobs:
         run: npm ci
         working-directory: docs
       - name: Build
+        # prebuild runs `npm run gen`: the Python reference (pydocgen.py), the
+        # integrations pages (integrationsgen.py), and the HTTP API pages
+        # (python -m machinable.api.docs). GitHub source permalinks pin to the
+        # pushed commit sha automatically.
         run: |
-          npx vitepress build
+          npm run build
           cp -r .vitepress/public/* .vitepress/dist/ 2>/dev/null || true
           cp -r logo .vitepress/dist/ 2>/dev/null || true
         working-directory: docs

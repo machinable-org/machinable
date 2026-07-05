@@ -1,7 +1,7 @@
-from machinable import Component
+from machinable import Execution
 
 
-class Counter(Component):
+class Counter(Execution):
     def __call__(self):
         self.save_file("count", self.count + 1)
 

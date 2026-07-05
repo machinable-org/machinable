@@ -1,119 +1,114 @@
-# Interface
+# Interfaces
 
-[Elements](./element.md) by themselves are limited in that they are effectively stateless. You can construct and use them but any computed result or additional information will not be persisted. 
-
-To enable storage and retrival we can use an <Pydoc>machinable.Interface</Pydoc> class.
+The [`Interface`](/reference/python/interface) is the unit of machinable. Everything you run,
+store, or analyze is an interface: a piece of research code with a typed
+[`Config`](./configuration.md), a place to save results, and an identity derived from
+its configuration.
 
 ```python
+from pydantic import BaseModel
+
 from machinable import Interface
 
+
 class MnistData(Interface):
-  """A dataset of handwritten characters"""
-  Config = {
-    "batch_size": 8,
-    "name": "mnist"
-  }
+    """A dataset of handwritten characters."""
+
+    class Config(BaseModel):
+        split: str = "train"
+
+    def __call__(self):
+        # produce and persist the dataset
+        self.save_file("data.npy", download_and_prepare(self.config.split))
+
+    def load(self):
+        return self.load_file("data.npy")
 ```
 
-Interfaces inherit all the functionality of elements but can be committed and subsequently reloaded:
+## Resolving an interface
 
-```python
->>> mnist = MnistData()
->>> mnist.commit()  # persist this particular instance
-Interface [29f034]
->>> mnist.local_directory()
-'./storage/29f034ad2d1a46b8b71c9b30222b5b88'
->>> Interface.from_directory('./storage/29f034ad2d1a46b8b71c9b30222b5b88')
-Interface [29f034] # reloaded interface
-```
-
-During commit, machinable collects information like a unique ID (e.g. `29f034`), the used configuration, and other meta-data and saves it in a unique storage (e.g. a local directory) from which it can be reloaded later. 
-
-## get
-
-In practice, however, it may be cumbersome to keep track of long IDs to reload existing interfaces. To avoid this issue, one of the fundamental ideas in the design of machinable is to make retrieval identical to initial instantiation.
-
-Specifically, to instantiate an interface (e.g. `MnistData()`) we can leverage the <Pydoc caption="get()">machinable.query.Query</Pydoc> function, which takes a class as the first argument and optional constructor arguments.
+You rarely instantiate an interface directly. Instead, `machinable.get` (a
+[`Query`](/reference/python/query)) resolves one by module name and an optional
+[version](./versions.md):
 
 ```python
 from machinable import get
 
-mnist = get(MnistData, {"batch_size": 8})
-      # -> this is equivalent to: MnistData({"batch_size": 8})
-mnist.commit()
+data = get("mnist_data", {"split": "test"})
 ```
 
-Now, if we later want to retrieve this instance, we can use the same code in place of a unique ID:
+`get` is content-addressed, so if a run with this exact configuration already
+exists, the existing record is returned; otherwise you get a fresh, unmaterialized interface.
+(`get` is a [`Query`](#querying) object, so `get.by_id(uuid)`, `get.all(...)`, and so
+on also work.)
+
+## Lifecycle
+
+An interface moves through a few states:
+
+| State | How | Meaning |
+| --- | --- | --- |
+| **unmaterialized** | `get(...)` | configured, no storage yet |
+| **materialized** | `.materialize()` / `.launch()` | has a `uuid` and a directory; config is now immutable |
+| **computed** | `.launch()` | `__call__` has run; results are on disk |
 
 ```python
-mnist_reloaded = get(MnistData, {"batch_size": 8})
-
-assert mnist == mnist_reloaded
+run = get("optimize", {"lr": 0.5})
+run.launch()              # materialize + run __call__
+run.uuid                  # a stable identifier
+run.local_directory()     # where its files live
 ```
 
-What is happening here is that <Pydoc caption="get()">machinable.query.Query</Pydoc> automatically searches the storage for an interface of type `MnistData` with a `batch_size` of `8`. If such an instance has not been committed yet (like when initially running the code), a new instance with this configuration will be returned. But if such an instance has previously been committed, it will simply be reloaded.
+- `materialize()` registers the interface in the [index](./storage.md) and writes its
+  `model.json`, but does not run `__call__`.
+- `launch()` materializes (if needed) and computes it through an
+  [`Execution`](./execution.md). Launching an already-computed interface is a no-op.
 
-## The module convention
+## Saving and loading results
 
-As your project grows, the classes that you implement should be moved into their own Python module. You are free to structure your code as you see fit but there is one hard constraint that classes must be placed in their own modules. The project source code may, for instance, be organized like this:
-
-```
-example_project/
-├─ estimate_gravity.py            # contains a data analysis component
-├─ evolution/                   
-|  └─ simulate_offspring.py       # contains a evolutionary simulation
-└─ main.py                        # main script to execute
-```
-
-The benefit of this requirement is that you can refer to the classes via their module import path.
-For example, using this *module convention*, you can simplify the instantiation of classes that are located in different modules:
-
-::: code-group
-
-```python [main.py (before)]
-from machinable import get
-
-from estimate_gravity import EstimateGravity
-from evolution.simulate_offspring import SimulateOffspring
-
-gravity = get(EstimateGravity)
-evolution = get(SimulateOffspring)
-```
-
-```python [main.py (using the module convention)]
-from machinable import get
-
-gravity = get('estimate_gravity')
-evolution = get('evolution.simulate_offspring')
-```
-
-:::
-
-Note that we do not refer to the classes by their name but just by the modules that contain them (since each module only contains one). As we will see later, importing and instantiating the classes this way has a lot of advantages, so it is the default way of instantiation in machinable projects.
-
-
-## Saving and loading state
-
-While machinable automatically commits crucial information about the interface, you can use <Pydoc>machinable.Interface.save_file</Pydoc> and <Pydoc>machinable.Interface.load_file</Pydoc> to easily store and retrieve additional custom data in different file formats:
+Inside `__call__` (or any method), persist and read results through the interface:
 
 ```python
-gravity.save_file('prediction.txt', 'a string')           # text
-gravity.save_file('settings.json', {'neurons': [1, 2]})   # jsonable
-gravity.save_file('inputs.npy', np.array([1.0, 2.0]))     # numpy
-gravity.save_file('results.p', results)                   # pickled
+class Optimize(Interface):
+    def __call__(self):
+        self.save_file("result.json", {"loss": 0.1})   # serialization by extension
 
->>> gravity.load_file('prediction.txt')
-'a string'
+    def loss(self):
+        return self.load_file("result.json")["loss"]
 ```
 
-This may be useful to save and restore some custom state of the interface. Furthermore, you are free to implement your own methods to persist data by writing and reading from the interface's <Pydoc caption="local_directory()">machinable.Interface.local_directory</Pydoc>:
+File formats, attributes, where the files live, and cache invalidation are covered in
+[Results & files](./results.md).
+
+## Useful methods and properties
+
+| Member | What it gives you |
+| --- | --- |
+| `config` | the resolved, read-only configuration |
+| `version()` | the compact `~version`/override [version](./versions.md) list |
+| `uuid` / `id` | identifiers; `id` is a short form |
+| `predicate` | the [predicate](./identity.md) (scopes + `on_compute_predicate`) |
+| `cached()` | whether this run is marked ready/cached |
+| `launch()` / `materialize()` | run / register it |
+| `all()` / `singleton()` | [find](./identity.md#finding-and-matching) sibling runs |
+| `derive(...)` / `related()` | [relations & lineage](./relations.md) |
+| `to_cli()` | the run rendered as its compact CLI command |
+
+## Events
+
+Override `on_*` hooks to run code at lifecycle points without touching `__call__`:
+`on_before_configure`, `on_configure`, `on_after_configure`, `on_before_materialize`,
+`on_materialize`, `on_after_materialize`, `on_compute_predicate`.
+
+## Querying
+
+`get` doubles as a query entry point:
 
 ```python
-import os
-mnist = get("mnist_data")
-with open(mnist.local_directory("download_script.sh"), "w") as f:
-    f.write(...)
-    os.chmod(f.name, 0o755)
+get.by_id("…uuid…")              # a specific run
+get("optimize").all()            # all Optimize runs (an InterfaceCollection)
+get("optimize", {"lr": 0.5})     # find-or-build a specific configuration
 ```
 
-Overall, interfaces make it easy to associate data with code as instantiation, storage and retrieval are managed automatically behind the scenes.
+Collections are covered in [Collections](./collections.md); how "the same" run is
+decided in [Identity & dedup](./identity.md).

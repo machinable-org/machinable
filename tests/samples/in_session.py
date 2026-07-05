@@ -1,9 +1,9 @@
 from pydantic import BaseModel, Field
 
-from machinable import Component
+from machinable import Execution
 
 
-class InSession(Component):
+class InSession(Execution):
     class Config(BaseModel):
         a: int = Field(1, title="test")
         b: float = 0.1

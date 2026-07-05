@@ -1,7 +1,11 @@
+"""Shared type aliases."""
+
+from collections.abc import Sequence
+
 from arrow.arrow import Arrow
 
-VersionType = str | dict | None | list[str | dict | None]
-ElementType = list[str | dict]
+VersionType = str | dict | None | Sequence[str | dict | None]
+InterfaceType = list[str | dict]
 DatetimeType = Arrow
 TimestampType = float | int | DatetimeType
 JsonableType = dict[str, str | float | int | None | DatetimeType]

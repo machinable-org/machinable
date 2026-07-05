@@ -6,6 +6,16 @@
 
 No current changes
 
+# v5.0
+
+Major release with breaking changes. Check out the documentation to learn more. Highlights:
+
+- Provenance built in. Every run captures the code state that produced it as a content-addressed `Manifest` (git by default, read-only, extensible via `on_resolve_manifests`), and `provenance()` returns the full node-link graph of recipe, executions, and lineage. Directory format now follows a well-defined contract.
+- HTTP API & MCP support
+- New `Inference` interface to express research questions and their answers
+- Integrations library under `integrations/` collection with its own docs, decoupled from the core.
+- First-class Windows support and a rewritten documentation site.
+
 # v4.10.6
 
 - Support sqlean.py

@@ -1,11 +1,13 @@
 # This file contains modified 3rd party source code from
 # https://github.com/sdispater/backpack/blob/master/tests/collections/test_collection.py
-# The copyright and license agreement can be found in the ThirdPartyNotices.txt file at the root of this repository.
+# The copyright and license agreement can be found in the ThirdPartyNotices.txt file
+# at the root of this repository.
 
 from unittest import TestCase
 
-from machinable.collection import Collection, ComponentCollection, collect
-from machinable.component import Component
+from pydantic import BaseModel
+
+from machinable.collection import Collection, ExecutionCollection, collect
 from machinable.execution import Execution
 from machinable.project import Project
 
@@ -14,27 +16,27 @@ def test_collect():
     assert isinstance(collect([1, 2]), Collection)
 
 
-class Dummy(Component):
-    class Config:
+class Dummy(Execution):
+    class Config(BaseModel):
         m: int = -1
 
 
 def test_element_collection(tmp_storage):
     with Project("./tests/samples/project"):
-        collection = Component.collect([Dummy({"m": i % 2}) for i in range(5)])
+        collection = Execution.collect([Dummy({"m": i % 2}) for i in range(5)])
         for i, e in enumerate(collection):
             e.save_file("i", i)
-        assert isinstance(collection, ComponentCollection)
+        assert isinstance(collection, ExecutionCollection)
 
         collection.launch()
         assert all(collection.map(lambda x: x.execution.is_finished()))
 
         m = "tests.test_collection"
-        assert len(collection.filter_by_context(m)) == 0
-        assert len(collection.filter_by_context(m, {"m": 0})) == 3
-        assert len(collection.filter_by_context(m, {"m": 1})) == 2
+        assert len(collection.filter_by_fingerprint(m)) == 0
+        assert len(collection.filter_by_fingerprint(m, {"m": 0})) == 3
+        assert len(collection.filter_by_fingerprint(m, {"m": 1})) == 2
 
-        assert collection.singleton(m, {"m": 1}).load_file("i") == "1"
+        assert collection.singleton(m, {"m": 1}).config.m == 1
 
         collection = Execution.collect([e.execution for e in collection])
 
@@ -45,199 +47,104 @@ def test_element_collection(tmp_storage):
         assert len(collection.status("started").status("active")) == 0
 
 
+def test_interface_collection_as_dataframe(tmp_storage):
+    import pytest
+
+    pd = pytest.importorskip("pandas")
+
+    from machinable import Interface
+
+    with Project("./tests/samples/project"):
+        a = Interface.make("view", {"duration": 1}).materialize()
+        b = Interface.make("view", {"duration": 2}).materialize()
+        df = Interface.collect([a, b]).as_dataframe()
+
+        assert isinstance(df, pd.DataFrame)
+        # flat, queryable columns — config flattened to config.<field>
+        assert {"uuid", "module", "version", "cached", "config.duration"}.issubset(
+            df.columns
+        )
+        assert sorted(df["config.duration"].tolist()) == [1, 2]
+        # round-trip back to live interfaces via uuid
+        ids = df.query("`config.duration` == 2").uuid.tolist()
+        restored = Interface.find_many_by_id(ids)
+        assert len(restored) == 1 and restored.first().uuid == b.uuid
+
+
 class CollectionTestCase(TestCase):
+    """The minimal live-handle API. Analytics live in pandas via as_dataframe()."""
+
     def test_first_returns_first_item_in_collection(self):
         c = Collection(["foo", "bar"])
-
         self.assertEqual("foo", c.first())
+        self.assertEqual("bar", c.first(lambda x: x == "bar"))
 
     def test_last_returns_last_item_in_collection(self):
         c = Collection(["foo", "bar"])
-
         self.assertEqual("bar", c.last())
 
-    def test_pop_removes_and_returns_last_item_or_specified_index(self):
-        c = Collection(["foo", "bar"])
-
-        self.assertEqual("bar", c.pop())
-        self.assertEqual("foo", c.last())
-
-        c = Collection(["foo", "bar"])
-
-        self.assertEqual("foo", c.pop(0))
-        self.assertEqual("bar", c.first())
-
     def test_empty_collection_is_empty(self):
-        c = Collection()
-        c2 = Collection([])
-
-        self.assertTrue(c.empty())
-        self.assertTrue(c2.empty())
+        self.assertTrue(Collection().empty())
+        self.assertTrue(Collection([]).empty())
+        self.assertFalse(Collection([1]).empty())
 
     def test_collection_is_constructed(self):
-        c = Collection("foo")
-        self.assertEqual(["foo"], c.all())
-
-        c = Collection(2)
-        self.assertEqual([2], c.all())
-
-        c = Collection(False)
-        self.assertEqual([False], c.all())
-
-        c = Collection(None)
-        self.assertEqual([], c.all())
-
-        c = Collection()
-        self.assertEqual([], c.all())
+        self.assertEqual(["foo"], Collection("foo").all())
+        self.assertEqual([2], Collection(2).all())
+        self.assertEqual([False], Collection(False).all())
+        self.assertEqual([], Collection(None).all())
+        self.assertEqual([], Collection().all())
 
     def test_offset_access(self):
         c = Collection(["foo", "bar"])
         self.assertEqual("bar", c[1])
-
         c[1] = "baz"
         self.assertEqual("baz", c[1])
-
         del c[0]
         self.assertEqual("baz", c[0])
 
-    def test_forget(self):
-        c = Collection(["foo", "bar", "boom"])
-        c.forget(0)
-        self.assertEqual("bar", c[0])
-        c.forget(0, 1)
-        self.assertTrue(c.empty())
-
-    def test_get_avg_items_from_collection(self):
-        c = Collection([{"foo": 10}, {"foo": 20}])
-        self.assertEqual(15, c.avg("foo"))
-
-        c = Collection([1, 2, 3, 4, 5])
-        self.assertEqual(3, c.avg())
-
-        c = Collection()
-        self.assertIsNone(c.avg())
-
-    def test_collapse(self):
-        obj1 = object()
-        obj2 = object()
-
-        c = Collection([[obj1], [obj2]])
-        self.assertEqual([obj1, obj2], c.collapse().all())
-
-    def test_collapse_with_nested_collection(self):
-        c = Collection([Collection([1, 2, 3]), Collection([4, 5, 6])])
-        self.assertEqual([1, 2, 3, 4, 5, 6], c.collapse().all())
-
     def test_contains(self):
         c = Collection([1, 3, 5])
-
         self.assertTrue(c.contains(1))
         self.assertFalse(c.contains(2))
         self.assertTrue(c.contains(lambda x: x < 5))
-        self.assertFalse(c.contains(lambda x: x > 5))
         self.assertIn(3, c)
-
-        c = Collection([{"v": 1}, {"v": 3}, {"v": 5}])
-        self.assertTrue(c.contains("v", 1))
-        self.assertFalse(c.contains("v", 2))
-
-        obj1 = type("lamdbaobject", (object,), {})()
-        obj1.v = 1
-        obj2 = type("lamdbaobject", (object,), {})()
-        obj2.v = 3
-        obj3 = type("lamdbaobject", (object,), {})()
-        obj3.v = 5
-        c = Collection([{"v": 1}, {"v": 3}, {"v": 5}])
-        self.assertTrue(c.contains("v", 1))
-        self.assertFalse(c.contains("v", 2))
 
     def test_countable(self):
         c = Collection(["foo", "bar"])
         self.assertEqual(2, c.count())
         self.assertEqual(2, len(c))
 
-    def test_diff(self):
-        c = Collection(["foo", "bar"])
-        self.assertEqual(["foo"], c.diff(Collection(["bar", "baz"])).all())
-
     def test_each(self):
         original = ["foo", "bar", "baz"]
         c = Collection(original)
-
         result = []
         c.each(lambda x: result.append(x))
         self.assertEqual(result, original)
         self.assertEqual(original, c.all())
 
-    def test_every(self):
-        c = Collection([1, 2, 3, 4, 5, 6])
-        self.assertEqual([1, 3, 5], c.every(2).all())
-        self.assertEqual([2, 4, 6], c.every(2, 1).all())
-
     def test_filter(self):
-        c = Collection([{"id": 1, "name": "hello"}, {"id": 2, "name": "world"}])
-        self.assertEqual(
-            [{"id": 2, "name": "world"}],
-            c.filter(lambda item: item["id"] == 2).all(),
-        )
-
-        c = Collection(["", "hello", "", "world"])
-        self.assertEqual(["hello", "world"], c.filter().all())
-
-    def test_where(self):
-        c = Collection([{"v": 1}, {"v": 3}, {"v": 2}, {"v": 3}, {"v": 4}])
-        self.assertEqual([{"v": 3}, {"v": 3}], c.where("v", 3).all())
-
-    def test_implode(self):
-        obj1 = type("lamdbaobject", (object,), {})()
-        obj1.name = "john"
-        obj1.email = "foo"
-        c = Collection(
-            [{"name": "john", "email": "foo"}, {"name": "jane", "email": "bar"}]
-        )
-        self.assertEqual("foobar", c.implode("email"))
-        self.assertEqual("foo,bar", c.implode("email", ","))
-
-        c = Collection(["foo", "bar"])
-        self.assertEqual("foobar", c.implode(""))
-        self.assertEqual("foo,bar", c.implode(","))
+        c = Collection([{"id": 1}, {"id": 2}])
+        self.assertEqual([{"id": 2}], c.filter(lambda item: item["id"] == 2).all())
+        self.assertEqual(["hello"], Collection(["", "hello", ""]).filter().all())
 
     def test_map(self):
         c = Collection([1, 2, 3, 4, 5])
         self.assertEqual([3, 4, 5, 6, 7], c.map(lambda x: x + 2).all())
+
+    def test_reduce(self):
+        c = Collection([1, 2, 3, 4])
+        self.assertEqual(10, c.reduce(lambda acc, x: (acc or 0) + x))
 
     def test_merge(self):
         c = Collection([1, 2, 3])
         c.merge([4, 5, 6])
         self.assertEqual([1, 2, 3, 4, 5, 6], c.all())
 
-        c = Collection(Collection([1, 2, 3]))
-        c.merge([4, 5, 6])
-        self.assertEqual([1, 2, 3, 4, 5, 6], c.all())
-
-    def test_prepend(self):
-        c = Collection([4, 5, 6])
-        c.prepend(3)
-        self.assertEqual([3, 4, 5, 6], c.all())
-
     def test_append(self):
         c = Collection([3, 4, 5])
         c.append(6)
         self.assertEqual([3, 4, 5, 6], c.all())
-
-    def test_pull(self):
-        c = Collection([1, 2, 3, 4])
-        c.pull(2)
-        self.assertEqual([1, 2, 4], c.all())
-
-    def test_put(self):
-        c = Collection([1, 2, 4])
-        c.put(2, 3)
-        self.assertEqual([1, 2, 3], c.all())
-
-    def test_reject(self):
-        c = Collection([1, 2, 3, 4, 5, 6])
-        self.assertEqual([1, 2, 3], c.reject(lambda x: x > 3).all())
 
     def test_reverse(self):
         c = Collection([1, 2, 3, 4])
@@ -245,37 +152,9 @@ class CollectionTestCase(TestCase):
 
     def test_sort(self):
         c = Collection([5, 3, 1, 2, 4])
+        self.assertEqual([1, 2, 3, 4, 5], c.sort(lambda x: x).all())
 
-        sorted = c.sort(lambda x: x)
-        self.assertEqual([1, 2, 3, 4, 5], sorted.all())
-
-    def test_take(self):
-        c = Collection([1, 2, 3, 4, 5, 6])
-        self.assertEqual([1, 2, 3], c.take(3).all())
-        self.assertEqual([4, 5, 6], c.take(-3).all())
-
-    def test_transform(self):
-        c = Collection([1, 2, 3, 4])
-        c.transform(lambda x: x + 2)
-        self.assertEqual([3, 4, 5, 6], c.all())
-
-    def test_zip(self):
-        c = Collection([1, 2, 3])
-        self.assertEqual([(1, 4), (2, 5), (3, 6)], c.zip([4, 5, 6]).all())
-
-    def test_only(self):
-        c = Collection([1, 2, 3, 4, 5])
-        self.assertEqual([2, 4], c.only(1, 3).all())
-
-    def test_without(self):
-        c = Collection([1, 2, 3, 4, 5])
-        self.assertEqual([1, 3, 5], c.without(1, 3).all())
-        self.assertEqual([1, 2, 3, 4, 5], c.all())
-
-    def test_flatten(self):
-        c = Collection({"foo": [5, 6], "bar": 7, "baz": {"boom": [1, 2, 3, 4]}})
-
-        self.assertEqual([1, 2, 3, 4, 5, 6, 7], c.flatten().sort().all())
-
-        c = Collection([1, [2, 3], 4])
-        self.assertEqual([1, 2, 3, 4], c.flatten().all())
+    def test_unique(self):
+        self.assertEqual([1, 2, 3], Collection([1, 1, 2, 3, 3]).unique().all())
+        c = Collection([{"v": 1}, {"v": 1}, {"v": 2}])
+        self.assertEqual([{"v": 1}, {"v": 2}], c.unique(lambda x: x["v"]).all())

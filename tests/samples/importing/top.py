@@ -1,5 +1,5 @@
-from machinable import Element
+from machinable import Interface
 
 
-class TopComponent(Element):
+class TopComponent(Interface):
     pass

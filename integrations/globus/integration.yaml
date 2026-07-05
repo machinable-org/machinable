@@ -1,0 +1,8 @@
+name: globus
+summary: Mirror and retrieve records via Globus transfer
+tags: [storage, transfer]
+maintainer: machinable-org
+maintainer_url: https://github.com/machinable-org
+upstream: https://www.globus.org/
+requires: [globus-sdk]
+status: active

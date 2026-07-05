@@ -22,7 +22,19 @@ jobs:
       - name: Set up Python ${{ matrix.python-version }}
         run: uv python install ${{ matrix.python-version }}
       - name: Install dependencies
-        run: uv sync --extra all
+        run: uv sync --all-extras
+      - name: ruff format check
+        run: uv run ruff format --check .
+      - name: ruff lint check
+        run: uv run ruff check .
+      - name: type check
+        run: uv run ty check
+      - name: Run tests
+        run: uv run pytest
+      - name: Validate reference links
+        run: uv run python docs/.vitepress/pydocgen.py --validate
+      - name: Validate integration metadata
+        run: uv run python docs/.vitepress/integrationsgen.py --validate
       - name: Set up Node.js
         if: matrix.python-version == '3.13'
         uses: actions/setup-node@v6
@@ -30,18 +42,12 @@ jobs:
           node-version: 22
           cache: npm
           cache-dependency-path: docs/package-lock.json
-      - name: ruff format check
-        run: uv run ruff format --check .
-      - name: ruff lint check
-        run: uv run ruff check .
-      - name: editorconfig check
-        run: uv run ec
-      - name: Run tests
-        run: uv run pytest
-      - name: Validate pydoc references
-        run: uv run python docs/.vitepress/pydocgen.py --validate
       - name: Build docs
         if: matrix.python-version == '3.13'
+        working-directory: docs
+        # prebuild runs `npm run gen`: the Python reference (pydocgen.py), the
+        # integrations pages (integrationsgen.py), and the HTTP API pages
+        # (python -m machinable.api.docs)
         run: |
-          uv run python docs/.vitepress/pydocgen.py
-          cd docs && npm ci && npx vitepress build
+          npm ci
+          npm run build

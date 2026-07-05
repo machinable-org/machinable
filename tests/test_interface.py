@@ -1,7 +1,9 @@
 import os
 
-from machinable import Component, Interface, Project, Schedule, Scope, get
-from machinable.collection import ComponentCollection
+from pydantic import BaseModel
+
+from machinable import Execution, Interface, Project, Scope, get
+from machinable.collection import InterfaceCollection
 from machinable.interface import (
     belongs_to,
     belongs_to_many,
@@ -14,16 +16,14 @@ from machinable.utils import load_file, random_str
 
 def test_interface_get():
     assert isinstance(get(), Interface)
-    assert isinstance(get("machinable.schedule"), Schedule)
+    assert isinstance(get("machinable.scope"), Scope)
     # extensions
     a = Interface({"a": "a", "one": 1})
     b = get(a, {"a": "b"})
     assert b.config.a == "b"
     assert b.config.one == 1
     assert get(["machinable.interface", {"a": "a"}], [None]).config.a == "a"
-    assert (
-        get(["machinable.interface", {"a": "a"}], [{"a": "b"}]).config.a == "b"
-    )
+    assert get(["machinable.interface", {"a": "a"}], [{"a": "b"}]).config.a == "b"
 
 
 def test_interface_to_directory(tmp_path):
@@ -33,18 +33,18 @@ def test_interface_to_directory(tmp_path):
     assert not os.path.exists(str(tmp_path / "test" / "related"))
 
     i = Interface(derived_from=Interface(), uses=[Interface(), Interface()])
+    i.materialize()
     i.to_directory(str(tmp_path / "test2"))
     assert load_file(str(tmp_path / "test2" / ".machinable")) == i.uuid
     assert (
         load_file(str(tmp_path / "test2" / "related" / "uses"))
-        == "\n".join([i.uuid for i in i.uses]) + "\n"
+        == "\n".join([u.uuid for u in i.uses]) + "\n"
     )
 
 
 def test_interface_to_dir_inverse_relations(tmp_storage):
-    a = Interface()
-    b = Interface(uses=a)
-    b.commit()
+    a = Interface({"slot": "a"}).materialize()
+    b = Interface({"slot": "b"}, uses=a).materialize()
 
     assert a.used_by[0] == b
 
@@ -64,14 +64,14 @@ def test_interface_to_dir_inverse_relations(tmp_storage):
     _related(a, ["used_by"])
     assert a.load_file(["related", "used_by"]) == b.uuid + "\n"
 
-    c = b.derive().commit()
+    c = b.derive().materialize()
 
     _related(b, ["derived", "uses"])
     assert b.load_file(["related", "derived"]) == c.uuid + "\n"
     _related(c, ["ancestor"])
     assert c.load_file(["related", "ancestor"]) == b.uuid + "\n"
 
-    d = b.derive().commit()
+    d = b.derive().materialize()
     assert b.load_file(["related", "derived"]) == c.uuid + "\n" + d.uuid + "\n"
 
 
@@ -101,7 +101,7 @@ class B(Interface):
 
 
 class A(Interface):
-    @has_many(collection=ComponentCollection)
+    @has_many(collection=InterfaceCollection)
     def many_b():
         return B
 
@@ -115,27 +115,27 @@ def test_interface_relations(tmp_storage):
     b1, b2 = B(), B()
     c = C()
 
-    a1.commit()
+    a1.materialize()
     assert len(a1.many_b) == 0
 
     # has many
     a2.push_related("many_b", b1)
     a2.push_related("many_b", b2)
-    a2.commit()
+    a2.materialize()
     assert len(a2.many_b) == 2
-    assert isinstance(a2.many_b, ComponentCollection)
+    assert isinstance(a2.many_b, InterfaceCollection)
     assert b1.one_a == a2
     assert b2.one_a == a2
     a2._relation_cached = {}
     b1._relation_cached = {}
     assert len(a2.many_b) == 2
-    assert isinstance(a2.many_b, ComponentCollection)
+    assert isinstance(a2.many_b, InterfaceCollection)
     assert b1.one_a == a2
     assert b2.one_a == a2
 
     # has one
     c.push_related("one_b", b1)
-    c.commit()
+    c.materialize()
     assert c.one_b == b1
     assert c.one_b.one_a == a2
     assert c.one_b.one_c == c
@@ -144,10 +144,10 @@ def test_interface_relations(tmp_storage):
     c1, c2 = C(), C()
     c1.push_related("many_a", a1)
     c1.push_related("many_a", a2)
-    c1.commit()
+    c1.materialize()
     c2.push_related("many_a", a1)
     c2.push_related("many_a", a2)
-    c2.commit()
+    c2.materialize()
     c1._relation_cached = {}
     c2._relation_cached = {}
     assert len(c1.many_a) == 2
@@ -156,8 +156,17 @@ def test_interface_relations(tmp_storage):
     assert {v.uuid for v in a1.many_c} == {c1.uuid, c2.uuid}
 
 
-def test_interface_related(tmp_storage):
-    with Project("./tests/samples/project") as p:
+def test_interface_related(tmp_storage, tmp_path):
+    # a *distinctly named* second project: same-named projects are the same
+    # project by design (location-free identity discriminates by name), and
+    # this test's intent is relations across two genuinely different projects
+    import shutil
+
+    other = tmp_path / "related-project"
+    shutil.copytree(
+        "tests/samples/project", other, ignore=shutil.ignore_patterns("storage")
+    )
+    with Project(str(other)) as p:
         i = Interface.make("dummy")
         i.push_related("project", p)
         i.launch()
@@ -166,41 +175,30 @@ def test_interface_related(tmp_storage):
     assert i.related().all() == [p, child, i.execution]
     assert child.related().all() == [i, child.execution]
 
-    assert len(i.related(deep=True)) == 5
+    # transitive closure of reachable nodes, excluding self:
+    # {p, child, i.exec, child.exec}
+    # (manifest capture is disabled in tests; see conftest._no_manifest_capture)
+    assert len(i.related(deep=True)) == 4
 
-    grandchild = Interface(derived_from=child).commit()
+    grandchild = Interface(derived_from=child).materialize()
     assert child.derived.all() == [grandchild]
     assert child.related().all() == [grandchild, i, child.execution]
-    assert len(i.related(deep=True)) == 6
-
-
-def test_interface_related_iterator(tmp_storage):
-    with Project("./tests/samples/project") as p:
-        i = Interface.make("dummy")
-        i.push_related("project", p)
-        i.launch()
-    assert len(list(i.related_iterator())) == 2
-    it = i.related_iterator()
-    interface, relation, seen = next(it)
-    assert interface == p
-    assert i.uuid in seen
-    interface, relation, seen = next(it)
-    assert interface == i.execution
-    assert p.uuid in seen
+    # now also reaches grandchild
+    assert len(i.related(deep=True)) == 5
 
 
 def test_interface_commit(tmp_storage):
     with Project("./tests/samples/project"):
-        Interface.make("interface.dummy").commit()
+        Interface.make("interface.dummy").materialize()
 
     i = Interface()
-    assert not i.is_staged()
-    i.commit()
-    assert i.is_staged()
+    assert not i.is_materialized()
+    i.materialize()
+    assert i.is_materialized()
 
 
 def tes_interface_save_file(tmp_storage):
-    component = Interface().commit()
+    component = Interface().materialize()
     # save and load
     component.save_file("test.txt", "hello")
     assert component.load_file("test.txt") == "hello"
@@ -213,12 +211,13 @@ def tes_interface_save_file(tmp_storage):
 
 def test_interface_derivatives(tmp_storage):
     class T(Interface):
-        Config = {"c": 1}
+        class Config(BaseModel):
+            c: int = 1
 
-    root = Interface().commit()
+    root = Interface().materialize()
 
-    child1 = root.derive(T).commit()
-    child2 = root.derive(T, {"c": 2}).commit()
+    child1 = root.derive(T).materialize()
+    child2 = root.derive(T, {"c": 2}).materialize()
 
     assert child1.ancestor == root
     assert child2.ancestor == root
@@ -235,17 +234,17 @@ def test_interface_modifiers(tmp_storage):
 
     # all
     assert len(Interface().all()) == 0
-    get("interface.dummy").commit()
+    get("interface.dummy").materialize()
     assert len(Interface().all()) == 0
     assert list(get("interface.dummy").all()) == [get("interface.dummy")]
-    get("interface.dummy", {"a": 1}).commit()
+    get("interface.dummy", {"a": 1}).materialize()
     assert len(Interface().all()) == 0
     assert len(get("interface.dummy").all()) == 1
     assert len(get("interface.dummy", {"a": 1}).all()) == 1
 
     # new
-    assert get("interface.dummy").is_committed()
-    assert get("interface.dummy").new().is_committed() is False
+    assert get("interface.dummy").is_materialized()
+    assert get("interface.dummy").new().is_materialized() is False
 
     assert len(get().all()) == 0
 
@@ -255,12 +254,12 @@ def test_interface_modifiers(tmp_storage):
     assert len(get.all()) == 2
     with Scope({"unique": True}):
         assert len(get.all()) == 0
-        get("interface.dummy").commit()
+        get("interface.dummy").materialize()
         assert len(get.all()) == 1
     assert len(get.all()) == 3
 
     # new
-    assert get.new("interface.dummy").is_committed() is False
+    assert get.new("interface.dummy").is_materialized() is False
 
     # hide
     c = get("interface.dummy")
@@ -278,30 +277,33 @@ def test_interface_modifiers(tmp_storage):
 #     project = Project("./tests/samples/project").__enter__()
 
 #     component = get("dummy").launch()
-#     assert os.path.isfile(component.execution.local_directory("related", component.id, "link"))
+#     assert os.path.isfile(
+#         component.execution.local_directory("related", component.id, "link")
+#     )
 
 #     project.__exit__()
 
 
 def test_interface_hash(tmp_storage):
-    assert Interface().hash == 12 * "0"
+    assert Interface().hash is None
 
-    a = Interface().commit()
-    b = Interface({"a": 1}).commit()
+    a = Interface().materialize()
+    b = Interface({"a": 1}).materialize()
 
     assert a.hash != b.hash
 
-    c = Interface({"a": 1}).commit()
+    c = Interface({"a": 1}).materialize()
     assert b.hash == c.hash
 
 
 def test_interface_uuid(tmp_storage):
-    dummy = Interface().commit()
+    dummy = Interface().materialize()
     directory = dummy.local_directory()
 
     # replace uuid with random male-formed string
     model = dummy.load_file("model.json")
     model["uuid"] = new_uuid = random_str(len(model["uuid"]))
+    model.pop("created_at_ns", None)
     dummy.save_file("model.json", model)
 
     del dummy
@@ -313,65 +315,36 @@ def test_interface_uuid(tmp_storage):
     assert str(dummy.created_at()).startswith("1970-01-01")
 
 
-def test_interface_find_by_hash(tmp_storage):
-    dummy = Interface({"a": 1}).commit()
-    dummy2 = Interface().commit()
-    dummy3 = Interface().commit()
+def test_interface_find_by_fingerprint(tmp_storage):
+    dummy = Interface({"a": 1}).materialize()
+    dummy2 = Interface().materialize()
+    dummy3 = Interface().materialize()
 
     assert dummy.hash != dummy2.hash
-    assert dummy2.hash == dummy3.hash
-    assert dummy2.uuid != dummy3.uuid
+    assert dummy2.uuid == dummy3.uuid
 
-    assert Interface.find_by_hash(dummy.hash)[0] == dummy
-    assert len(Interface.find_by_hash(dummy2.hash)) == 2
+    assert Interface.find_by_fingerprint(dummy.hash)[0] == dummy
+    assert Interface.find_by_fingerprint(dummy2.hash)[0] == dummy2
 
 
 def test_interface_find_by_id(tmp_storage):
-    dummy = Interface({"a": 1}).commit()
-    dummy2 = Interface().commit()
-    dummy3 = Interface().commit()
+    dummy = Interface({"a": 1}).materialize()
+    dummy2 = Interface().materialize()
+    dummy3 = Interface().materialize()
 
     assert dummy == Interface.find_by_id(dummy.uuid)
     assert dummy2 == Interface.find_by_id(dummy2.id)
     assert dummy3 == Interface.find_by_id(dummy3.id)
 
 
-def test_interface_future(tmp_storage):
-    p = Project("./tests/samples/project").__enter__()
-
-    class T(Interface):
-        def test(self):
-            c = get("dummy")
-            assert c.future() is None
-            assert len(c._futures_stack) == 0
-            assert list(self._futures_stack) == [c.id]
-
-            self.future() is None
-
-            c.launch()
-            assert c.future() is c
-            assert len(self._futures_stack) == 0
-            with get("machinable.execution").deferred() as execution:
-                assert c.future() is None
-
-            assert execution.executables[0] is c
-
-            assert self.future() is self
-
-    t = T()
-    t.test()
-
-    p.__exit__()
-
-
-def test_interface_components(tmp_storage):
+def test_interface_interfaces(tmp_storage):
     class T(Interface):
         def launch(self):
-            get("machinable.component").launch()
+            get("dummy").launch()
 
-    assert len(T().components) == 1
-    t = get("machinable.component")
-    assert t == t.components[0]
+    interfaces = T().interfaces
+    assert len(interfaces) == 1
+    assert interfaces[0].module == "dummy"
 
 
 def test_interface_cachable(tmp_storage):
@@ -394,23 +367,23 @@ def test_interface_cachable(tmp_storage):
 
     # not cached if not cached
     t = T()
-    assert t.cached()
+    assert not t.cached()
     assert t.test() == 1
-    assert t.test() == 1
-    t.commit()
+    assert t.test() == 2
+    t.materialize()
     assert t.test2() == 100
     assert t.test2() == 100
     counts["test2"] = -1
     assert t.test2() == 100
     assert t.test2(5) == 5  # = (-1 + 1) * 100 + 5
 
-    class C(Component):
+    class C(Execution):
         @cachable()
         def test3(self, a=0, k="test"):
             counts["test3"] += 1
             return counts["test3"] * 100 + a
 
-    c = C().commit()
+    c = C().materialize()
     assert not c.cached()
     assert c.test3() == 100
     assert c.test3() == 200
@@ -440,7 +413,7 @@ def test_interface_cachable(tmp_storage):
     assert c.test3(k=slice(1)) == 800
 
     # default-args
-    class C(Component):
+    class C(Execution):
         @cachable()
         def test(self, payload="default", a=1):
             return getattr(self, "latent", "test")
@@ -455,7 +428,7 @@ def test_interface_cachable(tmp_storage):
 
 
 def test_interface_update(tmp_storage):
-    i = get("machinable.interface", {"a": 1}).commit()
+    i = get("machinable.interface", {"a": 1}).materialize()
     r = get("machinable.interface", {"a": 1})
     assert r == i
     assert r.config._update_.a == 1

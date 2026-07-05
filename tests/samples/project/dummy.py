@@ -1,8 +1,10 @@
-from machinable import Component
+from pydantic import BaseModel
+
+from machinable import Execution
 
 
-class Dummy(Component):
-    class Config:
+class Dummy(Execution):
+    class Config(BaseModel):
         a: int = 1
         ignore_me_: int = -1
 

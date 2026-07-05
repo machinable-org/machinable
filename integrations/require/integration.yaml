@@ -1,0 +1,8 @@
+name: require
+summary: Gate a run on its dependencies being cached
+tags: [execution, dependencies]
+maintainer: machinable-org
+maintainer_url: https://github.com/machinable-org
+upstream: https://github.com/machinable-org/machinable
+requires: []
+status: active

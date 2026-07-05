@@ -1,7 +1,7 @@
-from machinable import Component, errors
+from machinable import Execution, errors
 
 
-class EventsCheck(Component):
+class EventsCheck(Execution):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.events = ["on_init"]

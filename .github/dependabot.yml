@@ -16,3 +16,14 @@ updates:
       - dependency-type: "all"
     commit-message:
       prefix: ":arrow_up:"
+  # Docs site: vitepress is the only direct dependency. Everything else in
+  # the npm tree (including vue) is transitively managed by vitepress and
+  # must not be bumped independently.
+  - package-ecosystem: "npm"
+    directory: "/docs"
+    schedule:
+      interval: "weekly"
+    allow:
+      - dependency-name: "vitepress"
+    commit-message:
+      prefix: ":arrow_up:"

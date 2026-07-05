@@ -1,13 +1,14 @@
 {
     "private": true,
     "scripts": {
-        "pydoc": "uv run .vitepress/pydocgen.py",
+        "gen": "uv run .vitepress/pydocgen.py && uv run .vitepress/integrationsgen.py && uv run python -m machinable.api.docs",
+        "predev": "npm run gen",
         "dev": "vitepress dev",
+        "prebuild": "npm run gen",
         "build": "vitepress build",
         "preview": "vitepress preview"
     },
     "devDependencies": {
-        "vitepress": "^1.6.4",
-        "vue": "^3.5.13"
+        "vitepress": "^1.6.4"
     }
 }

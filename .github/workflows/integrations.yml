@@ -1,0 +1,39 @@
+name: integrations
+
+# Community integrations are out-of-core: this workflow is the only CI that
+# touches them (see integrations/README.md). Metadata validation is the
+# required check; the test run is best-effort and must not gate merges.
+on:
+  pull_request:
+    paths: ["integrations/**"]
+  push:
+    branches: [main]
+    paths: ["integrations/**"]
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          version: "latest"
+      - name: Install dependencies
+        run: uv sync
+      - name: Validate integration metadata
+        run: uv run python docs/.vitepress/integrationsgen.py --validate
+
+  test:
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v6
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          version: "latest"
+      - name: Install dependencies
+        run: uv sync --all-extras
+      - name: Run integration tests (best-effort)
+        run: uv run pytest integrations/ -q

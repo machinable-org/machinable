@@ -1,7 +1,7 @@
-from machinable import Component
+from machinable import Execution
 
 
-class InterruptedLifecycle(Component):
+class InterruptedLifecycle(Execution):
     def __call__(self):
         self.local_directory("data", create=True)
         self.state = self.load_file("data/state.json", {"steps": 0})

@@ -15,10 +15,3 @@ repos:
         entry: uv run ruff check --fix
         types: [python]
         language: system
-  - repo: local
-    hooks:
-      - id: editorconfig
-        name: editorconfig
-        entry: uv run ec
-        types: [python]
-        language: system

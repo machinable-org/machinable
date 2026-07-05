@@ -1,9 +1,13 @@
+"""Shared utilities: serialization, hashing, file I/O, and path safety."""
+
 import hashlib
 import importlib
+import importlib.util
 import inspect
 import json
 import os
 import random
+import re
 import stat
 import string
 import subprocess
@@ -13,7 +17,6 @@ import types
 from collections import deque
 from collections.abc import Callable, Mapping
 from concurrent.futures import ThreadPoolExecutor
-from importlib.metadata import entry_points
 from io import BytesIO
 from keyword import iskeyword
 from pathlib import Path
@@ -23,50 +26,44 @@ from uuid import UUID
 
 import arrow
 import dill as pickle
-import jsonlines
 import omegaconf
 from flatten_dict import unflatten as _unflatten_dict
 from omegaconf.omegaconf import OmegaConf
-from uuid_extensions import uuid7
-
-sentinel = object()
-
-
 from pydantic import BaseModel
 
 from machinable.types import DatetimeType, VersionType
 
+sentinel: Any = object()
+
 
 def serialize(obj):
-    """JSON serializer for objects not serializable by default json code"""
+    """JSON serializer for objects not serializable by default json code."""
     if isinstance(obj, BaseModel):
         return obj.model_dump()
     if isinstance(obj, UUID):
         return obj.hex
     if isinstance(obj, DatetimeType):
         return str(obj)
-    if isinstance(obj, (omegaconf.DictConfig, omegaconf.ListConfig)):
+    if isinstance(obj, omegaconf.DictConfig | omegaconf.ListConfig):
         return OmegaConf.to_container(obj)
     else:
         raise TypeError(f"Unserializable object {obj} of type {type(obj)}")
 
 
-def normjson(
-    data: Any, default: Callable[[Any], Any] | None = serialize
-) -> str:
-    return json.dumps(
-        data, sort_keys=True, separators=(",", ":"), default=default
-    )
+def normjson(data: Any, default: Callable[[Any], Any] | None = serialize) -> str:
+    """Canonical JSON: sorted keys, compact separators."""
+    return json.dumps(data, sort_keys=True, separators=(",", ":"), default=default)
 
 
 def generate_seed(random_state=None):
-    """Generates a seed from a random state
+    """Generates a seed from a random state.
 
     # Arguments
     random_state: Random state or None
 
     Returns:
     int32 seed value
+
     """
     if random_state is None or isinstance(random_state, int):
         random_state = random.Random(random_state)
@@ -75,24 +72,24 @@ def generate_seed(random_state=None):
 
 
 def timestamp_to_directory(timestamp: int) -> str:
-    return (
-        arrow.get(timestamp / 1e9)
-        .strftime("%Y-%m-%dT%H%M%S_%f%z")
-        .replace("+", "_")
-    )
+    """Render an epoch-nanosecond timestamp as a directory name."""
+    return arrow.get(timestamp / 1e9).strftime("%Y-%m-%dT%H%M%S_%f%z").replace("+", "_")
 
 
 def is_valid_variable_name(name):
+    """True for a valid, non-keyword Python identifier."""
     if not isinstance(name, str):
         return False
     return name.isidentifier() and not iskeyword(name)
 
 
 def is_valid_module_path(name):
+    """True when every dotted segment is a valid identifier."""
     return all(map(is_valid_variable_name, name.split(".")))
 
 
 def is_directory_version(version: VersionType) -> bool:
+    """True when ``version`` denotes a directory rather than a ~method."""
     if not isinstance(version, str):
         return False
     if not version.startswith("~"):
@@ -104,13 +101,18 @@ def is_directory_version(version: VersionType) -> bool:
 
 
 def joinpath(filepath: str | list[str]) -> str:
+    # Always join with "/" (not os.sep): the result is a relative storage/attribute key
+    # that must be stable across OSes and match when looked up. Forward slashes are
+    # accepted as path separators by os.path on every platform, incl. Windows.
+    """Join path segments with ``/`` (an OS-stable storage key)."""
     if isinstance(filepath, str):
         return filepath
 
-    return os.path.join(*[str(p) for p in filepath if p is not None])
+    return "/".join(str(p) for p in filepath if p is not None)
 
 
 def random_str(length: int, random_state=None):
+    """Random alphanumeric string of the given length."""
     if random_state is None or isinstance(random_state, int):
         random_state = random.Random(random_state)
 
@@ -122,15 +124,73 @@ def random_str(length: int, random_state=None):
     )
 
 
-def object_hash(
-    payload: Any, default: Callable[[Any], Any] | None = serialize
-) -> str:
+_FILENAME_UNSAFE_RE = re.compile(r"[^a-zA-Z0-9._-]+")
+
+
+def sanitize_filename(value: str, max_len: int = 64) -> str:
+    """Make a string safe for use as a single path segment."""
+    cleaned = _FILENAME_UNSAFE_RE.sub("_", value.strip())
+    if not cleaned:
+        cleaned = "x"
+    return cleaned[:max_len]
+
+
+MACHINABLE_MARKER = ".machinable"
+
+# storage URI schemes that resolve directly to a local filesystem path
+_LOCAL_URI_SCHEMES = ("file://", "scratch://")
+
+
+def uri_to_path(uri: str) -> str:
+    """Resolve a *local* storage URI to an absolute path.
+
+    Handles ``file://`` and ``scratch://`` (relocated working copies). Remote
+    schemes such as ``s3://`` cannot be resolved to a local path and must be
+    pulled by their Storage provider first; passing one raises ``ValueError``.
+    """
+    for scheme in _LOCAL_URI_SCHEMES:
+        if uri.startswith(scheme):
+            return uri[len(scheme) :]
+    if "://" in uri:
+        raise ValueError(f"Cannot resolve remote storage URI to a local path: {uri}")
+    return os.path.abspath(uri)
+
+
+def path_to_uri(path: str) -> str:
+    """Wrap a local filesystem path as a ``file://`` storage URI."""
+    return "file://" + os.path.abspath(os.path.expanduser(path))
+
+
+def is_machinable_directory(path: str) -> bool:
+    """A directory is a valid interface iff it holds a ``.machinable`` marker."""
+    return os.path.isfile(os.path.join(path, MACHINABLE_MARKER))
+
+
+def walk_markers(root: str):
+    """Yield every record directory at or below ``root``.
+
+    A record directory holds a ``.machinable`` marker; nested markers (e.g.
+    executions under an interface) are included.
+
+    Symlinks are not followed, avoiding cycles through ``related/`` links.
+    """
+    root = os.path.expanduser(root)
+    if not os.path.isdir(root):
+        return
+    for dirpath, _dirnames, filenames in os.walk(root, followlinks=False):
+        if MACHINABLE_MARKER in filenames:
+            yield dirpath
+
+
+def object_hash(payload: Any, default: Callable[[Any], Any] | None = serialize) -> str:
+    """sha256 over the canonical JSON of ``payload``."""
     json_str = normjson(payload, default=default)
     hash_obj = hashlib.sha256(json_str.encode())
     return hash_obj.hexdigest()
 
 
 def file_hash(filepath: str):
+    """Short blake2b digest of a file's contents."""
     hash_obj = hashlib.blake2b()
     with open(str(filepath), "rb") as file:
         while chunk := file.read(8192):
@@ -138,24 +198,13 @@ def file_hash(filepath: str):
     return hash_obj.hexdigest()[:12]
 
 
-def update_uuid_payload(uuid: str, payload: dict) -> str:
-    hash_hex = object_hash(payload)
-
-    timestamp_part = uuid[:24]
-    new_random_part = hash_hex[:12]
-
-    return f"{timestamp_part}{new_random_part}"
-
-
-def empty_uuid() -> str:
-    uuid = uuid7(as_type="str")
-    timestamp_part = uuid[:24]
-    null_part = "0" * 12
-    return timestamp_part + null_part
-
-
 def id_from_uuid(uuid: str) -> str:
-    return uuid[11:13] + uuid[14:18]
+    """The 6-character short id for a record id."""
+    if len(uuid) == 6 and "-" not in uuid:
+        return uuid
+    if len(uuid) >= 18:
+        return uuid[11:13] + uuid[14:18]
+    return uuid
 
 
 # These words are picked under two objectives:
@@ -225,7 +274,7 @@ _WORDS = {
 
 
 def generate_nickname(categories=None, glue="_"):
-    """Generate a random nickname by chaining words from categories
+    """Generate a random nickname by chaining words from categories.
 
     # Arguments
     categories: List of categories, available: 'animal', 'tree', 'color'.
@@ -235,12 +284,12 @@ def generate_nickname(categories=None, glue="_"):
         categories = ("color", ("animal", "tree"))
     if isinstance(categories, str):
         categories = [categories]
-    if not isinstance(categories, (list, tuple)):
+    if not isinstance(categories, list | tuple):
         raise ValueError("Categories has to be a list of tuple")
 
     picks = []
     for category in categories:
-        if isinstance(category, (list, tuple)):
+        if isinstance(category, list | tuple):
             category = random.choice(category)
         if category not in _WORDS:
             raise KeyError(f"Invalid category: {category}")
@@ -254,12 +303,13 @@ def load_file(
     opener=open,
     **opener_kwargs,
 ) -> Any:
-    """Loads a data object from file
+    """Loads a data object from file.
 
     # Arguments
     filepath: Target filepath. The extension is being used to determine
         the file format. Supported formats are:
-        .json (JSON), .jsonl (JSON-lines), .npy (numpy), .p (pickle); all other will be loaded as plain text (e.g. .txt|.log|.diff|.sh)
+        .json (JSON), .jsonl (JSON-lines), .npy (numpy), .p (pickle); all other will be
+        loaded as plain text (e.g. .txt|.log|.diff|.sh)
     default: Optional default if reading fails
     opener: Customer file opener
     opener_kwargs: Optional arguments to pass to the opener
@@ -267,6 +317,10 @@ def load_file(
     filepath = joinpath(filepath)
     _, ext = os.path.splitext(filepath)
     mode = opener_kwargs.pop("mode", "r")
+    # the directory format is UTF-8; never the locale default (cp1252 on
+    # Windows would mangle/reject non-Latin-1 content)
+    if ext not in (".p", ".npy") and "b" not in mode and opener is open:
+        opener_kwargs.setdefault("encoding", "utf-8")
     try:
         if ext == ".p":
             if "b" not in mode:
@@ -277,10 +331,8 @@ def load_file(
             with opener(filepath, mode, **opener_kwargs) as f:
                 data = json.load(f)
         elif ext == ".jsonl":
-            with jsonlines.Reader(
-                opener(filepath, mode, **opener_kwargs)
-            ) as reader:
-                return list(reader.iter())
+            with opener(filepath, mode, **opener_kwargs) as f:
+                return [json.loads(line) for line in f if line.strip()]
         elif ext == ".npy":
             import numpy as np
 
@@ -305,12 +357,13 @@ def save_file(
     opener=open,
     **opener_kwargs,
 ) -> str:
-    """Saves a data object to file
+    """Saves a data object to file.
 
     # Arguments
     filepath: Target filepath. The extension is being used to determine
         the file format. Supported formats are:
-        .json (JSON), .jsonl (JSON-lines), .npy (numpy), .p (pickle); all other will be written as plain text (e.g. .txt|.log|.diff|.sh)
+        .json (JSON), .jsonl (JSON-lines), .npy (numpy), .p (pickle); all other will be
+        written as plain text (e.g. .txt|.log|.diff|.sh)
     data: The data object
     makedirs: If True or Callable, path will be created
     opener: Customer file opener
@@ -323,6 +376,10 @@ def save_file(
     name = os.path.basename(filepath)
     _, ext = os.path.splitext(name)
     mode = opener_kwargs.pop("mode", "w")
+    # the directory format is UTF-8; never the locale default (cp1252 on
+    # Windows would mangle/reject non-Latin-1 content)
+    if ext not in (".p", ".npy") and "b" not in mode and opener is open:
+        opener_kwargs.setdefault("encoding", "utf-8")
 
     if path != "":
         if makedirs is True:
@@ -336,13 +393,8 @@ def save_file(
             f.write(json.dumps(data, ensure_ascii=False, default=serialize))
     elif ext == ".jsonl":
         # jsonlines
-        with jsonlines.Writer(
-            opener(filepath, mode, **opener_kwargs),
-            dumps=lambda *args, **kwargs: json.dumps(
-                *args, sort_keys=True, default=serialize, **kwargs
-            ),
-        ) as writer:
-            writer.write(data)
+        with opener(filepath, mode, **opener_kwargs) as f:
+            f.write(json.dumps(data, sort_keys=True, default=serialize) + "\n")
     elif ext == ".npy":
         import numpy as np
 
@@ -367,7 +419,7 @@ def save_file(
 def import_from_directory(
     module_name: str, directory: str, or_fail: bool = False
 ) -> ModuleType | None:
-    """Imports a module relative to a given absolute directory"""
+    """Imports a module relative to a given absolute directory."""
     # determine the target .py file path
     file_path = os.path.join(directory, module_name.replace(".", "/"))
     tmp_file = False
@@ -385,15 +437,15 @@ def import_from_directory(
 
     try:
         spec = importlib.util.spec_from_file_location(module_name, file_path)
+        if spec is None or spec.loader is None:
+            raise FileNotFoundError(file_path)
         module = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(module)
         sys.modules[module_name] = module
         return module
     except FileNotFoundError as _e:
         if or_fail:
-            raise ModuleNotFoundError(
-                f"No module named '{module_name}'"
-            ) from _e
+            raise ModuleNotFoundError(f"No module named '{module_name}'") from _e
     finally:
         if tmp_file:
             os.remove(file_path)
@@ -406,6 +458,7 @@ def find_subclass_in_module(
     base_class: Any,
     default: Any | None = None,
 ) -> Any:
+    """The first subclass of ``base_class`` defined in ``module``."""
     if module is not None:
         candidates = inspect.getmembers(
             module,
@@ -422,19 +475,13 @@ def find_subclass_in_module(
     return default
 
 
-def find_installed_extensions(key: str) -> list[tuple[str, ModuleType]]:
-    return [
-        (module.name, module.load())
-        for module in entry_points().get(f"machinable.{key}", [])
-    ]
-
-
 def update_dict(
-    d: Mapping, update: Mapping | None = None, copy: bool = False
-) -> Mapping:
+    d: dict | None, update: Mapping | str | None = None, copy: bool = False
+) -> dict:
+    """Deep-merge ``update`` into ``d`` (in place unless ``copy``)."""
     if d is None:
         d = {}
-    if not isinstance(d, Mapping):
+    if not isinstance(d, dict):
         raise ValueError(f"Expected mapping but found {type(d).__name__}: {d}")
     if copy:
         d = d.copy()
@@ -442,9 +489,7 @@ def update_dict(
         return d
     if not isinstance(update, Mapping):
         if isinstance(update, str):
-            raise ValueError(
-                f"Invalid version {update}. Did you forget the ~-prefix?"
-            )
+            raise ValueError(f"Invalid version {update}. Did you forget the ~-prefix?")
         else:
             raise ValueError(
                 f"Expected update mapping but found {type(update).__name__}: {update}"
@@ -458,6 +503,7 @@ def update_dict(
 
 
 def norm_version_call(version: str):
+    """Normalize the spelling of a ``~method(args)`` version call."""
     code = version.replace("~", "").strip()
     tokens = tokenize.tokenize(BytesIO(code.encode("utf-8")).readline)
     normalized_tokens = []
@@ -477,11 +523,7 @@ def norm_version_call(version: str):
             normalized_tokens.append(tokval)
         elif toknum == tokenize.OP:
             # remove spaces before and after operators
-            if (
-                tokval == "="
-                and normalized_tokens
-                and normalized_tokens[-1] == " "
-            ):
+            if tokval == "=" and normalized_tokens and normalized_tokens[-1] == " ":
                 normalized_tokens.pop()
             normalized_tokens.append(tokval)
         elif toknum in [tokenize.NAME, tokenize.NUMBER]:
@@ -491,8 +533,7 @@ def norm_version_call(version: str):
                 tokenize.NL,
                 tokenize.NEWLINE,
             ] and not (
-                last_token_type == tokenize.OP
-                and normalized_tokens[-1] in ["(", ","]
+                last_token_type == tokenize.OP and normalized_tokens[-1] in ["(", ","]
             ):
                 normalized_tokens.append(" ")
             normalized_tokens.append(tokval)
@@ -513,6 +554,7 @@ def norm_version_call(version: str):
 
 
 def dot_splitter(flat_key):
+    """Split a flat key on dots (for ``unflatten_dict``)."""
     if not isinstance(flat_key, str):
         raise ValueError(
             f"Expected string but found {type(flat_key).__name__}: {flat_key}"
@@ -521,13 +563,13 @@ def dot_splitter(flat_key):
 
 
 def unflatten_dict(
-    d: Mapping,
+    d: Any,
     splitter: str | Callable = dot_splitter,
     inverse: bool = False,
     recursive: bool = True,
     copy: bool = True,
-) -> dict:
-    """Recursively unflatten a dict-like object
+) -> Any:
+    """Recursively unflatten a dict-like object.
 
     # Arguments
     d: The dict-like to unflatten
@@ -545,14 +587,10 @@ def unflatten_dict(
         return _unflatten_dict(d=d, splitter=splitter, inverse=inverse)
 
     if isinstance(d, list):
-        return [
-            unflatten_dict(v, splitter, inverse, recursive, copy) for v in d
-        ]
+        return [unflatten_dict(v, splitter, inverse, recursive, copy) for v in d]
 
     if isinstance(d, tuple):
-        return (
-            unflatten_dict(v, splitter, inverse, recursive, copy) for v in d
-        )
+        return (unflatten_dict(v, splitter, inverse, recursive, copy) for v in d)
 
     if isinstance(d, Mapping):
         if copy:
@@ -572,10 +610,11 @@ def run_and_stream(
     stderr_handler: Callable = print,
     check: bool = True,
     text: bool = True,
-    env: dict | None = sentinel,
+    env: Mapping | None = None,
     **kwargs,
 ) -> int:
-    if env is sentinel:
+    """Run a subprocess, streaming stdout/stderr to handlers."""
+    if env is None:
         # workaround, see https://stackoverflow.com/a/60070753
         env = os.environ
 
@@ -597,76 +636,90 @@ def run_and_stream(
             pool.submit(_st, process.stderr, stderr_handler)
         exit_code = process.wait()
         if check and exit_code:
-            raise subprocess.CalledProcessError(
-                exit_code, process.args, process.stdout, process.stderr
-            )
+            raise subprocess.CalledProcessError(exit_code, process.args)
     return exit_code
 
 
 def chmodx(filepath: str) -> str:
+    """Make a file executable."""
     st = os.stat(filepath)
     os.chmod(filepath, st.st_mode | stat.S_IEXEC)
     return filepath
 
 
-def get_diff(repository: str) -> str | None:
-    command = ["git", "diff", "--staged"]
+# Directories excluded from source discovery/listing by both the HTTP source API and
+# the MCP source tools (`.`-prefixed dirs like .git/.venv are also skipped separately).
+_SOURCE_SKIP_DIRS = {"__pycache__", "vendor", "tmp", "storage", "node_modules"}
+
+
+def skip_source_dir(name: str) -> bool:
+    """Whether a directory should be skipped when walking a project's source tree.
+
+    Single source of truth shared by the HTTP and MCP source surfaces.
+    """
+    return name.startswith(".") or name in _SOURCE_SKIP_DIRS
+
+
+def file_to_module(rel: str) -> str:
+    """Map a project-relative ``.py`` file to its dotted module path.
+
+    ``pkg/mod.py`` -> ``pkg.mod``; ``pkg/__init__.py`` -> ``pkg``.
+    """
+    norm = rel.replace("\\", "/").strip("/")
+    stem = norm[:-3] if norm.endswith(".py") else norm
+    parts = [p for p in stem.split("/") if p]
+    if parts and parts[-1] == "__init__":
+        parts = parts[:-1]
+    return ".".join(parts)
+
+
+def safe_path(base: str, rel: str) -> str:
+    """Resolve ``rel`` beneath ``base`` to an absolute, symlink-resolved path.
+
+    Raises ``ValueError`` if ``rel`` is empty/absolute, contains a NUL byte
+    or a ``..`` segment, or the resolved target escapes ``base``. The single
+    containment check shared by every file-serving surface (HTTP
+    source/chunks, MCP source tools), using
+    ``realpath`` so a symlink inside the tree cannot point the write/read outside it.
+    """
+    if not rel or "\x00" in rel or os.path.isabs(rel):
+        raise ValueError("Invalid path")
+    norm = rel.replace("\\", "/").strip("/")
+    if not norm or any(part in ("..", "") for part in norm.split("/")):
+        raise ValueError("Invalid path")
+    base = os.path.realpath(base)
+    target = os.path.realpath(os.path.join(base, norm))
+    if target != base and not target.startswith(base + os.sep):
+        raise ValueError("Path escapes the base directory")
+    return target
+
+
+def git_cmd(repository: str, *args: str, env: dict | None = None) -> str | None:
+    """Run ``git -C <repository> <args…>`` and return stripped stdout.
+
+    Returns ``None`` if git fails or is unavailable. The single low-level git
+    wrapper in the codebase (used by :class:`~machinable.manifest.Manifest`).
+    """
     try:
-        process = subprocess.run(
-            command,
-            cwd=os.path.abspath(repository),
-            capture_output=True,
-            text=True,
-            check=True,
-        )
-        return process.stdout
-    except subprocess.CalledProcessError:
-        return None
-
-
-def get_commit(repository: str) -> dict:
-    try:
-
-        def run_git_command(command):
-            return (
-                subprocess.check_output(
-                    ["git", "-C", repository] + command,
-                    stderr=subprocess.DEVNULL,
-                )
-                .decode()
-                .strip()
+        run_env = {**os.environ, **env} if env else None
+        return (
+            subprocess.check_output(
+                ["git", "-C", repository, *args],
+                stderr=subprocess.DEVNULL,
+                env=run_env,
             )
-
-        branch = run_git_command(["rev-parse", "--abbrev-ref", "HEAD"])
-        path = run_git_command(["config", "--get", "remote.origin.url"])
-        is_dirty = run_git_command(["status", "--porcelain"]) != ""
-        commit = run_git_command(["rev-parse", "HEAD"])
-
-        return {
-            "path": path,
-            "commit": commit,
-            "is_dirty": is_dirty,
-            "branch": branch,
-        }
-    except subprocess.CalledProcessError:
-        pass
-
-    return {"path": None, "commit": None, "is_dirty": None, "branch": None}
-
-
-def get_root_commit(repository: str) -> str | None:
-    command = ["git", "rev-list", "--parents", "HEAD"]
-    try:
-        process = subprocess.run(
-            command, cwd=repository, capture_output=True, text=True, check=True
+            .decode()
+            .strip()
         )
-        return process.stdout.split("\n")[-2]
-    except subprocess.CalledProcessError:
+    except (subprocess.CalledProcessError, FileNotFoundError):
         return None
 
 
 class Jsonable:
+    """Serialization trait: ``as_json``/``from_json``/``clone``."""
+
     def as_json(self, stringify=True, default=serialize, **dumps_kwargs):
+        """Serialize to JSON (a string unless ``stringify=False``)."""
         serialized = self.serialize()
         if stringify:
             serialized = json.dumps(serialized, default=default, **dumps_kwargs)
@@ -674,32 +727,38 @@ class Jsonable:
 
     @classmethod
     def from_json(cls, serialized, **loads_kwargs):
+        """Rebuild an instance from JSON."""
         if isinstance(serialized, str):
             serialized = json.loads(serialized, **loads_kwargs)
         return cls.unserialize(serialized)
 
     def clone(self):
+        """A deep copy via JSON round-trip."""
         return self.__class__.from_json(self.as_json())
 
     def serialize(self) -> dict:
+        """The instance as a plain dict (implemented by subclasses)."""
         raise NotImplementedError
 
     @classmethod
     def unserialize(cls, serialized: dict) -> Any:
+        """Rebuild an instance from ``serialize()`` output."""
         raise NotImplementedError
 
 
 class Connectable:
-    """Connectable trait"""
+    """Connectable trait."""
 
     __connection__: Optional["Connectable"] = None
 
     @classmethod
     def is_connected(cls) -> bool:
+        """True when an instance is currently connected."""
         return cls.__connection__ is not None
 
     @classmethod
     def get(cls) -> "Connectable":
+        """The connected instance, or a fresh one."""
         return cls() if cls.__connection__ is None else cls.__connection__
 
     def __enter__(self) -> Self:

@@ -1,3 +1,5 @@
+from pydantic import BaseModel
+
 from machinable import Interface, get
 from machinable.scope import Scope
 
@@ -11,17 +13,18 @@ def test_scope_element():
 
 def test_scoping(tmp_storage):
     class T(Interface):
-        Config = {"a": 1}
+        class Config(BaseModel):
+            a: int = 1
 
-    e1 = get(T, {"a": 2}).commit()
+    e1 = get(T, {"a": 2}).materialize()
     with Scope({"name": "test"}):
-        e2 = get(T, {"a": 2}).commit()
+        e2 = get(T, {"a": 2}).materialize()
         assert e2 != e1
     assert len(get(T, {"a": 2}).all()) == 2
     with Scope({"name": "test"}):
-        assert get(T, {"a": 2}).commit() != e1
+        assert get(T, {"a": 2}).materialize() != e1
 
-    e3 = get(T).commit()
+    e3 = get(T).materialize()
     assert e1 != e2 != e3
     assert get(T, {"a": 2}) == e2
 

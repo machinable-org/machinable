@@ -1,0 +1,8 @@
+name: slurm
+summary: Submit runs to the Slurm scheduler
+tags: [execution, hpc, scheduler]
+maintainer: machinable-org
+maintainer_url: https://github.com/machinable-org
+upstream: https://slurm.schedmd.com/documentation.html
+requires: []
+status: active

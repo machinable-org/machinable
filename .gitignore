@@ -1,5 +1,10 @@
 # Test data
-/storage
+storage
+tmp
+
+# machinable project index (cache; rebuildable via project.reindex())
+.machinable.sqlite
+index.sqlite
 tests/.hypothesis
 **/vendor/.cache
 .hypothesis
@@ -65,3 +70,10 @@ MANIFEST
 
 # Per-project virtualenvs
 .venv*/
+tests/corpus/
+docs/reference/python/
+docs/reference/api/
+docs/integrations/
+docs/.vitepress/sidebar-reference.json
+docs/.vitepress/sidebar-integrations.json
+docs/API.md

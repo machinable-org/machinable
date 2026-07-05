@@ -1,0 +1,8 @@
+name: mpi
+summary: Launch runs as MPI jobs
+tags: [execution, hpc, mpi]
+maintainer: machinable-org
+maintainer_url: https://github.com/machinable-org
+upstream: https://en.wikipedia.org/wiki/Message_Passing_Interface
+requires: []
+status: active

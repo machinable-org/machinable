@@ -1,6 +1,6 @@
 [project]
 name = "machinable"
-version = "4.10.6"
+version = "5.0.0"
 description = "A modular configuration system for research projects"
 license = "MIT"
 authors = [{ name = "Frithjof Gressmann", email = "hello@machinable.org" }]
@@ -15,17 +15,25 @@ classifiers = [
   "Intended Audience :: Science/Research",
 ]
 dependencies = [
-  "flatten-dict>=0.4,<1",
-  "jsonlines>=3.1,<5.0",
+  "flatten-dict>=0.5,<1",
   "pydantic>=1,<3",
-  "arrow>=1.3,<2",
-  "omegaconf==2.4.0.dev3",
-  "dill>=0.3.9,<1",
-  "uuid7>=0.1.0,<1",
+  "arrow>=1.4.0",
+  "omegaconf==2.4.0.dev12",
+  "dill>=0.4.1",
+  "cloudpickle>=3",
 ]
 
 [project.optional-dependencies]
 all = ["numpy", "pandas"]
+mcp = ["fastmcp>=2", "scipy", "numpy", "pandas"]
+api = [
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.30",
+    "textual>=1.0",
+    "httpx>=0.27",
+    "aiofiles>=23",
+]
+widgets = ["anywidget>=0.9"]
 
 [project.scripts]
 machinable = "machinable.cli:main"
@@ -42,28 +50,50 @@ build-backend = "hatchling.build"
 [tool.hatch.build.targets.wheel]
 packages = ["src/machinable"]
 
-[tool.uv]
-dev-dependencies = [
-  "ruff>=0.4",
-  "pytest>=7.4",
-  "pre-commit>=3.5.0",
-  "editorconfig-checker>=2.7.3",
-  "pytest-cov>=4.1.0",
+[dependency-groups]
+dev = [
+    "ruff>=0.15.16",
+    "pytest>=8.1",
+    "pre-commit>=4.6.0",
+    "httpx>=0.28.1",
+    "aiofiles>=23",
+    "anywidget>=0.9",
+    "pandas>=2.0",
+    "ty==0.0.56",
 ]
 
+[tool.ty.src]
+include = ["src/machinable"]
+# agent-facing templates that reference project modules by convention;
+# not part of the typed surface
+exclude = ["src/machinable/mcp/teaching"]
+
+[tool.pytest.ini_options]
+# integrations/ is community-maintained and runs in its own workflow
+testpaths = ["tests"]
+
 [tool.ruff]
-line-length = 80
-target-version = "py311"
+# community-maintained, checked by the integrations workflow instead
+extend-exclude = ["integrations"]
 
 [tool.ruff.lint]
-select = ["E", "F", "I", "UP"]
-ignore = ["E501"]
+select = ["E", "F", "I", "UP", "D"]
+# magic methods, nested Config classes, and __init__ are self-describing
+ignore = ["D105", "D106", "D107"]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
 
 [tool.ruff.lint.per-file-ignores]
-"docs/examples/**" = ["UP007", "UP045", "E722", "F811"]
-"src/machinable/interface.py" = ["E722"]
-"src/machinable/utils.py" = ["E402"]
-"tests/test_index.py" = ["F811"]
+# docstring style applies everywhere; presence (D1) only where the backfill is
+# complete — remove entries below as their public members get documented
+"src/machinable/api/**" = ["D1"]
+"src/machinable/mcp/**" = ["D1"]
+# tests, docs, and scripts document themselves through their names
+"tests/**" = ["D"]
+"docs/**" = ["D"]
+# emits markdown/CSS templates whose lines cannot wrap
+"docs/.vitepress/integrationsgen.py" = ["E501"]
 
 [tool.ruff.lint.isort]
 known-first-party = ["machinable"]

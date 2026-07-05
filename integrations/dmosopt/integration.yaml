@@ -1,0 +1,8 @@
+name: dmosopt
+summary: Distributed multi-objective surrogate optimization
+tags: [component, optimization, mpi]
+maintainer: machinable-org
+maintainer_url: https://github.com/machinable-org
+upstream: https://github.com/iraikov/dmosopt
+requires: [dmosopt, distwq, h5py, numpy, pandas, mpi4py]
+status: active

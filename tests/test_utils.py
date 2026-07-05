@@ -1,10 +1,9 @@
 import os
-import subprocess
 
 import pytest
 
 from machinable import get_version, utils
-from machinable.element import Element
+from machinable.interface import Interface
 
 
 def test_generate_nickname():
@@ -59,19 +58,14 @@ def test_filesystem_utils(tmpdir):
 def test_import_from_directory():
     # relative imports
     assert type(
-        utils.import_from_directory(
-            "top", "./tests/samples/importing"
-        ).TopComponent
+        utils.import_from_directory("top", "./tests/samples/importing").TopComponent
     ) is type(
-        utils.import_from_directory(
-            "importing.top", "./tests/samples"
-        ).TopComponent
+        utils.import_from_directory("importing.top", "./tests/samples").TopComponent
     )
 
     # import modules with and without __init__.py
     assert (
-        utils.import_from_directory("nested", "./tests/samples/importing")
-        is not None
+        utils.import_from_directory("nested", "./tests/samples/importing") is not None
     )
     assert (
         utils.import_from_directory("importing", "./tests/samples").__doc__
@@ -87,15 +81,13 @@ def test_find_subclass_in_module():
     assert utils.find_subclass_in_module(None, None) is None
 
     module = utils.import_from_directory("top", "./tests/samples/importing")
-    assert type(utils.find_subclass_in_module(module, Element)) is type(
+    assert type(utils.find_subclass_in_module(module, Interface)) is type(
         module.TopComponent
     )
 
     # ignores imported classes?
-    module = utils.import_from_directory(
-        "nested.bottom", "./tests/samples/importing"
-    )
-    assert type(utils.find_subclass_in_module(module, Element)) is type(
+    module = utils.import_from_directory("nested.bottom", "./tests/samples/importing")
+    assert type(utils.find_subclass_in_module(module, Interface)) is type(
         module.BottomComponent
     )
 
@@ -115,48 +107,6 @@ def test_unflatten_dict():
 
 def test_machinable_version():
     assert isinstance(get_version(), str)
-
-
-def test_git_utils(tmp_path):
-    # create a repository
-    repo_dir = str(tmp_path / "test_repo")
-    os.makedirs(repo_dir, exist_ok=True)
-    subprocess.run(["git", "init"], cwd=repo_dir, check=True)
-
-    # get_diff
-    assert utils.get_diff(str(tmp_path)) is None
-    assert utils.get_diff(repo_dir) == ""
-
-    with open(os.path.join(repo_dir, "test"), "w") as f:
-        f.write("some test data")
-
-    subprocess.run(["git", "add", "."], cwd=repo_dir, check=True)
-    assert "some test data" in utils.get_diff(repo_dir)
-
-
-def test_mixins():
-    class MixinImplementation:
-        attribute = "works"
-
-        def is_bound(self, param):
-            return "bound_to_" + self.flags.BOUND + "_" + str(param)
-
-        def this_reference(self, param):
-            return self.__mixin__.is_bound("and_referenced_" + str(param))
-
-        def this_attribute(self):
-            return self.__mixin__.attribute
-
-        def this_static(self, param):
-            return self.__mixin__.static_method(param)
-
-        @staticmethod
-        def static_method(foo):
-            return foo
-
-        @property
-        def key_propery(self):
-            return 1
 
 
 def test_directory_version():
@@ -182,12 +132,15 @@ def test_directory_version():
 def test_joinpath():
     assert utils.joinpath(["a", "b"]) == "a/b"
     assert utils.joinpath(["a", "b", "c"]) == "a/b/c"
-    e = Element()
+    e = Interface().materialize()
     assert utils.joinpath([e.id, "b"]) == f"{e.id}/b"
     assert utils.joinpath(["a", ""]) == "a/"
     assert utils.joinpath([None, "a", None, "b"]) == "a/b"
 
 
+@pytest.mark.skipif(
+    os.name == "nt", reason="POSIX exec bit; os.X_OK is meaningless on Windows"
+)
 def test_chmodx(tmp_path):
     script = utils.save_file(str(tmp_path / "test.sh"), 'echo "HELLO"')
     assert not os.access(script, os.X_OK)
@@ -195,15 +148,14 @@ def test_chmodx(tmp_path):
     assert os.access(script, os.X_OK)
 
 
+@pytest.mark.skipif(
+    os.name == "nt", reason="runs a POSIX shell script; not applicable under cmd.exe"
+)
 def test_run_and_stream(tmp_path):
-    script = utils.chmodx(
-        utils.save_file(str(tmp_path / "test.sh"), 'echo "HELLO"')
-    )
+    script = utils.chmodx(utils.save_file(str(tmp_path / "test.sh"), 'echo "HELLO"'))
 
     o = []
-    utils.run_and_stream(
-        script, shell=True, stdout_handler=lambda x: o.append(x)
-    )
+    utils.run_and_stream(script, shell=True, stdout_handler=lambda x: o.append(x))
     assert o[0] == "HELLO\n"
 
 

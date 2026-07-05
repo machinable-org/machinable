@@ -1,7 +1,7 @@
-from machinable import Component
+from machinable import Interface
 
 
-class Basic(Component):
+class Basic(Interface):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self._state = None

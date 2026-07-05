@@ -1,15 +1,4 @@
 import DefaultTheme from 'vitepress/theme'
 import './custom.css'
-import Pydoc from '../components/Pydoc.vue'
-import Tree from '../components/Tree.vue'
-import pydocData from '../pydoc'
 
-export default {
-  extends: DefaultTheme,
-  enhanceApp({ app }) {
-    app.config.globalProperties.$pydocData = pydocData;
-    app.component('Pydoc', Pydoc);
-    app.component('Tree', Tree);
-  }
-}
-
+export default DefaultTheme
