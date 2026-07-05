@@ -147,6 +147,13 @@ def main(args: list | None = None):
         elif h == "version":
             print("\nmachinable version")
             return 0
+        elif h == "console":
+            print("\nmachinable console [URL] [--token T]")
+            print(
+                "\nAttach the terminal console to a running machinable API "
+                "server\n(defaults to http://127.0.0.1:8000)."
+            )
+            return 0
         elif h == "fetch":
             print("\nmachinable fetch [module ...] [--project DIR]")
             print(
@@ -166,6 +173,32 @@ def main(args: list | None = None):
 
     if action == "mcp":
         return _run_mcp(args)
+
+    if action == "console":
+        # `machinable console [URL] [--token T]`: attach the terminal console
+        # to a running machinable API server (local or remote).
+        url = "http://127.0.0.1:8000"
+        token = None
+        it = iter(args)
+        for arg in it:
+            if arg == "--token":
+                token = next(it, None)
+            elif arg.startswith("-"):
+                print(f"Unrecognized option '{arg}'", file=sys.stderr)
+                return 128
+            else:
+                url = arg
+        try:
+            from machinable.console import run_console
+        except ImportError:
+            print(
+                "The console requires textual. "
+                "Install with: pip install 'machinable[console]'",
+                file=sys.stderr,
+            )
+            return 1
+        run_console(url=url, token=token)
+        return 0
 
     if action == "dispatch":
         # `machinable dispatch [--foreground|--detach|--prepare] [--wait]

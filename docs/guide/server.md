@@ -21,6 +21,7 @@ Its `Config` controls the bind and the security surface:
 | Field | Default | Purpose |
 | --- | --- | --- |
 | `host` / `port` | `127.0.0.1` / `8000` | bind address |
+| `console` | `None` (auto) | attach the [console](#the-console) when launched from a terminal |
 | `api_token` | `None` | bearer token required for requests |
 | `project` | `None` | the default project a request binds to |
 | `project_roots` | `None` | extra roots that may be opened per request |
@@ -49,6 +50,44 @@ Config reflection is first-class: `GET /v1/project/{module}` returns the config 
 and the [version-method vocabulary](./versions.md) (signatures + docstrings), and
 `POST /v1/interfaces/resolve` dry-runs a compact version to its resolved config and CLI
 without materializing.
+
+## The console
+
+`machinable console` attaches a terminal UI to a running server, local or remote. It is
+a pure API client, so everything it shows travels through the same contract as any
+other client:
+
+```bash
+pip install 'machinable[console]'
+
+machinable console                              # http://127.0.0.1:8000
+machinable console http://cluster:8000 --token SECRET
+```
+
+The console browses and filters the record catalog, opens a record to inspect its
+resolved config, run history, and stored files, follows a live run's output, and
+cancels runs (`y` copies the record's CLI reproduction command). A server launched from
+a terminal attaches the console automatically when it is installed; set `console=true`
+to require it (launching fails with an install hint when it is missing) or
+`console=false` for a headless server.
+
+Beyond browsing, the console drives the full loop:
+
+- **Launch pad** (`n`): pick a module, see its config fields and `~version`
+  vocabulary, and type a version exactly like the [CLI](./cli.md)
+  (`~sgd lr=0.1 nested.k=2`). The preview resolves live, so typos surface as precise
+  unknown-key errors, and an identity badge shows whether this configuration is a
+  `draft` (launching runs it) or already `cached` (launching opens the existing
+  record) before anything executes.
+- **Provenance** (record detail tab): the record's provenance graph as a navigable
+  tree of derivation, runs, and manifest edges; selecting a node jumps to that
+  record.
+- **Call** (record detail tab): invoke a method with the shared `method(args)`
+  grammar (e.g. `summary(top=3)`) and read the returned value, with the equivalent
+  `machinable … --method(args)` command shown for reproduction.
+- **Remotes** (`R`): the project's declared remote modules, with the
+  [inspect-before-import](./storage.md#remotes-shareable-interfaces) workflow.
+- `ctrl+p` opens the command palette; `?` shows the key reference.
 
 ## The full contract
 

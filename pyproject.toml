@@ -29,10 +29,10 @@ mcp = ["fastmcp>=2", "scipy", "numpy", "pandas"]
 api = [
     "fastapi>=0.115",
     "uvicorn[standard]>=0.30",
-    "textual>=1.0",
     "httpx>=0.27",
     "aiofiles>=23",
 ]
+console = ["textual>=1.0", "httpx>=0.27"]
 widgets = ["anywidget>=0.9"]
 
 [project.scripts]
@@ -89,6 +89,8 @@ convention = "google"
 # complete — remove entries below as their public members get documented
 "src/machinable/api/**" = ["D1"]
 "src/machinable/mcp/**" = ["D1"]
+# Textual action_*/on_* handlers are named by convention; docstrings add noise
+"src/machinable/console/**" = ["D1"]
 # tests, docs, and scripts document themselves through their names
 "tests/**" = ["D"]
 "docs/**" = ["D"]

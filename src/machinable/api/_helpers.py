@@ -92,7 +92,7 @@ async def project_context(request: Request):
 
 
 def log_event(request: Request, message: str) -> None:
-    """Append to the server's in-memory activity log (shown in the TUI)."""
+    """Append to the server's in-memory activity log."""
     queue = getattr(request.app.state, "event_log", None)
     if queue is not None:
         queue.append(message)
