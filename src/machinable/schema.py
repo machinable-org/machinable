@@ -80,6 +80,12 @@ class Project(Interface):
     kind: str = "Project"
 
 
+class Server(Interface):
+    """Model for API-server records."""
+
+    kind: str = "Server"
+
+
 class Execution(Interface):
     """Model for Execution run-records (seed, nickname, resources)."""
 

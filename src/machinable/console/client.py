@@ -102,11 +102,17 @@ class ConsoleClient:
         kind: str | None = None,
         limit: int = 500,
         offset: int = 0,
+        include_status: bool = False,
     ) -> dict:
-        """Search interface records; returns ``{items, total}``."""
+        """Search interface records; returns ``{items, total}``.
+
+        ``include_status`` enriches each hit with its compute ``status`` and
+        ``run_count`` (page-bounded on the server).
+        """
         body: dict[str, Any] = {
             "limit": limit,
             "offset": offset,
+            "include_status": include_status,
             "sort": [{"by": "created_at_ns", "direction": "desc"}],
         }
         if module:
@@ -171,10 +177,27 @@ class ConsoleClient:
         """One execution run-record with lifecycle status."""
         return await self._request("GET", f"/v1/executions/{uuid}")
 
-    async def output(self, uuid: str) -> str | None:
-        """The run's captured output, or None before it started."""
-        payload = await self._request("GET", f"/v1/executions/{uuid}/output")
-        return payload.get("output")
+    async def output(
+        self,
+        uuid: str,
+        *,
+        offset: int | None = None,
+        tail: int | None = None,
+        limit: int = 65536,
+    ) -> dict:
+        """A bounded window of the run's output: ``{output, offset, size}``.
+
+        Follow incrementally: request a ``tail`` first, then poll with
+        ``offset=size`` for appended bytes only.
+        """
+        params: dict[str, Any] = {"limit": limit}
+        if offset is not None:
+            params["offset"] = offset
+        if tail is not None:
+            params["tail"] = tail
+        return await self._request(
+            "GET", f"/v1/executions/{uuid}/output", params=params
+        )
 
     async def cancel(self, uuid: str) -> None:
         """Best-effort cancel (writes the ``cancelled`` marker)."""

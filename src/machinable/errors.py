@@ -8,8 +8,13 @@ class MachinableError(Exception):
 class ConfigurationError(MachinableError):
     """Invalid configuration.
 
+    ``paths`` optionally carries the dotted config paths the error attaches to
+    (e.g. unknown keys), so API clients can render field-level issues.
+
     Bases: MachinableError
     """
+
+    paths: list[str] = []
 
 
 class DependencyMissing(MachinableError, ImportError):

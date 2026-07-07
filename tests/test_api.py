@@ -52,6 +52,35 @@ def test_interface_call(api_client):
     assert response.json()["payload"] == "there"
 
 
+def test_interface_call_errors_are_structured(api_client):
+    def call(method, **kwargs):
+        return api_client.post(
+            "/v1/interfaces/call",
+            json={"target": "basic", "method": method, "args": [], **kwargs},
+        )
+
+    # a nonexistent method is a 404 with the reason, not a bare 500
+    missing = call("nope")
+    assert missing.status_code == 404
+    assert "nope" in missing.json()["detail"]
+
+    # private/dunder names are rejected (no remote __call__ / getattr probing)
+    private = call("__call__")
+    assert private.status_code == 400
+    assert "private" in private.json()["detail"]
+
+    # signature mismatches are a 400 naming the method
+    bad_args = call("hello", kwargs={"unexpected": 1})
+    assert bad_args.status_code == 400
+    assert "hello" in bad_args.json()["detail"]
+
+    # an exception inside the method surfaces its type + message as detail
+    raised = call("faulty")
+    assert raised.status_code == 500
+    assert "RuntimeError" in raised.json()["detail"]
+    assert "accessor exploded" in raised.json()["detail"]
+
+
 def test_interface_ws_call(api_client):
     with api_client.websocket_connect("/v1/interfaces/ws") as ws:
         ws.send_json(
@@ -459,6 +488,122 @@ def test_config_search_range_sort_pagination(api_client):
     # label filter narrows to a single instance
     by_label = api_client.post("/v1/interfaces/search", json={"label": "v3"}).json()
     assert [item["config"]["duration"] for item in by_label["items"]] == [3]
+
+
+def test_search_include_status(api_client):
+    # a run through the API: cached with one recorded execution
+    dispatched = api_client.post(
+        "/v1/executions", json={"interfaces": [{"target": "basic"}]}
+    ).json()
+    for _ in range(200):
+        detail = api_client.get(f"/v1/executions/{dispatched['uuid']}").json()
+        if detail.get("is_finished"):
+            break
+        time.sleep(0.05)
+
+    # plain search stays lean (no status derivation)
+    plain = api_client.post("/v1/interfaces/search", json={"module": "basic"}).json()
+    assert plain["items"][0]["status"] is None
+
+    enriched = api_client.post(
+        "/v1/interfaces/search", json={"module": "basic", "include_status": True}
+    ).json()
+    item = enriched["items"][0]
+    assert item["id"] == dispatched["parent_uuid"]
+    assert item["status"] == "cached"
+    assert item["run_count"] == 1
+    assert item["version"] == []
+
+    # a never-run record reports draft
+    api_client.post(
+        "/v1/interfaces", json={"target": "view", "version": [{"duration": 9}]}
+    )
+    drafts = api_client.post(
+        "/v1/interfaces/search", json={"module": "view", "include_status": True}
+    ).json()
+    assert drafts["items"][0]["status"] == "draft"
+    assert drafts["items"][0]["run_count"] == 0
+    assert drafts["items"][0]["version"] == [{"duration": 9}]
+
+
+def test_module_schema_nested_reflection(api_client):
+    schema = api_client.get("/v1/project/pipeline").json()
+    fields = {f["name"]: f for f in schema["config_fields"]}
+
+    # a nested model annotation carries its recursively reflected sub-fields
+    optimizer = fields["optimizer"]
+    sub = {f["name"]: f for f in optimizer["fields"]}
+    assert (
+        sub["kind"]["type"].startswith("typing.Literal")
+        or "Literal" in sub["kind"]["type"]
+    )
+    assert sub["lr"]["default"] == 0.1
+
+    # …including through list containers
+    stages = fields["stages"]
+    assert [f["name"] for f in stages["fields"]] == ["name", "epochs"]
+
+    # plain fields stay flat
+    assert fields["note"]["fields"] is None
+
+    # the ~version vocabulary is reflected with signatures + docs
+    methods = {m["name"]: m for m in schema["version_methods"]}
+    assert "epochs" in methods["fast"]["signature"]
+    assert methods["precise"]["doc"] == "Lower learning rate."
+
+    # the class's source location is reflected (feeds code views)
+    assert schema["source_file"] == "pipeline.py"
+    assert schema["source_line"] > 0
+    assert methods["fast"]["source_line"] > schema["source_line"]
+
+
+def test_output_capture_and_chunking(api_client):
+    # in-process (thread) dispatch captures the run's stdout into output.log
+    dispatched = api_client.post(
+        "/v1/executions", json={"interfaces": [{"target": "interface.dummy"}]}
+    ).json()
+    for _ in range(200):
+        detail = api_client.get(f"/v1/executions/{dispatched['uuid']}").json()
+        if detail.get("is_finished"):
+            break
+        time.sleep(0.05)
+    assert detail["is_finished"] is True
+
+    base = f"/v1/executions/{dispatched['uuid']}/output"
+    full = api_client.get(base).json()
+    assert "Hello world!" in full["output"]
+    assert full["offset"] == 0
+    assert full["size"] == len(full["output"].encode())
+
+    # tail: the last N bytes, offset reporting where the window starts
+    tail = api_client.get(f"{base}?tail=7").json()
+    assert full["output"].endswith(tail["output"])
+    assert tail["offset"] == full["size"] - 7
+
+    # incremental follow: offset=size yields an empty append, same size
+    follow = api_client.get(f"{base}?offset={full['size']}").json()
+    assert follow["output"] == ""
+    assert follow["size"] == full["size"]
+
+    # windows are capped server-side
+    capped = api_client.get(f"{base}?limit=4").json()
+    assert len(capped["output"].encode()) <= 4
+
+
+def test_resolve_structured_issues(api_client):
+    ok = api_client.post(
+        "/v1/interfaces/resolve", json={"target": "view", "version": [{"duration": 5}]}
+    )
+    assert ok.status_code == 200
+
+    bad = api_client.post(
+        "/v1/interfaces/resolve", json={"target": "view", "version": [{"nope": 1}]}
+    )
+    assert bad.status_code == 400
+    detail = bad.json()["detail"]
+    assert "Unknown config key" in detail["message"]
+    assert detail["issues"][0]["path"] == "nope"
+    assert "Unknown config key" in detail["issues"][0]["message"]
 
 
 def test_ws_binary_read_and_not_found(api_client):

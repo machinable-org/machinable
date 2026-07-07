@@ -77,3 +77,9 @@ docs/integrations/
 docs/.vitepress/sidebar-reference.json
 docs/.vitepress/sidebar-integrations.json
 docs/API.md
+
+# Web client bundle: built by CI (wheel + docs site), not committed
+src/machinable/assets/widget-sdk.js
+src/machinable/assets/widget-sdk.css
+docs/public/widget-sdk.js
+docs/public/widget-sdk.css

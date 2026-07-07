@@ -73,6 +73,28 @@ def data_get(target, key, default=None):
 class Collection:
     """Ordered container of live items with filter/map/reduce-style helpers."""
 
+    def widget(self):
+        """Render the run browser (ListView) in the web client (Jupyter).
+
+        The catalog counterpart of :meth:`Interface.widget`: search, facets,
+        and open-by-row over the project's records. Rarely needed directly —
+        ``display(collection)`` renders the same view. It renders against the
+        connected :class:`Server <machinable.server.Server>`; with none
+        connected, a kernel-local default is connected and reused.
+        """
+        from machinable.server import Server
+
+        return Server.ensure().view(view="list")
+
+    def _repr_mimebundle_(self, include=None, exclude=None, **kwargs):
+        # IPython display hook: `display(collection)` renders the run browser;
+        # anything missing (anywidget, uvicorn) falls back to the plain repr.
+        try:
+            view = self.widget()
+            return view._repr_mimebundle_(include=include, exclude=exclude, **kwargs)
+        except Exception:  # noqa: BLE001 - display is best-effort by contract
+            return None
+
     def __init__(self, items=None):
         """Creates a new Collection.
 

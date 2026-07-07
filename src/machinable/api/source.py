@@ -1,9 +1,11 @@
-"""Helpers for the source-editing API (``/v1/source``).
+"""Helpers for the source API (``/v1/source``).
 
-Writing ``.py`` files that machinable later imports is a remote-code-execution
-surface, so this module is deliberately conservative: every path is confined to
-a ``BASE_DIR`` via ``realpath`` (symlink-safe), extensions are whitelisted, and
-the routes require an explicit opt-in plus a token (see ``require_source_auth``).
+Reading source is inspection and is served by default (subject to the server's
+global bearer token). Writing ``.py`` files that machinable later imports is a
+remote-code-execution surface, so this module is deliberately conservative:
+every path is confined to a ``BASE_DIR`` via ``realpath`` (symlink-safe),
+extensions are whitelisted, and the write routes require an explicit opt-in
+plus a token (see ``require_source_write``).
 """
 
 from __future__ import annotations
@@ -20,11 +22,12 @@ from machinable.api.models import SourceFile
 from machinable.utils import file_to_module, safe_path, skip_source_dir
 
 
-def require_source_auth(request: Request) -> None:
-    """FastAPI dependency guarding the source API.
+def require_source_write(request: Request) -> None:
+    """FastAPI dependency guarding the source WRITE routes (put/delete/move).
 
-    Secure by default: the API must be explicitly enabled *and* a token must be
-    configured; a missing/invalid bearer token yields 401.
+    Secure by default: writing must be explicitly enabled *and* a token must be
+    configured; a missing/invalid bearer token yields 401. Reading is not
+    gated here — inspection is served by default.
     """
     state = request.app.state
     if not getattr(state, "enable_source_api", False):

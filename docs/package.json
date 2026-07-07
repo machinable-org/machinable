@@ -1,7 +1,7 @@
 {
     "private": true,
     "scripts": {
-        "gen": "uv run .vitepress/pydocgen.py && uv run .vitepress/integrationsgen.py && uv run python -m machinable.api.docs",
+        "gen": "uv run .vitepress/pydocgen.py && uv run .vitepress/integrationsgen.py && uv run python -m machinable.api.docs && npm --prefix ../web/sdk install && npm --prefix ../web/sdk run build && node .vitepress/copysdk.mjs",
         "predev": "npm run gen",
         "dev": "vitepress dev",
         "prebuild": "npm run gen",

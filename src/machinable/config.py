@@ -68,12 +68,15 @@ def check_unknown_keys(
             if handles_extras:
                 continue
             declared = ", ".join(model.model_fields) or "<none>"
-            raise ConfigurationError(
+            error = ConfigurationError(
                 f"Unknown config key '{_path}{key}' "
                 f"(declared fields: {declared}). Fix the name, or set "
                 f'model_config = ConfigDict(extra="allow") on the Config '
                 f"to accept free-form keys."
             )
+            # structured location for API clients (field-attached error display)
+            error.paths = [f"{_path}{key}"]
+            raise error
         _check_annotation(value, field.annotation, f"{_path}{key}")
 
 

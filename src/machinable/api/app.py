@@ -10,6 +10,7 @@ from contextlib import asynccontextmanager
 from typing import TYPE_CHECKING
 
 from machinable.api.routes import (
+    assets,
     executions,
     health,
     interfaces,
@@ -82,6 +83,8 @@ def create_app(
     source_token: str | None = None,
     source_extensions: list[str] | None = None,
     source_base_dir: str | None = None,
+    sdk_dev: str | None = None,
+    ambient_connections: list[dict] | None = None,
     extra_routers: list[APIRouter] | None = None,
 ) -> FastAPI:
     _require_fastapi()
@@ -109,6 +112,11 @@ def create_app(
     app.state.source_base_dir = source_base_dir or os.environ.get(
         "MACHINABLE_SOURCE_BASE_DIR"
     )
+    # when set, /widget-sdk.js shims to this Vite dev server (hot reload)
+    app.state.sdk_dev = sdk_dev
+    # {target, version} specs re-connected per request (in-process servers pass
+    # the caller's ambient Storage/Index here — see project_context)
+    app.state.ambient_connections = list(ambient_connections or [])
 
     # innermost custom middleware (added first): routes a request to a subprocess
     # worker when a different interpreter is requested, else serves in-process.
@@ -126,10 +134,11 @@ def create_app(
     )
 
     if api_token:
+        from machinable.api.routes.assets import PUBLIC_PATHS
 
         @app.middleware("http")
         async def bearer_auth(request: Request, call_next) -> Response:
-            if request.url.path in {"/docs", "/openapi.json", "/redoc"}:
+            if request.url.path in {"/docs", "/openapi.json", "/redoc"} | PUBLIC_PATHS:
                 return await call_next(request)
             auth = request.headers.get("Authorization", "")
             if auth != f"Bearer {api_token}":
@@ -152,6 +161,7 @@ def create_app(
         return response
 
     app.include_router(health.router)
+    app.include_router(assets.router)
     app.include_router(meta.router)
     app.include_router(interfaces.router)
     app.include_router(executions.router)

@@ -81,6 +81,7 @@ export default defineConfig({
           items: [
             { text: 'The CLI', link: '/guide/cli' },
             { text: 'The API server', link: '/guide/server' },
+            { text: 'The web client', link: '/guide/webclient' },
             { text: 'Widgets', link: '/guide/widgets' },
             { text: 'Inference', link: '/guide/inference' },
             { text: 'Putting it all together', link: '/guide/putting-it-all-together' }

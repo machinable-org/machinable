@@ -81,13 +81,22 @@ async def project_context(request: Request):
 
     Runs as an async dependency so the (context-local) connection stack it sets
     is inherited by both async routes and sync routes dispatched to the
-    threadpool.
+    threadpool. An in-process server (``Server.start()`` in a notebook kernel)
+    passes the caller's ambient Storage/Index as ``ambient_connections``; they
+    are re-entered per request so the API sees the same records as the
+    surrounding code.
     """
     directory = resolve_project_dir(request)
     username = request.headers.get("X-Machinable-User")
     request.state.project = directory
     request.state.username = username
-    with connection_scope(), Project(directory, username=username):
+    with (
+        connection_scope(),
+        Project(directory, username=username),
+        contextlib.ExitStack() as stack,
+    ):
+        for spec in getattr(request.app.state, "ambient_connections", None) or []:
+            stack.enter_context(Interface.make(spec["target"], version=spec["version"]))
         yield directory
 
 
@@ -267,8 +276,10 @@ def search_interfaces(request: Request, req) -> Any:
     from machinable.index import Index
 
     entries, total = Index.get().search(req)
-    items = [
-        SearchItem(
+    include_status = bool(getattr(req, "include_status", False))
+    items = []
+    for entry in entries:
+        item = SearchItem(
             id=entry.record_id,
             module=entry.module,
             kind=entry.kind,
@@ -277,13 +288,47 @@ def search_interfaces(request: Request, req) -> Any:
                 for k, v in (entry.config.resolved or {}).items()
                 if not str(k).startswith("_")
             },
+            version=list(entry.config.version or []),
             created_at_ns=entry.created_at_ns,
             created_by=entry.created_by,
             label=entry.label,
         )
-        for entry in entries
-    ]
+        if include_status and entry.kind != "Execution":
+            item.status, item.run_count = _entry_status(entry.record_id)
+        items.append(item)
     return SearchResponse(items=items, total=total)
+
+
+def _entry_status(uuid: str) -> tuple[str, int]:
+    """Compute status + run count for one search hit, from its latest run.
+
+    Page-bounded (search ``limit`` caps the lookups) and index-first: one index
+    query for the newest run summary, one record read for its markers.
+    """
+    from machinable.api.models import FindRequest, SortSpec
+    from machinable.index import Index
+
+    found = Index.get().find(
+        FindRequest(
+            kind="Execution",
+            parent_id=uuid,
+            sort=[SortSpec(by="created_at_ns", direction="desc")],
+            limit=1,
+        )
+    )
+    if not found.items:
+        return "draft", 0
+    latest = Interface.find_by_id(found.items[0].record_id)
+    if latest is None or not isinstance(latest, Execution):
+        return "draft", found.total
+    status = latest.status_snapshot()
+    if status.is_finished:
+        return "cached", found.total
+    if status.is_active:
+        return "running", found.total
+    if status.is_incomplete:
+        return "failed", found.total
+    return "draft", found.total
 
 
 def evict_interface(uuid: str, request: Request) -> None:
@@ -683,29 +728,62 @@ def discover_project_modules(project_dir: str) -> ProjectIndex:
     return ProjectIndex(project=os.path.abspath(project_dir), modules=modules)
 
 
+def _nested_config_fields(annotation, depth: int) -> list[ConfigField] | None:
+    """Recursively reflected sub-fields for a nested config model annotation.
+
+    Resolves a model behind ``Optional``/unions and inside ``list``/``dict``
+    containers; ``depth`` caps self-referencing models.
+    """
+    from typing import get_args, get_origin
+
+    from machinable.config import _nested_model
+
+    if depth <= 0:
+        return None
+    nested = _nested_model(annotation)
+    if nested is None:
+        origin = get_origin(annotation)
+        args = get_args(annotation)
+        if origin in (list, tuple, set, frozenset) and args:
+            nested = _nested_model(args[0])
+        elif origin is dict and len(args) == 2:
+            nested = _nested_model(args[1])
+    if nested is None:
+        return None
+    return _reflect_model_fields(nested, depth - 1)
+
+
+def _reflect_model_fields(model, depth: int = 6) -> list[ConfigField]:
+    """ConfigField list for a pydantic model, nested models reflected in."""
+    fields: list[ConfigField] = []
+    for name, field in model.model_fields.items():
+        if name.endswith("_"):
+            continue
+        if hasattr(field, "is_required"):
+            required = field.is_required()
+            default = None if required else field.default
+        else:
+            default = field.default
+            required = getattr(field, "required", False)
+        fields.append(
+            ConfigField(
+                name=name,
+                type=str(field.annotation),
+                default=default,
+                required=required,
+                fields=_nested_config_fields(field.annotation, depth),
+            )
+        )
+    return fields
+
+
 def module_schema(project_dir: str, module: str) -> ModuleSchema:
     interface_class = import_interface(project_dir, module, Interface)
     default_config, config_model = from_interface(interface_class)
     config_fields: list[ConfigField] = []
 
     if config_model is not None:
-        for name, field in config_model.model_fields.items():
-            if name.endswith("_"):
-                continue
-            if hasattr(field, "is_required"):
-                required = field.is_required()
-                default = None if required else field.default
-            else:
-                default = field.default
-                required = getattr(field, "required", False)
-            config_fields.append(
-                ConfigField(
-                    name=name,
-                    type=str(field.annotation),
-                    default=default,
-                    required=required,
-                )
-            )
+        config_fields = _reflect_model_fields(config_model)
     elif default_config:
         for name, value in default_config.items():
             if name.endswith("_"):
@@ -763,8 +841,17 @@ def module_schema(project_dir: str, module: str) -> ModuleSchema:
             )
         except (ValueError, TypeError):
             signature = "(...)"
+        try:
+            method_line = inspect.getsourcelines(fn)[1]
+        except (OSError, TypeError):
+            method_line = None
         version_methods.append(
-            VersionMethod(name=token, signature=signature, doc=inspect.getdoc(fn))
+            VersionMethod(
+                name=token,
+                signature=signature,
+                doc=inspect.getdoc(fn),
+                source_line=method_line,
+            )
         )
 
     from machinable.widget import is_widget, widget_css
@@ -781,6 +868,18 @@ def module_schema(project_dir: str, module: str) -> ModuleSchema:
             ),
         )
 
+    # where the class is defined, when inside the project (feeds code views)
+    source_file = source_line = None
+    try:
+        file = inspect.getsourcefile(interface_class)
+        if file:
+            rel = os.path.relpath(os.path.realpath(file), os.path.realpath(project_dir))
+            if not rel.startswith(".."):
+                source_file = rel.replace(os.sep, "/")
+                source_line = inspect.getsourcelines(interface_class)[1]
+    except (OSError, TypeError, ValueError):
+        pass  # dynamically defined / outside the project — no source ref
+
     return ModuleSchema(
         module=module,
         kind=interface_class.kind or "Interface",
@@ -789,6 +888,8 @@ def module_schema(project_dir: str, module: str) -> ModuleSchema:
         versions=versions,
         version_methods=version_methods,
         widget=widget,
+        source_file=source_file,
+        source_line=source_line,
     )
 
 

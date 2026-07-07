@@ -1,8 +1,9 @@
-"""Source-code editing routes (``/v1/source``).
+"""Source routes (``/v1/source``).
 
 Lets a client read, write, create, rename, and delete the project's interface
-source files, enough to build a code editor. Gated behind ``enable_source_api``
-and a token (writing ``.py`` files is remote code execution); every path is
+source files, enough to build a code editor. Reading is inspection and is
+served by default; the WRITE routes are gated behind ``enable_source_api`` and
+a token (writing ``.py`` files is remote code execution). Every path is
 confined to the project ``BASE_DIR``.
 """
 
@@ -29,7 +30,7 @@ from machinable.api.source import (
     invalidate_source,
     list_source_files,
     quote_etag,
-    require_source_auth,
+    require_source_write,
     safe_resolve,
     source_base_dir,
     source_extensions,
@@ -39,8 +40,10 @@ from machinable.api.source import (
 router = APIRouter(
     prefix="/v1/source",
     tags=["source"],
-    dependencies=[Depends(require_source_auth), Depends(project_context)],
+    dependencies=[Depends(project_context)],
 )
+# writes are RCE: opt-in + token, per route (reads stay inspection-open)
+_write_guard = [Depends(require_source_write)]
 
 
 @router.get("", response_model=SourceListResponse)
@@ -76,7 +79,9 @@ async def read_source(
     )
 
 
-@router.put("/{path:path}", response_model=SourceWriteResponse)
+@router.put(
+    "/{path:path}", response_model=SourceWriteResponse, dependencies=_write_guard
+)
 async def write_source(
     path: str,
     body: SourceWriteRequest,
@@ -123,7 +128,7 @@ async def write_source(
     )
 
 
-@router.delete("/{path:path}", status_code=204)
+@router.delete("/{path:path}", status_code=204, dependencies=_write_guard)
 def delete_source(path: str, request: Request) -> Response:
     """Delete a source file and invalidate caches made stale by its removal."""
     base = source_base_dir(request)
@@ -137,7 +142,7 @@ def delete_source(path: str, request: Request) -> Response:
     return Response(status_code=204)
 
 
-@router.post("/move", response_model=SourceWriteResponse)
+@router.post("/move", response_model=SourceWriteResponse, dependencies=_write_guard)
 def move_source(body: SourceMoveRequest, request: Request) -> SourceWriteResponse:
     """Atomically rename/move a file within the base directory.
 

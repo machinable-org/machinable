@@ -1,5 +1,6 @@
 """Shared utilities: serialization, hashing, file I/O, and path safety."""
 
+import contextlib
 import hashlib
 import importlib
 import importlib.util
@@ -12,6 +13,7 @@ import stat
 import string
 import subprocess
 import sys
+import threading
 import tokenize
 import types
 from collections import deque
@@ -601,6 +603,147 @@ def unflatten_dict(
         return flat
 
     return d
+
+
+class _OutputRouter:
+    """A ``sys.stdout``/``sys.stderr`` proxy that tees writes per thread.
+
+    The process-wide stream is replaced once; every write passes through to
+    the original, and additionally appends to the log file registered for the
+    *current thread*. Unregistered threads (the server's request handlers,
+    other concurrent runs) are pure pass-through, so parallel in-process
+    dispatches never interleave into each other's logs.
+    """
+
+    def __init__(self, original):
+        self._original = original
+        self._routes: dict[int, list] = {}
+
+    def push(self, handle) -> None:
+        self._routes.setdefault(threading.get_ident(), []).append(handle)
+
+    def pop(self) -> None:
+        stack = self._routes.get(threading.get_ident())
+        if stack:
+            stack.pop()
+        if not stack:
+            self._routes.pop(threading.get_ident(), None)
+
+    @property
+    def routed(self) -> bool:
+        return bool(self._routes)
+
+    def write(self, data: str) -> int:
+        stack = self._routes.get(threading.get_ident())
+        if stack:
+            try:
+                stack[-1].write(data)
+                stack[-1].flush()
+            except (OSError, ValueError):
+                pass  # a closed/broken log never breaks the run's own output
+        return self._original.write(data)
+
+    def flush(self) -> None:
+        self._original.flush()
+
+    def __getattr__(self, name):
+        return getattr(self._original, name)
+
+
+class _LazyLogFile:
+    """Opens the log on first write, so a silent run creates no file."""
+
+    def __init__(self, path: str):
+        self._path = path
+        self._handle = None
+
+    def write(self, data: str) -> None:
+        if self._handle is None:
+            os.makedirs(os.path.dirname(self._path) or ".", exist_ok=True)
+            self._handle = open(  # noqa: SIM115 - lifetime managed by tee_output
+                self._path, "a", encoding="utf-8", errors="replace"
+            )
+        self._handle.write(data)
+
+    def flush(self) -> None:
+        if self._handle is not None:
+            self._handle.flush()
+
+    def close(self) -> None:
+        if self._handle is not None:
+            self._handle.close()
+
+
+class tee_output:
+    """Context manager: mirror the current thread's stdout+stderr to ``path``.
+
+    Installs the per-thread router over ``sys.stdout``/``sys.stderr`` on first
+    use (left in place afterwards; it is pass-through when nothing is routed).
+    The file opens lazily on the first write (a silent run creates no log) and
+    appends, so a resumed run continues its log. Nested tees stack (the
+    innermost wins for its thread).
+    """
+
+    def __init__(self, path: str):
+        self._path = path
+        self._handle: _LazyLogFile | None = None
+
+    def __enter__(self) -> "tee_output":
+        for stream in ("stdout", "stderr"):
+            current = getattr(sys, stream)
+            if not isinstance(current, _OutputRouter):
+                setattr(sys, stream, _OutputRouter(current))
+        self._handle = _LazyLogFile(self._path)
+        for stream in ("stdout", "stderr"):
+            router = getattr(sys, stream)
+            if isinstance(router, _OutputRouter):
+                router.push(self._handle)
+        return self
+
+    def __exit__(self, *args) -> None:
+        if self._handle is None:
+            return
+        for stream in ("stdout", "stderr"):
+            router = getattr(sys, stream)
+            if isinstance(router, _OutputRouter):
+                router.pop()
+        with contextlib.suppress(OSError):
+            self._handle.close()
+
+
+def read_output_window(
+    path: str,
+    *,
+    offset: int | None = None,
+    tail: int | None = None,
+    limit: int = 65536,
+) -> "tuple[str | None, int, int]":
+    """A bounded byte-window of a log file: ``(data, offset, size)``.
+
+    ``offset`` reads forward from a byte position (the incremental-follow
+    case); ``tail`` reads the last N bytes; neither reads the last ``limit``
+    bytes. At most ``limit`` bytes are returned either way, decoded utf-8 with
+    replacement so a window boundary can never split the response. ``data`` is
+    ``None`` when the file does not exist (no output yet); ``size`` is the
+    file's current total, so clients can poll ``offset=size`` for appends.
+    """
+    try:
+        size = os.path.getsize(path)
+    except OSError:
+        return None, 0, 0
+    if offset is not None:
+        start = max(0, min(offset, size))
+    else:
+        window = min(tail if tail is not None else limit, limit)
+        start = max(0, size - window)
+    length = min(limit, size - start)
+    try:
+        with open(path, "rb") as handle:
+            handle.seek(start)
+            data = handle.read(length)
+    except OSError:
+        return None, 0, 0
+    return data.decode("utf-8", errors="replace"), start, size
 
 
 def run_and_stream(

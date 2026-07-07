@@ -149,6 +149,9 @@ class FindRequest(BaseModel):
     record_id_suffix: str | None = None
     limit: int = Field(default=100, ge=1, le=1000)
     offset: int = Field(default=0, ge=0)
+    # search-surface only (ignored by the index query): also derive each hit's
+    # compute status and run count, at the cost of reading the page's records
+    include_status: bool = False
 
 
 class FindResponse(BaseModel):
@@ -298,6 +301,26 @@ class DispatchInterface(BaseModel):
     )
 
 
+class OutputChunk(BaseModel):
+    """A bounded byte-window of a run's output log.
+
+    Clients follow a log incrementally: first request a ``tail``, then poll
+    with ``offset=size`` to fetch only appended bytes — never the whole file.
+    """
+
+    output: str | None = Field(
+        description="The window's text (utf-8, replacement-decoded), or null "
+        "when no output exists yet."
+    )
+    offset: int = Field(
+        default=0, description="Byte position where the returned window starts."
+    )
+    size: int = Field(
+        default=0,
+        description="Total size of the log in bytes, for follow-up offset requests.",
+    )
+
+
 class DispatchRequest(BaseModel):
     """Create/reuse an Execution and dispatch interfaces into it.
 
@@ -381,9 +404,20 @@ class SearchItem(BaseModel):
     config: dict[str, Any] = Field(
         default_factory=dict, description="Resolved configuration."
     )
+    version: list[str | dict] = Field(
+        default_factory=list, description="Compact version (~versions + overrides)."
+    )
     created_at_ns: int = Field(description="Creation timestamp (ns).")
     created_by: str | None = Field(default=None, description="Creator.")
     label: str | None = Field(default=None, description="Mutable label.")
+    status: str | None = Field(
+        default=None,
+        description="draft|running|cached|failed for the latest run "
+        "(with include_status).",
+    )
+    run_count: int | None = Field(
+        default=None, description="Recorded runs (with include_status)."
+    )
 
 
 class SearchResponse(BaseModel):
@@ -574,6 +608,11 @@ class ConfigField(BaseModel):
     type: str = Field(description="Python type annotation as string.")
     default: Any = Field(description="Default value, or null if required.")
     required: bool = Field(description="True when the field has no default.")
+    fields: list[ConfigField] | None = Field(
+        default=None,
+        description="Sub-fields when the annotation is a nested config model "
+        "(recursively reflected), so clients can render structured editors.",
+    )
 
 
 class VersionMethod(BaseModel):
@@ -584,6 +623,9 @@ class VersionMethod(BaseModel):
         description="Call signature, e.g. '(path)' or '(*, mode, backbone)'."
     )
     doc: str | None = Field(default=None, description="Docstring, if present.")
+    source_line: int | None = Field(
+        default=None, description="1-based line in the module's source file."
+    )
 
 
 class WidgetInfo(BaseModel):
@@ -618,6 +660,14 @@ class ModuleSchema(BaseModel):
     widget: WidgetInfo | None = Field(
         default=None,
         description="Widget frontend descriptor when the class ships one.",
+    )
+    source_file: str | None = Field(
+        default=None,
+        description="Project-relative source file of the class (readable via "
+        "GET /v1/source/{path}), when inside the project.",
+    )
+    source_line: int | None = Field(
+        default=None, description="1-based line of the class definition."
     )
 
 
