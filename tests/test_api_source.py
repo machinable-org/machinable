@@ -33,18 +33,40 @@ def source_client(tmp_storage):
         yield client
 
 
-def test_source_disabled_by_default(tmp_storage):
+def test_source_reads_open_writes_gated_by_default(tmp_storage):
     from machinable.project import Project
 
     app = create_app(project_dir=Project.get().path())
     with TestClient(app) as client:
-        assert client.get("/v1/source", headers=AUTH).status_code == 403
+        # reading is inspection — served without the source opt-in
+        listing = client.get("/v1/source")
+        assert listing.status_code == 200
+        assert any(f["module"] == "basic" for f in listing.json()["files"])
+        assert client.get("/v1/source/basic.py").status_code == 200
+
+        # writing stays opt-in (enable_source_api) + token
+        assert (
+            client.put("/v1/source/basic.py", json={"content": "x = 1"}).status_code
+            == 403
+        )
+        assert client.delete("/v1/source/basic.py").status_code == 403
+        assert (
+            client.post(
+                "/v1/source/move", json={"from_path": "basic.py", "to": "b2.py"}
+            ).status_code
+            == 403
+        )
 
 
-def test_source_requires_auth(source_client):
-    assert source_client.get("/v1/source").status_code == 401
-    bad = source_client.get("/v1/source", headers={"Authorization": "Bearer nope"})
+def test_source_write_requires_auth(source_client):
+    body = {"content": "x = 1"}
+    assert source_client.put("/v1/source/scratch.py", json=body).status_code == 401
+    bad = source_client.put(
+        "/v1/source/scratch.py", json=body, headers={"Authorization": "Bearer nope"}
+    )
     assert bad.status_code == 401
+    # reads never need the source token
+    assert source_client.get("/v1/source").status_code == 200
 
 
 def test_source_list_and_read_etag(source_client):

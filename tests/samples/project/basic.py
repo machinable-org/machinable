@@ -14,3 +14,6 @@ class Basic(Interface):
 
     def get_state(self):
         return self._state
+
+    def faulty(self):
+        raise RuntimeError("accessor exploded")

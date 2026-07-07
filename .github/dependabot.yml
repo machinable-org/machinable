@@ -27,3 +27,15 @@ updates:
       - dependency-name: "vitepress"
     commit-message:
       prefix: ":arrow_up:"
+  # Widget SDK: only the toolchain heads; codemirror etc. ride along.
+  - package-ecosystem: "npm"
+    directory: "/web/sdk"
+    schedule:
+      interval: "weekly"
+    allow:
+      - dependency-name: "svelte"
+      - dependency-name: "vite"
+      - dependency-name: "vitest"
+      - dependency-name: "@sveltejs/vite-plugin-svelte"
+    commit-message:
+      prefix: ":arrow_up:"

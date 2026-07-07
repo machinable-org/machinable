@@ -4,7 +4,9 @@
 
 # Unreleased
 
-- Added `machinable console` (extra: `machinable[console]`): a terminal UI that attaches to any running API server, local or remote, as a pure HTTP client. It browses and filters the record catalog, inspects a record's config, run history, and stored files, follows live run output, cancels runs, and copies a record's CLI reproduction command. A launch pad (`n`) configures runs with the CLI's version grammar and previews, before anything executes, whether the identity is a `draft` or already `cached`; a provenance tab renders the record's graph as a navigable tree; a call tab invokes methods with the `method(args)` grammar; plus a remotes screen, command palette, run-finished notifications, and a help overlay. The server attaches this console instead of the previous in-process status dashboard; its `tui` option is renamed to `console` and defaults to auto (attach when installed and in a terminal, headless with an install hint otherwise; `console=true` requires it, `console=false` stays headless). `textual` moved from the `[api]` extra into `[console]`, so server installs stay lean.
+- Added `machinable console` (via `machinable[console]`) which provides a terminal UI for the API
+- Added an official web client served via `GET /widget` (and bundle at `GET /widget-sdk.js`) 
+- Added notebook rendering: `display(interface)` opens the interface in the web client
 
 # v5.0
 

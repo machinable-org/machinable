@@ -1696,6 +1696,38 @@ class Interface(Jsonable):
                         queue.append(nb)
         return InterfaceCollection(collection).unique(lambda x: x.uuid)
 
+    def widget(self):
+        """Render this interface in the web client (Jupyter).
+
+        Returns an anywidget view of the interface's ItemView — config,
+        launch/track, result, execution, provenance — the visual twin of the
+        code. Rarely needed directly: ``display(interface)`` (or the interface
+        as a cell's last expression) renders the same view via the display
+        protocol. It renders against the connected :class:`Server
+        <machinable.server.Server>` (``with Server(...):``); with none
+        connected, a kernel-local default is connected and reused.
+        """
+        if not self.module:
+            raise MachinableError(
+                "This interface has no module path; only project modules can "
+                "be opened in the web client."
+            )
+        from machinable.server import Server
+
+        return Server.ensure().view(
+            view="item", target=self.module, version=self.version()
+        )
+
+    def _repr_mimebundle_(self, include=None, exclude=None, **kwargs):
+        # IPython display hook: `display(interface)` / a bare interface at the
+        # end of a cell renders the web client's ItemView; anything missing
+        # (anywidget, uvicorn, a module path) falls back to the plain repr.
+        try:
+            view = self.widget()
+            return view._repr_mimebundle_(include=include, exclude=exclude, **kwargs)
+        except Exception:  # noqa: BLE001 - display is best-effort by contract
+            return None
+
     def to_cli(self) -> str:
         """This interface rendered as its compact CLI command."""
         cli: list[str] = [cast(str, self.module)]

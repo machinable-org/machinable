@@ -110,11 +110,47 @@ def resolve(
     request: Request,
     _p: str = Depends(project_context),
 ) -> ResolveResponse:
-    """Dry-run a compact version → resolved config + CLI, without materializing."""
+    """Dry-run a compact version → resolved config + CLI, without materializing.
+
+    Failures return a structured 400 detail —
+    ``{"message": …, "issues": [{"path", "message"}]}`` — so clients can attach
+    errors to the offending config field (path is dotted, when known).
+    """
     try:
         return resolve_interface_config(request, body.target, body.version)
     except Exception as ex:  # noqa: BLE001
-        raise HTTPException(status_code=400, detail=str(ex)) from ex
+        raise HTTPException(
+            status_code=400,
+            detail={"message": str(ex), "issues": _resolve_issues(ex)},
+        ) from ex
+
+
+def _resolve_issues(ex: Exception) -> list[dict]:
+    """Field-attached issue list for a resolve failure.
+
+    Walks the cause chain because configure() re-wraps failures in a
+    ConfigurationError; the structured location lives on the original.
+    """
+    current: BaseException | None = ex
+    while current is not None:
+        paths = getattr(current, "paths", None)  # ConfigurationError (unknown keys)
+        if paths:
+            return [{"path": path, "message": str(current)} for path in paths]
+        errors = getattr(current, "errors", None)  # pydantic ValidationError
+        if callable(errors):
+            try:
+                return [
+                    {
+                        "path": ".".join(str(loc) for loc in error.get("loc", ()))
+                        or None,
+                        "message": error.get("msg", str(current)),
+                    }
+                    for error in errors()
+                ]
+            except Exception:  # noqa: BLE001 - fall through to the generic issue
+                pass
+        current = current.__cause__
+    return [{"path": None, "message": str(ex)}]
 
 
 @router.post("/lifecycle", response_model=LifecycleResponse)
@@ -136,6 +172,7 @@ async def call_interface(
     request: Request,
     _p: str = Depends(project_context),
 ) -> dict[str, Any]:
+    """Invoke a public method; failures carry a structured detail, never a bare 500."""
     interface = create_interface_from_target(
         request,
         body.target,
@@ -146,7 +183,23 @@ async def call_interface(
         request,
         f"POST /v1/interfaces/call {body.method} -> {interface.uuid}",
     )
-    result = await run_api_call(interface, body.method, body.args, body.kwargs)
+    try:
+        result = await run_api_call(interface, body.method, body.args, body.kwargs)
+    except AttributeError as ex:
+        raise HTTPException(status_code=404, detail=str(ex)) from ex
+    except ValueError as ex:  # private name / not in the __api_methods__ allowlist
+        raise HTTPException(status_code=400, detail=str(ex)) from ex
+    except TypeError as ex:  # signature mismatch (or a TypeError from the body)
+        raise HTTPException(
+            status_code=400, detail=f"Invalid arguments for '{body.method}': {ex}"
+        ) from ex
+    except HTTPException:
+        raise
+    except Exception as ex:  # noqa: BLE001 - the method itself raised
+        raise HTTPException(
+            status_code=500,
+            detail=f"{body.method}() raised {type(ex).__name__}: {ex}",
+        ) from ex
     if (
         hasattr(result, "__aiter__")
         or hasattr(result, "__iter__")

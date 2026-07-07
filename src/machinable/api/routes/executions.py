@@ -20,7 +20,7 @@ from machinable.api._helpers import (
 from machinable.api._helpers import (
     log_event as _log_event,
 )
-from machinable.api.models import DispatchRequest, ExecutionInfo
+from machinable.api.models import DispatchRequest, ExecutionInfo, OutputChunk
 from machinable.api.ws import handle_interface_ws
 from machinable.execution import Execution
 from machinable.interface import Interface, connection_scope
@@ -134,14 +134,34 @@ def get_execution(
     return execution_to_info(execution)
 
 
-@router.get("/{uuid}/output")
+@router.get("/{uuid}/output", response_model=OutputChunk)
 def get_execution_output(
-    uuid: str, request: Request, _p: str = Depends(project_context)
-) -> dict[str, str | None]:
+    uuid: str,
+    request: Request,
+    offset: int | None = None,
+    tail: int | None = None,
+    limit: int = 65536,
+    _p: str = Depends(project_context),
+) -> OutputChunk:
+    """A bounded window of the run's output log (never the whole file).
+
+    ``offset`` reads forward from a byte position — poll with ``offset=size``
+    to fetch only appended bytes; ``tail`` reads the last N bytes; the default
+    is the last ``limit`` bytes. ``limit`` is capped server-side, so a client
+    cannot accidentally pull a multi-GB log into memory.
+    """
+    from machinable.utils import read_output_window
+
     execution = get_or_create_interface(uuid, request)
     if not isinstance(execution, Execution):
         raise HTTPException(status_code=404, detail="Execution not found")
-    return {"output": execution.output()}
+    data, start, size = read_output_window(
+        execution.output_filepath(),
+        offset=offset,
+        tail=tail,
+        limit=max(1, min(limit, 262144)),
+    )
+    return OutputChunk(output=data, offset=start, size=size)
 
 
 @router.post("/{uuid}/cancel", status_code=204)

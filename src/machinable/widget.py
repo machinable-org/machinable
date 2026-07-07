@@ -144,7 +144,10 @@ def _resolve_asset(cls: type, value: str | Path | None) -> str | None:
     base = os.path.dirname(getattr(module, "__file__", "") or "")
     if isinstance(value, Path):
         path = value if value.is_absolute() else Path(base) / value
-        return path.read_text(encoding="utf-8")
+        try:
+            return path.read_text(encoding="utf-8")
+        except OSError:
+            return None  # asset not built/available — callers degrade gracefully
     candidate = os.path.join(base, value)
     if "\n" not in value and len(value) < 4096 and os.path.isfile(candidate):
         with open(candidate, encoding="utf-8") as handle:

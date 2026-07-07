@@ -47,6 +47,15 @@ Documentation = "https://machinable.org"
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
+[tool.hatch.build]
+# the web-client bundle is gitignored (built by the publish workflow) but must
+# ship in the distributions (the wheel is built from the sdist); `artifacts`
+# includes it despite the VCS ignore
+artifacts = [
+  "/src/machinable/assets/widget-sdk.js",
+  "/src/machinable/assets/widget-sdk.css",
+]
+
 [tool.hatch.build.targets.wheel]
 packages = ["src/machinable"]
 

@@ -181,3 +181,54 @@ def test_file_hash(tmp_path):
 )
 def test_norm_version_call(input_code, expected):
     assert utils.norm_version_call(input_code) == expected
+
+
+def test_tee_output_thread_scoped(tmp_path):
+    import threading
+
+    a, b = tmp_path / "a.log", tmp_path / "b.log"
+
+    def run(path, tag):
+        with utils.tee_output(str(path)):
+            print(f"hello from {tag}")
+
+    # concurrent tees do not interleave: each thread's writes land in its own log
+    threads = [
+        threading.Thread(target=run, args=(a, "a")),
+        threading.Thread(target=run, args=(b, "b")),
+    ]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+    assert a.read_text() == "hello from a\n"
+    assert b.read_text() == "hello from b\n"
+
+    # unrouted threads pass through untouched; appending resumes the log
+    with utils.tee_output(str(a)):
+        print("again")
+    assert a.read_text() == "hello from a\nagain\n"
+
+
+def test_read_output_window(tmp_path):
+    path = tmp_path / "output.log"
+
+    # missing file: no output yet
+    assert utils.read_output_window(str(path)) == (None, 0, 0)
+
+    path.write_bytes(b"0123456789")
+    # default: the whole (small) file
+    assert utils.read_output_window(str(path)) == ("0123456789", 0, 10)
+    # tail window
+    assert utils.read_output_window(str(path), tail=4) == ("6789", 6, 10)
+    # forward from offset (incremental follow)
+    assert utils.read_output_window(str(path), offset=7) == ("789", 7, 10)
+    assert utils.read_output_window(str(path), offset=10) == ("", 10, 10)
+    # limit caps both forms
+    assert utils.read_output_window(str(path), offset=0, limit=3) == ("012", 0, 10)
+    assert utils.read_output_window(str(path), tail=8, limit=3) == ("789", 7, 10)
+
+    # a window that splits a multibyte char degrades, never crashes
+    path.write_bytes("héllo".encode())
+    data, start, size = utils.read_output_window(str(path), offset=2)
+    assert isinstance(data, str) and start == 2 and size == 6

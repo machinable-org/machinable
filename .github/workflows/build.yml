@@ -23,6 +23,20 @@ jobs:
         run: uv python install ${{ matrix.python-version }}
       - name: Install dependencies
         run: uv sync --all-extras
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            docs/package-lock.json
+            web/sdk/package-lock.json
+      - name: Build widget SDK
+        # not committed; the asset tests read the built bundle
+        working-directory: web/sdk
+        run: |
+          npm ci
+          npm run build
       - name: ruff format check
         run: uv run ruff format --check .
       - name: ruff lint check
@@ -31,23 +45,21 @@ jobs:
         run: uv run ty check
       - name: Run tests
         run: uv run pytest
+      - name: Test widget SDK
+        if: matrix.python-version == '3.13'
+        working-directory: web/sdk
+        run: npm test
       - name: Validate reference links
         run: uv run python docs/.vitepress/pydocgen.py --validate
       - name: Validate integration metadata
         run: uv run python docs/.vitepress/integrationsgen.py --validate
-      - name: Set up Node.js
-        if: matrix.python-version == '3.13'
-        uses: actions/setup-node@v6
-        with:
-          node-version: 22
-          cache: npm
-          cache-dependency-path: docs/package-lock.json
       - name: Build docs
         if: matrix.python-version == '3.13'
         working-directory: docs
         # prebuild runs `npm run gen`: the Python reference (pydocgen.py), the
-        # integrations pages (integrationsgen.py), and the HTTP API pages
-        # (python -m machinable.api.docs)
+        # integrations pages (integrationsgen.py), the HTTP API pages
+        # (python -m machinable.api.docs), and publishes the web-client bundle
+        # at /widget-sdk.js (the fallback repo checkouts fetch on first use)
         run: |
           npm ci
           npm run build

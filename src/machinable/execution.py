@@ -33,7 +33,13 @@ from machinable.types import (
     TimestampType,
     VersionType,
 )
-from machinable.utils import generate_seed, load_file, save_file, update_dict
+from machinable.utils import (
+    generate_seed,
+    load_file,
+    save_file,
+    tee_output,
+    update_dict,
+)
 
 if TYPE_CHECKING:
     from machinable.manifest import Manifest
@@ -508,7 +514,14 @@ class Execution(Interface):
             ):
                 pass
             else:
-                interface.__call__()
+                # capture the run's stdout/stderr into its output.log (thread-
+                # scoped tee, so concurrent in-process runs never interleave);
+                # script-based backends redirect at the shell level instead
+                if writes_meta_data:
+                    with tee_output(self.output_filepath()):
+                        interface.__call__()
+                else:
+                    interface.__call__()
 
             # Send close sentinel so any server-side drain task can finish.
             if interface._emit_queue is not None and interface._emit_loop is not None:

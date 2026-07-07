@@ -60,6 +60,19 @@ def run_status(info: dict) -> str:
     return "pending"
 
 
+def record_status(status: str | None):
+    """Color-coded compute status cell for a search hit (include_status)."""
+    from rich.text import Text
+
+    color = {
+        "cached": "green",
+        "running": "cyan",
+        "failed": "red",
+        "draft": "grey58",
+    }.get(status or "", "grey58")
+    return Text(status or "—", style=color)
+
+
 class RecordsScreen(Screen):
     """Home screen: filterable records table plus the active-runs panel."""
 
@@ -101,7 +114,9 @@ class RecordsScreen(Screen):
     def on_mount(self) -> None:
         records = self.query_one("#records", DataTable)
         records.cursor_type = "row"
-        records.add_columns("id", "module", "kind", "config", "label", "created")
+        records.add_columns(
+            "id", "module", "kind", "status", "runs", "config", "label", "created"
+        )
         records.focus()
         runs = self.query_one("#runs", DataTable)
         runs.cursor_type = "row"
@@ -117,7 +132,9 @@ class RecordsScreen(Screen):
 
     async def _load(self) -> None:
         try:
-            payload = await self.client.search()
+            # include_status enriches each hit with compute status + run count
+            # (page-bounded on the server) — the catalog's cached/draft/failed
+            payload = await self.client.search(include_status=True)
         except ConsoleError as ex:
             self._status(str(ex))
             return
@@ -132,14 +149,18 @@ class RecordsScreen(Screen):
         table.clear()
         for item in self._items:
             haystack = " ".join(
-                str(item.get(key) or "") for key in ("id", "module", "kind", "label")
+                str(item.get(key) or "")
+                for key in ("id", "module", "kind", "label", "status")
             ).lower()
             if needle and needle not in haystack:
                 continue
+            count = item.get("run_count")
             table.add_row(
                 item["id"][:8],
                 item.get("module") or "",
                 item.get("kind", ""),
+                record_status(item.get("status")),
+                str(count) if count else "",
                 config_summary(item.get("config", {})),
                 item.get("label") or "",
                 format_ns(item.get("created_at_ns")),
@@ -706,13 +727,20 @@ class RecordScreen(Screen):
         if self._followed is None:
             return
         try:
-            output = await self.client.output(self._followed)
+            # bounded tail window — a large log never lands in memory whole
+            chunk = await self.client.output(self._followed, tail=65536)
         except ConsoleError as ex:
             self._status(str(ex))
             return
         log = self.query_one("#run-output", RichLog)
         log.clear()
-        log.write(output if output is not None else "(no output yet)")
+        output = chunk.get("output")
+        if output is None:
+            log.write("(no output yet)")
+            return
+        if chunk.get("offset", 0) > 0:
+            log.write(f"… earlier output trimmed ({chunk['offset']} bytes)")
+        log.write(output)
 
     # -- interactions ----------------------------------------------------------
 

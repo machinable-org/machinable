@@ -60,6 +60,12 @@ def test_console_client_roundtrip(seeded_app):
             item = next(i for i in found["items"] if i["module"] == "basic")
             assert item["id"] == parent_uuid
 
+            # include_status enriches each hit for the records browser's column
+            enriched = await client.search(include_status=True)
+            hit = next(i for i in enriched["items"] if i["module"] == "basic")
+            assert hit["status"] == "cached"
+            assert hit["run_count"] == 1
+
             info = await client.interface(parent_uuid)
             assert info["module"] == "basic"
             assert info["cached"] is True
@@ -356,6 +362,13 @@ def test_console_ui_browse_and_detail(seeded_app):
                     break
                 await pilot.pause(0.05)
             assert table.row_count >= 1
+
+            # the enriched status column shows the record's compute state
+            labels = [str(c.label) for c in table.columns.values()]
+            assert "status" in labels and "runs" in labels
+            row = table.get_row(parent_uuid)
+            status_cell = row[labels.index("status")]
+            assert "cached" in str(status_cell)
 
             # filtering narrows down to the matching record
             console.screen.query_one("#filter").focus()
