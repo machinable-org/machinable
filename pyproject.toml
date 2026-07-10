@@ -59,7 +59,7 @@ dev = [
     "aiofiles>=23",
     "anywidget>=0.9",
     "pandas>=2.0",
-    "ty==0.0.56",
+    "ty==0.0.58",
 ]
 
 [tool.ty.src]
