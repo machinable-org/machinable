@@ -20,7 +20,7 @@ jobs:
       - name: Validate reference links
         run: uv run python docs/.vitepress/pydocgen.py --validate
       - name: Set up Node.js
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: npm
