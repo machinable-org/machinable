@@ -730,7 +730,7 @@ class Interface(Jsonable):
             version=normversion(version),
             inherits=get_inherits(self),
             uuid=None,
-            _dump=cloudpickle.dumps(self.__class__)  # ty: ignore[unknown-argument]
+            _dump=cloudpickle.dumps(self.__class__)
             if module.startswith("__session__")
             else None,
         )

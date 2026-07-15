@@ -3,9 +3,12 @@ updates:
   - package-ecosystem: "uv"
     directory: "/"
     schedule:
-      interval: "daily"
+      interval: "weekly"
     allow:
       - dependency-type: "direct"
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-patch"]
     commit-message:
       prefix: ":arrow_up:"
   - package-ecosystem: "github-actions"
@@ -14,6 +17,9 @@ updates:
       interval: "weekly"
     allow:
       - dependency-type: "all"
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-patch"]
     commit-message:
       prefix: ":arrow_up:"
   # Docs site: vitepress is the only direct dependency. Everything else in
@@ -25,6 +31,9 @@ updates:
       interval: "weekly"
     allow:
       - dependency-name: "vitepress"
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-patch"]
     commit-message:
       prefix: ":arrow_up:"
   # Widget SDK: only the toolchain heads; codemirror etc. ride along.
@@ -32,10 +41,20 @@ updates:
     directory: "/web/sdk"
     schedule:
       interval: "weekly"
+    groups:
+      svelte-toolchain:
+        patterns:
+          - "svelte"
+          - "vite"
+          - "vitest"
+          - "@sveltejs/vite-plugin-svelte"
     allow:
       - dependency-name: "svelte"
       - dependency-name: "vite"
       - dependency-name: "vitest"
       - dependency-name: "@sveltejs/vite-plugin-svelte"
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-patch"]
     commit-message:
       prefix: ":arrow_up:"

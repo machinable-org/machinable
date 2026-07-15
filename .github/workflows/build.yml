@@ -36,6 +36,7 @@ jobs:
         working-directory: web/sdk
         run: |
           npm ci
+          npm ls
           npm run build
       - name: ruff format check
         run: uv run ruff format --check .
