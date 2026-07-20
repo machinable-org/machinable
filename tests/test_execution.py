@@ -204,6 +204,24 @@ def test_execution_resources(tmp_storage):
     assert e2.execution.computed_resources()["a"] == 3
 
 
+def test_computed_resources_not_shared_across_interfaces(tmp_storage):
+    class T(Execution):
+        def on_compute_default_resources(self, interface):
+            return {"who": interface.id}
+
+    a = Interface.make("dummy", {"a": 1}).materialize()
+    b = Interface.make("dummy", {"a": 2}).materialize()
+    assert a.id != b.id
+
+    runner = T()
+    assert runner.computed_resources(a) == {"who": a.id}
+    assert runner.computed_resources(b) == {"who": b.id}
+
+    runner = T().materialize()
+    assert runner.computed_resources(a) == {"who": a.id}
+    assert runner.computed_resources(b) == {"who": b.id}
+
+
 def test_interrupted_execution(tmp_storage):
     component = Execution.make("interface.interrupted_lifecycle")
     try:

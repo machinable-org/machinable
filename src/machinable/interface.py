@@ -778,9 +778,9 @@ class Interface(Jsonable):
 
         self._deferred_data = {}
         self._current_execution_context = None
-        # the IndexEntry captured at materialization (identity/predicate keys +
-        # parent), the source for the record's id.json format header.
         self._index_entry = None
+        self._local_directory: str | None = None
+
         # server-push support: injected by the API server before dispatch
         self._emit_queue: Any = None  # asyncio.Queue | None
         self._emit_loop: Any = None  # asyncio.AbstractEventLoop | None
@@ -1796,9 +1796,7 @@ class Interface(Jsonable):
         if not self.is_materialized():
             return False
 
-        from machinable.index import Index
-
-        return os.path.exists(Index.get().local_directory(cast(str, self.uuid)))
+        return os.path.exists(self.local_directory())
 
     @classmethod
     def find_by_id(cls, uuid: str, fetch: bool = True) -> Interface | None:
@@ -1956,7 +1954,9 @@ class Interface(Jsonable):
         if interface.module.startswith("__session__"):
             interface._dump = load_file([directory, "dump.p"], None)
 
-        return cast(Self, cls.from_model(interface))
+        instance = cast(Self, cls.from_model(interface))
+        instance._local_directory = os.path.abspath(directory)
+        return instance
 
     @staticmethod
     def _write_relation_meta(d, r, uuid, related_uuid):
@@ -2118,6 +2118,8 @@ class Interface(Jsonable):
             if not fetch(cast(str, self.uuid), directory):
                 return False
 
+        # a fetch (re)locates the working copy so re-pin to where the bytes are
+        self._local_directory = os.path.abspath(directory)
         self._cache["fetched"] = True
         return True
 
@@ -2126,9 +2128,14 @@ class Interface(Jsonable):
         if not self.is_materialized():
             raise RuntimeError("Interface not yet materialized")
 
-        from machinable.index import Index
+        base = self._local_directory
+        if base is None:
+            from machinable.index import Index
 
-        directory = Index.get().local_directory(cast(str, self.uuid), *append)
+            base = Index.get().local_directory(cast(str, self.uuid))
+            self._local_directory = base
+
+        directory = os.path.join(base, *append)
 
         if create:
             os.makedirs(directory, exist_ok=True)
@@ -2230,6 +2237,11 @@ class Interface(Jsonable):
         self._last_touch_sync = now
         from machinable.index import Index
 
+        # Write-through is a cache update, not the source of truth (the marker
+        # file above is); skip it when no Index is connected, so a dispatched
+        # payload writing only to directories needs no Index.
+        if not Index.is_connected():
+            return
         updated_ns = read_updated_at_ns(directory)
         if updated_ns is not None:
             Index.get().set_updated_at(cast(str, self.uuid), updated_ns)
@@ -2366,9 +2378,13 @@ class Interface(Jsonable):
         return uuid
 
     def _catalog_marker_path(self, name: str, catalog_id: str | None = None) -> str:
+        record_id = catalog_id or self._catalog_record_id()
+
+        if record_id == self.uuid and self._local_directory is not None:
+            return self.local_directory(name)
+
         from machinable.index import Index
 
-        record_id = catalog_id or self._catalog_record_id()
         return Index.get().local_directory(record_id, name)
 
     def cached(

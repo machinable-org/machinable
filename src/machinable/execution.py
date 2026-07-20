@@ -324,10 +324,16 @@ class Execution(Interface):
         cache_key = self._interface_.id if self._interface_ is not None else self.id
 
         if cache_key not in self._resources:
-            resources = self.load_file("computed_resources.json", default=None)
+            # Persist per interface, not to one shared file. A submit-style
+            # runner (Slurm, MPI) resolves resources for many interfaces on a
+            # single Execution; a constant filename would hand every interface
+            # the first one's resources. On a run-record (one interface) this is
+            # simply that interface's file.
+            cache_file = f"computed_resources.{cache_key or 'default'}.json"
+            resources = self.load_file(cache_file, default=None)
             if resources is None:
                 resources = self._compute_resources(self._interface_)
-                self.save_file("computed_resources.json", resources)
+                self.save_file(cache_file, resources)
 
             self._resources[cache_key] = resources
 
@@ -398,19 +404,15 @@ class Execution(Interface):
                 self.dispatch_interface(interface)
 
     def dispatch_interface(self, interface: Interface) -> None:
-        """Materialise self as a run-record child of interface, then run lifecycle."""
-        from machinable.project import Project
-
+        """Establish a run-record for ``interface`` via the Index, then run it."""
         if not interface.is_materialized():
             interface.materialize()
-
-        catalog_uuid = interface.uuid
 
         resume = self._resumable_run(interface)
         if resume is not None:
             # Deliberate resume: the interface's latest run-record (same runner
             # identity) is dispatched-or-started but unfinished, continue it in
-            # place: a merely-dispatched record (serverless phase 1) starts, a
+            # place; a merely-dispatched record (serverless phase 1) starts, a
             # started one resumes.
             self.__model__.predicate = copy.deepcopy(resume.predicate)
             self._apply_index_entry(resume)
@@ -418,7 +420,25 @@ class Execution(Interface):
             self._apply_index_entry(self._mint_run_record(interface))
         self.to_directory(self.local_directory(create=True), relations=False)
 
-        self._capture_manifest()
+        if resume is None:
+            self._capture_manifest()
+
+        self._run_payload(interface)
+
+    def continue_run(self, interface: Interface) -> None:
+        """Run ``interface`` into this existing run-record, in place and index-free."""
+        if not self.is_materialized():
+            raise RuntimeError(
+                "continue_run requires an existing run-record (load it with "
+                "Execution.from_directory); use dispatch_interface to create one"
+            )
+        self._run_payload(interface)
+
+    def _run_payload(self, interface: Interface) -> None:
+        """The execution lifecycle shared by dispatch_interface and continue_run."""
+        from machinable.project import Project
+
+        catalog_uuid = interface.uuid
 
         self.of(interface)
         self.computed_resources()
@@ -640,19 +660,24 @@ class Execution(Interface):
 
         Materialize (or find continuable) the run-record for ``interface``,
         persist it, and mark it ``dispatched``, synchronously, before any
-        payload supervision. The
-        payload (inline, detached, or scheduler-run) later continues exactly
-        this record via :meth:`_resumable_run`. Returns the run's IndexEntry.
+        payload supervision. The payload later continues exactly this record as
+        an in-process/serverless payload via :meth:`dispatch_interface` (which
+        finds it through :meth:`_resumable_run`), a handed-off index-free
+        payload via :meth:`continue_run` (which is handed the record's
+        directory directly). Returns the run's IndexEntry.
         """
         if not interface.is_materialized():
             interface.materialize()
         entry = self._resumable_run(interface)
-        if entry is None:
+        minted = entry is None
+        if minted:
             entry = self._mint_run_record(interface)
         else:
             self.__model__.predicate = copy.deepcopy(entry.predicate)
         self._apply_index_entry(entry)
         self.to_directory(self.local_directory(create=True), relations=False)
+        if minted:
+            self._capture_manifest()
         self.of(interface)
         self.update_status(status="dispatched")
         return entry
@@ -673,24 +698,26 @@ class Execution(Interface):
         inline: bool = True,
         project_directory: str | None = None,
         python: str | None = None,
+        interface_directory: str | None = None,
+        run_record_directory: str | None = None,
     ) -> str | None:
-        """Python code (or an inline shell command) re-running ``interface``.
-
-        Used to hand a run to another process or machine.
-        """
+        """Python code (or an inline shell command) re-running ``interface``."""
         from machinable.project import Project
+        from machinable.utils import uri_to_path
 
         if project_directory is None:
             project_directory = Project.get().path()
         if python is None:
             python = sys.executable
-        lines = ["from machinable import Project, Execution, Interface, Index"]
+        lines = ["from machinable import Project, Execution, Interface"]
         # embed paths via repr so backslashes (Windows) and quotes/spaces are escaped
         # into a valid Python string literal
         lines.append(f"Project({project_directory!r}).__enter__()")
         for kind, connected in list(_connections().items()):
-            # Project is re-entered explicitly above; Execution is the runner itself.
-            if kind in ["Project", "Execution"]:
+            # The payload is index-free as it reconstructs the interface and its
+            # run-record straight from their directories, so it needs neither
+            # the Storage nor the Index
+            if kind in ["Project", "Execution", "Storage", "Index"]:
                 continue
             for connected_interface in connected:
                 # repr() escapes the JSON's quotes AND backslashes (Windows paths
@@ -701,12 +728,25 @@ class Execution(Interface):
             interface_directory = os.path.abspath(
                 os.path.join(project_directory, ".machinable", "nonexistent")
             )
+            lines.append(
+                "interface__ = "
+                f"{interface.kind}.from_directory({interface_directory!r})"
+            )
+            lines.append("Execution().dispatch_interface(interface__)")
         else:
-            interface_directory = os.path.abspath(interface.local_directory())
-        lines.append(
-            f"interface__ = {interface.kind}.from_directory({interface_directory!r})"
-        )
-        lines.append("Execution().dispatch_interface(interface__)")
+            if run_record_directory is None:
+                entry = Execution().prepare_dispatch(interface)
+                run_record_directory = os.path.abspath(
+                    uri_to_path(entry.local_uri or entry.storage_uri)
+                )
+            if interface_directory is None:
+                interface_directory = os.path.abspath(interface.local_directory())
+            lines.append(
+                "interface__ = "
+                f"{interface.kind}.from_directory({interface_directory!r})"
+            )
+            lines.append(f"run__ = Execution.from_directory({run_record_directory!r})")
+            lines.append("run__.continue_run(interface__)")
 
         if inline:
             # base64-wrap the program so the shell command carries no quotes or
