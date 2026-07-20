@@ -19,6 +19,7 @@ from dmosopt.MOASMO import epsilon_get_best, get_best
 from mpi4py import MPI
 from pydantic import BaseModel, ConfigDict, Field, TypeAdapter, field_validator
 
+from machinable import Field
 from machinable import Interface
 from machinable.config import match_method, to_dict
 from machinable.interface import cachable
@@ -42,6 +43,7 @@ class Dmosopt(Interface):
         model_config = ConfigDict(extra="forbid")
 
         dopt_params: dict = Field("???")
+        system: str | None = Field(None, identifying=False)
         time_limit: int | None = None
         feasible: bool = True
         return_features: bool = False
@@ -244,6 +246,11 @@ class Dmosopt(Interface):
 
             return payload
 
+    def on_compute_predicate(self):
+        if self.config.system:
+            return {"system": os.path.basename(os.path.normpath(self.config.system))}
+        return {}
+
     def on_before_materialize(self):
         # pre-flight callable check
         params = to_dict(self.config.dopt_params)
@@ -261,6 +268,12 @@ class Dmosopt(Interface):
     def __call__(self) -> None:
         if MPI.COMM_WORLD.Get_rank() == 0:
             params = to_dict(self.config.dopt_params)
+            if self.config.system is not None:
+                params.setdefault("obj_fun_init_args", {})["system"] = (
+                    self.config.system
+                )
+                if isinstance(params.get("controller_init_fun_args"), dict):
+                    params["controller_init_fun_args"]["system"] = self.config.system
             if "file_path" not in params:
                 params["file_path"] = self.output_filepath
             if "local_random" not in params and "random_seed" not in params:
