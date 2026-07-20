@@ -16,8 +16,18 @@ class MPI(Execution):
         preamble: str | None = ""
         mpi: str | None = "mpirun"
         python: str | None = None
+        wrap: list[str] = []
         resume_failed: bool | Literal["new", "skip"] = False
         dry: bool = False
+
+    def version_gated(self, memory_max: str = "15G"):
+        return {
+            "wrap": ["systemd-run", "--user", "--scope", "-p", f"MemoryMax={memory_max}"]
+        }
+
+    def _wrap_command(self, cmd: list) -> list:
+        """Prepend the configured ``wrap`` tokens to the launch command."""
+        return [*self.config.wrap, *cmd] if self.config.wrap else cmd
 
     def on_compute_default_resources(self, executable):
         resources = {}
@@ -32,12 +42,7 @@ class MPI(Execution):
         return resources
 
     def __call__(self):
-        # materialize the container record so submission scripts have a
-        # durable home (dispatch only materializes the interfaces)
-        if not self.is_materialized():
-            super(Execution, self).materialize()
-
-        all_script = "#!/usr/bin/env bash\n"
+        all_cmds = "#!/usr/bin/env bash\n"
         for executable in self.pending_executables:
             if self.config.resume_failed is not True:
                 if (
@@ -65,6 +70,9 @@ class MPI(Execution):
             mpi = executable.config.get("mpi", self.config.mpi)
             python = self.config.python or sys.executable
 
+            run_record = Execution()
+            run_record.prepare_dispatch(executable)
+
             script = "#!/usr/bin/env bash\n"
 
             if self.config.preamble:
@@ -76,14 +84,13 @@ class MPI(Execution):
             script += f"# {executable.local_directory()}\n"
             script += "\n"
 
-            script += self.dispatch_code(executable, python=python)
-
-            script_file = chmodx(
-                self.save_file(
-                    [executable.id, "mpi.sh"],
-                    script,
-                )
+            script += self.dispatch_code(
+                executable,
+                python=python,
+                run_record_directory=run_record.local_directory(),
             )
+
+            script_file = chmodx(run_record.save_file("mpi.sh", script))
 
             if mpi is None:
                 cmd = []
@@ -99,25 +106,28 @@ class MPI(Execution):
                         cmd.extend([k, str(v)])
 
             cmd.append(script_file)
+            cmd = self._wrap_command(cmd)
 
-            self.save_file(
-                [executable.id, "mpi.json"],
+            run_record.save_file(
+                "mpi.json",
                 data={
                     "cmd": cmd,
                     "script": script,
                 },
             )
 
-            all_script += f"# {executable}\n"
-            all_script += " ".join(cmd) + "\n\n"
-
             if self.config.dry:
+                all_cmds += f"# {executable}\n"
+                all_cmds += " ".join(cmd) + "\n\n"
                 continue
 
             print(" ".join(cmd))
 
+            # output.log is the interface's own output (written by the payload's
+            # tee) so we capture the raw mpirun stream including any failure before
+            # Python starts to a sibling job.out on the same run-record.
             with open(
-                self.local_directory(executable.id, "output.log"),
+                run_record.local_directory("job.out"),
                 "w",
                 buffering=1,
             ) as f:
@@ -138,8 +148,6 @@ class MPI(Execution):
                         "Interrupting `" + " ".join(cmd) + "`"
                     ) from _ex
 
-        sp = chmodx(self.save_file("mpi.sh", all_script))
-
         if self.config.dry:
-            print(f"# Dry run ... \n# ==============\n{sp}\n\n")
-            print(all_script)
+            print("# Dry run ...\n# ==============")
+            print(all_cmds)

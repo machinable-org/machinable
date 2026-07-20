@@ -29,7 +29,7 @@ def test_mpi_dry_run(tmp_path):
             execution.add(interface)
             execution.dispatch()
             assert not interface.cached()
-            script = execution.load_file([interface.id, "mpi.sh"])
+            script = interface.execution.load_file("mpi.sh")
             assert "Hello from MPI script" not in (script or "")
             assert (script or "").startswith("#!")
 
