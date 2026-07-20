@@ -10,12 +10,14 @@ from pydantic import BaseModel
 from machinable import Execution, Index, Interface, Project, Storage
 
 
-class SlurmComponent(Interface):
+class SlurmInterface(Interface):
+    """Dummy slurm payload."""
     class Config(BaseModel):
         ranks: int = 1
         nodes: int = 1
 
     def __call__(self):
+        """stdout + fileout."""
         print("Hello world from Slurm")
         self.save_file("test_run.json", {"success": True})
 
@@ -27,12 +29,12 @@ def test_slurm_dry_run(tmp_path):
         Index({"database": str(tmp_path / "index.sqlite")}),
     ):
         with Project(os.path.dirname(__file__)):
-            component = SlurmComponent()
+            component = SlurmInterface()
             execution = Execution.make("slurm", {"confirm": False, "dry": True})
             execution.add(component)
             execution.dispatch()
             assert not component.cached()
-            script = execution.load_file([component.id, "slurm.sh"])
+            script = component.execution.load_file("slurm.sh")
             assert "#SBATCH" in (script or "")
 
 
@@ -41,7 +43,8 @@ def test_slurm_dry_run(tmp_path):
     reason="Test requires Slurm environment",
 )
 def test_slurm_execution(tmp_path):
-    component = SlurmComponent()
+    """Test slurm execution."""
+    component = SlurmInterface()
     directory = os.environ.get("MACHINABLE_SLURM_TEST_DIRECTORY", None)
     if directory is not None:
         tmp_path = Path(directory) / component.uuid
@@ -58,7 +61,7 @@ def test_slurm_execution(tmp_path):
                     os.environ.get("MACHINABLE_SLURM_TEST_RESOURCES", "{}")
                 ),
             ):
-                component = SlurmComponent().launch()
+                component = SlurmInterface().launch()
 
             status = False
             for _ in range(60):
@@ -80,11 +83,11 @@ def test_slurm_execution(tmp_path):
                     os.environ.get("MACHINABLE_SLURM_TEST_RESOURCES", "{}")
                 ),
             ):
-                A = SlurmComponent(uses=component).launch()
+                A = SlurmInterface(uses=component).launch()
                 A.save_file("name", "A")
-                B = SlurmComponent().launch()
+                B = SlurmInterface().launch()
                 B.save_file("name", "B")
-                C = SlurmComponent(uses=[A, B]).launch()
+                C = SlurmInterface(uses=[A, B]).launch()
                 C.save_file("name", "C")
 
             status = False
