@@ -409,6 +409,64 @@ class Project(Interface):
         """
         return ["machinable.manifest"]
 
+    def on_resolve_discovery(self) -> list:
+        """Discovery schemes consulted when enumerating this project's modules.
+
+        Returns importable ``Discovery`` elements (a module string, a
+        ``module:Class`` reference, or a class), resolved in order and composed
+        first-wins. The default is the built-in static AST discovery.
+        """
+        return ["machinable.discovery", "machinable.discovery:RemoteDiscovery"]
+
+    def _resolve_discovery(self, element):
+        """Resolve one ``on_resolve_discovery`` element to a ``Discovery``."""
+        from machinable.discovery import Discovery
+
+        if isinstance(element, Discovery):
+            return element
+        if isinstance(element, type):
+            return element()
+        if isinstance(element, str) and ":" in element:
+            from machinable.config import import_object_by_path
+
+            obj = import_object_by_path(element)
+            return obj() if isinstance(obj, type) else obj
+        mod = import_from_directory(element, self.config.directory)
+        if mod is None:
+            mod = importlib.import_module(element)
+        return find_subclass_in_module(mod, Discovery, default=Discovery)()
+
+    def modules(self) -> list:
+        """Statically discovered interface modules."""
+        from machinable.discovery import Catalog
+
+        catalog = Catalog()
+        graph = None
+        for element in self.provider().on_resolve_discovery():
+            try:
+                scheme = self._resolve_discovery(element)
+                graph = scheme.discover(graph, project=self, catalog=catalog) or graph
+            except Exception:  # noqa: BLE001 - a scheme failing never breaks discovery
+                continue
+        return catalog.list()
+
+    def module_schema(self, module: str):
+        """The static config schema for one discovered ``module``."""
+        graph = None
+        error: Exception | None = None
+        for element in self.provider().on_resolve_discovery():
+            try:
+                scheme = self._resolve_discovery(element)
+            except Exception:  # noqa: BLE001 - skip an unresolvable scheme
+                continue
+            if graph is None:
+                graph = scheme._graph(self.path())
+            try:
+                return scheme.module_schema(module, project=self, graph=graph)
+            except LookupError as ex:
+                error = ex
+        raise error or LookupError(f"No interface module '{module}'")
+
     def interface(
         self,
         module: "str | Interface | type[Interface]",

@@ -117,6 +117,158 @@ def _run_mcp(args: list) -> int:
     return 0
 
 
+def _last_module(words: list[str]) -> str | None:
+    """The last bare module token in a partial ``get`` invocation."""
+    for word in reversed(words):
+        if word.startswith(("~", "-")) or "=" in word:
+            continue
+        return "interface" + word if word.startswith(".") else word
+    return None
+
+
+_CONTAINER_TYPES = {"list", "tuple", "set", "frozenset", "dict"}
+
+
+def _config_keys(fields, prefix: str = "") -> list[str]:
+    """Dotted ``key=`` override candidates for a module's config fields.
+
+    Recurses into nested config models (``optimizer.lr=``); a container-typed
+    field (``list``/``dict``) is offered whole (``stages=``), since a CLI
+    override cannot address inside it by dotted path.
+    """
+    keys: list[str] = []
+    for field in fields:
+        name = f"{prefix}{field.name}"
+        container = field.type.split("[", 1)[0].strip() in _CONTAINER_TYPES
+        if field.fields and not container:
+            keys.extend(_config_keys(field.fields, f"{name}."))
+        else:
+            keys.append(f"{name}=")
+    return keys
+
+
+def _modules(args: list) -> int:
+    """``machinable modules [--project DIR]`` listing discoverable interfaces."""
+    project_dir = os.getcwd()
+    it = iter(args)
+    for arg in it:
+        if arg == "--project":
+            project_dir = next(it, project_dir)
+    sys.path.append(project_dir)
+    from machinable.project import Project
+
+    with Project(project_dir) as project:
+        for module in project.modules():
+            flag = " (partial)" if module.resolved != "full" else ""
+            widget = " [widget]" if module.widget else ""
+            print(f"{module.module}\t{module.kind}{widget}{flag}")
+    return 0
+
+
+def _complete(args: list) -> int:
+    """Backend for shell completion.
+
+    ``machinable complete [--project DIR] -- <words..>``
+    """
+    project_dir = os.getcwd()
+    words: list[str] = []
+    it = iter(args)
+    for arg in it:
+        if arg == "--project":
+            project_dir = next(it, project_dir)
+        elif arg == "--":
+            words.extend(it)
+        else:
+            words.append(arg)
+    current = words[-1] if words else ""
+    preceding = words[:-1]
+    sys.path.append(project_dir)
+    from machinable.project import Project
+
+    candidates: list[str] = []
+    try:
+        with Project(project_dir) as project:
+            module = _last_module(preceding)
+            if module is not None:
+                # after a module: its config overrides (key=) and ~versions
+                schema = project.module_schema(module)
+                candidates = _config_keys(schema.config_fields)
+                candidates += [f"~{name}" for name in schema.versions]
+            else:
+                # first position: the module names get resolves
+                candidates = [m.module for m in project.modules()]
+    except Exception:  # noqa: BLE001 - completion never errors out the shell
+        candidates = []
+    for candidate in sorted(candidates):
+        if candidate.startswith(current):
+            print(candidate)
+    return 0
+
+
+_BASH_COMPLETION = """\
+# machinable bash completion — install with:
+#   machinable completion bash >> ~/.bashrc
+_machinable_complete() {
+    COMPREPLY=()
+    [[ ${COMP_CWORD} -lt 2 ]] && return
+    case "${COMP_WORDS[1]}" in
+        get|get.*|modules) ;;
+        *) return ;;
+    esac
+    local args=("${COMP_WORDS[@]:2:COMP_CWORD-1}")
+    local IFS=$'\\n' c
+    local raw=( $(machinable complete -- "${args[@]}" 2>/dev/null) )
+    (( ${#raw[@]} )) || return
+    # No trailing space after `key=` (a value follows); a normal space after
+    # module names and ~versions. nospace is per-call, so add the space back
+    # manually only to the non-`key=` candidates.
+    compopt -o nospace 2>/dev/null
+    for c in "${raw[@]}"; do
+        [[ $c == *= ]] && COMPREPLY+=("$c") || COMPREPLY+=("$c ")
+    done
+}
+complete -F _machinable_complete machinable
+"""
+
+_ZSH_COMPLETION = """\
+# machinable zsh completion — install with:
+#   machinable completion zsh >> ~/.zshrc
+# (requires `autoload -Uz compinit && compinit` earlier in your ~/.zshrc)
+_machinable() {
+    (( CURRENT < 3 )) && return
+    case "${words[2]}" in
+        get|get.*|modules) ;;
+        *) return ;;
+    esac
+    local -a candidates keys rest
+    candidates=(${(f)"$(machinable complete -- ${words[3,CURRENT]} 2>/dev/null)"})
+    (( ${#candidates} )) || return
+    # `key=` completions keep the cursor in place (no suffix); module names and
+    # ~versions get the normal trailing space.
+    keys=(${(M)candidates:#*=})
+    rest=(${candidates:#*=})
+    (( ${#keys} )) && compadd -S '' -- $keys
+    (( ${#rest} )) && compadd -- $rest
+}
+compdef _machinable machinable
+"""
+
+
+def _completion(args: list) -> int:
+    """``machinable completion [bash|zsh]``: print a shell completion script.
+
+    The script wires Tab completion for ``machinable get`` / ``machinable
+    modules`` to the ``machinable complete`` backend.
+    """
+    shell = args[0] if args else "bash"
+    scripts = {"bash": _BASH_COMPLETION, "zsh": _ZSH_COMPLETION}
+    if shell not in scripts:
+        print(f"Unsupported shell '{shell}' (choose bash or zsh)", file=sys.stderr)
+        return 128
+    print(scripts[shell], end="")
+    return 0
+
+
 def main(args: list | None = None):
     """Entry point of the ``machinable`` command."""
     import machinable
@@ -128,9 +280,19 @@ def main(args: list | None = None):
         print("\nhelp")
         print("\nversion")
         print("\nget")
+        print("\nmodules")
         return 0
 
     action, args = args[0], args[1:]
+
+    if action == "modules":
+        return _modules(args)
+
+    if action == "complete":
+        return _complete(args)
+
+    if action == "completion":
+        return _completion(args)
 
     if action == "help":
         h = "get"
@@ -160,6 +322,21 @@ def main(args: list | None = None):
                 "\nDownload declared remotes into interface/remotes/ without "
                 "importing them,\nso the code can be inspected before it "
                 "executes. Without arguments, fetches\nevery declared remote."
+            )
+            return 0
+        elif h == "modules":
+            print("\nmachinable modules [--project DIR]")
+            print(
+                "\nStatically list the project's discoverable interface modules "
+                "(import-free).\nModule, kind, and flags for [widget]/(partial)."
+            )
+            return 0
+        elif h == "completion":
+            print("\nmachinable completion [bash|zsh]")
+            print(
+                "\nPrint a shell completion script for `machinable get` / "
+                "`machinable modules`.\nInstall with: machinable completion bash "
+                ">> ~/.bashrc"
             )
             return 0
         else:

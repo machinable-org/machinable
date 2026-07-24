@@ -8,8 +8,6 @@ import inspect
 import json
 import os
 from collections.abc import Awaitable, Callable
-from dataclasses import MISSING
-from dataclasses import fields as dataclass_fields
 from typing import Any, cast
 
 from fastapi import HTTPException, Request
@@ -25,10 +23,9 @@ from machinable.api.models import (
     VersionMethod,
     WidgetInfo,
 )
-from machinable.config import from_interface
 from machinable.execution import Execution
 from machinable.interface import Interface, connection_scope
-from machinable.project import Project, import_interface
+from machinable.project import Project
 from machinable.utils import safe_path, serialize
 
 
@@ -698,198 +695,77 @@ def read_interface_file(interface: Interface, path: str) -> Any:
     return content
 
 
-def discover_project_modules(project_dir: str) -> ProjectIndex:
-    from machinable.utils import skip_source_dir
-    from machinable.widget import is_widget
+def _project_for(project_dir: str) -> Project:
+    if Project.is_connected():
+        connected = Project.get()
+        if _abspath(connected.path()) == _abspath(project_dir):
+            return connected
+    return Project(project_dir)
 
-    modules: list[ProjectModule] = []
-    for root, dirs, files in os.walk(project_dir):
-        dirs[:] = [d for d in dirs if not skip_source_dir(d)]
-        for filename in files:
-            if not filename.endswith(".py") or filename.startswith("_"):
-                continue
-            rel_path = os.path.relpath(os.path.join(root, filename), project_dir)
-            module_name = rel_path[:-3].replace(os.sep, ".")
-            try:
-                interface_class = import_interface(project_dir, module_name, Interface)
-            except Exception:
-                continue
-            if interface_class is Interface:
-                continue
-            modules.append(
-                ProjectModule(
-                    module=module_name,
-                    kind=interface_class.kind or "Interface",
-                    doc=inspect.getdoc(interface_class),
-                    widget=is_widget(interface_class),
-                )
-            )
-    modules.sort(key=lambda item: item.module)
+
+def _to_config_field(f) -> ConfigField:
+    return ConfigField(
+        name=f.name,
+        type=f.type,
+        default=f.default,
+        required=f.required,
+        identifying=f.identifying,
+        fields=[_to_config_field(x) for x in f.fields] if f.fields else None,
+    )
+
+
+def discover_project_modules(project_dir: str) -> ProjectIndex:
+    project = _project_for(project_dir)
+    modules = [
+        ProjectModule(
+            module=m.module,
+            kind=m.kind,
+            doc=m.doc,
+            widget=m.widget,
+            resolved=m.resolved,
+        )
+        for m in project.modules()
+    ]
     return ProjectIndex(project=os.path.abspath(project_dir), modules=modules)
 
 
-def _nested_config_fields(annotation, depth: int) -> list[ConfigField] | None:
-    """Recursively reflected sub-fields for a nested config model annotation.
-
-    Resolves a model behind ``Optional``/unions and inside ``list``/``dict``
-    containers; ``depth`` caps self-referencing models.
-    """
-    from typing import get_args, get_origin
-
-    from machinable.config import _nested_model
-
-    if depth <= 0:
-        return None
-    nested = _nested_model(annotation)
-    if nested is None:
-        origin = get_origin(annotation)
-        args = get_args(annotation)
-        if origin in (list, tuple, set, frozenset) and args:
-            nested = _nested_model(args[0])
-        elif origin is dict and len(args) == 2:
-            nested = _nested_model(args[1])
-    if nested is None:
-        return None
-    return _reflect_model_fields(nested, depth - 1)
-
-
-def _reflect_model_fields(model, depth: int = 6) -> list[ConfigField]:
-    """ConfigField list for a pydantic model, nested models reflected in."""
-    fields: list[ConfigField] = []
-    for name, field in model.model_fields.items():
-        if name.endswith("_"):
-            continue
-        if hasattr(field, "is_required"):
-            required = field.is_required()
-            default = None if required else field.default
-        else:
-            default = field.default
-            required = getattr(field, "required", False)
-        fields.append(
-            ConfigField(
-                name=name,
-                type=str(field.annotation),
-                default=default,
-                required=required,
-                fields=_nested_config_fields(field.annotation, depth),
-            )
-        )
-    return fields
-
-
 def module_schema(project_dir: str, module: str) -> ModuleSchema:
-    interface_class = import_interface(project_dir, module, Interface)
-    default_config, config_model = from_interface(interface_class)
-    config_fields: list[ConfigField] = []
+    from machinable.api.models import ConfigMethod
 
-    if config_model is not None:
-        config_fields = _reflect_model_fields(config_model)
-    elif default_config:
-        for name, value in default_config.items():
-            if name.endswith("_"):
-                continue
-            config_fields.append(
-                ConfigField(
-                    name=name,
-                    type=type(value).__name__,
-                    default=value,
-                    required=False,
-                )
-            )
-    else:
-        config_cls = getattr(interface_class, "Config", None)
-        if config_cls is not None and inspect.isclass(config_cls):
-            if hasattr(config_cls, "model_fields"):
-                for name, field in config_cls.model_fields.items():
-                    if name.endswith("_"):
-                        continue
-                    config_fields.append(
-                        ConfigField(
-                            name=name,
-                            type=str(field.annotation),
-                            default=field.default,
-                            required=field.is_required(),
-                        )
-                    )
-            else:
-                for field in dataclass_fields(config_cls):
-                    if field.name.endswith("_"):
-                        continue
-                    config_fields.append(
-                        ConfigField(
-                            name=field.name,
-                            type=str(field.type),
-                            default=(
-                                field.default if field.default is not MISSING else None
-                            ),
-                            required=field.default is MISSING,
-                        )
-                    )
-
-    versions = []
-    version_methods = []
-    for name, fn in inspect.getmembers(interface_class, inspect.isfunction):
-        if not name.startswith("version_"):
-            continue
-        token = name[len("version_") :]
-        versions.append(token)
-        try:
-            signature = (
-                str(inspect.signature(fn))
-                .replace("(self, ", "(")
-                .replace("(self)", "()")
-            )
-        except (ValueError, TypeError):
-            signature = "(...)"
-        try:
-            method_line = inspect.getsourcelines(fn)[1]
-        except (OSError, TypeError):
-            method_line = None
-        version_methods.append(
-            VersionMethod(
-                name=token,
-                signature=signature,
-                doc=inspect.getdoc(fn),
-                source_line=method_line,
-            )
-        )
-
-    from machinable.widget import is_widget, widget_css
+    project = _project_for(project_dir)
+    schema = project.module_schema(module)
 
     widget = None
-    if is_widget(interface_class):
+    if schema.widget is not None:
         widget = WidgetInfo(
-            meta=getattr(interface_class, "widget_meta", {}) or {},
+            meta=schema.widget.meta,
             esm_url=f"/v1/project/{module}/widget/esm",
             css_url=(
-                f"/v1/project/{module}/widget/css"
-                if widget_css(interface_class)
-                else None
+                f"/v1/project/{module}/widget/css" if schema.widget.has_css else None
             ),
         )
-
-    # where the class is defined, when inside the project (feeds code views)
-    source_file = source_line = None
-    try:
-        file = inspect.getsourcefile(interface_class)
-        if file:
-            rel = os.path.relpath(os.path.realpath(file), os.path.realpath(project_dir))
-            if not rel.startswith(".."):
-                source_file = rel.replace(os.sep, "/")
-                source_line = inspect.getsourcelines(interface_class)[1]
-    except (OSError, TypeError, ValueError):
-        pass  # dynamically defined / outside the project — no source ref
-
     return ModuleSchema(
-        module=module,
-        kind=interface_class.kind or "Interface",
-        doc=inspect.getdoc(interface_class),
-        config_fields=config_fields,
-        versions=versions,
-        version_methods=version_methods,
+        module=schema.module,
+        kind=schema.kind,
+        doc=schema.doc,
+        config_fields=[_to_config_field(f) for f in schema.config_fields],
+        versions=schema.versions,
+        version_methods=[
+            VersionMethod(
+                name=v.name, signature=v.signature, doc=v.doc, source_line=v.source_line
+            )
+            for v in schema.version_methods
+        ],
+        config_methods=[
+            ConfigMethod(
+                name=c.name, signature=c.signature, doc=c.doc, source_line=c.source_line
+            )
+            for c in schema.config_methods
+        ],
         widget=widget,
-        source_file=source_file,
-        source_line=source_line,
+        source_file=schema.source_file,
+        source_line=schema.source_line,
+        resolved=schema.resolved,
     )
 
 

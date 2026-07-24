@@ -9,6 +9,7 @@ __all__ = [
     "Storage",
     "Index",
     "Scope",
+    "Discovery",
     "get",
     "from_cli",
     "Field",
@@ -21,6 +22,7 @@ from importlib.metadata import PackageNotFoundError, version
 
 from machinable.cli import from_cli
 from machinable.config import Field, import_ref, resolve_ref
+from machinable.discovery import Discovery
 from machinable.execution import Execution
 from machinable.index import Index
 from machinable.inference import Inference
