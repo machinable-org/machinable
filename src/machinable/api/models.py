@@ -584,11 +584,16 @@ class HealthResponse(BaseModel):
 class ProjectModule(BaseModel):
     """Discoverable Interface module in the connected project."""
 
-    module: str = Field(description="Project-relative dotted module path.")
+    module: str = Field(description="Declared module name (dedup identity).")
     kind: str = Field(description="Interface kind for the discovered class.")
     doc: str | None = Field(default=None, description="Class docstring, if present.")
     widget: bool = Field(
         default=False, description="True when the class ships a widget frontend."
+    )
+    resolved: str = Field(
+        default="full",
+        description="'full' or 'partial' when static analysis could not fully "
+        "resolve the module (a dynamic base, an unfetched remote).",
     )
 
 
@@ -608,6 +613,10 @@ class ConfigField(BaseModel):
     type: str = Field(description="Python type annotation as string.")
     default: Any = Field(description="Default value, or null if required.")
     required: bool = Field(description="True when the field has no default.")
+    identifying: bool = Field(
+        default=True,
+        description="False when the field is excluded from config identity.",
+    )
     fields: list[ConfigField] | None = Field(
         default=None,
         description="Sub-fields when the annotation is a nested config model "
@@ -625,6 +634,17 @@ class VersionMethod(BaseModel):
     doc: str | None = Field(default=None, description="Docstring, if present.")
     source_line: int | None = Field(
         default=None, description="1-based line in the module's source file."
+    )
+
+
+class ConfigMethod(BaseModel):
+    """A ``config_<name>`` method referenced from config as ``name(args)``."""
+
+    name: str = Field(description="Config-method name; reference as name(args).")
+    signature: str = Field(description="Call signature, e.g. '(top=3)'.")
+    doc: str | None = Field(default=None, description="Docstring, if present.")
+    source_line: int | None = Field(
+        default=None, description="1-based line in the defining source file."
     )
 
 
@@ -657,6 +677,11 @@ class ModuleSchema(BaseModel):
         default_factory=list,
         description="Version methods with signature + docstring (the ~version vocab).",
     )
+    config_methods: list[ConfigMethod] = Field(
+        default_factory=list,
+        description="config_<name> methods (interface + provider) referenceable "
+        "from config as name(args).",
+    )
     widget: WidgetInfo | None = Field(
         default=None,
         description="Widget frontend descriptor when the class ships one.",
@@ -668,6 +693,11 @@ class ModuleSchema(BaseModel):
     )
     source_line: int | None = Field(
         default=None, description="1-based line of the class definition."
+    )
+    resolved: str = Field(
+        default="full",
+        description="'full' or 'partial' when static analysis could not fully "
+        "resolve the config (a dynamic base, an un-evaluable default).",
     )
 
 

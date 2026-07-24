@@ -21,6 +21,7 @@ dependencies = [
   "omegaconf==2.4.0.dev12",
   "dill>=0.4.1",
   "cloudpickle>=3",
+  "pathspec>=0.12",
 ]
 
 [project.optional-dependencies]

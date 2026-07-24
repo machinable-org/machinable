@@ -120,3 +120,9 @@ class Inference(Interface):
     """Model for Inference records."""
 
     kind: str = "Inference"
+
+
+class Discovery(Interface):
+    """Model for Discovery records."""
+
+    kind: str = "Discovery"

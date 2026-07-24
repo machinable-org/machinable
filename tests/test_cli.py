@@ -101,6 +101,56 @@ def test_cli_main(capfd, tmp_storage):
     assert from_cli(["test", "me"]) == ["test", "me"]
 
 
+def test_cli_modules_and_complete(capfd, tmp_storage):
+    project = "tests/samples/project"
+
+    # `machinable modules` lists discoverable interfaces
+    assert main(["modules", "--project", project]) == 0
+    out, _ = capfd.readouterr()
+    listed = {line.split("\t")[0] for line in out.splitlines()}
+    assert {"basic", "versioned", "pipeline"} <= listed
+
+    # `machinable complete` emits module candidates at the first position
+    assert main(["complete", "--project", project, "--", "ver"]) == 0
+    out, _ = capfd.readouterr()
+    assert out.splitlines() == ["versioned"]
+
+    # after a module: its config overrides (key=) and ~version vocabulary
+    assert main(["complete", "--project", project, "--", "versioned", ""]) == 0
+    out, _ = capfd.readouterr()
+    assert set(out.split()) == {"layers=", "lr=", "~large", "~lr"}
+
+    # ... filtered to config keys by a bare prefix
+    assert main(["complete", "--project", project, "--", "versioned", "la"]) == 0
+    out, _ = capfd.readouterr()
+    assert out.splitlines() == ["layers="]
+
+    # nested config models are offered as dotted leaf overrides
+    assert main(["complete", "--project", project, "--", "pipeline", "optimizer."]) == 0
+    out, _ = capfd.readouterr()
+    assert out.splitlines() == ["optimizer.kind=", "optimizer.lr="]
+
+    # .. and the ~version vocabulary when the word starts with ~
+    assert main(["complete", "--project", project, "--", "versioned", "~"]) == 0
+    out, _ = capfd.readouterr()
+    assert set(out.split()) == {"~large", "~lr"}
+
+
+def test_cli_completion_script(capfd):
+    # a bash script that wires Tab completion to the `complete` backend
+    assert main(["completion", "bash"]) == 0
+    out, _ = capfd.readouterr()
+    assert "complete -F _machinable_complete machinable" in out
+    assert "COMPREPLY=()" in out  # clears stale completions on early return
+
+    assert main(["completion", "zsh"]) == 0
+    out, _ = capfd.readouterr()
+    assert "compdef _machinable machinable" in out
+
+    # an unsupported shell is a clean 128, not a traceback
+    assert main(["completion", "fish"]) == 128
+
+
 def test_cli_to_cli():
     assert Execution().to_cli() == "machinable.execution"
     assert (

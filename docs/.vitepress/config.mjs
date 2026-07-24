@@ -73,7 +73,8 @@ export default defineConfig({
             { text: 'Advanced configuration', link: '/guide/advanced-configuration' },
             { text: 'Execution in depth', link: '/guide/advanced-execution' },
             { text: 'Storage & the index', link: '/guide/storage' },
-            { text: 'Provenance', link: '/guide/provenance' }
+            { text: 'Provenance', link: '/guide/provenance' },
+            { text: 'Discovering modules', link: '/guide/discovery' }
           ]
         },
         {
@@ -128,6 +129,7 @@ export default defineConfig({
             { text: 'Storage', link: '/design/storage' },
             { text: 'Directory format', link: '/design/format' },
             { text: 'Provenance', link: '/design/provenance' },
+            { text: 'Module discovery', link: '/design/discovery' },
             { text: 'Inference design', link: '/design/inference' },
             { text: 'Key decisions', link: '/design/decisions' }
           ]
