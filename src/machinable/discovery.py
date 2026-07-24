@@ -752,6 +752,8 @@ def _module_info(
     classname, kind, resolved = found
     chain, _kind, _complete, anchor_names = graph.chain(module, classname)
     pm = graph.module(module)
+    if pm is None:  # unreachable once interface_class succeeded; narrows the type
+        return None
     node = pm.classes[classname]
     widget = _widget_spec(graph, chain)
     source_file, source_line = _source_ref(graph, pm, node)
@@ -775,6 +777,8 @@ def _module_schema(
     classname, kind, resolved = found
     chain, _kind, _complete, _anchors = graph.chain(module, classname)
     pm = graph.module(module)
+    if pm is None:  # unreachable once interface_class succeeded; narrows the type
+        return None
     node = pm.classes[classname]
 
     reflector = _ConfigReflector(graph)
@@ -832,6 +836,6 @@ class Catalog:
         """Record ``info`` unless its module name was already claimed."""
         self._items.setdefault(info.module, info)
 
-    def list(self) -> list[ModuleInfo]:
+    def entries(self) -> list[ModuleInfo]:
         """The accumulated modules, sorted by name."""
         return sorted(self._items.values(), key=lambda m: m.module)
