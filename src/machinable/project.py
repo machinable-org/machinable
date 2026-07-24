@@ -448,7 +448,7 @@ class Project(Interface):
                 graph = scheme.discover(graph, project=self, catalog=catalog) or graph
             except Exception:  # noqa: BLE001 - a scheme failing never breaks discovery
                 continue
-        return catalog.list()
+        return catalog.entries()
 
     def module_schema(self, module: str):
         """The static config schema for one discovered ``module``."""
