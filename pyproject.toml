@@ -86,6 +86,11 @@ testpaths = ["tests"]
 # community-maintained, checked by the integrations workflow instead
 extend-exclude = ["integrations"]
 
+[tool.ruff.format]
+# ruff >=0.16 formats python blocks in markdown; docs align trailing comments
+# into a column for readability, which the formatter collapses
+exclude = ["*.md"]
+
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "D"]
 # magic methods, nested Config classes, and __init__ are self-describing
