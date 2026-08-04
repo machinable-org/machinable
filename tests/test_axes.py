@@ -286,7 +286,7 @@ def test_non_scope_interface_element_is_rejected(tmp_storage):
         class Config(BaseModel):
             a: int = 1
 
-    with pytest.raises(ExpansionError, match="not a predicate-bearing context"):
+    with pytest.raises(ExpansionError, match="only Scopes may be yielded"):
         _sweep([get(Other), get(Other, {"a": 2})]).expand()
 
 
@@ -339,13 +339,13 @@ def test_unknown_axis(tmp_storage):
 
 
 def test_duplicate_elements_are_rejected(tmp_storage):
-    with pytest.raises(ExpansionError, match="distinct run"):
+    with pytest.raises(ExpansionError, match="2 elements but only 1 distinct"):
         _sweep([{"a": 2}, {"a": 2}]).expand()
 
 
 def test_override_after_the_axis_collapses_the_sweep(tmp_storage):
     # the trailing patch overwrites the element's key at merge time
-    with pytest.raises(ExpansionError, match="distinct run"):
+    with pytest.raises(ExpansionError, match="2 elements but only 1 distinct"):
         get(Replicate, ["~~thresholds", {"threshold": 1.0}]).expand()
 
 
