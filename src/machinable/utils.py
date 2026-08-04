@@ -505,7 +505,14 @@ def update_dict(
 
 
 def norm_version_call(version: str):
-    """Normalize the spelling of a ``~method(args)`` version call."""
+    """Normalize the spelling of a ``~method(args)`` version call.
+
+    The leading sigil is preserved verbatim as ``~name`` is a version method,
+    ``~~name`` an axis (which expands to many versions), and the two must not
+    collapse into each other.
+    """
+    stripped = version.strip()
+    sigil = "~~" if stripped.startswith("~~") else ("~" if "~" in version else "")
     code = version.replace("~", "").strip()
     tokens = tokenize.tokenize(BytesIO(code.encode("utf-8")).readline)
     normalized_tokens = []
@@ -541,8 +548,8 @@ def norm_version_call(version: str):
             normalized_tokens.append(tokval)
         last_token_type = toknum
 
-    if "~" in version:
-        normalized_tokens = ["~"] + normalized_tokens
+    if sigil:
+        normalized_tokens = [sigil] + normalized_tokens
 
     normalized_code = "".join(normalized_tokens)
     normalized_code = (

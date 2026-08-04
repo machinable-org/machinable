@@ -37,6 +37,14 @@ reimplement pandas in idioms nobody has training on, machinable hands off a Data
 via a flat-columned `as_dataframe()` and keeps `pandas` a lazy import out of core. This
 reduces the bespoke surface to learn instead of mimicking pandas.
 
+## Axes over a sweep helper
+
+Fan-out is a version token (`~~name`, backed by a static `axis_<name>`), not a `sweep()`
+helper, a decorator on `version_*`, or a collection returned from `get`. The reasoning —
+why cardinality belongs at the call site, why an unexpanded interface is a lifecycle state
+rather than a crippled one, and why a group is identified by the set it expands into — is
+recorded in [Axes](./axes.md), together with the alternatives that were tried and dropped.
+
 ## Unknown config keys
 
 As a consequence of strict pydantic models, an unknown config key (a typo in a version)

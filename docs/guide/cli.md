@@ -13,10 +13,14 @@ machinable get <module> [~version …] [key=value …] [--method …]
 machinable get optimize lr=0.5 --launch          # resolve + run __call__
 machinable get optimize lr=0.5 --launch --loss   # then call .loss() and print it
 machinable get train ~adam lr=3e-4 --launch       # versions and overrides
+machinable get spike_sort ~~sessions --launch     # an axis: one token, many executions
 ```
 
 - `key=value` sets a config override (dotted paths nest: `optimizer.lr=0.1`).
 - `~version` applies a [version method](./versions.md) (`~adam`, `~large`).
+- `~~axis` expands the interface over an
+  [axis](./versions.md#axes-one-token-many-runs), so the command launches every run it
+  denotes. `--launch` is incremental, so re-running only does the new work.
 - `--<method>` calls a method on the resolved interface; a returned value is printed.
   `--launch` runs the interface. Arguments follow the same convention as
   [`~versions`](./versions.md): `--summary(top=3)` calls `summary(top=3)` (quote the
@@ -63,6 +67,6 @@ machinable mcp --project .  # launch the research MCP server (see Agents & MCP)
 machinable help get         # usage
 ```
 
-`machinable modules` lists the interfaces `machinable get` can resolve, and `machinable completion` wires Tab completion for module names and `~versions` ([Discovering modules](./discovery.md)). `machinable fetch` supports [inspecting remote code](./storage.md#remotes-shareable-interfaces) before it ever executes. `machinable console` is documented with the [API server](./server.md#the-console).
+`machinable modules` lists the interfaces `machinable get` can resolve, and `machinable completion` wires Tab completion for module names, `~versions` and `~~axes` ([Discovering modules](./discovery.md)). `machinable fetch` supports [inspecting remote code](./storage.md#remotes-shareable-interfaces) before it ever executes. `machinable console` is documented with the [API server](./server.md#the-console).
 
 The `machinable mcp` server is documented in [Agents & MCP → Setup](/mcp/setup).

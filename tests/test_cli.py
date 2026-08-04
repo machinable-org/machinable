@@ -115,10 +115,19 @@ def test_cli_modules_and_complete(capfd, tmp_storage):
     out, _ = capfd.readouterr()
     assert out.splitlines() == ["versioned"]
 
-    # after a module: its config overrides (key=) and ~version vocabulary
+    # after a module: its config overrides (key=), ~version vocabulary and the
+    # ~~axes it can expand over (here the project provider's, which serve every
+    # module)
     assert main(["complete", "--project", project, "--", "versioned", ""]) == 0
     out, _ = capfd.readouterr()
-    assert set(out.split()) == {"layers=", "lr=", "~large", "~lr"}
+    assert set(out.split()) == {
+        "layers=",
+        "lr=",
+        "~large",
+        "~lr",
+        "~~global_axis",
+        "~~global_seeds",
+    }
 
     # ... filtered to config keys by a bare prefix
     assert main(["complete", "--project", project, "--", "versioned", "la"]) == 0
@@ -133,7 +142,12 @@ def test_cli_modules_and_complete(capfd, tmp_storage):
     # .. and the ~version vocabulary when the word starts with ~
     assert main(["complete", "--project", project, "--", "versioned", "~"]) == 0
     out, _ = capfd.readouterr()
-    assert set(out.split()) == {"~large", "~lr"}
+    assert set(out.split()) == {"~large", "~lr", "~~global_axis", "~~global_seeds"}
+
+    # a doubled sigil narrows to axes alone
+    assert main(["complete", "--project", project, "--", "versioned", "~~"]) == 0
+    out, _ = capfd.readouterr()
+    assert set(out.split()) == {"~~global_axis", "~~global_seeds"}
 
 
 def test_cli_completion_script(capfd):

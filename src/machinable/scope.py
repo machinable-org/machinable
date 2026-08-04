@@ -15,4 +15,8 @@ class Scope(Interface):
 
     def __call__(self) -> dict:
         """The scope's predicate contribution (its config update)."""
+        # an unexpanded scope's update does not carry its axis patch, so using it
+        # as a scope would silently apply an empty predicate
+        self._assert_expanded("use as a scope")
+
         return to_dict(self.config._update_)

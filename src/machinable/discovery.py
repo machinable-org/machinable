@@ -80,6 +80,8 @@ class ModuleSchemaInfo:
     versions: list[str] = field(default_factory=list)
     version_methods: list[MethodInfo] = field(default_factory=list)
     config_methods: list[MethodInfo] = field(default_factory=list)
+    axes: list[str] = field(default_factory=list)
+    axis_methods: list[MethodInfo] = field(default_factory=list)
     widget: WidgetSpec | None = None
     source_file: str | None = None
     source_line: int | None = None
@@ -791,11 +793,13 @@ def _module_schema(
 
     version_methods = _methods(chain, "version_")
     config_methods = _methods(chain, "config_")
-    # config methods also resolve against the project provider (see
-    # config._has_config_method); union the provider's in.
-    for extra in _provider_config_methods(graph, project):
+    axis_methods = _methods(chain, "axis_")
+    for extra in _provider_methods(graph, project, "config_"):
         if all(m.name != extra.name for m in config_methods):
             config_methods.append(extra)
+    for extra in _provider_methods(graph, project, "axis_"):
+        if all(m.name != extra.name for m in axis_methods):
+            axis_methods.append(extra)
 
     source_file, source_line = _source_ref(graph, pm, node)
     return ModuleSchemaInfo(
@@ -806,6 +810,8 @@ def _module_schema(
         versions=[m.name for m in version_methods],
         version_methods=version_methods,
         config_methods=config_methods,
+        axes=[m.name for m in axis_methods],
+        axis_methods=axis_methods,
         widget=_widget_spec(graph, chain),
         source_file=source_file,
         source_line=source_line,
@@ -813,8 +819,10 @@ def _module_schema(
     )
 
 
-def _provider_config_methods(graph: SymbolGraph, project: Project) -> list[MethodInfo]:
-    """``config_*`` methods declared on the project's provider class (via AST)."""
+def _provider_methods(
+    graph: SymbolGraph, project: Project, prefix: str
+) -> list[MethodInfo]:
+    """``prefix``-named methods declared on the project's provider class (via AST)."""
     module = getattr(project, "_provider", "interface/project")
     if not isinstance(module, str):
         return []
@@ -823,7 +831,7 @@ def _provider_config_methods(graph: SymbolGraph, project: Project) -> list[Metho
     if found is None:
         return []
     chain, _kind, _complete, _anchors = graph.chain(module, found[0])
-    return _methods(chain, "config_")
+    return _methods(chain, prefix)
 
 
 class Catalog:

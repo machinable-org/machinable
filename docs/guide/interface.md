@@ -48,7 +48,8 @@ An interface moves through a few states:
 
 | State | How | Meaning |
 | --- | --- | --- |
-| **unmaterialized** | `get(...)` | configured, no storage yet |
+| **unexpanded** | `get(..., ["~~axis"])` | an [axis](./versions.md#axes-one-token-many-runs) is pending denoting many interfaces |
+| **unmaterialized** | `get(...)` / `.expand()` | configured, no storage yet |
 | **materialized** | `.materialize()` / `.launch()` | has a `uuid` and a directory; config is now immutable |
 | **computed** | `.launch()` | `__call__` has run; results are on disk |
 
@@ -63,6 +64,9 @@ run.local_directory()     # where its files live
   `model.json`, but does not run `__call__`.
 - `launch()` materializes (if needed) and computes it through an
   [`Execution`](./execution.md). Launching an already-computed interface is a no-op.
+- `expand()` resolves a pending axis into the interfaces it denotes. While unexpanded, an
+  interface can be launched, iterated, versioned and printed, but not entered, called or
+  materialized — those raise, since it stands for several runs rather than one.
 
 ## Saving and loading results
 
@@ -90,6 +94,7 @@ File formats, attributes, where the files live, and cache invalidation are cover
 | `predicate` | the [predicate](./identity.md) (scopes + `on_compute_predicate`) |
 | `cached()` | whether this run is marked ready/cached |
 | `launch()` / `materialize()` | run / register it |
+| `expand()` / `interfaces` | the interfaces an [axis](./versions.md#axes-one-token-many-runs) denotes |
 | `all()` / `singleton()` | [find](./identity.md#finding-and-matching) sibling runs |
 | `derive(...)` / `related()` | [relations & lineage](./relations.md) |
 | `to_cli()` | the run rendered as its compact CLI command |

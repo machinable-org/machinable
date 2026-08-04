@@ -130,6 +130,7 @@ export default defineConfig({
             { text: 'Directory format', link: '/design/format' },
             { text: 'Provenance', link: '/design/provenance' },
             { text: 'Module discovery', link: '/design/discovery' },
+            { text: 'Axes', link: '/design/axes' },
             { text: 'Inference design', link: '/design/inference' },
             { text: 'Key decisions', link: '/design/decisions' }
           ]

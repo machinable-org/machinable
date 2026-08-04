@@ -57,6 +57,32 @@ overrides stay small: `get('train', ['~adam', {'lr': 3e-4}])`. Nested overrides 
 dotted paths: `{'optimizer.lr': 3e-4}` expands to `{'optimizer': {'lr': 3e-4}}`.
 Version spelling never affects identity: `['~adam']` and the dict it expands to are
 the same record.
+
+*Axes* fan one interface out over many inputs. An `axis_<name>` **staticmethod** returns a
+list of patches (or scopes) and is invoked as `~~name`; each element becomes one run, so
+the sweep is nameable on the CLI and in the MCP instead of hiding in a second module:
+
+```python
+class SpikeSort(Interface):
+    class Config(BaseModel):
+        path: str = "?"
+
+    @staticmethod
+    def axis_sessions(root="data"):       # ~~sessions
+        return [{"path": p} for p in sorted(glob(f"{root}/*.nwb"))]
+
+    @staticmethod
+    def axis_seeds(n=10):                 # ~~seeds — a scope varies the predicate
+        return [get("machinable.scope", {"seed": s}) for s in range(n)]
+```
+`get('spike_sort', ['~~sessions']).launch()` runs them all (dedup'd, incremental);
+`.interfaces` collects them without running. Several axes form a product
+(`['~~sessions', '~~seeds']`), and elements merge where the token sits, so
+`['~~sessions', '~strict']` applies `~strict` to every member. An axis has no `self` (it
+cannot read config — pass arguments instead: `~~variants(base=0.5)`), its elements must
+resolve to *different* runs (an expansion that collapses raises), and it should be sorted
+and deterministic. Members are ordinary records: a run launched via an axis is the same
+record as that config launched directly.
 *Config methods* (a config value computed by a `config_<name>(self, ...)` method,
 referenced as a string `"name(arg)"`) fold computed values in the same way.
 
@@ -153,9 +179,12 @@ pandas.
 
 ## Do / don't
 
-- **Do** make `Config` a `BaseModel`; encode axes as `version_*`; return one run's
-  value from `<quantity>()`; let dedup make grids incremental.
+- **Do** make `Config` a `BaseModel`; encode experiment arms as `version_*` and flat
+  fan-out as `axis_*`; return one run's value from `<quantity>()`; let dedup make grids
+  incremental.
 - **Don't** invent a metrics file format, a `log_metric` call, or a `sweep()` DSL;
-  write the grid in Python. Don't put statistics in the operand; that's the
+  write the grid in Python (an `axis_*` is a plain function returning a list, not a
+  sweep language). Don't reach for an axis when the sweep needs its own config,
+  an order, or prior results — that is an aggregate. Don't put statistics in the operand; that's the
   inference's job. Don't hash a data location into identity; exclude it and use a
   content predicate.
