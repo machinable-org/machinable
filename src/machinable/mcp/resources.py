@@ -17,6 +17,7 @@ _EXAMPLES = (
     "interface",
     "config",
     "execution",
+    "axis",
     "aggregate",
     "inference",
     "widget",
@@ -60,8 +61,8 @@ def register_resources(mcp: Any, ctx: MCPContext) -> None:
     def example(name: str) -> str:
         """Small, runnable, idiomatic templates.
 
-        interface, config, execution, aggregate, inference, widget, and the
-        end-to-end `investigate`.
+        interface, config, execution, axis, aggregate, inference, widget, and
+        the end-to-end `investigate`.
         """
         if name not in _EXAMPLES:
             return f"# unknown example {name!r}; available: {', '.join(_EXAMPLES)}"

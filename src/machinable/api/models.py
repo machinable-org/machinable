@@ -682,6 +682,15 @@ class ModuleSchema(BaseModel):
         description="config_<name> methods (interface + provider) referenceable "
         "from config as name(args).",
     )
+    axes: list[str] = Field(
+        default_factory=list,
+        description="Named axes exposed by the class (and the project provider).",
+    )
+    axis_methods: list[VersionMethod] = Field(
+        default_factory=list,
+        description="axis_<name> methods with signature + docstring. Invoked as "
+        "~~name, an axis expands the interface into many runs.",
+    )
     widget: WidgetInfo | None = Field(
         default=None,
         description="Widget frontend descriptor when the class ships one.",

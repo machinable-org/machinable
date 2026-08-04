@@ -40,7 +40,7 @@ from machinable.config import (
     match_method,
     rewrite_config_methods,
 )
-from machinable.errors import ConfigurationError, MachinableError
+from machinable.errors import ConfigurationError, ExpansionError, MachinableError
 from machinable.types import DatetimeType, InterfaceType, VersionType
 from machinable.utils import (
     Jsonable,
@@ -134,6 +134,11 @@ def _resolve_config_method(function: str, args: str) -> Any:
 OmegaConf.register_resolver(
     name="config_method", resolver=_resolve_config_method, replace=True
 )
+
+
+def is_axis(token: Any) -> bool:
+    """True for a ``~~name`` axis token."""
+    return isinstance(token, str) and token.startswith("~~")
 
 
 def normversion(version: VersionType = None) -> list[str | dict]:
@@ -972,6 +977,9 @@ class Interface(Jsonable):
                 matching (e.g. Execution never re-uses an existing run-record).
 
         """
+        if self.is_unexpanded():
+            return None
+
         return {
             "module": self.module,
             "identity_key": self.catalog_identity_key(),
@@ -1081,6 +1089,12 @@ class Interface(Jsonable):
                     # compose configuration update
                     config_update = {}
                     for version in __version:
+                        if is_axis(version):
+                            # an axis contributes nothing to the interface's own
+                            # config but is resolved at expansion time so its
+                            # elements land in the members' versions instead
+                            continue
+
                         if isinstance(version, str) and version.startswith("~"):
                             definition = version[1:]
 
@@ -1099,10 +1113,20 @@ class Interface(Jsonable):
                                 version = {}
 
                             if not isinstance(version, collections.abc.Mapping):
+                                hint = ""
+                                if isinstance(
+                                    version, collections.abc.Sequence
+                                ) and not isinstance(version, str):
+                                    hint = (
+                                        " A version method returns a single patch."
+                                        " To expand into many declare an axis"
+                                        f" (`@staticmethod def axis_{method[0]}(...)`,"
+                                        f" invoked as `~~{method[0]}`) instead."
+                                    )
                                 raise ConfigurationError(
                                     f"Version method {definition} must produce"
                                     f" a mapping, but returned"
-                                    f" {type(version)}: {version}"
+                                    f" {type(version)}: {version}.{hint}"
                                 )
 
                         config_update = update_dict(config_update, version)
@@ -1353,6 +1377,7 @@ class Interface(Jsonable):
         self.__model__.config = None
 
     def __enter__(self) -> Self:
+        self._assert_expanded("enter")
         _connections()[self.kind or "Interface"].append(self)
         # a single cross-kind ordered stack so the `with`-context order the
         # interface was created under is recoverable (see get_context).
@@ -1368,6 +1393,27 @@ class Interface(Jsonable):
             _context_order().pop()
         except IndexError:
             pass
+
+    def __bool__(self) -> bool:
+        return True
+
+    def __iter__(self):
+        """Iterate the members of an interface expanded over an axis."""
+        if not self.is_unexpanded():
+            raise TypeError(
+                f"{type(self).__name__} is not iterable. "
+                f"Only an interface expanded over a ~~axis iterates."
+            )
+        yield from self.expand()
+
+    def __len__(self) -> int:
+        """The number of members an interface expanded over an axis denotes."""
+        if not self.is_unexpanded():
+            raise TypeError(
+                f"{type(self).__name__} has no length. "
+                f"Only an interface expanded over a ~~axis has one."
+            )
+        return len(self.expand())
 
     def __reduce__(self) -> str | tuple[Any, ...]:
         return (self.__class__, (), self.serialize())
@@ -1415,6 +1461,11 @@ class Interface(Jsonable):
 
     def catalog_identity_key(self) -> str:
         """The canonical config identity key (``hash(module + canonical(config))``)."""
+        if self.is_unexpanded():
+            if "axis_identity" not in self._cache:
+                self.expand()
+            return self._cache["axis_identity"]
+
         from machinable.config import canonical_identity_key, identity_exclude
 
         layers = self.config_layers()
@@ -1455,6 +1506,8 @@ class Interface(Jsonable):
         record_id: str | None = None,
     ) -> Self:
         """Register the interface in the index and write its record directory."""
+        self._assert_expanded("materialize")
+
         if self.is_materialized():
             return self
 
@@ -1767,6 +1820,9 @@ class Interface(Jsonable):
         **kwargs,
     ) -> Interface:
         """The existing matching interface, or a fresh one if none matches."""
+        if any(is_axis(v) for v in normversion(version)):
+            return cls.make(module, version, **kwargs)
+
         if module in [
             "machinable.storage",
             "machinable.project",
@@ -1886,6 +1942,11 @@ class Interface(Jsonable):
             candidate = cls.make(module, version, **kwargs)
         except ModuleNotFoundError:
             return cls.collect([])
+
+        if candidate.is_unexpanded():
+            return cls.collect(
+                [member for member in candidate.expand() if member.is_materialized()]
+            )
 
         fingerprint = candidate.compute_fingerprint()
 
@@ -2300,10 +2361,273 @@ class Interface(Jsonable):
         related.of(self)
         return related
 
+    @property
+    def _axis_tokens(self) -> list[str]:
+        """The pending ``~~name`` tokens in this interface's version."""
+        return [cast(str, v) for v in self.__model__.version if is_axis(v)]
+
+    def is_unexpanded(self) -> bool:
+        """True while a pending axis makes this interface denote many others."""
+        return len(self._axis_tokens) > 0
+
+    @property
+    def _resolution_target(self) -> Any:
+        module = self.module
+        if module is None or module.startswith("__session__"):
+            return self.__class__
+        return module
+
+    def _assert_expanded(self, operation: str) -> None:
+        if not self.is_unexpanded():
+            return
+        tokens = " ".join(self._axis_tokens)
+        raise ExpansionError(
+            f"Cannot {operation} {repr(self)}: it is expanded over {tokens} and "
+            f"denotes several interfaces rather than one. Use .expand() (or "
+            f".interfaces) to obtain them, or .launch() to execute them."
+        )
+
+    def _axis_elements(self, token: str) -> list:
+        """Resolve a ``~~name`` token into the list of elements it denotes."""
+        from machinable.project import Project
+
+        definition = token[len("~~") :]
+        if not definition.endswith(")"):
+            definition = definition + "()"
+
+        matched = match_method(definition)
+        if matched is None:
+            raise ExpansionError(f"Invalid axis: {token}")
+        name, args = matched
+        method = f"axis_{name}"
+
+        owner: Any = None
+        if hasattr(self, method):
+            owner = self
+        else:
+            try:
+                provider = Project.get().provider()
+            except Exception:  # noqa: BLE001 - no project: no provider axes
+                provider = None
+            if provider is not None and hasattr(provider, method):
+                owner = provider
+        if owner is None:
+            raise ExpansionError(
+                f"Axis {token} specified but {type(self).__name__}.{method}() "
+                f"does not exist."
+            )
+
+        declared = inspect.getattr_static(type(owner), method, None)
+        if not isinstance(declared, staticmethod):
+            raise ExpansionError(
+                f"{type(owner).__name__}.{method} must be a @staticmethod. An "
+                f"axis is a pure function of its arguments; if the sweep depends "
+                f"on the interface's configuration, you want an aggregate "
+                f"interface whose __call__ launches the grid."
+            )
+
+        elements = ConfigMethod(self, "axis")(name, args)
+
+        if isinstance(elements, collections.abc.Mapping | str) or elements is None:
+            raise ExpansionError(
+                f"Axis method {method}() must return a sequence of elements, but "
+                f"returned {type(elements).__name__}: {elements!r}. A single patch "
+                f"is a version method (`def version_{name}(self)`, invoked as "
+                f"`~{name}`)."
+            )
+        try:
+            elements = list(elements)
+        except TypeError as _ex:
+            raise ExpansionError(
+                f"Axis method {method}() must return a sequence of elements, but "
+                f"returned {type(elements).__name__}: {elements!r}."
+            ) from _ex
+
+        if not elements:
+            warnings.warn(
+                f"Axis {token} produced no elements so nothing will be launched.",
+                stacklevel=2,
+            )
+
+        return elements
+
+    def _normalize_axis_element(
+        self, element: Any, token: str
+    ) -> tuple[list, list[Interface]]:
+        """Split one element into ``(version patches, contexts)``."""
+        if element is None or element == {}:
+            return [], []
+
+        if isinstance(element, Interface):
+            if (element.kind or "Interface") != "Scope":
+                hint = ""
+                if (element.kind or "") == "Execution":
+                    hint = (
+                        " To vary resources per run, compute them per interface "
+                        "in the execution (`on_compute_default_resources"
+                        "(interface)`) and launch inside a single `with` block."
+                    )
+                raise ExpansionError(
+                    f"Axis {token} yielded {repr(element)} but "
+                    f"only Scopes may be yielded as contexts since any other "
+                    f"interface would leave the members identical.{hint}"
+                )
+            return [], [element]
+
+        if isinstance(element, collections.abc.Mapping):
+            return normversion(element), []
+
+        if isinstance(element, str):
+            if not element.startswith("~"):
+                raise ExpansionError(
+                    f"Axis {token} yielded {element!r}. Did you forget the "
+                    f"~-prefix? An element is a config patch, a ~version, or a Scope."
+                )
+            return normversion(element), []
+
+        if isinstance(element, list | tuple):
+            versions: list = []
+            contexts: list[Interface] = []
+            for item in element:
+                sub_versions, sub_contexts = self._normalize_axis_element(item, token)
+                versions += sub_versions
+                contexts += sub_contexts
+            return versions, contexts
+
+        raise ExpansionError(
+            f"Axis {token} yielded an invalid element of type "
+            f"{type(element).__name__}: {element!r}. An element is a config patch, "
+            f"a ~version, or a Scope."
+        )
+
+    def _flatten_context(self, context: Interface, depth: int) -> list[Interface]:
+        """A context, or its leaves when the context is itself unexpanded."""
+        if not context.is_unexpanded():
+            return [context]
+
+        leaves = []
+        for version, nested in context._expand_version(
+            list(context.__model__.version), frozenset(), depth + 1
+        ):
+            if nested:
+                raise ExpansionError(
+                    f"Axis on {repr(context)} yielded a context. A context axis "
+                    f"may only yield version patches, since a context nested "
+                    f"inside a context has nothing to be a context of."
+                )
+            leaves.append(type(context).make(context._resolution_target, version))
+
+        return leaves
+
+    def _expand_version(
+        self, version: list, seen: frozenset, depth: int = 0
+    ) -> list[tuple[list, list[Interface]]]:
+        """Expand ``version`` into ``(version, contexts)`` branches.
+
+        Substitution is in-place, so elements merge exactly where the token sat
+        and several axes form a cartesian product in declaration order. An
+        element that itself carries an axis is re-scanned, which makes an
+        axis of axes a union.
+        """
+        if depth > 16:
+            raise ExpansionError("Axis expansion exceeded 16 levels of nesting.")
+
+        for position, token in enumerate(version):
+            if not is_axis(token):
+                continue
+
+            key = (self.module, token)
+            if key in seen:
+                chain = " → ".join(f"{m} {t}" for m, t in [*seen, key])
+                raise ExpansionError(f"Axis expansion cycle: {chain}")
+
+            branches: list[tuple[list, list[Interface]]] = []
+            for element in self._axis_elements(token):
+                patches, contexts = self._normalize_axis_element(element, token)
+                # a context that is itself unexpanded denotes several contexts,
+                # so its leaves multiply the branches rather than stacking on one
+                combinations: list[list[Interface]] = [[]]
+                for context in contexts:
+                    combinations = [
+                        combination + [leaf]
+                        for combination in combinations
+                        for leaf in self._flatten_context(context, depth)
+                    ]
+                substituted = (
+                    list(version[:position]) + patches + list(version[position + 1 :])
+                )
+                # only a nested expansion extends the cycle chain, so a sibling
+                # axis yielding a token another sibling also uses is not a cycle
+                nested = any(is_axis(patch) for patch in patches)
+                for combination in combinations:
+                    for sub_version, sub_contexts in self._expand_version(
+                        substituted, seen | {key} if nested else seen, depth + 1
+                    ):
+                        branches.append((sub_version, combination + sub_contexts))
+
+            return branches
+
+        return [(list(version), [])]
+
+    def _expansion_spec(self) -> list[tuple[list, list[Interface]]]:
+        """The ``(version, contexts)`` pairs this interface expands into."""
+        if "expansion_spec" not in self._cache:
+            self._cache["expansion_spec"] = self._expand_version(
+                list(self.__model__.version), frozenset()
+            )
+
+        return self._cache["expansion_spec"]
+
+    def expand(self) -> InterfaceCollection:
+        """The interfaces a pending axis denotes (``[self]`` when there is none).
+
+        Members are resolved inside their contexts, so both the record lookup
+        and the captured predicate see the ambient scopes. Resolution is redone
+        on every call so that members reflect the current state of the index (a
+        member launched since the last call comes back mounted and cached).
+        """
+        if not self.is_unexpanded():
+            return InterfaceCollection([self])
+
+        members: list[Interface] = []
+        keys: list[tuple[str, str]] = []
+        for version, contexts in self._expansion_spec():
+            with contextlib.ExitStack() as stack:
+                for context in contexts:
+                    stack.enter_context(context)
+                member = self.__class__.get(
+                    self._resolution_target, version, **self._kwargs
+                )
+                keys.append((member.catalog_identity_key(), member.predicate_key))
+                members.append(member)
+
+        if len(set(keys)) != len(keys):
+            tokens = " ".join(self._axis_tokens)
+            raise ExpansionError(
+                f"Axis {tokens} produced {len(keys)} elements but only "
+                f"{len(set(keys))} distinct instance(s). Elements must differ in "
+                f"config or predicate so check that the axis varies an identifying "
+                f"field and that no later version override cancels it out."
+            )
+
+        self._cache.setdefault("axis_identity", object_hash(sorted(keys))[:24])
+
+        return InterfaceCollection(members)
+
     def launch(self) -> Self:
         """Materialize and compute this interface through an Execution."""
         from machinable.errors import MachinableError
         from machinable.execution import Execution
+
+        if self.is_unexpanded():
+            for version, contexts in self._expansion_spec():
+                with contextlib.ExitStack() as stack:
+                    for context in contexts:
+                        stack.enter_context(context)
+                    self.__class__.get(
+                        self._resolution_target, version, **self._kwargs
+                    ).launch()
+            return self
 
         self.fetch()
 
@@ -2431,11 +2755,15 @@ class Interface(Jsonable):
         return cached
 
     def __call__(self) -> Any:
-        """Override in Execution subclasses to provide runnable computation."""
+        """Override in Execution subclasses to provide executable computation."""
+        self._assert_expanded("call")
 
     @property
     def interfaces(self) -> InterfaceCollection:
-        """The interfaces this aggregate lays out, collected without running them."""
+        """The interfaces this aggregate lays out, collected without executing them."""
+        if self.is_unexpanded():
+            return self.expand()
+
         if "interfaces" not in self._cache:
             from machinable.execution import Execution
 

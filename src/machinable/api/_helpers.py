@@ -762,6 +762,13 @@ def module_schema(project_dir: str, module: str) -> ModuleSchema:
             )
             for c in schema.config_methods
         ],
+        axes=schema.axes,
+        axis_methods=[
+            VersionMethod(
+                name=a.name, signature=a.signature, doc=a.doc, source_line=a.source_line
+            )
+            for a in schema.axis_methods
+        ],
         widget=widget,
         source_file=schema.source_file,
         source_line=schema.source_line,

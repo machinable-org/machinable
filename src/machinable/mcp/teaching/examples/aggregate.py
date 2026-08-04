@@ -4,6 +4,11 @@ The aggregate is an ephemeral coordinator: its `launch()` grids over the experim
 (seeds × the configured arm), and it is never materialized itself. Content-addressing
 and scopes make re-launching incremental. Operands for an inference are
 `get('optimizers', ['~sgd'])` and `get('optimizers', ['~adam'])`.
+
+Use an aggregate when the sweep is a *procedure*: it has its own `Config` (recorded,
+and part of the operand's identity), an order, dependent runs, or it needs prior
+results. A flat fan-out over inputs or seeds is simpler as an axis
+(examples://axis), which is also nameable on the CLI and in the MCP.
 """
 
 from pydantic import BaseModel

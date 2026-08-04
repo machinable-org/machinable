@@ -8,6 +8,14 @@ class TestProject(Project):
     def version_global_ver(self, works=False):
         return works
 
+    @staticmethod
+    def axis_global_axis(n=2):
+        return [{"a": i} for i in range(n)]
+
+    @staticmethod
+    def axis_global_seeds(q=0):
+        return [{"seed": 10 * q + i} for i in range(2)]
+
     def on_resolve_interface(self, module):
         if module == "@test":
             return "basic", None

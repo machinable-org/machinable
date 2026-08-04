@@ -90,6 +90,37 @@ outperforms(a="optimizers", a_version=["~sgd"],
 If `train` lacked `loss()`, the tool would return a contract naming the accessor to
 write. See [the research workflow](/mcp/workflow).
 
+## The same, without the aggregate
+
+`optimizers.py` exists to sweep seeds for one arm. Since that sweep is a flat set of points, it can be an [axis](/guide/versions#axes-one-token-many-runs) on `Train` itself,
+and the second module disappears:
+
+```python [train.py]
+class Train(Interface):
+    class Config(BaseModel):
+        optimizer: str = "sgd"
+        lr: float = 0.1
+
+    @staticmethod
+    def axis_seeds(n=10):                # ~~seeds
+        return [get("machinable.scope", {"seed": s}) for s in range(n)]
+
+    def version_sgd(self):
+        return {"optimizer": "sgd", "lr": 0.1}
+
+    def version_adam(self):
+        return {"optimizer": "adam", "lr": 1e-3}
+```
+
+```python
+a = get("train", ["~sgd", "~~seeds"])
+b = get("train", ["~adam", "~~seeds"])
+a.launch()
+b.launch()                              # same runs, same records as above
+```
+
+Both operands still work with the inference, and the experiment is now addressable on the CLI: `machinable get train ~sgd ~~seeds --launch`. Reach for an [aggregate](/guide/advanced-execution#axis-or-aggregate) when the interface needs a config of its own, an order, or results to decide what runs next.
+
 ## What to notice
 
 - The grid is Python (`optimizers.launch()`), not config, and it is incremental.

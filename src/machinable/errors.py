@@ -17,6 +17,19 @@ class ConfigurationError(MachinableError):
     paths: list[str] = []
 
 
+class ExpansionError(MachinableError):
+    """Invalid axis declaration, element, or expansion.
+
+    Raised when an ``axis_*`` method is malformed (not a ``staticmethod``, or
+    returning something other than a sequence of elements), when an element is
+    neither a version patch nor a predicate-bearing context, when axes recurse
+    into a cycle, or when an expansion collapses (several elements resolving to
+    the same run).
+
+    Bases: MachinableError
+    """
+
+
 class DependencyMissing(MachinableError, ImportError):
     """Missing optional dependency.
 

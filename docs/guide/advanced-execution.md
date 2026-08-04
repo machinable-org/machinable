@@ -35,12 +35,30 @@ ready = runs.filter(lambda x: x.cached())  # the ones with results
 This deferred-collection mechanism is what [inferences](./inference.md) use to gather
 the runs they measure.
 
+## Axis or aggregate?
+
+An [axis](./versions.md#axes-one-token-many-runs) covers the flat case with the same interface over N inputs. An aggregate is a whole interface, so it covers everything else.
+
+Use an axis when the sweep is a set of points you can enumerate without running anything:
+
+```python
+@staticmethod
+def axis_sessions(root="data"):
+    return [{"path": p} for p in sorted(glob(f"{root}/*.json"))]
+```
+
+Use an aggregate interface when the sweep is a procedure:
+
+- it has parameters that should be part of a record (`seeds: int = 10` in a `Config`)
+- runs depend on each other, or the order matters (see the recipe below);
+- it needs results to decide what to run next;
+- it opens contexts an axis cannot, or interleaves launching with other work.
+
+An adaptive sweep (one that reads prior results to choose the next points) belongs in an aggregate since it records its dependencies as [`uses`](./relations.md), while an axis leaves no trace in [provenance](./provenance.md) at all.
+
 ## Recipe: ordering dependent runs
 
-An execution can reorder its interfaces before dispatching, and the ordering strategy
-can itself be an ordinary interface (no special kind): stored, shareable, and part of
-provenance like everything else. This `DependencyGraph` topologically sorts executables
-by their [`uses`](./relations.md) relations, skipping anything already cached:
+An execution can reorder its interfaces before dispatching, and the ordering strategy can itself be an ordinary interface. The following `DependencyGraph` topologically sorts executables by their [`uses`](./relations.md) relations, skipping anything already cached:
 
 ```python
 from machinable import Interface
@@ -106,5 +124,4 @@ ex.nickname        # e.g. "chocolate_mosquito"
 ex.is_started(), ex.is_finished(), ex.is_live()
 ```
 
-Executions are never deduplicated, since each run is a distinct event; the interfaces
-they compute are.
+Executions are never deduplicated, since each run is a distinct event.

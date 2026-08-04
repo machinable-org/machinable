@@ -194,6 +194,7 @@ def _complete(args: list) -> int:
                 schema = project.module_schema(module)
                 candidates = _config_keys(schema.config_fields)
                 candidates += [f"~{name}" for name in schema.versions]
+                candidates += [f"~~{name}" for name in schema.axes]
             else:
                 # first position: the module names get resolves
                 candidates = [m.module for m in project.modules()]
