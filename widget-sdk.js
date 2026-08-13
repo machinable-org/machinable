@@ -3091,7 +3091,7 @@ function ja(e, t) {
 Tr(["click", "keydown"]);
 //#endregion
 //#region src/ConfigPicker.svelte
-var Ma = /* @__PURE__ */ V("<div class=\"skl svelte-8pl3d7\"><div class=\"skl-line svelte-8pl3d7\" style=\"width: 55%\"></div> <div class=\"skl-box svelte-8pl3d7\"></div> <div class=\"skl-box svelte-8pl3d7\" style=\"animation-delay: 0.15s\"></div></div>"), Na = /* @__PURE__ */ V("<span> </span>"), Pa = /* @__PURE__ */ V("<span class=\"defaults mono svelte-8pl3d7\">defaults</span>"), Fa = /* @__PURE__ */ V("<button class=\"edit mono svelte-8pl3d7\">✎ edit</button>"), Ia = /* @__PURE__ */ V("<div class=\"doc svelte-8pl3d7\"> </div>"), La = /* @__PURE__ */ V("<span class=\"mdot svelte-8pl3d7\" title=\"changed from default\"></span>"), Ra = /* @__PURE__ */ V("<div class=\"ierr mono svelte-8pl3d7\"> </div>"), za = /* @__PURE__ */ V("<div><div class=\"slothead svelte-8pl3d7\"><span class=\"key mono svelte-8pl3d7\"> </span> <span class=\"slottag mono svelte-8pl3d7\"> </span> <!></div> <!> <!></div>"), Ba = /* @__PURE__ */ V("<div><span class=\"key mono svelte-8pl3d7\"> </span> <span> </span> <span class=\"cap2 mono svelte-8pl3d7\"> </span> <!></div> <!>", 1), Va = /* @__PURE__ */ V("<div class=\"frow svelte-8pl3d7\"><span class=\"key mono svelte-8pl3d7\"> </span> <span class=\"val mono svelte-8pl3d7\"> </span></div>"), Ha = /* @__PURE__ */ V("<div class=\"empty mono svelte-8pl3d7\">no configurable fields — runs as-is</div>"), Ua = /* @__PURE__ */ V("<div class=\"vrow svelte-8pl3d7\"><!> <!></div> <!> <div class=\"fields svelte-8pl3d7\"><!> <!> <!></div> <!>", 1), Wa = /* @__PURE__ */ V("<div class=\"cfg svelte-8pl3d7\"><!></div>");
+var Ma = /* @__PURE__ */ V("<div class=\"skl svelte-8pl3d7\"><div class=\"skl-line svelte-8pl3d7\" style=\"width: 55%\"></div> <div class=\"skl-box svelte-8pl3d7\"></div> <div class=\"skl-box svelte-8pl3d7\" style=\"animation-delay: 0.15s\"></div></div>"), Na = /* @__PURE__ */ V("<span> </span>"), Pa = /* @__PURE__ */ V("<span class=\"defaults mono svelte-8pl3d7\">defaults</span>"), Fa = /* @__PURE__ */ V("<button class=\"edit mono svelte-8pl3d7\">✎ edit</button>"), Ia = /* @__PURE__ */ V("<div class=\"doc svelte-8pl3d7\"> </div>"), La = /* @__PURE__ */ V("<span class=\"mdot svelte-8pl3d7\" title=\"changed from default\"></span>"), Ra = /* @__PURE__ */ V("<div class=\"ierr mono svelte-8pl3d7\"> </div>"), za = /* @__PURE__ */ V("<div><div class=\"slothead svelte-8pl3d7\"><span class=\"key mono svelte-8pl3d7\"> </span> <!></div> <!> <!></div>"), Ba = /* @__PURE__ */ V("<div><span class=\"key mono svelte-8pl3d7\"> </span> <span> </span> <span class=\"cap2 mono svelte-8pl3d7\"> </span> <!></div> <!>", 1), Va = /* @__PURE__ */ V("<div class=\"frow svelte-8pl3d7\"><span class=\"key mono svelte-8pl3d7\"> </span> <span class=\"val mono svelte-8pl3d7\"> </span></div>"), Ha = /* @__PURE__ */ V("<div class=\"empty mono svelte-8pl3d7\">no configurable fields — runs as-is</div>"), Ua = /* @__PURE__ */ V("<div class=\"vrow svelte-8pl3d7\"><!> <!></div> <!> <div class=\"fields svelte-8pl3d7\"><!> <!> <!></div> <!>", 1), Wa = /* @__PURE__ */ V("<div class=\"cfg svelte-8pl3d7\"><!></div>");
 function Ga(e, t) {
 	Ge(t, !0);
 	let n = Di(t, "version", 19, () => []), r = Di(t, "issues", 19, () => []), i = Di(t, "disabled", 3, !1), a = /* @__PURE__ */ j(null), o = /* @__PURE__ */ j($t([])), s = /* @__PURE__ */ j($t({})), c = /* @__PURE__ */ j(!1);
@@ -3165,21 +3165,19 @@ function Ga(e, t) {
 			let r = /* @__PURE__ */ k(() => z(n).slot ?? z(n).key), a = /* @__PURE__ */ k(() => t.adapter.slots?.fields?.[z(r)]), o = /* @__PURE__ */ k(() => h(z(n).key));
 			var c = Mr(), l = P(c), f = (e) => {
 				var t = za();
-				let c;
-				var l = N(t), f = N(l), p = N(f, !0);
-				O(f);
-				var m = F(f, 2), h = N(m);
-				O(m);
-				var g = F(m, 2), _ = (e) => {
+				let r;
+				var c = N(t), l = N(c), f = N(l, !0);
+				O(l);
+				var p = F(l, 2), m = (e) => {
 					H(e, La());
-				}, v = /* @__PURE__ */ k(() => z(d).has(z(n).key));
-				W(g, (e) => {
-					z(v) && e(_);
-				}), O(l);
-				var y = F(l, 2);
+				}, h = /* @__PURE__ */ k(() => z(d).has(z(n).key));
+				W(p, (e) => {
+					z(h) && e(m);
+				}), O(c);
+				var g = F(c, 2);
 				{
 					let e = /* @__PURE__ */ k(() => z(s)[z(n).key] ?? z(n).default ?? Ui(z(n).type));
-					Xr(y, () => z(a), (t, r) => {
+					Xr(g, () => z(a), (t, r) => {
 						r(t, {
 							get value() {
 								return z(e);
@@ -3194,14 +3192,14 @@ function Ga(e, t) {
 						});
 					});
 				}
-				var b = F(y, 2), x = (e) => {
+				var _ = F(g, 2), v = (e) => {
 					var t = Ra(), n = N(t, !0);
 					O(t), I(() => U(n, z(o).message)), H(e, t);
 				};
-				W(b, (e) => {
-					z(o) && e(x);
+				W(_, (e) => {
+					z(o) && e(v);
 				}), O(t), I(() => {
-					c = ai(t, 1, "slotcard svelte-8pl3d7", null, c, { bad: !!z(o) }), vi(f, "title", z(n).doc), U(p, z(n).key), U(h, `HOST SLOT · ${z(r) ?? ""}`);
+					r = ai(t, 1, "slotcard svelte-8pl3d7", null, r, { bad: !!z(o) }), vi(l, "title", z(n).doc), U(f, z(n).key);
 				}), H(e, t);
 			}, p = (e) => {
 				var t = Ba(), r = P(t);
