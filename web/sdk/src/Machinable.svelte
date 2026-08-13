@@ -581,6 +581,9 @@
 	.hrow.tabs {
 		padding: 0 10px;
 		gap: 2px;
+		flex-wrap: wrap;
+		row-gap: 0;
+		min-width: 0;
 	}
 	.back {
 		border: none;
@@ -650,6 +653,8 @@
 		border: none;
 		background: none;
 		font: inherit;
+		/* natural width — a flex item shrinks by default, which clips a nowrap label */
+		flex: none;
 		font-size: 12.5px;
 		color: var(--c-ink-faint, #8f8677);
 		padding: 8px 10px;
@@ -853,6 +858,10 @@
 	.mpdoc {
 		font-size: 11px;
 		color: var(--c-ink-faint, #8f8677);
+		/* min-width:0 is what lets it actually shrink — `overflow:hidden` alone does not
+		   override a flex item's automatic minimum, so a long docstring would widen the row
+		   past the tile instead of ellipsing. */
+		min-width: 0;
 		overflow: hidden;
 		text-overflow: ellipsis;
 		white-space: nowrap;

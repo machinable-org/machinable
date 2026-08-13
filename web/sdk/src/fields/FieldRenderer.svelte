@@ -207,6 +207,8 @@
 		border-left: 1px solid var(--c-paper-sunken, #ece6d8);
 	}
 	.fr-bounds {
+		/* an extra item in the host's field row — never the one that makes it overflow */
+		flex: none;
 		font-size: 10px;
 		color: var(--c-ink-faint, #a69d8d);
 		white-space: nowrap;

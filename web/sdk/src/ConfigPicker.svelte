@@ -157,7 +157,6 @@
 					<div class="slotcard" class:bad={!!issue}>
 						<div class="slothead">
 							<span class="key mono" title={f.doc}>{f.key}</span>
-							<span class="slottag mono">HOST SLOT · {slotName}</span>
 							{#if changed.has(f.key)}<span class="mdot" title="changed from default"></span>{/if}
 						</div>
 						<Slot
@@ -356,14 +355,5 @@
 		display: flex;
 		align-items: center;
 		gap: 8px;
-	}
-	.slottag {
-		font-size: 9.5px;
-		font-weight: 600;
-		letter-spacing: 0.04em;
-		color: var(--c-model, #6b5bd0);
-		background: color-mix(in srgb, var(--c-model, #6b5bd0) 10%, transparent);
-		padding: 2px 7px;
-		border-radius: 5px;
 	}
 </style>
