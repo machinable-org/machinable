@@ -8,6 +8,7 @@ import os
 import sys
 import threading
 import time
+import traceback
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any, Literal, Self, cast
@@ -539,7 +540,11 @@ class Execution(Interface):
                 # script-based backends redirect at the shell level instead
                 if writes_meta_data:
                     with tee_output(self.output_filepath()):
-                        interface.__call__()
+                        try:
+                            interface.__call__()
+                        except BaseException:
+                            traceback.print_exc()
+                            raise
                 else:
                     interface.__call__()
 
