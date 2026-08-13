@@ -1,10 +1,4 @@
 <script lang="ts">
-	// SDK Browser — the run browser (design D4): search + typed facet chips (equality and
-	// range operators over config paths) + sort over the adapter's config_search, rows as
-	// content-addressed identities (status · renameable label · #identity · compact version
-	// summary · code chip · run count · time · creator · provenance peek), and load-more
-	// pagination. "Open" hands the record to the host (reconstruct into the composer).
-	// Pure over WidgetHostAdapter; no host/captu imports.
 	import type {
 		CatalogQuery,
 		Facet,
@@ -151,7 +145,6 @@
 <div class="cat">
 	{#if error}<div class="err mono">{error}</div>{/if}
 
-	<!-- search + facets -->
 	<div class="controls">
 		<div class="search">
 			<span class="mag">⌕</span>
@@ -189,7 +182,6 @@
 		{/if}
 	</div>
 
-	<!-- the New entry — conceptually the first list item (ListView → ItemView flow) -->
 	{#if onNew}
 		<button class="newrow" onclick={onNew}>
 			<span class="newplus mono">+</span>
@@ -200,7 +192,6 @@
 		</button>
 	{/if}
 
-	<!-- rows -->
 	{#if items.length === 0}
 		<div class="nomatch">
 			<div class="nm mono">0 runs match</div>
@@ -229,7 +220,6 @@
 					<div class="r1">
 						<span class="dot {r.status}" class:pulse={r.status === 'running'}></span>
 						{#if renaming === r.uuid}
-							<!-- svelte-ignore a11y_autofocus -->
 							<input
 								class="rename mono"
 								bind:value={renameText}
@@ -282,7 +272,6 @@
 						>⌥ provenance</button>
 					</div>
 					{#if peeking === r.uuid}
-						<!-- svelte-ignore a11y_no_static_element_interactions -->
 						<div class="peekbody" onclick={(e) => e.stopPropagation()} onkeydown={(e) => e.stopPropagation()}>
 							<Provenance {adapter} module={r.module} version={r.version ?? [r.config]} />
 						</div>

@@ -1,10 +1,4 @@
 <script lang="ts">
-	// SDK RunPanel — inspect one run instance: nickname/seed, started/finished
-	// timestamps, runtime (ticking while live), and the captured output log.
-	// The log follows the CHUNK protocol: an initial tail window, then polls
-	// fetch only appended bytes (`offset=size`), and the in-memory buffer is
-	// capped with a front-trim — a multi-GB log can never reach the browser.
-	// Hidden when the host adapter has no run inspection.
 	import type { InterfaceStatus, RunDetail, WidgetHostAdapter } from './types';
 
 	/** Initial window and client-side buffer cap (bytes). */
@@ -97,12 +91,12 @@
 	});
 </script>
 
-{#if adapter.runDetail}
+{#if adapter.runDetail || adapter.runOutput}
 	<div class="run">
 		<div class="meta mono">
 			{#if detail?.nickname}<span class="nick">{detail.nickname}</span>{/if}
 			{#if detail?.seed !== undefined}<span>seed {detail.seed}</span>{/if}
-			<span>started {fmt(detail?.startedAt)}</span>
+			{#if adapter.runDetail}<span>started {fmt(detail?.startedAt)}</span>{/if}
 			{#if detail?.finishedAt}<span>finished {fmt(detail.finishedAt)}</span>{/if}
 			{#if runtime}<span class="rt" class:live={status === 'running'}>{runtime}</span>{/if}
 			<span class="spacer"></span>

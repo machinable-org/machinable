@@ -1,5 +1,3 @@
-// Pins the introspection parsers' behavior (they decode the server's stringly
-// reflection; regressions here silently break every form).
 import { describe, expect, it } from 'vitest';
 
 import {
@@ -35,7 +33,6 @@ describe('parseAnnotation', () => {
 		expect(parseAnnotation('dict[str, int]')).toEqual({ kind: 'object', open: true });
 	});
 	it('degrades unknown annotations to the raw fallback', () => {
-		// the original annotation string is preserved for display
 		expect(parseAnnotation("<class 'x.Stage'>")).toEqual({
 			kind: 'unknown',
 			annotation: "<class 'x.Stage'>"

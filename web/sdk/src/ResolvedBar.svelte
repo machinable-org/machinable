@@ -36,17 +36,26 @@
 		module;
 		let cancelled = false;
 		const h = setTimeout(() => {
-			void adapter.resolve(module, version).then((r) => {
-				if (cancelled) return;
-				if (r.ok) {
-					identity = r.identity ?? '';
-					issues = [];
-				} else {
+			void adapter
+				.resolve(module, version)
+				.then((r) => {
+					if (cancelled) return;
+					if (r.ok) {
+						identity = r.identity ?? '';
+						issues = [];
+					} else {
+						identity = '';
+						issues = r.issues;
+					}
+					onResolved?.(r);
+				})
+				.catch((e) => {
+					if (cancelled) return;
+					const issue = { message: e instanceof Error ? e.message : String(e) };
 					identity = '';
-					issues = r.issues;
-				}
-				onResolved?.(r);
-			});
+					issues = [issue];
+					onResolved?.({ ok: false, issues });
+				});
 		}, 150);
 		return () => {
 			cancelled = true;

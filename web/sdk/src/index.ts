@@ -1,5 +1,3 @@
-// The served SDK surface (the bundle machinable will expose at GET /widget-sdk.js). Keep
-// this list = the SDK's public API. No captu imports anywhere under sdk/.
 export { default as ConfigPicker } from './ConfigPicker.svelte';
 export { default as Lifecycle } from './Lifecycle.svelte';
 export { default as Browser } from './Browser.svelte';
@@ -18,6 +16,7 @@ export { default as CodeView } from './CodeView.svelte';
 export { default as VersionEditor } from './VersionEditor.svelte';
 export { default as CliView } from './CliView.svelte';
 export { default as FieldRenderer } from './fields/FieldRenderer.svelte';
+export { createCallModel } from './widgetModel';
 export {
 	parseAnnotation,
 	parseSignature,
@@ -57,5 +56,8 @@ export type {
 	ProvenanceEdge,
 	SourceFile,
 	SourceContent,
-	HostSlots
+	HostSlots,
+	WidgetAssets,
+	WidgetModel,
+	BoundWidgetModel
 } from './types';

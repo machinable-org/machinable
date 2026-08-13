@@ -1,9 +1,4 @@
 <script lang="ts">
-	// SDK Lifecycle — the content-addressed run state machine for one interface config:
-	// draft → running → cached / failed. Pure over WidgetHostAdapter (find/launch). It owns
-	// the lookup + poll loop + Launch/Resume controls + status badge; the host reacts to
-	// transitions via onStatus (e.g. radiate read-only up a stack, offer a result viewer,
-	// notify on completion). No host/captu imports. See docs/machinable-widget-sdk.md.
 	import { untrack } from 'svelte';
 	import type { WidgetHostAdapter, InterfaceStatus, Ref, Version } from './types';
 
@@ -18,7 +13,8 @@
 		compact = false,
 		launchLabel = 'Launch',
 		onStatus,
-		onRun
+		onRun,
+		onFailure
 	}: {
 		adapter: WidgetHostAdapter;
 		module: string;
@@ -40,6 +36,7 @@
 		/** Fired when a dispatch starts — feeds the host's RunBanner (elapsed clock,
 		 * interruptable ref). The host clears it when status leaves `running`. */
 		onRun?: (run: { executionRef: string; startedAt: number }) => void;
+		onFailure?: (reason: string | null) => void;
 	} = $props();
 
 	let status = $state<InterfaceStatus>('draft');
@@ -53,6 +50,34 @@
 		status = s;
 		if (ref) runRef = ref;
 		onStatus?.(s, runRef);
+		if (s === 'failed') void readFailure(runRef);
+		else if (failedFor) {
+			failedFor = null;
+			onFailure?.(null);
+		}
+	}
+
+	let failedFor: string | null = null;
+
+	async function readFailure(ref: string | undefined) {
+		if (!ref || !adapter.runOutput || failedFor === ref) return;
+		failedFor = ref;
+		try {
+			const chunk = await adapter.runOutput(ref, { tail: 8192 });
+			// The last non-empty line: for a Python traceback that IS the exception line.
+			const last = (chunk.output ?? '')
+				.split('\n')
+				.map((l) => l.trimEnd())
+				.filter((l) => l.trim().length > 0)
+				.pop();
+			if (!last || status !== 'failed') return;
+			const reason = last.length > 400 ? `${last.slice(0, 400)}…` : last;
+			error = reason;
+			onFailure?.(reason);
+		} catch {
+			// No output surface (or the record is not readable yet) — the generic failure stands.
+			failedFor = null;
+		}
 	}
 
 	// Content-addressed lookup whenever identity (the version) or the execution it runs
@@ -66,9 +91,16 @@
 		pollToken++; // a stale dispatch's poll must not report on the new identity
 		if (untrack(() => status) === 'running') return;
 		let cancelled = false;
-		void adapter.find(module, version, { context, executionRef }).then((r) => {
-			if (!cancelled) set(r.status, r.executionRef);
-		});
+		void adapter
+			.find(module, version, { context, executionRef })
+			.then((r) => {
+				if (cancelled) return;
+				error = '';
+				set(r.status, r.executionRef);
+			})
+			.catch((e) => {
+				if (!cancelled) error = e instanceof Error ? e.message : String(e);
+			});
 		return () => (cancelled = true);
 	});
 
@@ -109,10 +141,13 @@
 		}
 	}
 
-	// Best-effort cancel of the in-flight run (writes a cancel marker server-side); the poll
-	// then reflects it as failed (resumable).
 	async function interrupt() {
-		if (runRef) await adapter.interrupt(runRef);
+		if (!runRef) return;
+		try {
+			await adapter.interrupt(runRef);
+		} catch (e) {
+			error = e instanceof Error ? e.message : String(e);
+		}
 	}
 </script>
 

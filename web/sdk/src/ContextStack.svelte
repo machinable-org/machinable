@@ -1,11 +1,4 @@
 <script lang="ts">
-	// SDK ContextStack — the in-window `with`-stack editor (design D2): the ordered context
-	// an interface runs inside, as the CLI writes it. The ambient Project renders as a dashed
-	// env row (connection-level — never dispatched in the body); layers are numbered,
-	// progressively indented cards — **any interface** can be a layer (Execution and Scope are
-	// the common kinds), each configured by a collapsed ConfigPicker, LIFO-entered top→down.
-	// Emits the dispatch opts + the ordered CLI chain (for the ResolvedBar spans/hover-map).
-	// Pure over WidgetHostAdapter; no host/captu imports.
 	import type { Ref, SourceRef, Version, WidgetHostAdapter } from './types';
 	import { versionCliParts } from './introspection';
 	import ConfigPicker from './ConfigPicker.svelte';
@@ -153,7 +146,6 @@
 		<span class="hint mono">LIFO — enter top→down</span>
 	</div>
 
-	<!-- ambient project (connection-level, never dispatched) -->
 	<div class="env mono">
 		<span class="envk">env</span>
 		<span class="envm">project</span>

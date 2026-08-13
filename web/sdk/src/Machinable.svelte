@@ -1,13 +1,4 @@
 <script lang="ts">
-	// SDK Machinable — the interface-widget shell (design D7, IA revised): after connect the
-	// widget lands on the **ListView** (the run browser, with "New" as the first entry);
-	// opening an entry (or New) pushes the **ItemView** for one interface — a back arrow
-	// returns to the list, and the panels (Config · Context · Result · Provenance · Code)
-	// are the ItemView's tabs, so no single scroll gets overcrowded. The ResolvedBar (CLI +
-	// identity + Launch) and the RunBanner stay pinned across tabs. First-run shows the
-	// connect panel with the two-tier trust gate (Trust & connect vs Read-only — reading
-	// never runs server widget code; loading its widgets does). Pure over WidgetHostAdapter.
-	// The host reacts to `onCached(module, version)` to offer downstream consumers.
 	import type {
 		WidgetHostAdapter,
 		InterfaceStatus,
@@ -42,6 +33,7 @@
 		initialVersion = [],
 		onCached,
 		onStatus,
+		onFailure,
 		onConnect,
 		onError
 	}: {
@@ -56,6 +48,9 @@
 		initialVersion?: Version;
 		onCached?: (module: string, version: Record<string, unknown>) => void;
 		onStatus?: (status: InterfaceStatus) => void;
+		/** Why the current run failed (read from its log, so it lands just after the `failed`
+		 * status); `null` when it no longer applies — see Lifecycle.onFailure. */
+		onFailure?: (reason: string | null) => void;
 		/** Fired after a successful connect — the host can discover server-shipped widgets,
 		 * etc. `readOnly` connections must NOT load/run server widget code. */
 		onConnect?: (url: string, modules: string[], readOnly?: boolean) => void;
@@ -327,7 +322,6 @@
 </script>
 
 <div class="mach">
-	<!-- ── pinned header ─────────────────────────────────────────────────────── -->
 	<div class="head">
 		<div class="hrow">
 			{#if connected && view === 'item'}
@@ -355,12 +349,12 @@
 			{/if}
 		</div>
 		{#if connected && view === 'item' && target}
-			<!-- the action bar: the one status badge + identity + Launch, above the tabs -->
 			<ResolvedBar {adapter} module={target} {version} {badge} onResolved={onResolvedResult}>
 				<Lifecycle
 					{adapter}
 					module={target}
 					{version}
+					{onFailure}
 					context={ctxOpts.context}
 					execution={ctxOpts.execution}
 					executionRef={ctxOpts.executionRef}
@@ -381,7 +375,6 @@
 		{/if}
 	</div>
 
-	<!-- ── scroll body ───────────────────────────────────────────────────────── -->
 	<div class="body">
 		{#if !connected}
 			<div class="connect">
@@ -432,13 +425,9 @@
 				{/if}
 			</div>
 		{:else if view === 'list'}
-			<!-- ── ListView: the run browser, with New as the first entry ── -->
 			<Browser {adapter} onNew={openNew} onOpen={openRun} onTotal={onListTotal} />
 		{:else}
-			<!-- ── ItemView: one interface, tabbed panels ── -->
 			{#if !target}
-				<!-- searchable module picker (kind + docstring per row) -->
-				<!-- svelte-ignore a11y_autofocus -->
 				<input
 					class="mfilter mono"
 					bind:value={moduleFilter}
@@ -469,9 +458,6 @@
 					/>
 				{/if}
 
-				<!-- Config + Context + Result stay MOUNTED when their tab is inactive
-				     (hidden via CSS): they hold live state — field edits, the with-stack
-				     layers, a running Call loop. Provenance/Code load on demand. -->
 				<div class="pane" class:off={tab !== 'config'}>
 					{#if locked}
 						<div class="lockbar">
@@ -510,15 +496,13 @@
 				</div>
 
 				<div class="pane fill" class:off={tab !== 'result'}>
-					<!-- the slot only mounts when there is something to show: a host
-					     result view, or a payload read through Call -->
-					{#if adapter.slots?.result || callResult !== null}
+					{#if adapter.slots?.result || adapter.widgetAssets || callResult !== null}
 						<ResultSlot
 							{adapter}
 							module={target}
 							{version}
 							result={callResult}
-							waiting={leafStatus === 'running'}
+							status={leafStatus}
 						/>
 					{/if}
 					{#if leafStatus === 'cached'}
@@ -536,8 +520,6 @@
 					{/if}
 				</div>
 
-				<!-- Execution stays MOUNTED (hidden via CSS) so the run panel keeps
-				     following output while another tab is active -->
 				<div class="pane" class:off={tab !== 'execution'}>
 					{#if leafRunRef}
 						<RunPanel {adapter} executionRef={leafRunRef} status={leafStatus} />

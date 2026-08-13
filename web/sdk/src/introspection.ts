@@ -1,11 +1,3 @@
-// SDK introspection helpers — pure functions that turn machinable's *stringly* reflection
-// into the SDK's typed schema. The server reflects each config field's type as
-// `str(field.annotation)` (e.g. "<class 'int'>", "int | None", "typing.Literal['a', 'b']",
-// "list[Stage]") and each version method's signature as a string (e.g. "(iters: int = 200)");
-// these parsers recover the structure client-side. Nested pydantic models arrive as
-// "<class 'x.Stage'>" with no field structure → `unknown` (the raw fallback renderer) until
-// upstream reflection lands. No captu imports — this file ships with the SDK.
-
 import type {
 	ConfigField,
 	FieldType,
@@ -14,9 +6,7 @@ import type {
 	VersionMethodParam
 } from './types';
 
-// ── annotation → FieldType ───────────────────────────────────────────────────────────
 
-/** Split on a separator at bracket/quote depth 0. */
 function splitTop(s: string, sep: string): string[] {
 	const parts: string[] = [];
 	let depth = 0;
@@ -47,8 +37,6 @@ function splitTop(s: string, sep: string): string[] {
 	return parts;
 }
 
-/** Parse a Python literal (as it appears inside a Literal[...] or a default) into a JS
- * value; returns the raw trimmed string when it isn't a simple literal. */
 function pyLiteral(raw: string): unknown {
 	const s = raw.trim();
 	if (s === 'None') return null;
@@ -61,22 +49,14 @@ function pyLiteral(raw: string): unknown {
 	return s;
 }
 
-/**
- * Parse a Python type-annotation string (the server's `str(field.annotation)`) into the
- * SDK's recursive `FieldType`. Best-effort: anything unrecognized becomes
- * `{ kind: 'unknown', annotation }` (→ the raw key=value fallback renderer).
- */
 export function parseAnnotation(annotation: string): FieldType {
 	let s = (annotation ?? '').trim();
 	if (!s) return { kind: 'unknown' };
 
-	// "<class 'int'>" → "int"
 	const cls = s.match(/^<class '([^']+)'>$/);
 	if (cls) s = cls[1];
-	// strip a typing. prefix ("typing.Optional[int]" → "Optional[int]")
 	s = s.replace(/^typing\./, '');
 
-	// unions — drop None members; a single survivor becomes optional(inner)
 	if (splitTop(s, '|').length > 1) {
 		const members = splitTop(s, '|').map((m) => m.trim());
 		const nonNull = members.filter((m) => m !== 'None' && m !== 'NoneType');
@@ -129,18 +109,11 @@ export function parseAnnotation(annotation: string): FieldType {
 		case 'tuple':
 			return { kind: 'list', item: { kind: 'unknown' } };
 		default:
-			// a custom class (e.g. a nested pydantic model, "x.Stage") — structure unknown
 			return { kind: 'unknown', annotation };
 	}
 }
 
-// ── signature → params ───────────────────────────────────────────────────────────────
 
-/**
- * Parse a version-method signature string (e.g. "(iters: int = 200)", "(path)",
- * "(*, mode, backbone)") into typed params. Skips `self`, bare `*`/`/`, and starred
- * args; best-effort on defaults.
- */
 export function parseSignature(signature: string | undefined): VersionMethodParam[] {
 	if (!signature) return [];
 	const body = signature.trim().replace(/^\(/, '').replace(/\)$/, '');
@@ -149,7 +122,6 @@ export function parseSignature(signature: string | undefined): VersionMethodPara
 	for (const part of splitTop(body, ',')) {
 		const p = part.trim();
 		if (!p || p === 'self' || p === '*' || p === '/' || p.startsWith('*')) continue;
-		// name[: annotation][= default]
 		const eq = splitTop(p, '=');
 		const left = eq[0].trim();
 		const def = eq.length > 1 ? eq.slice(1).join('=').trim() : undefined;
@@ -166,15 +138,12 @@ export function parseSignature(signature: string | undefined): VersionMethodPara
 	return params;
 }
 
-// ── raw server schema → ModuleSchema ─────────────────────────────────────────────────
 
-/** The raw `GET /v1/project/{module}` JSON (api/models.py ModuleSchema). */
 export interface RawConfigField {
 	name: string;
 	type?: string;
 	default?: unknown;
 	required?: boolean;
-	/** Recursively reflected sub-fields when the annotation is a nested model. */
 	fields?: RawConfigField[] | null;
 }
 export interface RawModuleSchema {
@@ -189,13 +158,10 @@ export interface RawModuleSchema {
 		doc?: string | null;
 		source_line?: number | null;
 	}[];
-	/** Project-relative source file of the class (readable via the source API). */
 	source_file?: string | null;
 	source_line?: number | null;
 }
 
-/** Replace the model position inside a parsed type shell with a structured object
- * (`unknown` → the object; `optional`/`list` graft into their inner/item). */
 function graftObject(parsed: FieldType, obj: FieldType): FieldType {
 	if (parsed.kind === 'unknown') return obj;
 	if (parsed.kind === 'optional')
@@ -210,8 +176,6 @@ function fieldFromServer(
 ): ConfigField {
 	let type = parseAnnotation(f.type ?? '');
 	if (f.fields?.length) {
-		// the server reflected the nested model's structure — light up the
-		// structured editor instead of the raw-JSON fallback
 		const sub = f.fields.map((x) => fieldFromServer(x));
 		type = graftObject(type, { kind: 'object', fields: sub });
 	}
@@ -224,10 +188,6 @@ function fieldFromServer(
 	};
 }
 
-/**
- * Map the server's reflected module schema into the SDK shape. `slotFor` lets the host
- * attach field-renderer slots by field name (e.g. captu's recording_uri picker).
- */
 export function moduleSchemaFromServer(
 	module: string,
 	raw: RawModuleSchema,
@@ -237,7 +197,6 @@ export function moduleSchemaFromServer(
 		fieldFromServer(f, opts?.slotFor)
 	);
 	const file = raw.source_file ?? undefined;
-	// version_methods when present; older servers only send the bare token names
 	const methods: VersionMethod[] = raw.version_methods?.length
 		? raw.version_methods.map((m) => ({
 				name: m.name,
@@ -259,15 +218,11 @@ export function moduleSchemaFromServer(
 	};
 }
 
-// ── version pipeline (the editor's element model) ────────────────────────────────────
 
-/** One editable element of a compact version: an explicit override dict, or a
- * ~token with args. Unlike the wire form, dicts stay distinct and positioned. */
 export type EditableElement =
 	| { kind: 'dict'; value: Record<string, unknown> }
 	| { kind: 'token'; name: string; args: Record<string, unknown> };
 
-/** Wire version → editable elements, order preserved (dicts stay separate). */
 export function versionToElements(version: (string | Record<string, unknown>)[]): EditableElement[] {
 	const out: EditableElement[] = [];
 	for (const el of version) {
@@ -281,8 +236,6 @@ export function versionToElements(version: (string | Record<string, unknown>)[])
 	return out;
 }
 
-/** Editable elements → wire version. Empty dicts are dropped; token args pass
- * through `compactArgs` (e.g. strip declared defaults) before serializing. */
 export function elementsToVersion(
 	elements: EditableElement[],
 	compactArgs: (name: string, args: Record<string, unknown>) => Record<string, unknown> = (_, a) => a
@@ -298,10 +251,7 @@ export function elementsToVersion(
 	return out;
 }
 
-// ── version tokens ───────────────────────────────────────────────────────────────────
 
-/** Parse a version-token string "~name(a=1, b='x')" → { name, args }; bare "~name" has
- * empty args. Returns null when the string isn't a ~token. */
 export function parseVersionToken(
 	el: string
 ): { name: string; args: Record<string, unknown> } | null {
@@ -323,7 +273,6 @@ export function parseVersionToken(
 	return { name: m[1], args };
 }
 
-/** Serialize a token back to its compact string: "~name" or "~name(k=v, …)". */
 export function serializeVersionToken(name: string, args: Record<string, unknown>): string {
 	const parts = Object.entries(args).map(
 		([k, v]) => `${k}=${typeof v === 'string' ? `'${v}'` : JSON.stringify(v)}`
@@ -331,8 +280,6 @@ export function serializeVersionToken(name: string, args: Record<string, unknown
 	return parts.length ? `~${name}(${parts.join(', ')})` : `~${name}`;
 }
 
-/** Render a compact version as CLI argument parts — `k=v` per override entry, ~tokens
- * verbatim — matching machinable's `get` argument form. */
 export function versionCliParts(version: (string | Record<string, unknown>)[]): string[] {
 	const parts: string[] = [];
 	for (const el of version) {
@@ -344,10 +291,7 @@ export function versionCliParts(version: (string | Record<string, unknown>)[]): 
 	return parts;
 }
 
-// ── display identity ─────────────────────────────────────────────────────────────────
 
-/** Stable short display hash (8 hex chars) of a value — the "#a3f9c2e1" identity chip.
- * Display-only (djb2 over canonical JSON); the server's content identity is authoritative. */
 export function shortIdentity(value: unknown): string {
 	const s = canonicalJson(value);
 	let h = 5381;

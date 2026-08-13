@@ -1,8 +1,4 @@
 <script lang="ts">
-	// SDK FieldRenderer — the recursive dispatcher over the pydantic type space (design D1).
-	// Primitives render inline (string input · number stepper · bool toggle · enum segmented ·
-	// optional None/set-value · unknown raw-JSON fallback); object/list recurse via their own
-	// components. Pure presentational; no host/captu imports.
 	import type { FieldType } from '../types';
 	import { defaultFor, typeLabel } from './util';
 	import ObjectField from './ObjectField.svelte';

@@ -1,10 +1,13 @@
 <script lang="ts">
-	// SDK ResultSlot — the field-dark result region (design D3). The result is OPAQUE to the
-	// SDK: a host-injected view renders it (adapter.slots.result); standalone falls back to
-	// "result ready · raw JSON" with a pretty-printed, collapsible payload. While a Job is
-	// still running it reads as a waiting placeholder. No host/captu imports.
-	import type { Component } from 'svelte';
-	import type { Version, WidgetHostAdapter } from './types';
+	import { untrack, type Component } from 'svelte';
+	import type {
+		BoundWidgetModel,
+		InterfaceStatus,
+		Version,
+		WidgetAssets,
+		WidgetHostAdapter
+	} from './types';
+	import { createCallModel } from './widgetModel';
 
 	type SlotProps = { result: unknown; module: string; version: Version };
 
@@ -12,19 +15,95 @@
 		adapter,
 		module,
 		version,
+		status = null,
 		result = null,
-		waiting = false
+		waiting = status === 'running'
 	}: {
 		adapter: WidgetHostAdapter;
 		module: string;
 		version: Version;
-		/** The opaque result payload (e.g. from a Call) — null until something was read. */
+		status?: InterfaceStatus | null;
 		result?: unknown;
-		/** True while the producing Job is still running. */
 		waiting?: boolean;
 	} = $props();
 
 	const Slot = $derived(adapter.slots?.result as Component<SlotProps> | undefined);
+
+	let assets = $state<WidgetAssets | null>(null);
+	let mountError = $state<string | null>(null);
+	let mountEl = $state<HTMLElement>();
+
+	$effect(() => {
+		const fetchAssets = Slot ? undefined : adapter.widgetAssets;
+		const target = module;
+		assets = null;
+		mountError = null;
+		if (!fetchAssets) return;
+		let cancelled = false;
+		void fetchAssets
+			.call(adapter, target)
+			.then((a) => {
+				if (!cancelled) assets = a?.esm ? a : null;
+			})
+			.catch(() => {
+				if (!cancelled) assets = null;
+			});
+		return () => {
+			cancelled = true;
+		};
+	});
+
+	const versionKey = $derived(JSON.stringify(version ?? []));
+
+	$effect(() => {
+		const host = mountEl;
+		const a = assets;
+		const target = module;
+		versionKey;
+		status;
+		if (!host || !a) return;
+		const ver = untrack(() => version) ?? [];
+
+		let cancelled = false;
+		let instance: { destroy?(): void } | (() => void) | void;
+		const model: BoundWidgetModel =
+			adapter.widgetModel?.(target, ver) ??
+			createCallModel(adapter, target, ver, (m) => (mountError = m));
+
+		const shadow = host.shadowRoot ?? host.attachShadow({ mode: 'open' });
+		shadow.innerHTML = '';
+		const el = document.createElement('div');
+		el.style.cssText = 'width:100%;height:100%;min-height:0';
+		shadow.append(el);
+
+		void (async () => {
+			try {
+				const url = URL.createObjectURL(new Blob([a.esm], { type: 'text/javascript' }));
+				const mod = await import(/* @vite-ignore */ url);
+				URL.revokeObjectURL(url);
+				if (cancelled) return;
+				const render = mod.default?.render ?? mod.render;
+				if (typeof render !== 'function') throw new Error('widget module exports no render()');
+				const css = a.css ?? mod.default?.css ?? mod.css;
+				if (css) {
+					const style = document.createElement('style');
+					style.textContent = css;
+					shadow.prepend(style);
+				}
+				instance = render({ el, model });
+			} catch (e) {
+				if (!cancelled) mountError = e instanceof Error ? e.message : String(e);
+			}
+		})();
+
+		return () => {
+			cancelled = true;
+			model.close?.();
+			if (typeof instance === 'function') instance();
+			else instance?.destroy?.();
+			shadow.innerHTML = '';
+		};
+	});
 
 	let open = $state(true);
 	const pretty = $derived.by(() => {
@@ -39,6 +118,11 @@
 <div class="slot">
 	{#if Slot && result !== null}
 		<Slot {result} {module} {version} />
+	{:else if assets}
+		{#if mountError}
+			<div class="mounterr mono">{mountError}</div>
+		{/if}
+		<div class="embed" bind:this={mountEl}></div>
 	{:else if result !== null}
 		<div class="raw">
 			<button class="rawhead mono" onclick={() => (open = !open)}>
@@ -78,6 +162,17 @@
 	.ephead {
 		font-size: 11.5px;
 		color: #8f8677;
+	}
+
+	.embed {
+		flex: 1 1 auto;
+		min-height: 160px;
+	}
+	.mounterr {
+		flex: none;
+		font-size: 11px;
+		color: #d98b7f;
+		white-space: pre-wrap;
 	}
 
 	.raw {

@@ -1,11 +1,4 @@
 <script lang="ts">
-	// SDK Provenance — "exactly how was this produced, and with which code?" (design D5).
-	// The node-link DAG rendered as a nested list (reads better than a diagram at tile
-	// scale): RECIPE (the frozen with-nesting + the target's compact version) ⊕ HISTORY
-	// (executions newest-first, each `uses` a Manifest pinning code state — commit,
-	// clean/dirty, deps) ⊕ a truncation note. Loads on mount — the host's disclosure
-	// (the ⌥ chip / the browser peek) already gates it. Pure over
-	// WidgetHostAdapter.provenance; no host/captu imports.
 	import type {
 		ProvenanceNode,
 		ProvenanceRecord,
@@ -127,7 +120,6 @@
 	{:else if !prov || !root}
 		<div class="empty mono">no provenance recorded — not yet executed</div>
 	{:else}
-		<!-- RECIPE — the frozen with-nesting -->
 		<div class="sect">
 			<div class="cap mono">RECIPE · config ⊕ context <span class="capsub">— frozen</span></div>
 			<div class="recipe mono">
@@ -151,7 +143,6 @@
 			</div>
 		</div>
 
-		<!-- HISTORY — executions newest-first, each with its Manifest -->
 		<div class="sect">
 			<div class="cap mono">HISTORY · executions · newest first</div>
 			{#each executions as ex (ex.uuid)}

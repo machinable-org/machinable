@@ -1,10 +1,4 @@
 <script lang="ts">
-	// SDK CodeView — the read-only code inspection surface (design D6a): a CodeMirror 6
-	// viewer on field-dark with line numbers + syntax highlighting, and a symbol map
-	// (Config · __call__ · ~tokens · accessors · """doc) scanned from the source for
-	// jump-to-symbol. Read is the default tier; the edit/hot-reload tier (D6b) is a later,
-	// token-gated addition. CodeMirror is loaded lazily on first mount so SDK consumers
-	// that never open code don't pay for it. Pure over WidgetHostAdapter; no captu imports.
 	import type { SourceContent, WidgetHostAdapter } from './types';
 
 	let {

@@ -1,7 +1,4 @@
 <script lang="ts">
-	// SDK StatusBadge — the status vocabulary pill (design D3/D7 + the inventory panel):
-	// DRAFT · RUNNING · RUNNING-LOOPED · CACHED · CACHED-REUSE ↺ · FAILED · INTERRUPTED ·
-	// 🔒 LOCKED. Pure presentational; no host/captu imports.
 	export type BadgeVariant =
 		| 'draft'
 		| 'running'

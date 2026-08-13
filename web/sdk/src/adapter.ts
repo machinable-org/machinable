@@ -1,9 +1,3 @@
-// The default Host Adapter — a plain-fetch implementation of `WidgetHostAdapter`
-// against the machinable HTTP API. This is what makes the SDK a standalone web
-// client: a bare machinable server (or a Jupyter anywidget cell pointing at one)
-// needs zero host code. Hosts with their own substrate (captu: Tauri) implement
-// the adapter themselves and ignore this file.
-
 import { moduleSchemaFromServer, shortIdentity } from './introspection';
 import type {
 	CatalogPage,
@@ -19,6 +13,7 @@ import type {
 	SourceContent,
 	SourceFile,
 	Version,
+	WidgetAssets,
 	WidgetHostAdapter
 } from './types';
 
@@ -41,7 +36,6 @@ function refBody(ref: Ref): { target: string; version: Version } {
 	return { target: ref.target, version: ref.version ?? [] };
 }
 
-/** Language hint for the code viewer, from the file extension. */
 function languageOf(path: string): string | undefined {
 	if (path.endsWith('.py')) return 'python';
 	if (path.endsWith('.js') || path.endsWith('.mjs')) return 'javascript';
@@ -52,12 +46,6 @@ function languageOf(path: string): string | undefined {
 	return undefined;
 }
 
-/**
- * Create the default adapter for a machinable server.
- *
- * `connect(url, token)` rebinds the base URL/token at connect time (the shell's
- * connect panel), so the constructor arguments are only the initial defaults.
- */
 export function createAdapter(url?: string, token?: string): WidgetHostAdapter {
 	let baseUrl = (url ?? 'http://127.0.0.1:8000').replace(/\/+$/, '');
 	let bearer = token;
@@ -76,7 +64,6 @@ export function createAdapter(url?: string, token?: string): WidgetHostAdapter {
 			try {
 				detail = (await response.json())?.detail ?? detail;
 			} catch {
-				/* non-JSON error body */
 			}
 			throw new HttpError(response.status, detail);
 		}
@@ -84,7 +71,6 @@ export function createAdapter(url?: string, token?: string): WidgetHostAdapter {
 		return (await response.json()) as T;
 	}
 
-	/** Map a 400 detail (string, or Phase-C `{message, issues}`) to ResolveIssues. */
 	function toIssues(detail: unknown): ResolveIssue[] {
 		if (detail && typeof detail === 'object' && Array.isArray((detail as any).issues)) {
 			return (detail as any).issues.map((issue: any) => ({
@@ -114,8 +100,6 @@ export function createAdapter(url?: string, token?: string): WidgetHostAdapter {
 				return { connected: false, message };
 			}
 		},
-		// the default adapter trusts what you point it at; hosts with a security
-		// gate (captu) implement their own trust store
 		trust: async () => {},
 
 		listModules: async () => {
@@ -226,7 +210,6 @@ export function createAdapter(url?: string, token?: string): WidgetHostAdapter {
 			const body: Record<string, unknown> = {
 				limit: query?.limit ?? 50,
 				offset: query?.offset ?? 0,
-				// per-hit compute status + run count (server derives from the latest run)
 				include_status: true
 			};
 			if (query?.module) body.module = query.module;
@@ -260,7 +243,6 @@ export function createAdapter(url?: string, token?: string): WidgetHostAdapter {
 				creator: item.created_by ?? undefined,
 				runCount: item.run_count ?? undefined
 			}));
-			// free-text is a client-side page filter (the index has no substring column)
 			const text = query?.text?.trim().toLowerCase();
 			if (text)
 				items = items.filter((i) =>
@@ -284,6 +266,25 @@ export function createAdapter(url?: string, token?: string): WidgetHostAdapter {
 			return request<ProvenanceRecord>(
 				`/v1/interfaces/${encodeURIComponent(found.uuid)}/provenance`
 			);
+		},
+
+		widgetAssets: async (module): Promise<WidgetAssets | null> => {
+			const schema = await request<{
+				widget?: { meta?: Record<string, unknown>; css_url?: string | null } | null;
+			}>(`/v1/project/${encodeURIComponent(module)}`);
+			if (!schema.widget) return null;
+			const asset = (kind: 'esm' | 'css') =>
+				fetch(`${baseUrl}/v1/project/${encodeURIComponent(module)}/widget/${kind}`, {
+					headers: bearer ? { Authorization: `Bearer ${bearer}` } : {}
+				});
+			const esmResponse = await asset('esm');
+			if (!esmResponse.ok) return null;
+			let css: string | null = null;
+			if (schema.widget.css_url) {
+				const cssResponse = await asset('css');
+				if (cssResponse.ok) css = await cssResponse.text();
+			}
+			return { esm: await esmResponse.text(), css, meta: schema.widget.meta };
 		},
 
 		listSource: async (): Promise<SourceFile[]> => {

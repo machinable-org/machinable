@@ -83,6 +83,13 @@
 </script>
 
 <div class="cliview">
+	<div class="crow">
+		<span class="cap mono">CLI</span>
+		<span class="spacer"></span>
+		{#if cli}
+			<button class="copy mono" onclick={copy}>{copied ? 'copied ✓' : 'copy ⧉'}</button>
+		{/if}
+	</div>
 	{#if cli}
 		<div class="cli mono">
 			<span class="cmd">machinable get</span>{' '}{#each chain as el (el.id)}<span
@@ -97,7 +104,6 @@
 						: ''}{/each}</span
 			>{' '}<span class="launchflag">--launch</span>
 		</div>
-		<button class="copy mono" onclick={copy}>{copied ? 'copied ✓' : 'copy ⧉'}</button>
 	{:else}
 		<div class="cli mono dim">resolving…</div>
 	{/if}
@@ -110,6 +116,21 @@
 		gap: 8px;
 		align-items: flex-start;
 	}
+	.crow {
+		align-self: stretch;
+		display: flex;
+		align-items: center;
+		gap: 8px;
+	}
+	.cap {
+		font-size: 10px;
+		letter-spacing: 0.08em;
+		color: var(--c-ink-faint, #a69d8d);
+		font-weight: 700;
+	}
+	.spacer {
+		flex: 1;
+	}
 	.cli {
 		align-self: stretch;
 		background: var(--c-field, #211e18);
@@ -119,6 +140,10 @@
 		line-height: 1.6;
 		color: var(--c-field-ink, #e8e2d4);
 		word-break: break-all;
+		/* One list-valued override (a probe geometry) is thousands of characters — scroll it
+		   here rather than pushing the rest of the tab off-screen. */
+		max-height: 45vh;
+		overflow: auto;
 	}
 	.cli.dim {
 		color: var(--c-ink-faint, #8f8677);

@@ -1,4 +1,3 @@
-// The default HTTP adapter's request mapping, against a mocked fetch.
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { createAdapter } from './adapter';
@@ -39,13 +38,12 @@ describe('createAdapter', () => {
 		const adapter = createAdapter();
 		const r = await adapter.connect('http://server:8000', 'sekrit');
 		expect(r).toMatchObject({ connected: true, modules: ['estimator', 'basic'], project: '/p' });
-		// bearer travels on every request after connect
 		const headers = calls[0].init?.headers as Record<string, string>;
 		expect(headers['Authorization']).toBe('Bearer sekrit');
 	});
 
 	it('reports a connect failure with the reason', async () => {
-		mockFetch({}); // health 404s
+		mockFetch({}); 
 		const adapter = createAdapter();
 		const r = await adapter.connect('http://server:8000');
 		expect(r.connected).toBe(false);

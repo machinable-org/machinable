@@ -1,8 +1,4 @@
 <script lang="ts">
-	// SDK RunBanner — the Job running state (design D3): spinner, "dispatched to <Execution>",
-	// self-ticking elapsed, an indeterminate progress bar, Interrupt, and the identity note
-	// ("new variant — not a cache hit"). Purely presentational over props; the state machine
-	// stays in Lifecycle. No host/captu imports.
 	let {
 		executionLabel = 'default execution',
 		identity,

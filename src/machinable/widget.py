@@ -25,15 +25,10 @@ from machinable.interface import Interface
 
 
 class Widget(Interface):
-    # ES module exporting ``render({ model, el })`` (+ optional ``css``); inline
-    # source or a path resolved relative to the defining module file.
     """An Interface that ships an anywidget-compatible frontend (``_esm``/``_css``)."""
 
     _esm: str | Path = ""
-    # optional stylesheet (anywidget's ``_css``); inline source or sibling path.
     _css: str | Path | None = None
-    # OPAQUE to machinable; consumers stash their manifest here and machinable
-    # never parses it (e.g. captu: role/consumes/produces/capabilities).
     widget_meta: dict = {}
 
     def widget_state(self) -> dict:

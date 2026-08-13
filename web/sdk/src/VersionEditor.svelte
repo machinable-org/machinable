@@ -137,7 +137,6 @@
 	);
 </script>
 
-<!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
 <div class="overlay" onclick={onCancel}>
 	<div class="modal" onclick={(e) => e.stopPropagation()} role="dialog" aria-label="version editor">
 		<div class="mhead">

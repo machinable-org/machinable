@@ -1,9 +1,4 @@
 <script lang="ts">
-	// SDK CallLoop — the Call invocation strip (design D3): a synchronous method call on a
-	// (possibly cached) interface, invoked once or **looped** on a live cadence (cycle
-	// counter, Pause/Stop). The generic read path for result accessors — the result is
-	// opaque JSON handed to onResult (rendered by the host's result slot or the raw
-	// fallback). Pure over WidgetHostAdapter; no host/captu imports.
 	import type { Version, WidgetHostAdapter } from './types';
 
 	let {

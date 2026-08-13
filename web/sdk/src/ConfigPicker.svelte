@@ -1,11 +1,4 @@
 <script lang="ts">
-	// SDK ConfigPicker — the config surface of one interface (design D1, revised IA):
-	// a READ-ONLY overview of the resolved configuration (values from the server's
-	// dry-run, changed-from-default dots, resolve issues attached per field) plus the
-	// version as chips; all editing happens in the pop-up VersionEditor (`✎ edit`),
-	// where override dicts and ~tokens are explicit, ordered elements. Reused by the
-	// target's Config tab and every context layer (incl. Execution resources).
-	// Pure over WidgetHostAdapter; no host/captu imports.
 	import { untrack, type Component } from 'svelte';
 	import type {
 		WidgetHostAdapter,
@@ -18,10 +11,12 @@
 	import { defaultFor, jsonEq, typeLabel } from './fields/util';
 	import VersionEditor from './VersionEditor.svelte';
 
-	// A host field-slot is a component the host injects for a field (keyed by
-	// ConfigField.slot, e.g. captu's recording picker). It owns the value editing —
-	// slot fields stay directly editable in the overview (the host owns the widget).
-	type SlotProps = { value: string; onChange: (v: string) => void; disabled?: boolean };
+	type SlotProps = {
+		value: unknown;
+		onChange: (v: unknown) => void;
+		disabled?: boolean;
+		config: Record<string, unknown>;
+	};
 
 	let {
 		adapter,
@@ -136,7 +131,6 @@
 			<div class="skl-box" style="animation-delay: 0.15s"></div>
 		</div>
 	{:else}
-		<!-- version chips + the single edit affordance -->
 		<div class="vrow">
 			{#each chips as el, i (i)}
 				<span class="chip mono" class:dict={el.kind === 'dict'}>
@@ -154,24 +148,23 @@
 			<div class="doc">{schema.doc.split('\n\n')[0]}</div>
 		{/if}
 
-		<!-- read-only resolved overview -->
 		<div class="fields">
 			{#each schema.fields as f (f.key)}
-				{@const Slot = (f.slot ? adapter.slots?.fields?.[f.slot] : undefined) as
-					| Component<SlotProps>
-					| undefined}
+				{@const slotName = f.slot ?? f.key}
+				{@const Slot = adapter.slots?.fields?.[slotName] as Component<SlotProps> | undefined}
 				{@const issue = issueFor(f.key)}
 				{#if Slot}
 					<div class="slotcard" class:bad={!!issue}>
 						<div class="slothead">
 							<span class="key mono" title={f.doc}>{f.key}</span>
-							<span class="slottag mono">HOST SLOT · {f.slot}</span>
+							<span class="slottag mono">HOST SLOT · {slotName}</span>
 							{#if changed.has(f.key)}<span class="mdot" title="changed from default"></span>{/if}
 						</div>
 						<Slot
-							value={String(resolved[f.key] ?? '')}
-							onChange={(v: string) => slotEdit(f.key, v)}
+							value={resolved[f.key] ?? f.default ?? defaultFor(f.type)}
+							onChange={(v: unknown) => slotEdit(f.key, v)}
 							{disabled}
+							config={resolved}
 						/>
 						{#if issue}<div class="ierr mono">{issue.message}</div>{/if}
 					</div>
