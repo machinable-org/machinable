@@ -141,6 +141,31 @@ describe('moduleSchemaFromServer nested reflection', () => {
 	});
 });
 
+describe('field constraints', () => {
+	it('camel-cases what it recognises and drops the rest', () => {
+		const schema = moduleSchemaFromServer('bounded', {
+			config_fields: [
+				{
+					name: 'alpha',
+					type: 'float',
+					default: 0.5,
+					description: 'Weight.',
+					constraints: { ge: 0, le: 1 }
+				},
+				{ name: 'name', type: 'str', constraints: { min_length: 2, pattern: '^x' } },
+				{ name: 'odd', type: 'int', constraints: { multiple_of: 2, bogus: 'x' } },
+				{ name: 'plain', type: 'int', default: 1 }
+			]
+		});
+		const fields = Object.fromEntries(schema.fields.map((f) => [f.key, f]));
+		expect(fields.alpha.constraints).toEqual({ ge: 0, le: 1 });
+		expect(fields.alpha.doc).toBe('Weight.');
+		expect(fields.name.constraints).toEqual({ minLength: 2, pattern: '^x' });
+		expect(fields.odd.constraints).toEqual({ multipleOf: 2 });
+		expect(fields.plain.constraints).toBeUndefined();
+	});
+});
+
 describe('shortIdentity', () => {
 	it('is stable under key order', () => {
 		expect(shortIdentity({ a: 1, b: 2 })).toBe(shortIdentity({ b: 2, a: 1 }));

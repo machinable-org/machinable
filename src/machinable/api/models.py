@@ -622,6 +622,18 @@ class ConfigField(BaseModel):
         description="Sub-fields when the annotation is a nested config model "
         "(recursively reflected), so clients can render structured editors.",
     )
+    description: str | None = Field(
+        default=None,
+        description="The field's `Field(description=...)`, for editor tooltips.",
+    )
+    constraints: dict[str, Any] | None = Field(
+        default=None,
+        description="Declared pydantic constraints (ge/le/gt/lt/multiple_of/"
+        "min_length/max_length/pattern/max_digits/decimal_places), for clients to "
+        "render bounded inputs and pre-validate. The server remains authoritative: "
+        "only it runs the model, so validators and computed bounds are enforced "
+        "there and reported as resolve issues.",
+    )
 
 
 class VersionMethod(BaseModel):

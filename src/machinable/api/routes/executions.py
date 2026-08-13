@@ -11,8 +11,10 @@ from fastapi import APIRouter, Depends, HTTPException, Request, WebSocket
 
 from machinable.api._helpers import (
     _interfaces_for,
+    config_error,
     execution_to_info,
     get_or_create_interface,
+    is_config_error,
     list_executions,
     project_context,
     request_project_dir,
@@ -48,6 +50,7 @@ def dispatch_execution(
     directory = request_project_dir(request)
     username = getattr(request.state, "username", None)
     holder: dict[str, Execution | None] = {"execution": None}
+    failure: dict[str, BaseException | None] = {"error": None}
 
     def _run() -> None:
         # the background thread re-enters the project in its own isolated
@@ -86,6 +89,7 @@ def dispatch_execution(
                         execution.add(interface)
                 execution.dispatch()
         except Exception as ex:
+            failure["error"] = ex
             _log_event(request, f"dispatch failed: {ex}")
 
     thread = threading.Thread(target=_run, daemon=True)
@@ -100,7 +104,17 @@ def dispatch_execution(
 
     execution = holder["execution"]
     if execution is None or execution.uuid is None:
-        raise HTTPException(status_code=500, detail="Execution failed to start")
+        error = failure["error"]
+        if error is not None and is_config_error(error):
+            raise config_error(cast(Exception, error)) from error
+        if error is not None:
+            raise HTTPException(
+                status_code=500,
+                detail=f"Execution failed to start: {type(error).__name__}: {error}",
+            ) from error
+        raise HTTPException(
+            status_code=500, detail="Execution failed to start (timed out)"
+        )
 
     _interfaces_for(request)[execution.uuid] = execution
     _log_event(request, f"POST /v1/executions -> {execution.uuid}")

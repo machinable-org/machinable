@@ -9,12 +9,24 @@ export type FieldType =
 	| { kind: 'object'; fields?: ConfigField[]; open?: boolean }
 	| { kind: 'unknown'; annotation?: string };
 
+export interface FieldConstraints {
+	gt?: number;
+	ge?: number;
+	lt?: number;
+	le?: number;
+	multipleOf?: number;
+	minLength?: number;
+	maxLength?: number;
+	pattern?: string;
+}
+
 export interface ConfigField {
 	key: string;
 	type: FieldType;
 	default?: unknown;
 	required?: boolean;
 	doc?: string;
+	constraints?: FieldConstraints;
 	slot?: string;
 }
 
@@ -76,6 +88,7 @@ export interface FindResult {
 	status: InterfaceStatus;
 	executionRef?: string;
 	uuid?: string;
+	issues?: ResolveIssue[];
 }
 
 export interface RunDetail {

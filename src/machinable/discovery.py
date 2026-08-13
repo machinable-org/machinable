@@ -36,6 +36,42 @@ class ConfigFieldInfo:
     required: bool = False
     identifying: bool = True
     fields: list[ConfigFieldInfo] | None = None
+    #: ``Field(description=...)`` — what the field means, for the editor's tooltip.
+    description: str | None = None
+    #: pydantic validation constraints as declared (``{"ge": 0, "le": 1}``). Clients
+    #: render them (bounded inputs) and may check them before asking the server; the
+    #: server stays authoritative, since only it runs the model.
+    constraints: dict[str, object] | None = None
+
+
+#: pydantic's declarative constraints, as they appear in ``Field(...)``. Validators and
+#: ``Annotated[...]`` metadata are deliberately out of scope: this reflection is static
+#: (the module is parsed, never imported): only literal declarations are readable.
+_CONSTRAINT_KEYWORDS = frozenset(
+    {
+        "gt",
+        "ge",
+        "lt",
+        "le",
+        "multiple_of",
+        "min_length",
+        "max_length",
+        "pattern",
+        "max_digits",
+        "decimal_places",
+    }
+)
+
+
+@dataclass
+class _FieldSpec:
+    """What a field's right-hand side declares, before the annotation is considered."""
+
+    required: bool = False
+    default: object = None
+    identifying: bool = True
+    description: str | None = None
+    constraints: dict[str, object] = field(default_factory=dict)
 
 
 @dataclass
@@ -469,7 +505,7 @@ class _ConfigReflector:
         depth: int,
         seen: frozenset,
     ) -> ConfigFieldInfo:
-        required, default, identifying = self._default(stmt.value)
+        spec = self._default(stmt.value)
         nested = None
         for candidate in _annotation_model_names(stmt.annotation):
             found = self.find_model(pm, candidate, local)
@@ -481,16 +517,18 @@ class _ConfigReflector:
         return ConfigFieldInfo(
             name=name,
             type=ast.unparse(stmt.annotation),
-            default=default,
-            required=required,
-            identifying=identifying,
+            default=spec.default,
+            required=spec.required,
+            identifying=spec.identifying,
             fields=nested,
+            description=spec.description,
+            constraints=spec.constraints or None,
         )
 
-    def _default(self, value: ast.expr | None) -> tuple[bool, object, bool]:
-        """``(required, default, identifying)`` from a field's right-hand side."""
+    def _default(self, value: ast.expr | None) -> _FieldSpec:
+        """The declared spec from a field's right-hand side."""
         if value is None:
-            return True, None, True
+            return _FieldSpec(required=True)
         if isinstance(value, ast.Call) and _call_name(value.func) in (
             "Field",
             "PydanticField",
@@ -499,26 +537,34 @@ class _ConfigReflector:
         default, ok = _literal(value)
         if not ok:
             self.ok = False
-        return False, default, True
+        return _FieldSpec(default=default)
 
-    def _field_call(self, call: ast.Call) -> tuple[bool, object, bool]:
-        identifying = True
+    def _field_call(self, call: ast.Call) -> _FieldSpec:
+        spec = _FieldSpec()
         has_default = False
-        default: object = None
         for kw in call.keywords:
             if kw.arg == "identifying":
-                identifying = _literal(kw.value)[0] is not False
+                spec.identifying = _literal(kw.value)[0] is not False
             elif kw.arg == "default_factory":
                 has_default = True
             elif kw.arg == "default":
                 has_default = True
-                default = _literal(kw.value)[0]
+                spec.default = _literal(kw.value)[0]
+            elif kw.arg == "description":
+                described, ok = _literal(kw.value)
+                if ok and isinstance(described, str):
+                    spec.description = described
+            elif kw.arg in _CONSTRAINT_KEYWORDS:
+                bound, ok = _literal(kw.value)
+                if ok:
+                    spec.constraints[kw.arg] = bound
         if call.args:  # positional default
             first = call.args[0]
             if not (isinstance(first, ast.Name) and first.id == "PydanticUndefined"):
                 has_default = True
-                default = _literal(first)[0]
-        return (not has_default), default, identifying
+                spec.default = _literal(first)[0]
+        spec.required = not has_default
+        return spec
 
 
 def _call_name(func: ast.expr) -> str | None:

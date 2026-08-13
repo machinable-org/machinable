@@ -153,18 +153,24 @@ export function createAdapter(url?: string, token?: string): WidgetHostAdapter {
 		},
 
 		find: async (module, version, opts): Promise<FindResult> => {
-			const r = await request<{
-				status: FindResult['status'];
-				uuid?: string | null;
-				execution_uuid?: string | null;
-			}>('/v1/interfaces/lifecycle', {
-				body: { target: module, version, context: (opts?.context ?? []).map(refBody) }
-			});
-			return {
-				status: r.status,
-				uuid: r.uuid ?? undefined,
-				executionRef: r.execution_uuid ?? undefined
-			};
+			try {
+				const r = await request<{
+					status: FindResult['status'];
+					uuid?: string | null;
+					execution_uuid?: string | null;
+				}>('/v1/interfaces/lifecycle', {
+					body: { target: module, version, context: (opts?.context ?? []).map(refBody) }
+				});
+				return {
+					status: r.status,
+					uuid: r.uuid ?? undefined,
+					executionRef: r.execution_uuid ?? undefined
+				};
+			} catch (e) {
+				if (e instanceof HttpError && e.status === 400)
+					return { status: 'draft', issues: toIssues(e.detail) };
+				throw e;
+			}
 		},
 
 		interrupt: async (executionRef) => {

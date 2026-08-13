@@ -1,4 +1,5 @@
 import type {
+	FieldConstraints,
 	ConfigField,
 	FieldType,
 	ModuleSchema,
@@ -145,6 +146,8 @@ export interface RawConfigField {
 	default?: unknown;
 	required?: boolean;
 	fields?: RawConfigField[] | null;
+	description?: string | null;
+	constraints?: Record<string, unknown> | null;
 }
 export interface RawModuleSchema {
 	module?: string;
@@ -170,6 +173,24 @@ function graftObject(parsed: FieldType, obj: FieldType): FieldType {
 	return parsed;
 }
 
+function normalizeConstraints(raw: Record<string, unknown> | null | undefined) {
+	if (!raw) return undefined;
+	const out: FieldConstraints = {};
+	for (const key of ['gt', 'ge', 'lt', 'le', 'multipleOf'] as const) {
+		const value = raw[key === 'multipleOf' ? 'multiple_of' : key];
+		if (typeof value === 'number') out[key] = value;
+	}
+	for (const [key, from] of [
+		['minLength', 'min_length'],
+		['maxLength', 'max_length']
+	] as const) {
+		const value = raw[from];
+		if (typeof value === 'number') out[key] = value;
+	}
+	if (typeof raw.pattern === 'string') out.pattern = raw.pattern;
+	return Object.keys(out).length ? out : undefined;
+}
+
 function fieldFromServer(
 	f: RawConfigField,
 	slotFor?: (fieldName: string) => string | undefined
@@ -184,6 +205,8 @@ function fieldFromServer(
 		type,
 		default: f.default ?? undefined,
 		required: f.required ?? undefined,
+		doc: f.description ?? undefined,
+		constraints: normalizeConstraints(f.constraints),
 		slot: slotFor?.(f.name)
 	};
 }

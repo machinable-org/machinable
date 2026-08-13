@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type { FieldType } from '../types';
+	import type { FieldConstraints, FieldType } from '../types';
 	import { defaultFor, typeLabel } from './util';
 	import ObjectField from './ObjectField.svelte';
 	import ListField from './ListField.svelte';
@@ -10,14 +10,37 @@
 		value,
 		onChange,
 		disabled = false,
-		depth = 0
+		depth = 0,
+		constraints
 	}: {
 		type: FieldType;
 		value: unknown;
 		onChange: (v: unknown) => void;
 		disabled?: boolean;
 		depth?: number;
+		/** Declared pydantic bounds, when the server reflected any: they become the input's
+		 * own min/max/step/pattern, so the browser rejects an out-of-range value before the
+		 * resolve round-trip says the same thing. Advisory — the server still validates. */
+		constraints?: FieldConstraints;
 	} = $props();
+
+	// `gt`/`lt` are exclusive and HTML has no such attribute; nudge by one step so the
+	// rendered bound is reachable-but-not-equal rather than silently wrong.
+	const min = $derived.by(() => {
+		if (constraints?.ge !== undefined) return constraints.ge;
+		if (constraints?.gt !== undefined) return constraints.gt + (type.kind === 'int' ? 1 : 0);
+		return undefined;
+	});
+	const max = $derived.by(() => {
+		if (constraints?.le !== undefined) return constraints.le;
+		if (constraints?.lt !== undefined) return constraints.lt - (type.kind === 'int' ? 1 : 0);
+		return undefined;
+	});
+	const bounds = $derived(
+		min !== undefined || max !== undefined
+			? `${min ?? '−∞'} … ${max ?? '∞'}`
+			: undefined
+	);
 
 	// number stepper — int steps 1; float picks a step from the value's magnitude
 	function stepOf(): number {
@@ -63,14 +86,29 @@
 		type="text"
 		value={String(value ?? '')}
 		{disabled}
+		minlength={constraints?.minLength}
+		maxlength={constraints?.maxLength}
+		pattern={constraints?.pattern}
+		title={constraints?.pattern ? `must match ${constraints.pattern}` : undefined}
 		oninput={(e) => onChange(e.currentTarget.value)}
 	/>
 {:else if type.kind === 'int' || type.kind === 'float'}
 	<span class="fr-stepper" class:disabled>
 		<button class="fr-step" {disabled} onclick={() => nudge(-1)} tabindex="-1">−</button>
-		<input class="fr-num mono" type="number" value={value ?? ''} {disabled} oninput={num} />
+		<input
+			class="fr-num mono"
+			type="number"
+			value={value ?? ''}
+			{disabled}
+			{min}
+			{max}
+			step={constraints?.multipleOf}
+			title={bounds}
+			oninput={num}
+		/>
 		<button class="fr-step" {disabled} onclick={() => nudge(1)} tabindex="-1">+</button>
 	</span>
+	{#if bounds}<span class="fr-bounds mono">{bounds}</span>{/if}
 {:else if type.kind === 'bool'}
 	<button
 		class="fr-toggle"
@@ -167,6 +205,11 @@
 	}
 	.fr-step:last-child {
 		border-left: 1px solid var(--c-paper-sunken, #ece6d8);
+	}
+	.fr-bounds {
+		font-size: 10px;
+		color: var(--c-ink-faint, #a69d8d);
+		white-space: nowrap;
 	}
 	.fr-num {
 		width: 62px;

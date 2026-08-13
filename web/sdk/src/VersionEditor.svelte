@@ -1,10 +1,4 @@
 <script lang="ts">
-	// SDK VersionEditor — the pop-up version composer: the compact version as an
-	// ordered list of elements (override dicts and ~tokens), each movable, with a
-	// typed key editor per dict (schema-driven; free keys allowed) and an arg form
-	// per token. Apply emits the wire version; Cancel discards. Reused wherever a
-	// version is edited (the target's Config tab, context layers incl. Execution
-	// resources). Pure over the introspected schema; no host imports.
 	import type { ModuleSchema, SourceRef, Version } from './types';
 	import type { EditableElement } from './introspection';
 	import { elementsToVersion, versionToElements } from './introspection';
@@ -177,9 +171,10 @@
 										<FieldRenderer
 											type={f?.type ?? { kind: 'unknown' }}
 											value={el.value[key]}
+											constraints={f?.constraints}
 											onChange={(v) => setDictKey(i, key, v)}
 										/>
-										{#if f}<span class="ktype mono">{typeLabel(f.type)}</span>{/if}
+										{#if f}<span class="ktype mono" title={f.doc}>{typeLabel(f.type)}</span>{/if}
 										<button class="krm" onclick={() => removeDictKey(i, key)} title="remove key">×</button>
 									</div>
 								{:else}

@@ -695,6 +695,70 @@ def read_interface_file(interface: Interface, path: str) -> Any:
     return content
 
 
+# ── invalid-config reporting ──────────────────────────────────────────────────
+# A config the server cannot construct is the CLIENT's error, not a server fault, and
+# every route that builds one owes the same answer: which field, and what is wrong with
+# it. Kept here rather than in one router because resolve, lifecycle, call and dispatch
+# all build a config from (target, version) and used to disagree — resolve reported
+# issues while the others returned a bare 500, so the identical mistake was legible in
+# one panel and a mystery in the next.
+
+
+def config_issues(ex: Exception) -> list[dict]:
+    """Field-attached issue list for a config failure.
+
+    Walks the cause chain because configure() re-wraps failures in a
+    ConfigurationError; the structured location lives on the original.
+    """
+    current: BaseException | None = ex
+    while current is not None:
+        paths = getattr(current, "paths", None)  # ConfigurationError (unknown keys)
+        if paths:
+            return [{"path": path, "message": str(current)} for path in paths]
+        errors = getattr(current, "errors", None)  # pydantic ValidationError
+        if callable(errors):
+            try:
+                return [
+                    {
+                        "path": ".".join(str(loc) for loc in error.get("loc", ()))
+                        or None,
+                        "message": error.get("msg", str(current)),
+                    }
+                    for error in errors()
+                ]
+            except Exception:  # noqa: BLE001 - fall through to the generic issue
+                pass
+        current = current.__cause__
+    return [{"path": None, "message": str(ex)}]
+
+
+def is_config_error(ex: BaseException) -> bool:
+    """Whether ``ex`` is a config the client got wrong, as opposed to a server fault.
+
+    Deliberately narrow. A validator that raises and a disk that cannot be read both
+    surface as exceptions while building an interface, but only the first is a 400 —
+    reporting the second as one would tell the user to fix a config that is fine.
+    """
+    from pydantic import ValidationError
+
+    from machinable.errors import ConfigurationError
+
+    current: BaseException | None = ex
+    while current is not None:
+        if isinstance(current, ValidationError | ConfigurationError):
+            return True
+        current = current.__cause__
+    return False
+
+
+def config_error(ex: Exception) -> HTTPException:
+    """``ex`` as a 400 detailing ``{"message", "issues": [{"path", "message"}]}``."""
+    return HTTPException(
+        status_code=400,
+        detail={"message": str(ex), "issues": config_issues(ex)},
+    )
+
+
 def _project_for(project_dir: str) -> Project:
     if Project.is_connected():
         connected = Project.get()
@@ -711,6 +775,8 @@ def _to_config_field(f) -> ConfigField:
         required=f.required,
         identifying=f.identifying,
         fields=[_to_config_field(x) for x in f.fields] if f.fields else None,
+        description=getattr(f, "description", None),
+        constraints=getattr(f, "constraints", None) or None,
     )
 
 

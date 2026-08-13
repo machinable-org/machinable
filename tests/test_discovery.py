@@ -349,3 +349,37 @@ def test_discovery_module_is_fastapi_free():
         [sys.executable, "-c", code], capture_output=True, text=True
     )
     assert result.returncode == 0, result.stderr
+
+
+def test_field_constraints_and_description(tmp_path):
+    """`Field(ge=…, description=…)` is reflected so a client can render bounds.
+
+    Only literal declarations: the reflection parses the module, it never imports it.
+    """
+    _project(tmp_path)
+    _write(
+        tmp_path,
+        "bounded.py",
+        """
+        from pydantic import BaseModel, Field
+
+        from machinable import Interface
+
+        LIMIT = 10
+
+        class Bounded(Interface):
+            class Config(BaseModel):
+                alpha: float = Field(default=0.5, ge=0.0, le=1.0, description="Weight.")
+                name: str = Field(default="run", min_length=2, max_length=8)
+                plain: int = 3
+                computed: int = Field(default=1, le=LIMIT)
+        """,
+    )
+    fields = {f.name: f for f in _schema(str(tmp_path), "bounded").config_fields}
+    assert fields["alpha"].constraints == {"ge": 0.0, "le": 1.0}
+    assert fields["alpha"].description == "Weight."
+    assert fields["name"].constraints == {"min_length": 2, "max_length": 8}
+    # no Field(...) at all, and a non-literal bound: absent rather than guessed
+    assert fields["plain"].constraints is None and fields["plain"].description is None
+    assert fields["computed"].constraints is None
+    assert fields["computed"].default == 1

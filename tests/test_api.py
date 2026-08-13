@@ -681,3 +681,69 @@ def test_docs_generator_renders():
     assert "## Capabilities" in md
     assert "POST /v1/interfaces/search" in md
     assert "GET /v1/protocol" in md
+
+
+def test_invalid_config_reports_issues_on_every_route(api_client):
+    """A config the server cannot build is a 400 with field-attached issues.
+
+    Every route that constructs one from (target, version) answers the same way — they
+    used to disagree, resolve reporting issues while lifecycle, call and dispatch
+    returned a bare 500, so the same mistake was legible in one panel and a mystery in
+    the next.
+    """
+    out_of_range = [{"alpha": 5}]
+    routes = [
+        ("/v1/interfaces/resolve", {"target": "bounded", "version": out_of_range}),
+        (
+            "/v1/interfaces/lifecycle",
+            {"target": "bounded", "version": out_of_range, "context": []},
+        ),
+        (
+            "/v1/interfaces/call",
+            {
+                "target": "bounded",
+                "version": out_of_range,
+                "method": "cached",
+                "args": [],
+                "kwargs": {},
+            },
+        ),
+        (
+            "/v1/executions",
+            {"interfaces": [{"target": "bounded", "version": out_of_range}]},
+        ),
+    ]
+    for path, body in routes:
+        response = api_client.post(path, json=body)
+        assert response.status_code == 400, f"{path} -> {response.status_code}"
+        detail = response.json()["detail"]
+        assert detail["issues"] == [
+            {"path": "alpha", "message": "Input should be less than or equal to 1"}
+        ], path
+
+    # a model_validator has no field location, but still reports rather than 500s
+    response = api_client.post(
+        "/v1/interfaces/lifecycle",
+        json={"target": "bounded", "version": [{"labels": ["a", "b"]}], "context": []},
+    )
+    assert response.status_code == 400
+    issues = response.json()["detail"]["issues"]
+    assert issues[0]["path"] is None and "labels has 2 entries" in issues[0]["message"]
+
+    # and a valid config is unaffected
+    response = api_client.post(
+        "/v1/interfaces/lifecycle",
+        json={"target": "bounded", "version": [{"alpha": 0.5}], "context": []},
+    )
+    assert response.status_code == 200 and response.json()["status"] == "draft"
+
+
+def test_config_field_constraints_are_served(api_client):
+    """Declared constraints reach the client, so an editor can bound its inputs."""
+    fields = {
+        f["name"]: f
+        for f in api_client.get("/v1/project/bounded").json()["config_fields"]
+    }
+    assert fields["alpha"]["constraints"] == {"ge": 0.0, "le": 1.0}
+    assert fields["alpha"]["description"] == "Weight."
+    assert fields["n"]["constraints"] is None

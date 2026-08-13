@@ -8,6 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, WebSocket
 
 from machinable.api._helpers import (
     _interfaces_for,
+    config_error,
     create_interface_from_target,
     evict_interface,
     get_interface_meta,
@@ -17,6 +18,7 @@ from machinable.api._helpers import (
     interface_provenance,
     interface_related,
     interface_to_info,
+    is_config_error,
     json_payload,
     list_executions,
     list_interface_files,
@@ -119,38 +121,7 @@ def resolve(
     try:
         return resolve_interface_config(request, body.target, body.version)
     except Exception as ex:  # noqa: BLE001
-        raise HTTPException(
-            status_code=400,
-            detail={"message": str(ex), "issues": _resolve_issues(ex)},
-        ) from ex
-
-
-def _resolve_issues(ex: Exception) -> list[dict]:
-    """Field-attached issue list for a resolve failure.
-
-    Walks the cause chain because configure() re-wraps failures in a
-    ConfigurationError; the structured location lives on the original.
-    """
-    current: BaseException | None = ex
-    while current is not None:
-        paths = getattr(current, "paths", None)  # ConfigurationError (unknown keys)
-        if paths:
-            return [{"path": path, "message": str(current)} for path in paths]
-        errors = getattr(current, "errors", None)  # pydantic ValidationError
-        if callable(errors):
-            try:
-                return [
-                    {
-                        "path": ".".join(str(loc) for loc in error.get("loc", ()))
-                        or None,
-                        "message": error.get("msg", str(current)),
-                    }
-                    for error in errors()
-                ]
-            except Exception:  # noqa: BLE001 - fall through to the generic issue
-                pass
-        current = current.__cause__
-    return [{"path": None, "message": str(ex)}]
+        raise config_error(ex) from ex
 
 
 @router.post("/lifecycle", response_model=LifecycleResponse)
@@ -161,9 +132,16 @@ def lifecycle(
 ) -> LifecycleResponse:
     """Content-addressed compute lifecycle for a config.
 
-    One of: draft / running / cached / failed.
+    One of: draft / running / cached / failed. A config that cannot be constructed
+    has no lifecycle to report: it answers 400 with the same field-attached issues
+    as resolve, rather than a 500 that says only that something went wrong.
     """
-    return interface_lifecycle(request, body.target, body.version, body.context)
+    try:
+        return interface_lifecycle(request, body.target, body.version, body.context)
+    except Exception as ex:
+        if is_config_error(ex):
+            raise config_error(ex) from ex
+        raise
 
 
 @router.post("/call")
@@ -173,12 +151,19 @@ async def call_interface(
     _p: str = Depends(project_context),
 ) -> dict[str, Any]:
     """Invoke a public method; failures carry a structured detail, never a bare 500."""
-    interface = create_interface_from_target(
-        request,
-        body.target,
-        version=body.version,
-        meta=body.meta,
-    )
+    try:
+        interface = create_interface_from_target(
+            request,
+            body.target,
+            version=body.version,
+            meta=body.meta,
+        )
+    except Exception as ex:
+        # Building the interface happens before the call itself; an invalid config here
+        # is the caller's, and used to escape the handling below as a bare 500.
+        if is_config_error(ex):
+            raise config_error(ex) from ex
+        raise
     _log_event(
         request,
         f"POST /v1/interfaces/call {body.method} -> {interface.uuid}",

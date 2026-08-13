@@ -32,6 +32,7 @@ export type {
 	WidgetHostAdapter,
 	ModuleSchema,
 	ConfigField,
+	FieldConstraints,
 	FieldType,
 	Version,
 	VersionElement,
