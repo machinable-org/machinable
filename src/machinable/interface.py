@@ -436,7 +436,7 @@ def cachable(
 
     def _decorator(fn: Any) -> Callable:
         def _wrapper(self, *args, **kwargs):
-            if not self._caching_enabled():
+            if not self.cached():
                 return fn(self, *args, **kwargs)
             try:
                 sig = inspect.signature(fn)
@@ -1056,11 +1056,6 @@ class Interface(Jsonable):
                 f"excluded data via on_compute_predicate().",
                 stacklevel=2,
             )
-
-    def _caching_enabled(self) -> bool:
-        if self.cached():
-            return True
-        return self.is_materialized() and self.kind != "Execution"
 
     @property
     def config(self) -> DictConfig:

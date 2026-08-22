@@ -8,6 +8,7 @@
 - Added `machinable console` (via `machinable[console]`) which provides a terminal UI for the API
 - Added an official web client served via `GET /widget` (and bundle at `GET /widget-sdk.js`) 
 - Added notebook rendering: `display(interface)` opens the interface in the web client
+- Fix `@cachable` to only once a finished result exists
 
 # v5.0
 

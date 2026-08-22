@@ -372,9 +372,12 @@ def test_interface_cachable(tmp_storage):
     assert t.test() == 2
     t.materialize()
     assert t.test2() == 100
-    assert t.test2() == 100
+    assert t.test2() == 200
+    t.cached(True)
+    assert t.test2() == 300
+    assert t.test2() == 300
     counts["test2"] = -1
-    assert t.test2() == 100
+    assert t.test2() == 300
     assert t.test2(5) == 5  # = (-1 + 1) * 100 + 5
 
     class C(Execution):
