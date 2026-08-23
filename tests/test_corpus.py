@@ -108,3 +108,36 @@ def test_corpus_find_behavior(corpus_index):
         assert [i.record_id for i in response.items] == case["expect"]["record_ids"], (
             case["note"]
         )
+
+
+def _tracker_state(status) -> str:
+    """The corpus state name for a status snapshot."""
+    if status.is_finished:
+        return "finished"
+    if not status.is_started:
+        return "pending"
+    return "live" if status.is_live else "died"
+
+
+def test_corpus_tracker_vectors():
+    """The run state machine, bound to the corpus the format publishes."""
+    import arrow
+
+    from machinable.execution import DEFAULT_HEARTBEAT_WINDOW, ExecutionStatus
+
+    corpus = load_file([CORPUS, "tracker.json"])
+    assert corpus["window_seconds"] == DEFAULT_HEARTBEAT_WINDOW
+
+    for vector in corpus["vectors"]:
+        reference = arrow.get(vector["now"])
+        now = arrow.now()
+        markers = {
+            name: now - (reference - arrow.get(value))
+            for name, value in vector["markers"].items()
+            # ExecutionStatus models the four liveness markers; `pending` is
+            # derived from the absence of started_at, not from dispatched_at
+            if name != "dispatched_at"
+        }
+        # the implementation's own default window, pinned to the corpus above
+        status = ExecutionStatus(**markers)
+        assert _tracker_state(status) == vector["expect"], vector

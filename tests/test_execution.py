@@ -320,3 +320,37 @@ def test_execution_from_index(tmp_storage):
     assert c.seed == c.seed
     assert c.__model__.resources == cp.__model__.resources
     assert cp.__model__.resources["a"] == 1
+
+
+def test_heartbeat_window_is_relaxable(monkeypatch):
+    from machinable.execution import DEFAULT_HEARTBEAT_WINDOW, heartbeat_window
+
+    assert heartbeat_window() == DEFAULT_HEARTBEAT_WINDOW
+
+    monkeypatch.setenv("MACHINABLE_HEARTBEAT_WINDOW", "300")
+    assert heartbeat_window() == 300.0
+
+    for invalid in ("", "soon", "0", "-1"):
+        monkeypatch.setenv("MACHINABLE_HEARTBEAT_WINDOW", invalid)
+        assert heartbeat_window() == DEFAULT_HEARTBEAT_WINDOW
+
+
+def test_heartbeat_freshness_edges():
+    import arrow
+
+    from machinable.execution import ExecutionStatus, heartbeat_is_fresh
+
+    now = arrow.now()
+    assert heartbeat_is_fresh(now.shift(seconds=-89), 90)
+    assert not heartbeat_is_fresh(now.shift(seconds=-91), 90)
+    assert not heartbeat_is_fresh(None, 90)
+
+    assert not heartbeat_is_fresh(now.shift(days=-1, seconds=-1), 90)
+
+    assert heartbeat_is_fresh(now.shift(seconds=30), 90)
+
+    status = ExecutionStatus(
+        started_at=now.shift(days=-1), heartbeat_at=now.shift(days=-1)
+    )
+    assert not status.is_active
+    assert status.is_incomplete

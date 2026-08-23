@@ -55,6 +55,47 @@ def _assert_allowed(status: str):
 
 StatusType = Literal["dispatched", "started", "heartbeat", "finished", "resumed"]
 
+# Cadence at which a running payload writes its heartbeat marker
+HEARTBEAT_INTERVAL = 15.0
+
+# The liveness window
+DEFAULT_HEARTBEAT_WINDOW = 6 * HEARTBEAT_INTERVAL
+
+
+def heartbeat_window() -> float:
+    """The liveness window in seconds, relaxable per store.
+
+    ``MACHINABLE_HEARTBEAT_WINDOW`` widens it for stores whose markers reach
+    the reader on a delay (a node-local scratch rsynced to shared storage on
+    an interval, or a store polled over SSH), where transport latency rather
+    than the payload decides how stale a live run's heartbeat looks. A
+    malformed or non-positive value falls back to the default.
+    """
+    value = os.environ.get("MACHINABLE_HEARTBEAT_WINDOW")
+    if value is None:
+        return DEFAULT_HEARTBEAT_WINDOW
+    try:
+        window = float(value)
+    except ValueError:
+        return DEFAULT_HEARTBEAT_WINDOW
+    return window if window > 0 else DEFAULT_HEARTBEAT_WINDOW
+
+
+def heartbeat_is_fresh(heartbeat: DatetimeType | None, window: float) -> bool:
+    """Whether ``heartbeat`` is recent enough for the run to count as live.
+
+    The single freshness comparison behind both :attr:`ExecutionStatus.is_active`
+    and :meth:`Execution.is_active`. It measures the total elapsed seconds:
+    a ``timedelta``'s ``.seconds`` is only its seconds-of-day component, so a
+    day-old heartbeat would read as seconds-old. A negative age (the payload's
+    clock running ahead of the reader's, routine once the two are different
+    machines) is younger than any window, which is the safe direction as the
+    format prefers a false "live" over a false "died".
+    """
+    if heartbeat is None:
+        return False
+    return (arrow.now() - heartbeat).total_seconds() < window
+
 
 @dataclass(frozen=True)
 class ExecutionStatus:
@@ -70,6 +111,7 @@ class ExecutionStatus:
     resumed_at: DatetimeType | None = None
     heartbeat_at: DatetimeType | None = None
     finished_at: DatetimeType | None = None
+    window: float = DEFAULT_HEARTBEAT_WINDOW
 
     @property
     def is_started(self) -> bool:
@@ -89,9 +131,9 @@ class ExecutionStatus:
     @property
     def is_active(self) -> bool:
         """True while the heartbeat is recent and the run unfinished."""
-        if self.is_finished or self.heartbeat_at is None:
+        if self.is_finished:
             return False
-        return (arrow.now() - self.heartbeat_at).seconds < 30
+        return heartbeat_is_fresh(self.heartbeat_at, self.window)
 
     @property
     def is_live(self) -> bool:
@@ -486,7 +528,7 @@ class Execution(Interface):
                 # otherwise schedule the next and leak a timer thread per run).
                 if _beat_stop.is_set():
                     return
-                t = threading.Timer(15, lambda: _beat_ctx.run(beat))
+                t = threading.Timer(HEARTBEAT_INTERVAL, lambda: _beat_ctx.run(beat))
                 t.daemon = True
                 _beat_timer[0] = t
                 t.start()
@@ -901,6 +943,7 @@ class Execution(Interface):
             resumed_at=_read("resumed"),
             heartbeat_at=_read("heartbeat"),
             finished_at=_read("finished"),
+            window=heartbeat_window(),
         )
 
     def started_at(self) -> DatetimeType | None:
@@ -940,14 +983,11 @@ class Execution(Interface):
         return bool(self.resumed_at())
 
     def is_active(self):
-        """True if not finished and last heartbeat occurred less than 30 seconds ago."""
+        """True if not finished and the heartbeat is within the liveness window."""
         if self.is_finished():
             return False
 
-        if not (heartbeat := self.heartbeat_at()):
-            return False
-
-        return (arrow.now() - heartbeat).seconds < 30
+        return heartbeat_is_fresh(self.heartbeat_at(), heartbeat_window())
 
     def is_live(self):
         """True if active or finished."""

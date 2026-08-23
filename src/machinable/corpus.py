@@ -198,6 +198,28 @@ def tracker_vectors() -> list[dict]:
             "expect": "live",
         },
         {
+            # heartbeat a day old: stale. Pins elapsed time as a total, not as
+            # a clock's seconds-of-day component, which would read this as 1s.
+            "markers": {
+                "dispatched_at": t.format(s=0),
+                "started_at": t.format(s=1),
+                "heartbeat_at": t.format(s=1),
+            },
+            "now": "2026-01-02T12:00:02+00:00",
+            "expect": "died",
+        },
+        {
+            # heartbeat dated after `now`: the payload's clock runs ahead of the
+            # reader's (different machines), and a false "live" beats a false "died"
+            "markers": {
+                "dispatched_at": t.format(s=0),
+                "started_at": t.format(s=1),
+                "heartbeat_at": "2026-01-01T12:01:00+00:00",
+            },
+            "now": t.format(s=30),
+            "expect": "live",
+        },
+        {
             # heartbeat 119s old: stale, no finished_at → died mid-run
             "markers": {
                 "dispatched_at": t.format(s=0),

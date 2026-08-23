@@ -101,7 +101,16 @@ per-scheduler reconciliation (`squeue` polling and the like) is ever needed and
 monitoring stays pure filesystem. The default window is 90 s (about six missed 15 s
 beats) rather than a tighter bound because heartbeats crossing a shared/NFS store lag on
 metadata visibility, and a false "died" is worse than a slow one. The window is
-relaxable per store.
+relaxable per store (in Python, `MACHINABLE_HEARTBEAT_WINDOW`); a store whose markers
+reach the reader on a delay, such as a node-local scratch rsynced to shared storage on
+an interval, needs a window wider than that delay or every live run reads as died.
+
+Staleness is the total elapsed time between the heartbeat and the reader's clock, not
+the seconds component of a calendar difference. The two agree for the first day and then
+diverge sharply, so a run that died yesterday must not read as live. Since the payload
+and the reader are frequently different machines, their clocks disagree; a heartbeat
+dated in the reader's future is treated as fresh, in keeping with preferring a false
+"live" over a false "died".
 
 The pending window is ambiguous by nature, since a job that dies in the queue stays "pending",
 since no heartbeat ever existed to go stale. This is accepted. The scheduler eventually
