@@ -235,6 +235,10 @@ class ExecutionInfo(BaseModel):
         default=None, description="Requested compute resources."
     )
     parent_uuid: str = Field(description="Uuid of the parent Interface for this run.")
+    is_pending: bool = Field(
+        default=False,
+        description="True when dispatched to a scheduler but not yet started.",
+    )
     is_started: bool = Field(description="True when started_at has been written.")
     is_active: bool = Field(
         description="True when heartbeat is recent and not finished."
@@ -246,6 +250,9 @@ class ExecutionInfo(BaseModel):
     )
     is_resumed: bool = Field(
         default=False, description="True when the run was resumed at least once."
+    )
+    dispatched_at: str | None = Field(
+        default=None, description="ISO-8601 dispatch (submission) timestamp."
     )
     started_at: str | None = Field(
         default=None, description="ISO-8601 start timestamp."
@@ -412,7 +419,7 @@ class SearchItem(BaseModel):
     label: str | None = Field(default=None, description="Mutable label.")
     status: str | None = Field(
         default=None,
-        description="draft|running|cached|failed for the latest run "
+        description="draft|pending|running|cached|failed for the latest run "
         "(with include_status).",
     )
     run_count: int | None = Field(
@@ -747,6 +754,7 @@ class LifecycleStatus(StrEnum):
     """Where a content-addressed config sits in its compute lifecycle."""
 
     draft = "draft"  # configured, never materialized/run
+    pending = "pending"  # dispatched to a scheduler, not yet started
     running = "running"  # a run is active/live
     cached = "cached"  # a finished result is available to read
     failed = "failed"  # a run started but did not complete
@@ -779,7 +787,9 @@ class LifecycleResponse(BaseModel):
         default=None,
         description="Materialized interface id, or null when never created (draft).",
     )
-    status: LifecycleStatus = Field(description="draft | running | cached | failed.")
+    status: LifecycleStatus = Field(
+        description="draft | pending | running | cached | failed."
+    )
     cached: bool = Field(
         default=False,
         description="True when a finished result is available to read.",

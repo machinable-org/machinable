@@ -73,6 +73,12 @@ def test_dispatch_prepare_is_pending(project_dir):
     assert markers["started_at"] is None  # §L1.4 pending: dispatched only
     assert markers["finished_at"] is None
 
+    from machinable import Execution
+
+    status = Execution.from_directory(handle["record_dir"]).status_snapshot()
+    assert status.is_pending
+    assert not status.is_started and not status.is_active
+
 
 def test_dispatch_handoff_and_recursive_reentry(project_dir):
     request = {

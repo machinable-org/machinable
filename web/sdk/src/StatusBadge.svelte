@@ -1,6 +1,7 @@
 <script lang="ts">
 	export type BadgeVariant =
 		| 'draft'
+		| 'pending'
 		| 'running'
 		| 'running-looped'
 		| 'cached'
@@ -13,6 +14,7 @@
 
 	const LABELS: Record<BadgeVariant, string> = {
 		draft: 'DRAFT',
+		pending: 'PENDING',
 		running: 'RUNNING',
 		'running-looped': 'RUNNING · LOOPED',
 		cached: 'CACHED',
@@ -59,6 +61,10 @@
 	.draft {
 		color: var(--c-ink-soft, #6b6760);
 		background: color-mix(in srgb, var(--c-ink, #2c2823) 10%, transparent);
+	}
+	.pending {
+		color: var(--c-lagging, #a1785c);
+		background: color-mix(in srgb, var(--c-lagging, #a1785c) 12%, transparent);
 	}
 	.running,
 	.running-looped {

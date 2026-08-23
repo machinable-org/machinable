@@ -517,6 +517,9 @@
 	.dot.running {
 		background: var(--c-model, #5b6ee0);
 	}
+	.dot.pending {
+		background: var(--c-lagging, #a1785c);
+	}
 	.dot.failed,
 	.dot.interrupted {
 		background: var(--c-record, #cf5252);

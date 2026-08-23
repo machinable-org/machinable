@@ -102,16 +102,22 @@ class ExecutionStatus:
     """A one-shot read of a run's status markers.
 
     Resolving them individually costs a directory lookup + file read *per* accessor;
-    this reads the four ``*_at`` markers once (see :meth:`Execution.status_snapshot`)
+    this reads the five ``*_at`` markers once (see :meth:`Execution.status_snapshot`)
     and derives every flag from them. The derived flags mirror the equivalent
     :class:`Execution` methods exactly.
     """
 
+    dispatched_at: DatetimeType | None = None
     started_at: DatetimeType | None = None
     resumed_at: DatetimeType | None = None
     heartbeat_at: DatetimeType | None = None
     finished_at: DatetimeType | None = None
     window: float = DEFAULT_HEARTBEAT_WINDOW
+
+    @property
+    def is_dispatched(self) -> bool:
+        """True when ``dispatched_at`` has been written."""
+        return self.dispatched_at is not None
 
     @property
     def is_started(self) -> bool:
@@ -134,6 +140,19 @@ class ExecutionStatus:
         if self.is_finished:
             return False
         return heartbeat_is_fresh(self.heartbeat_at, self.window)
+
+    @property
+    def is_pending(self) -> bool:
+        """True while submitted but not yet running.
+
+        The scheduler-handoff window: ``prepare_dispatch`` writes
+        ``dispatched_at`` synchronously, and the payload writes ``started_at``
+        only once it actually runs, so a queued job (Slurm, and any other
+        submit-style backend) is pending for as long as it sits in the queue.
+        Without this the state is indistinguishable from a never-dispatched
+        record (see docs/design/format.md).
+        """
+        return self.is_dispatched and not self.is_started and not self.is_finished
 
     @property
     def is_live(self) -> bool:
@@ -939,12 +958,19 @@ class Execution(Interface):
                 return None
 
         return ExecutionStatus(
+            dispatched_at=_read("dispatched"),
             started_at=_read("started"),
             resumed_at=_read("resumed"),
             heartbeat_at=_read("heartbeat"),
             finished_at=_read("finished"),
             window=heartbeat_window(),
         )
+
+    def dispatched_at(self) -> DatetimeType | None:
+        """Returns the dispatch (submission) time."""
+        if not self.is_mounted():
+            return None
+        return self.retrieve_status("dispatched")
 
     def started_at(self) -> DatetimeType | None:
         """Returns the starting time."""
@@ -974,9 +1000,17 @@ class Execution(Interface):
         """True if finishing time has been written."""
         return bool(self.finished_at())
 
+    def is_dispatched(self):
+        """True if dispatch time has been written."""
+        return bool(self.dispatched_at())
+
     def is_started(self):
         """True if starting time has been written."""
         return bool(self.started_at())
+
+    def is_pending(self):
+        """True if submitted to a scheduler but not yet running."""
+        return self.is_dispatched() and not self.is_started() and not self.is_finished()
 
     def is_resumed(self):
         """True if resumed time has been written."""

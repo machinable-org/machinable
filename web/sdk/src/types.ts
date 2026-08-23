@@ -77,7 +77,13 @@ export type ResolveResult =
 	  }
 	| { ok: false; issues: ResolveIssue[] };
 
-export type InterfaceStatus = 'draft' | 'running' | 'cached' | 'failed' | 'interrupted';
+export type InterfaceStatus =
+	| 'draft'
+	| 'pending'
+	| 'running'
+	| 'cached'
+	| 'failed'
+	| 'interrupted';
 
 export interface Ref {
 	target: string;

@@ -191,12 +191,14 @@ def execution_to_info(execution: Execution, status=None) -> ExecutionInfo:
         nickname=execution.nickname,
         resources=execution._model.resources,
         parent_uuid=parent_uuid,
+        is_pending=st.is_pending,
         is_started=st.is_started,
         is_active=st.is_active,
         is_finished=st.is_finished,
         is_incomplete=st.is_incomplete,
         is_live=st.is_live,
         is_resumed=st.is_resumed,
+        dispatched_at=_iso_datetime(st.dispatched_at),
         started_at=_iso_datetime(st.started_at),
         resumed_at=_iso_datetime(st.resumed_at),
         finished_at=_iso_datetime(st.finished_at),
@@ -325,6 +327,8 @@ def _entry_status(uuid: str) -> tuple[str, int]:
         return "running", found.total
     if status.is_incomplete:
         return "failed", found.total
+    if status.is_pending:
+        return "pending", found.total
     return "draft", found.total
 
 
@@ -353,9 +357,9 @@ def interface_lifecycle(request: Request, target: str, version, context=None) ->
 
     Resolves the config to its content identity, under the same ordered
     ``context`` stack it was dispatched with so that a scoped config matches, and
-    reports where it sits: ``draft`` (never created) → ``running`` (a live
-    run) → ``cached`` (finished, readable) / ``failed`` (a run started but
-    did not complete).
+    reports where it sits: ``draft`` (never created) → ``pending`` (dispatched
+    to a scheduler, still queued) → ``running`` (a live run) → ``cached``
+    (finished, readable) / ``failed`` (a run started but did not complete).
     """
     from machinable.api.models import LifecycleResponse, LifecycleStatus
 
@@ -401,6 +405,8 @@ def interface_lifecycle(request: Request, target: str, version, context=None) ->
         status = LifecycleStatus.running
     elif latest is not None and latest.is_incomplete():
         status = LifecycleStatus.failed
+    elif latest is not None and latest.is_pending():
+        status = LifecycleStatus.pending
     else:
         status = LifecycleStatus.draft
 
@@ -636,6 +642,7 @@ def list_executions(
     *,
     active: bool | None = None,
     incomplete: bool | None = None,
+    pending: bool | None = None,
     parent: str | None = None,
     limit: int = 100,
 ) -> list[ExecutionInfo]:
@@ -661,6 +668,10 @@ def list_executions(
         if incomplete is True and not st.is_incomplete:
             continue
         if incomplete is False and st.is_incomplete:
+            continue
+        if pending is True and not st.is_pending:
+            continue
+        if pending is False and st.is_pending:
             continue
         results.append(execution_to_info(execution, status=st))
     return results

@@ -67,6 +67,7 @@ def record_status(status: str | None):
     color = {
         "cached": "green",
         "running": "cyan",
+        "pending": "yellow",
         "failed": "red",
         "draft": "grey58",
     }.get(status or "", "grey58")

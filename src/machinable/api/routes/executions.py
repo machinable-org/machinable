@@ -126,6 +126,7 @@ def list_all_executions(
     request: Request,
     active: bool | None = None,
     incomplete: bool | None = None,
+    pending: bool | None = None,
     parent: str | None = None,
     limit: int = 100,
     _p: str = Depends(project_context),
@@ -133,6 +134,7 @@ def list_all_executions(
     return list_executions(
         active=active,
         incomplete=incomplete,
+        pending=pending,
         parent=parent,
         limit=limit,
     )

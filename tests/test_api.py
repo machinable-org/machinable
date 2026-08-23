@@ -747,3 +747,46 @@ def test_config_field_constraints_are_served(api_client):
     assert fields["alpha"]["constraints"] == {"ge": 0.0, "le": 1.0}
     assert fields["alpha"]["description"] == "Weight."
     assert fields["n"]["constraints"] is None
+
+
+def test_pending_run_is_not_a_draft(tmp_storage):
+    """A dispatched-but-unstarted run is the scheduler queue window.
+
+    ``prepare_dispatch`` is what a submit-style backend (Slurm) calls before
+    handing the job over: the run-record exists and carries ``dispatched_at``,
+    but the payload has not run, so no ``started_at`` follows until the
+    scheduler starts it. Reporting that as ``draft`` would say the interface
+    was never launched at all.
+    """
+    from machinable import Execution, Interface
+    from machinable.api._helpers import (
+        _entry_status,
+        execution_to_info,
+        interface_lifecycle,
+    )
+
+    interface = Interface.make("basic")
+    interface.materialize()
+    assert _entry_status(interface.uuid) == ("draft", 0)
+
+    run = Execution()
+    run.prepare_dispatch(interface)
+
+    status = run.status_snapshot()
+    assert status.is_dispatched and not status.is_started
+    assert status.is_pending
+    assert not status.is_active and not status.is_incomplete
+
+    assert _entry_status(interface.uuid) == ("pending", 1)
+    assert interface_lifecycle(None, "basic", []).status == "pending"
+
+    info = execution_to_info(run)
+    assert info.is_pending is True
+    assert info.is_started is False
+    assert info.dispatched_at is not None
+
+    # once the payload starts beating, the record leaves the queue window
+    run.update_status("started")
+    run.update_status("heartbeat")
+    assert not run.status_snapshot().is_pending
+    assert _entry_status(interface.uuid) == ("running", 1)

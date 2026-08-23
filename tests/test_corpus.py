@@ -114,7 +114,7 @@ def _tracker_state(status) -> str:
     """The corpus state name for a status snapshot."""
     if status.is_finished:
         return "finished"
-    if not status.is_started:
+    if status.is_pending:
         return "pending"
     return "live" if status.is_live else "died"
 
@@ -134,9 +134,6 @@ def test_corpus_tracker_vectors():
         markers = {
             name: now - (reference - arrow.get(value))
             for name, value in vector["markers"].items()
-            # ExecutionStatus models the four liveness markers; `pending` is
-            # derived from the absence of started_at, not from dispatched_at
-            if name != "dispatched_at"
         }
         # the implementation's own default window, pinned to the corpus above
         status = ExecutionStatus(**markers)
