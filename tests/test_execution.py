@@ -354,3 +354,40 @@ def test_heartbeat_freshness_edges():
     )
     assert not status.is_active
     assert status.is_incomplete
+
+
+def test_heartbeat_survives_a_write_slower_than_the_interval(tmp_storage, monkeypatch):
+    import threading
+    import time
+
+    from machinable import execution as execution_module
+
+    monkeypatch.setattr(execution_module, "HEARTBEAT_INTERVAL", 0.05)
+
+    beats = []
+    thread_errors = []
+    original = Execution.update_status
+
+    def slow_update_status(self, status="heartbeat", timestamp=None):
+        if status == "heartbeat":
+            beats.append(time.monotonic())
+            time.sleep(0.15)  # three times the interval
+        return original(self, status=status, timestamp=timestamp)
+
+    monkeypatch.setattr(Execution, "update_status", slow_update_status)
+    monkeypatch.setattr(
+        threading, "excepthook", lambda args: thread_errors.append(args.exc_value)
+    )
+
+    class Slow(Interface):
+        def __call__(self):
+            time.sleep(1.0)
+
+    Slow().launch()
+
+    # no beat ever collided with its successor ...
+    assert thread_errors == []
+    # ... so the run kept beating for its whole second, rather than falling
+    # silent after the first overlap
+    assert len(beats) >= 4, beats
+    assert beats[-1] - beats[0] > 0.5

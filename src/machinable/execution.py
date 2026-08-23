@@ -515,15 +515,11 @@ class Execution(Interface):
         _watch_stop = (
             threading.Event()
         )  # stops the best-effort cancel watcher (see below)
-        # Heartbeat stop machinery, defined before the try so the finally can always
-        # halt the self-rescheduling timer chain even if dispatch fails early.
+
         _beat_stop = threading.Event()
-        _beat_timer: list[threading.Timer | None] = [None]
 
         def _stop_beat():
             _beat_stop.set()
-            if _beat_timer[0] is not None:
-                _beat_timer[0].cancel()
 
         try:
             interface.on_before_dispatch()
@@ -537,28 +533,21 @@ class Execution(Interface):
                     data=Project.get().provider().get_host_info(),
                 )
 
-            # capture the current context so heartbeat timer threads inherit the
-            # ambient Project / Index connections (which are context-local).
             _beat_ctx = contextvars.copy_context()
 
-            def beat():
-                # Self-rescheduling chain; the stop event breaks it so a finished or
-                # failed run cannot keep firing heartbeats forever (each tick would
-                # otherwise schedule the next and leak a timer thread per run).
-                if _beat_stop.is_set():
-                    return
-                t = threading.Timer(HEARTBEAT_INTERVAL, lambda: _beat_ctx.run(beat))
-                t.daemon = True
-                _beat_timer[0] = t
-                t.start()
+            def _write_beat():
                 interface.on_heartbeat()
                 self.update_status(status="heartbeat")
 
-            # heartbeats are liveness metadata: only the metadata-writing
-            # process runs the chain (e.g. rank 0 under MPI), so the other
-            # ranks never touch the filesystem
+            def beat():
+                while not _beat_stop.wait(HEARTBEAT_INTERVAL):
+                    _write_beat()
+
             if writes_meta_data:
-                beat()
+                _write_beat()
+                threading.Thread(
+                    target=lambda: _beat_ctx.run(beat), daemon=True
+                ).start()
 
             # Best-effort cancellation: a watcher polls for a `cancelled`
             # marker in this run's directory (written by
