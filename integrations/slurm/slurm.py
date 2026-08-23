@@ -1,5 +1,5 @@
 import os
-import shutil
+import posixpath
 import subprocess
 import sys
 import time
@@ -46,6 +46,14 @@ class Slurm(Execution):
 
         periodic_sync: bool = False
         periodic_sync_interval: int = 30
+
+    def _path(self, local: str) -> str:
+        return os.path.abspath(local)
+
+    def _run(self, cmd, **kwargs):
+        kwargs.setdefault("capture_output", True)
+        kwargs.setdefault("text", True)
+        return subprocess.run(cmd, **kwargs)
 
     def __call__(self):
         jobs = {}
@@ -104,7 +112,7 @@ class Slurm(Execution):
         return int(ranks)
 
     def _skip_if_launched(self, executable, jobs):
-        if job := Job.find_by_name(executable.id):
+        if job := Job.find_by_name(executable.id, runner=self._run):
             if job.status in ["PENDING", "RUNNING"]:
                 print(
                     f"{executable.id} is already launched with job_id={job.job_id}, skipping ..."
@@ -173,7 +181,7 @@ class Slurm(Execution):
             print("Dry run, skipping rsync ...")
 
         # rsync copies the project contents directly into dest, so no subdir
-        return dest, "."
+        return self._path(dest), "."
 
     def _generate_sbatch_header(self, resources):
         lines = []
@@ -209,7 +217,7 @@ class Slurm(Execution):
         if venv_tar and ":" in venv_tar:
             venv_tar, venv_name = venv_tar.rsplit(":", 1)
 
-        local_directory = os.path.abspath(executable.local_directory())
+        local_directory = self._path(executable.local_directory())
         fragment = ""
 
         distribute_cmds = []
@@ -320,7 +328,7 @@ class Slurm(Execution):
         footer = "\n\n"
         footer += f"# generated at: {arrow.now()}\n"
         footer += f"# {executable.module} <{executable.id}>\n"
-        footer += f"# {executable.local_directory()}\n\n"
+        footer += f"# {self._path(executable.local_directory())}\n\n"
         footer += "# " + yaml.dump(executable.version()).replace("\n", "\n# ")
         footer += "\n"
         return footer
@@ -329,7 +337,7 @@ class Slurm(Execution):
         """Write script to disk and submit via sbatch. Returns job_id or False"""
         script_file = chmodx(run_record.save_file("slurm.sh", script))
 
-        cmd = ["sbatch", script_file]
+        cmd = ["sbatch", self._path(script_file)]
         print(" ".join(cmd))
 
         run_record.save_file(
@@ -346,13 +354,7 @@ class Slurm(Execution):
             return None
 
         try:
-            output = subprocess.run(
-                cmd,
-                text=True,
-                check=True,
-                env=os.environ,
-                capture_output=True,
-            )
+            output = self._run(cmd, check=True, env=os.environ)
             print(output.stdout)
         except subprocess.CalledProcessError as _ex:
             raise RuntimeError(
@@ -401,7 +403,7 @@ class Slurm(Execution):
                 if dependency.id in jobs:
                     ds.append(str(jobs[dependency.id]))
                 else:
-                    if job := Job.find_by_name(dependency.id):
+                    if job := Job.find_by_name(dependency.id, runner=self._run):
                         ds.append(str(job.job_id))
             if ds:
                 resources["--dependency"] = "afterok:" + (":".join(ds))
@@ -412,9 +414,7 @@ class Slurm(Execution):
             # the run's own output.log is written by the payload's tee; sbatch
             # captures the raw job stream (incl. failures before Python starts)
             # to a sibling job.out on the same run-record.
-            resources["--output"] = os.path.abspath(
-                run_record.local_directory("job.out")
-            )
+            resources["--output"] = self._path(run_record.local_directory("job.out"))
         if "--open-mode" not in resources:
             resources["--open-mode"] = "append"
 
@@ -446,9 +446,12 @@ class Slurm(Execution):
 
         # --- periodic sync start (optional, requires node_local) ---
         sync_file = None
-        local_directory = os.path.abspath(executable.local_directory())
+        local_directory = self._path(executable.local_directory())
         if self.config.periodic_sync and self.config.node_local:
-            sync_file = chmodx(run_record.save_file("sync.py", periodic_sync_script))
+            # written here, but read by the job: the script embeds the path
+            sync_file = self._path(
+                chmodx(run_record.save_file("sync.py", periodic_sync_script))
+            )
             script += self._generate_periodic_sync_start(
                 executable, python, sync_file, local_dir, local_directory, resources
             )
@@ -460,11 +463,11 @@ class Slurm(Execution):
         # --- dispatch ---
         project_directory = os.path.join(source_code, project_subdir)
         if self.config.node_local:
-            interface_shared = os.path.abspath(executable.local_directory())
-            interface_scratch = os.path.join(local_dir, executable.uuid)
-            rr_shared = os.path.abspath(run_record.local_directory())
-            rr_scratch = os.path.join(
-                interface_scratch, os.path.relpath(rr_shared, interface_shared)
+            interface_shared = self._path(executable.local_directory())
+            interface_scratch = posixpath.join(local_dir, executable.uuid)
+            rr_shared = self._path(run_record.local_directory())
+            rr_scratch = posixpath.join(
+                interface_scratch, posixpath.relpath(rr_shared, interface_shared)
             )
             dispatch = self.dispatch_code(
                 executable,
@@ -478,7 +481,8 @@ class Slurm(Execution):
                 executable,
                 project_directory=project_directory,
                 python=python,
-                run_record_directory=run_record.local_directory(),
+                interface_directory=self._path(executable.local_directory()),
+                run_record_directory=self._path(run_record.local_directory()),
             )
         script += mpi_prefix + dispatch
 
@@ -600,15 +604,24 @@ def confirm(execution: Execution) -> bool:
         return False
 
 
+def local_runner(cmd, **kwargs):
+    kwargs.setdefault("capture_output", True)
+    kwargs.setdefault("text", True)
+    return subprocess.run(cmd, **kwargs)
+
+
 class Job:
-    def __init__(self, job_id: str):
+    """A submitted job, queried through whichever transport submitted it."""
+
+    def __init__(self, job_id: str, runner=None):
         self.job_id = job_id
+        self.runner = runner or local_runner
         self.details = self._fetch_details()
 
     def _fetch_details(self) -> dict:
         cmd = ["scontrol", "show", "job", str(self.job_id)]
-        result = subprocess.run(cmd, capture_output=True, text=True)
-        if result.returncode != 0:
+        result = self._invoke(cmd)
+        if result is None or result.returncode != 0:
             return None
 
         details = {}
@@ -619,14 +632,22 @@ class Job:
                 details[key] = value
         return details
 
+    def _invoke(self, cmd):
+        """Run one Slurm command, or ``None`` when Slurm is not reachable."""
+        try:
+            return self.runner(cmd)
+        except (OSError, subprocess.SubprocessError):
+            return None
+
     @classmethod
-    def find_by_name(cls, job_name: str) -> Optional["Job"]:
-        if shutil.which("squeue") is None:
-            return None  # no Slurm on this host (e.g. a dry run)
+    def find_by_name(cls, job_name: str, runner=None) -> Optional["Job"]:
         cmd = ["squeue", "--name", job_name, "--noheader", "--format=%i"]
-        result = subprocess.run(cmd, capture_output=True, text=True)
+        try:
+            result = (runner or local_runner)(cmd)
+        except (OSError, subprocess.SubprocessError):
+            return None  # no Slurm on this host (e.g. a dry run)
         if result.returncode == 0 and result.stdout.strip():
-            return cls(result.stdout.strip())
+            return cls(result.stdout.strip(), runner=runner)
         return None
 
     @property
@@ -650,9 +671,8 @@ class Job:
         return self.details
 
     def cancel(self) -> bool:
-        cmd = ["scancel", str(self.job_id)]
-        result = subprocess.run(cmd, capture_output=True)
-        return result.returncode == 0
+        result = self._invoke(["scancel", str(self.job_id)])
+        return result is not None and result.returncode == 0
 
 
 periodic_sync_script = """#!/usr/bin/env python3
