@@ -4026,6 +4026,7 @@ var es = /* @__PURE__ */ V("<span class=\"pulse svelte-1pj1gvc\"></span>"), ts =
 function ns(e, t) {
 	let n = {
 		draft: "DRAFT",
+		pending: "PENDING",
 		running: "RUNNING",
 		"running-looped": "RUNNING · LOOPED",
 		cached: "CACHED",
