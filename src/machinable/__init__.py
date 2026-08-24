@@ -7,6 +7,7 @@ __all__ = [
     "Execution",
     "Project",
     "Storage",
+    "Transport",
     "Index",
     "Scope",
     "Discovery",
@@ -31,6 +32,7 @@ from machinable.project import Project
 from machinable.query import Query
 from machinable.scope import Scope
 from machinable.storage import Storage
+from machinable.transport import Transport
 from machinable.widget import Widget
 
 

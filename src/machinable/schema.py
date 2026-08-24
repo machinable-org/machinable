@@ -80,6 +80,12 @@ class Project(Interface):
     kind: str = "Project"
 
 
+class Transport(Interface):
+    """Model for Transport records."""
+
+    kind: str = "Transport"
+
+
 class Server(Interface):
     """Model for API-server records."""
 

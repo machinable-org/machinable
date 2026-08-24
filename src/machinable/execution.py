@@ -771,8 +771,9 @@ class Execution(Interface):
         for kind, connected in list(_connections().items()):
             # The payload is index-free as it reconstructs the interface and its
             # run-record straight from their directories, so it needs neither
-            # the Storage nor the Index
-            if kind in ["Project", "Execution", "Storage", "Index"]:
+            # the Storage nor the Index nor a Transport since this code is what
+            # the transport delivered, already running on the far side.
+            if kind in ["Project", "Execution", "Storage", "Index", "Transport"]:
                 continue
             for connected_interface in connected:
                 # repr() escapes the JSON's quotes AND backslashes (Windows paths

@@ -83,6 +83,7 @@ def pages():
         ("widget", "Widget", [machinable.Widget]),
         ("project", "Project", [machinable.Project]),
         ("storage", "Storage", [machinable.Storage]),
+        ("transport", "Transport", [machinable.Transport]),
         # the class is named Index; "catalog" avoids an index.md filename
         ("catalog", "Index", [machinable.Index]),
         ("scope", "Scope", [machinable.Scope]),
