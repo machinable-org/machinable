@@ -188,14 +188,13 @@ def cancel_execution(
 
     A live dispatch's watcher polls for it and injects ExecutionInterrupted; a not-yet-
     started or already-finished run simply carries the marker (a no-op). No execution-
-    engine coupling.
+    engine coupling. The marker travels to wherever the payload is running, so a run
+    handed to another machine is cancellable too (see :meth:`Execution.cancel`).
     """
     execution = get_or_create_interface(uuid, request)
     if not isinstance(execution, Execution):
         raise HTTPException(status_code=404, detail="Execution not found")
-    execution.save_file(
-        "cancelled", data="cancelled"
-    )  # the watcher polls for this marker
+    execution.cancel()
     _log_event(request, f"POST /v1/executions/{uuid}/cancel")
 
 

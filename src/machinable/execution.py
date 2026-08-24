@@ -825,6 +825,13 @@ class Execution(Interface):
         """Host metadata recorded at dispatch, if any."""
         return self.load_file("host.json", None)
 
+    def cancel(self) -> None:
+        """Ask the run to stop, best-effort."""
+        from machinable.transport import Transport
+
+        self.save_file("cancelled", data="cancelled")
+        Transport.get().push(self.local_directory(), include=["cancelled"])
+
     def output_filepath(self) -> str:
         """Path of the run's ``output.log``."""
         return self.local_directory("output.log")
