@@ -1,0 +1,8 @@
+name: ssh
+summary: Run an execution on a remote machine over SSH
+tags: [transport, remote, hpc]
+maintainer: machinable-org
+maintainer_url: https://github.com/machinable-org
+upstream: https://www.openssh.com/
+requires: []
+status: active

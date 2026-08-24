@@ -10,7 +10,7 @@ import arrow
 import yaml
 from pydantic import BaseModel, ConfigDict
 
-from machinable import Execution, Index, Project
+from machinable import Execution, Index, Project, Transport
 from machinable.errors import ExecutionFailed
 from machinable.utils import chmodx, run_and_stream
 
@@ -48,12 +48,13 @@ class Slurm(Execution):
         periodic_sync_interval: int = 30
 
     def _path(self, local: str) -> str:
-        return os.path.abspath(local)
+        return Transport.get().path(local)
 
     def _run(self, cmd, **kwargs):
-        kwargs.setdefault("capture_output", True)
-        kwargs.setdefault("text", True)
-        return subprocess.run(cmd, **kwargs)
+        return Transport.get().run(cmd, **kwargs)
+
+    def _stage(self, executable) -> None:
+        Transport.get().push(executable.local_directory())
 
     def __call__(self):
         jobs = {}
@@ -161,7 +162,7 @@ class Slurm(Execution):
             index_exclude = None
 
         if not self.config.copy_project_source:
-            return source_code, project_subdir
+            return self._path(source_code), project_subdir
 
         print("Copy project source code ...")
         dest = run_record.local_directory("source_code")
@@ -352,6 +353,8 @@ class Slurm(Execution):
         if self.config.dry:
             print("Dry run ... ", executable)
             return None
+
+        self._stage(executable)
 
         try:
             output = self._run(cmd, check=True, env=os.environ)
