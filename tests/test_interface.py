@@ -11,7 +11,7 @@ from machinable.interface import (
     has_many,
     has_one,
 )
-from machinable.utils import load_file, random_str
+from machinable.utils import id_from_uuid, load_file, random_str
 
 
 def test_interface_get():
@@ -36,10 +36,29 @@ def test_interface_to_directory(tmp_path):
     i.materialize()
     i.to_directory(str(tmp_path / "test2"))
     assert load_file(str(tmp_path / "test2" / ".machinable")) == i.uuid
-    assert (
-        load_file(str(tmp_path / "test2" / "related" / "uses"))
-        == "\n".join([u.uuid for u in i.uses]) + "\n"
+    # the edge log is the only edge representation
+    assert os.listdir(str(tmp_path / "test2" / "related")) == ["metadata.jsonl"]
+    edges = load_file([str(tmp_path / "test2"), "related", "metadata.jsonl"])
+    assert sorted(e["related_uuid"] for e in edges if e["fn"] == "uses") == sorted(
+        u.uuid for u in i.uses
     )
+
+
+def _edge_log(interface):
+    return load_file([interface.local_directory(), "related", "metadata.jsonl"], [])
+
+
+def _edge_pairs(interface, fn):
+    """The ``fn`` edges in the interface's edge log, direction-agnostic."""
+    return sorted(
+        tuple(sorted((e["uuid"], e["related_uuid"])))
+        for e in _edge_log(interface)
+        if e["fn"] == fn
+    )
+
+
+def _pair(x, y):
+    return tuple(sorted((x.uuid, y.uuid)))
 
 
 def test_interface_to_dir_inverse_relations(tmp_storage):
@@ -48,31 +67,82 @@ def test_interface_to_dir_inverse_relations(tmp_storage):
 
     assert a.used_by[0] == b
 
-    def _related(interface, expected):
-        x = sorted(
-            [
-                d
-                for d in os.listdir(interface.local_directory("related"))
-                if d != "metadata.jsonl"
-                and not os.path.isdir(interface.local_directory("related", d))
-            ]
-        )
-        assert x == expected
+    # edges live in the edge log only; no per-relation mirror files
+    for x in (a, b):
+        assert os.listdir(x.local_directory("related")) == ["metadata.jsonl"]
 
-    _related(b, ["uses"])
-    assert b.load_file(["related", "uses"]) == a.uuid + "\n"
-    _related(a, ["used_by"])
-    assert a.load_file(["related", "used_by"]) == b.uuid + "\n"
+    assert _edge_pairs(b, "uses") == [_pair(a, b)]
+    assert _edge_pairs(a, "used_by") == [_pair(a, b)]
 
     c = b.derive().materialize()
 
-    _related(b, ["derived", "uses"])
-    assert b.load_file(["related", "derived"]) == c.uuid + "\n"
-    _related(c, ["ancestor"])
-    assert c.load_file(["related", "ancestor"]) == b.uuid + "\n"
+    assert _edge_pairs(b, "derived") == [_pair(b, c)]
+    assert _edge_pairs(c, "ancestor") == [_pair(b, c)]
+    for x in (a, b, c):
+        assert os.listdir(x.local_directory("related")) == ["metadata.jsonl"]
 
     d = b.derive().materialize()
-    assert b.load_file(["related", "derived"]) == c.uuid + "\n" + d.uuid + "\n"
+    assert _edge_pairs(b, "derived") == sorted([_pair(b, c), _pair(b, d)])
+
+
+def test_interface_relate_after_materialization_writes_only_the_edge_log(
+    tmp_storage,
+):
+    a = Interface({"slot": "a"}).materialize()
+    b = Interface({"slot": "b"}).materialize()
+    b.relate("uses", a)
+
+    for x in (a, b):
+        assert os.listdir(x.local_directory("related")) == ["metadata.jsonl"]
+    assert _edge_pairs(b, "uses") == [_pair(a, b)]
+    assert _edge_pairs(a, "used_by") == [_pair(a, b)]
+
+
+def test_interface_reads_stores_that_still_carry_relation_mirrors(tmp_storage):
+    index = tmp_storage
+    rel = "Interface.Interface.using"
+
+    a = Interface({"slot": "a"}).materialize()
+    b = Interface({"slot": "b"}, uses=a).materialize()
+    a_uuid, b_uuid = a.uuid, b.uuid
+    a_dir, b_dir = a.local_directory(), b.local_directory()
+
+    def read():
+        index.reindex()
+        found = index.find_related(rel, b_uuid)
+        return (
+            [m.uuid for m in found or []],
+            [m.uuid for m in Interface.find_by_id(b_uuid).uses],
+            [m.uuid for m in Interface.find_by_id(a_uuid).used_by],
+            _edge_log(a),
+            _edge_log(b),
+        )
+
+    without_mirrors = read()
+    assert without_mirrors[0] == [a_uuid]
+    assert without_mirrors[1] == [a_uuid]
+    assert without_mirrors[2] == [b_uuid]
+
+    # hand-build the legacy layout: per-relation files and related/<id>/link
+    related_b = os.path.join(b_dir, "related")
+    related_a = os.path.join(a_dir, "related")
+    with open(os.path.join(related_b, "uses"), "w") as f:
+        f.write(a_uuid + "\n")
+    with open(os.path.join(related_a, "used_by"), "w") as f:
+        f.write(b_uuid + "\n")
+    link_b = os.path.join(related_b, id_from_uuid(a_uuid))
+    os.makedirs(link_b)
+    with open(os.path.join(link_b, "link"), "w") as f:
+        f.write("../../" + a_uuid)
+    link_a = os.path.join(related_a, id_from_uuid(b_uuid))
+    os.makedirs(link_a)
+    try:
+        os.symlink("../../" + b_uuid, os.path.join(link_a, "link"))
+    except OSError:  # symlinks unavailable
+        with open(os.path.join(link_a, "link"), "w") as f:
+            f.write("../../" + b_uuid)
+
+    assert read() == without_mirrors
 
 
 def test_interface_from_directory(tmp_path):
@@ -271,17 +341,6 @@ def test_interface_modifiers(tmp_storage):
     assert get("interface.dummy").uuid == uid
 
     project.__exit__()
-
-
-# def test_symlink_relations(tmp_storage):
-#     project = Project("./tests/samples/project").__enter__()
-
-#     component = get("dummy").launch()
-#     assert os.path.isfile(
-#         component.execution.local_directory("related", component.id, "link")
-#     )
-
-#     project.__exit__()
 
 
 def test_interface_hash(tmp_storage):

@@ -174,7 +174,8 @@ def walk_markers(root: str):
     A record directory holds a ``.machinable`` marker; nested markers (e.g.
     executions under an interface) are included.
 
-    Symlinks are not followed, avoiding cycles through ``related/`` links.
+    Symlinks are not followed, so a link inside a store (older stores carry
+    ``related/<id>/link`` ones) cannot lead the walk into a cycle.
     """
     root = os.path.expanduser(root)
     if not os.path.isdir(root):

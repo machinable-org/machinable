@@ -622,24 +622,6 @@ has_many = _relation(HasMany)
 belongs_to_many = _relation(BelongsToMany)
 
 
-def _uuid_symlink(directory, uuid, mode=None):
-    dst = os.path.join(directory, "related", id_from_uuid(uuid))
-    try:
-        if mode is None:
-            return uuid
-
-        os.makedirs(dst, exist_ok=True)
-        if mode == "file":
-            with open(os.path.join(dst, "link"), "w") as f:
-                f.write("../../" + uuid)
-        else:
-            os.symlink("../../" + uuid, os.path.join(dst, "link"))
-    except OSError:
-        pass
-
-    return uuid
-
-
 def _config_layers_from_model(model: schema.Interface) -> ConfigLayers:
     import copy
 
@@ -2030,21 +2012,16 @@ class Interface(Jsonable):
             mode="a",
         )
 
-    def _write_relation_mirror(self, directory: str, k: str, v: list) -> None:
-        """Append one relation's on-disk mirror.
+    def _write_relation_edges(self, directory: str, k: str, v: list) -> None:
+        """Append one relation's edges to the edge log.
 
-        Writes the forward file + metadata, and the inverse side on each
-        neighbour. The disk mirror is authoritative for reindex, so every
-        persisted edge must go through here.
+        Writes the forward edges to ``related/metadata.jsonl`` of this record and
+        the inverse side to each neighbour's. The edge log is authoritative for
+        reindex, so every persisted edge must go through here.
         """
         assert self.__relations__ is not None
         r = self.__relations__[k]
         # forward
-        save_file(
-            [directory, "related", k],
-            "\n".join([_uuid_symlink(directory, i.uuid) for i in v]) + "\n",
-            mode="a",
-        )
         for u in v:
             if r.inverse:
                 self._write_relation_meta(directory, r, u.uuid, self.uuid)
@@ -2058,11 +2035,6 @@ class Interface(Jsonable):
                     for _ in i.__relations__.values()
                     if _.name == r.name and _ is not r
                 ][0]
-                save_file(
-                    [i.local_directory(), "related", ir.fn_name],
-                    _uuid_symlink(i.local_directory(), self.uuid) + "\n",
-                    mode="a",
-                )
                 if ir.inverse:
                     self._write_relation_meta(
                         i.local_directory(), ir, i.uuid, self.uuid
@@ -2075,7 +2047,7 @@ class Interface(Jsonable):
                 pass
 
     def relate(self, name: str, other: Interface) -> None:
-        """Record a relation edge to both the index and the on-disk mirror.
+        """Record a relation edge to both the index and the on-disk edge log.
 
         Used after materialization. Because the index is a rebuildable cache,
         the disk
@@ -2097,7 +2069,7 @@ class Interface(Jsonable):
                 r.name, cast(str, self.uuid), cast(str, other.uuid)
             )
         if self.is_materialized():
-            self._write_relation_mirror(self.local_directory(), name, [other])
+            self._write_relation_edges(self.local_directory(), name, [other])
             self.touch()
 
     def _resolve_index_entry(self):
@@ -2147,7 +2119,7 @@ class Interface(Jsonable):
                     continue
                 r = self.__relations__[k]
                 items = v if r.multiple else [v]
-                self._write_relation_mirror(directory, k, items)
+                self._write_relation_edges(directory, k, items)
 
         bump_updated_at(directory)
         return self

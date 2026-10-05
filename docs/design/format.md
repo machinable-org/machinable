@@ -78,8 +78,15 @@ ordering; per-file delta tracking belongs to specialized tools.
 append-only JSON-lines log, crash-safe and merge-friendly. Duplicate lines are legal and
 readers deduplicate on `(name, uuid, related_uuid, fn)`, which makes the log a grow-only
 set, so merging two copies of a record is a line union (git's `merge=union` driver is
-literally correct for it). The older per-relation mirror files under `related/` are
-non-normative conveniences that readers must not require.
+literally correct for it).
+
+Earlier versions also wrote per-relation mirror files (`related/<fn>`, one related uuid
+per line) and, in some versions, `related/<id>/link` pointers (a symlink or, where
+symlinks are unavailable, a text file holding the path to the related record). These
+duplicated the log and could drift from it (links also did not survive copies and
+archives), so they are no longer written. Stores created by earlier versions may still
+carry them; they are never deleted and never read, so a store reads identically with or
+without them. `related/metadata.jsonl` is the only edge representation.
 
 ### Status markers and the run state machine
 

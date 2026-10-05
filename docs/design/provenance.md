@@ -13,9 +13,9 @@ is provenance that can be wrong.
 
 `provenance`, `lineage`, `related`, and `ancestor` are not four features. They are
 projections over one typed interface graph, and machinable already is that graph: the
-`@has_many`/`@belongs_to` relations persist to a SQLite edge table with a disk mirror
-(`related/metadata.jsonl`). Provenance adds a single traversal and serialization layer on
-top, rather than a parallel data model.
+`@has_many`/`@belongs_to` relations persist to a SQLite edge table with an on-disk edge
+log (`related/metadata.jsonl`). Provenance adds a single traversal and serialization
+layer on top, rather than a parallel data model.
 
 The graph has two levels:
 
