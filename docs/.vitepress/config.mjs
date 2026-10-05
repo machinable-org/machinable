@@ -74,7 +74,9 @@ export default defineConfig({
             { text: 'Execution in depth', link: '/guide/advanced-execution' },
             { text: 'Storage & the index', link: '/guide/storage' },
             { text: 'Provenance', link: '/guide/provenance' },
-            { text: 'Discovering modules', link: '/guide/discovery' }
+            { text: 'Discovering modules', link: '/guide/discovery' },
+            { text: 'Inference', link: '/guide/inference' },
+            { text: 'Putting it all together', link: '/guide/putting-it-all-together' }
           ]
         },
         {
@@ -82,10 +84,9 @@ export default defineConfig({
           items: [
             { text: 'The CLI', link: '/guide/cli' },
             { text: 'The API server', link: '/guide/server' },
+            { text: 'Serving over iroh', link: '/guide/iroh' },
             { text: 'The web client', link: '/guide/webclient' },
-            { text: 'Widgets', link: '/guide/widgets' },
-            { text: 'Inference', link: '/guide/inference' },
-            { text: 'Putting it all together', link: '/guide/putting-it-all-together' }
+            { text: 'Widgets', link: '/guide/widgets' }
           ]
         }
       ],

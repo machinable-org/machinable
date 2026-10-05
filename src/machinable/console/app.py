@@ -938,6 +938,11 @@ def run_console(
     url: str = "http://127.0.0.1:8000",
     token: str | None = None,
     on_quit: Callable[[], None] | None = None,
+    transport: Any | None = None,
 ) -> None:
-    """Attach the console to a running machinable API server."""
-    ConsoleApp(url=url, token=token, on_quit=on_quit).run()
+    """Attach the console to a running machinable API server.
+
+    ``transport`` overrides httpx's default (e.g. an iroh transport that dials
+    the host by endpoint id); ``url`` then only supplies the Host header.
+    """
+    ConsoleApp(url=url, token=token, on_quit=on_quit, transport=transport).run()

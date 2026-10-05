@@ -799,7 +799,20 @@ def chmodx(filepath: str) -> str:
 
 # Directories excluded from source discovery/listing by both the HTTP source API and
 # the MCP source tools (`.`-prefixed dirs like .git/.venv are also skipped separately).
-_SOURCE_SKIP_DIRS = {"__pycache__", "vendor", "tmp", "storage", "node_modules"}
+# Directories never worth walking/importing when discovering a project's interfaces: caches,
+# vendored trees, and virtualenvs. Dot-dirs (``.venv``, ``.git``, ``.tox`` …) are skipped by the
+# leading-dot rule in ``skip_source_dir``; these are the common no-dot venv/dep dirs, which would
+# otherwise make discovery walk (and import) an entire site-packages tree.
+_SOURCE_SKIP_DIRS = {
+    "__pycache__",
+    "vendor",
+    "tmp",
+    "storage",
+    "node_modules",
+    "venv",
+    "env",
+    "site-packages",
+}
 
 
 def skip_source_dir(name: str) -> bool:

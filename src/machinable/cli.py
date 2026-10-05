@@ -311,10 +311,16 @@ def main(args: list | None = None):
             print("\nmachinable version")
             return 0
         elif h == "console":
-            print("\nmachinable console [URL] [--token T]")
+            print(
+                "\nmachinable console [URL | iroh://<endpoint-id>] "
+                "[--token T] [--relay MODE]"
+            )
             print(
                 "\nAttach the terminal console to a running machinable API "
-                "server\n(defaults to http://127.0.0.1:8000)."
+                "server\n(defaults to http://127.0.0.1:8000). Pass an "
+                "iroh://<endpoint-id>\n(or --node <endpoint-id>) to dial an "
+                "iroh host by key; --relay is\ndefault, lan, offline, or a "
+                "relay URL (requires machinable[iroh])."
             )
             return 0
         elif h == "fetch":
@@ -353,14 +359,23 @@ def main(args: list | None = None):
         return _run_mcp(args)
 
     if action == "console":
-        # `machinable console [URL] [--token T]`: attach the terminal console
-        # to a running machinable API server (local or remote).
+        # `machinable console [URL | iroh://<endpoint-id>] [--token T]
+        # [--relay MODE]`: attach the terminal console to a running machinable
+        # API server over HTTP (local/remote) or over iroh (dial by key).
         url = "http://127.0.0.1:8000"
         token = None
+        node = None
+        relay = "default"
         it = iter(args)
         for arg in it:
             if arg == "--token":
                 token = next(it, None)
+            elif arg == "--node":
+                node = next(it, None)
+            elif arg == "--relay":
+                relay = next(it, None) or "default"
+            elif arg.startswith("iroh://"):
+                node = arg[len("iroh://") :]
             elif arg.startswith("-"):
                 print(f"Unrecognized option '{arg}'", file=sys.stderr)
                 return 128
@@ -375,7 +390,28 @@ def main(args: list | None = None):
                 file=sys.stderr,
             )
             return 1
-        run_console(url=url, token=token)
+
+        transport = None
+        if node:
+            # dial the host by endpoint id over iroh; a stable client identity
+            # lets the host allowlist this machine. load_identity() is what
+            # actually requires the native iroh binding (via _require_iroh), so
+            # it must be inside the guard — the imports alone don't pull it in.
+            try:
+                from machinable.iroh.client import iroh_transport
+                from machinable.iroh.identity import load_identity
+
+                transport = iroh_transport(node, identity=load_identity(), relay=relay)
+            except ImportError:
+                print(
+                    "Dialing over iroh requires the iroh extra. "
+                    "Install with: pip install 'machinable[iroh]'",
+                    file=sys.stderr,
+                )
+                return 1
+            url = "http://iroh"
+
+        run_console(url=url, token=token, transport=transport)
         return 0
 
     if action == "dispatch":

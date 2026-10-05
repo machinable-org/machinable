@@ -766,6 +766,17 @@ wheels = [
 ]
 
 [[package]]
+name = "iroh"
+version = "1.1.0"
+source = { registry = "https://pypi.org/simple" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/94/2a/f9f1cee7b0d3c71b95c06304b4e60381a7107dbccff7183ed9ff58b38141/iroh-1.1.0-py3-none-macosx_11_0_arm64.whl", hash = "sha256:b1c920f14323badc451e45b747da02d07a6e40ea2c1c97eeed5539e3ebc2b8b7", size = 6317758, upload-time = "2026-07-16T13:54:08.111Z" },
+    { url = "https://files.pythonhosted.org/packages/3e/dd/2f0a2bc113ced26981fb141cecc75e0682996ec1f49a4398c97b351c2196/iroh-1.1.0-py3-none-manylinux_2_28_aarch64.whl", hash = "sha256:abdf089cad4420e2e474a0fe8694aa32f91d7a49f569b559e18edd247a29af03", size = 7281850, upload-time = "2026-07-16T13:54:10.326Z" },
+    { url = "https://files.pythonhosted.org/packages/b8/ed/bcc0599f186ca75936b883299596b88871075a4c4312255a7c2b752b6783/iroh-1.1.0-py3-none-manylinux_2_28_x86_64.whl", hash = "sha256:4989c7b8f6ab2ebe7afc0c2cf55b7608f7fd05f02bffee1af8d937e05de0e768", size = 7507226, upload-time = "2026-07-16T13:54:12.663Z" },
+    { url = "https://files.pythonhosted.org/packages/c3/44/4b53f0dbc6ea161ed560b1a4b4cc317e2be77a32b00fa86cfab9fd6e5cb9/iroh-1.1.0-py3-none-win_amd64.whl", hash = "sha256:45f95b56651d32163628449727f7f3c3e311870e83599c74bc88725541ca1829", size = 6548858, upload-time = "2026-07-16T13:54:14.554Z" },
+]
+
+[[package]]
 name = "jaraco-classes"
 version = "3.4.0"
 source = { registry = "https://pypi.org/simple" }
@@ -954,6 +965,13 @@ console = [
     { name = "httpx" },
     { name = "textual" },
 ]
+iroh = [
+    { name = "h11" },
+    { name = "httpx" },
+    { name = "iroh" },
+    { name = "platformdirs" },
+    { name = "websockets" },
+]
 mcp = [
     { name = "fastmcp" },
     { name = "numpy", version = "2.4.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
@@ -970,12 +988,15 @@ widgets = [
 dev = [
     { name = "aiofiles" },
     { name = "anywidget" },
+    { name = "h11" },
     { name = "httpx" },
+    { name = "iroh" },
     { name = "pandas" },
     { name = "pre-commit" },
     { name = "pytest" },
     { name = "ruff" },
     { name = "ty" },
+    { name = "websockets" },
 ]
 
 [package.metadata]
@@ -988,31 +1009,39 @@ requires-dist = [
     { name = "fastapi", marker = "extra == 'api'", specifier = ">=0.115" },
     { name = "fastmcp", marker = "extra == 'mcp'", specifier = ">=2" },
     { name = "flatten-dict", specifier = ">=0.5,<1" },
+    { name = "h11", marker = "extra == 'iroh'", specifier = ">=0.14" },
     { name = "httpx", marker = "extra == 'api'", specifier = ">=0.27" },
     { name = "httpx", marker = "extra == 'console'", specifier = ">=0.27" },
+    { name = "httpx", marker = "extra == 'iroh'", specifier = ">=0.27" },
+    { name = "iroh", marker = "extra == 'iroh'", specifier = ">=1.0" },
     { name = "numpy", marker = "extra == 'all'" },
     { name = "numpy", marker = "extra == 'mcp'" },
     { name = "omegaconf", specifier = "==2.4.0.dev12" },
     { name = "pandas", marker = "extra == 'all'" },
     { name = "pandas", marker = "extra == 'mcp'" },
     { name = "pathspec", specifier = ">=0.12" },
+    { name = "platformdirs", marker = "extra == 'iroh'", specifier = ">=4" },
     { name = "pydantic", specifier = ">=1,<3" },
     { name = "scipy", marker = "extra == 'mcp'" },
     { name = "textual", marker = "extra == 'console'", specifier = ">=1.0" },
     { name = "uvicorn", extras = ["standard"], marker = "extra == 'api'", specifier = ">=0.30" },
+    { name = "websockets", marker = "extra == 'iroh'", specifier = ">=12" },
 ]
-provides-extras = ["all", "mcp", "api", "console", "widgets"]
+provides-extras = ["all", "mcp", "api", "console", "widgets", "iroh"]
 
 [package.metadata.requires-dev]
 dev = [
     { name = "aiofiles", specifier = ">=23" },
     { name = "anywidget", specifier = ">=0.9" },
+    { name = "h11", specifier = ">=0.14" },
     { name = "httpx", specifier = ">=0.28.1" },
+    { name = "iroh", specifier = ">=1.0" },
     { name = "pandas", specifier = ">=2.0" },
     { name = "pre-commit", specifier = ">=4.6.0" },
     { name = "pytest", specifier = ">=8.1" },
     { name = "ruff", specifier = ">=0.15.16" },
     { name = "ty", specifier = "==0.0.59" },
+    { name = "websockets", specifier = ">=12" },
 ]
 
 [[package]]

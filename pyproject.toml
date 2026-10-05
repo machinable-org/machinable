@@ -35,6 +35,7 @@ api = [
 ]
 console = ["textual>=1.0", "httpx>=0.27"]
 widgets = ["anywidget>=0.9"]
+iroh = ["iroh>=1.0", "h11>=0.14", "httpx>=0.27", "websockets>=12", "platformdirs>=4"]
 
 [project.scripts]
 machinable = "machinable.cli:main"
@@ -70,6 +71,11 @@ dev = [
     "anywidget>=0.9",
     "pandas>=2.0",
     "ty==0.0.59",
+    # native iroh binding so the machinable[iroh] transport tests run locally
+    # (CI installs it via `uv sync --all-extras`); tests importorskip regardless
+    "iroh>=1.0",
+    "h11>=0.14",
+    "websockets>=12",
 ]
 
 [tool.ty.src]

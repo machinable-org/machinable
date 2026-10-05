@@ -57,6 +57,27 @@ def ensure_web_asset(name: str) -> str | None:
         return None
 
 
+def _boot_uvicorn_thread(uvicorn, app, *, host: str, port: int, log_level: str):
+    """Run ``app`` under uvicorn in a daemon thread; return (server, thread, port).
+
+    Waits for the server to bind (or the thread to die) and reads the actually
+    bound port (a ``port`` of 0 asks the OS for a free one). Shared by the
+    in-kernel :meth:`Server.start` and the iroh loopback pump.
+    """
+    config = uvicorn.Config(app, host=host, port=port, log_level=log_level)
+    server = uvicorn.Server(config)
+    thread = threading.Thread(target=server.run, daemon=True)
+    thread.start()
+    for _ in range(200):
+        if server.started or not thread.is_alive():
+            break
+        time.sleep(0.05)
+    if not server.started:
+        raise RuntimeError("The API server failed to start")
+    bound = server.servers[0].sockets[0].getsockname()[1]
+    return server, thread, bound
+
+
 class Server(Widget):
     """HTTP/WebSocket API server for the connected project."""
 
@@ -263,22 +284,13 @@ class Server(Widget):
         uvicorn = self._require_uvicorn()
 
         app = self._build_app()
-        config = uvicorn.Config(
+        server, thread, bound = _boot_uvicorn_thread(
+            uvicorn,
             app,
             host=self.config.host,
             port=self.config.port,
             log_level=self.config.log_level,
         )
-        server = uvicorn.Server(config)
-        thread = threading.Thread(target=server.run, daemon=True)
-        thread.start()
-        for _ in range(200):
-            if server.started or not thread.is_alive():
-                break
-            time.sleep(0.05)
-        if not server.started:
-            raise RuntimeError("The API server failed to start")
-        bound = server.servers[0].sockets[0].getsockname()[1]
         url = f"http://{self.config.host}:{bound}"
         self._background = {"server": server, "thread": thread, "url": url}
         return url
