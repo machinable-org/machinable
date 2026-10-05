@@ -15,7 +15,9 @@ from machinable.utils import load_file
 def project_dir(tmp_path):
     target = tmp_path / "project"
     shutil.copytree(
-        "tests/samples/project", target, ignore=shutil.ignore_patterns("storage")
+        "tests/samples/project",
+        target,
+        ignore=shutil.ignore_patterns("storage", ".machinable.sqlite"),
     )
     sys.path.insert(0, str(target))
     yield str(target)
