@@ -446,7 +446,12 @@ class Project(Interface):
             try:
                 scheme = self._resolve_discovery(element)
                 graph = scheme.discover(graph, project=self, catalog=catalog) or graph
-            except Exception:  # noqa: BLE001 - a scheme failing never breaks discovery
+            except KeyboardInterrupt:
+                raise
+            except BaseException:  # noqa: BLE001 - a scheme failing never breaks discovery
+                # Importing an arbitrary project module can raise more than Exceptions:
+                # pytest's importorskip raises Skipped (a BaseException), a module may call
+                # sys.exit(). One odd module must not 500 the whole project index.
                 continue
         return catalog.entries()
 
