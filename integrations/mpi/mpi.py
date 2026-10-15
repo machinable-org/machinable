@@ -22,7 +22,13 @@ class MPI(Execution):
 
     def version_gated(self, memory_max: str = "15G"):
         return {
-            "wrap": ["systemd-run", "--user", "--scope", "-p", f"MemoryMax={memory_max}"]
+            "wrap": [
+                "systemd-run",
+                "--user",
+                "--scope",
+                "-p",
+                f"MemoryMax={memory_max}",
+            ]
         }
 
     def _wrap_command(self, cmd: list) -> list:
