@@ -472,21 +472,29 @@ class Slurm(Execution):
             rr_scratch = posixpath.join(
                 interface_scratch, posixpath.relpath(rr_shared, interface_shared)
             )
-            dispatch = self.dispatch_code(
+            program = self.dispatch_code(
                 executable,
                 python=python,
                 project_directory=project_directory,
                 interface_directory=interface_scratch,
                 run_record_directory=rr_scratch,
+                inline=False,
             )
+            run_record.save_file("_dispatch.py", program + "\n")
+            dispatch = f"'{python}' {posixpath.join(rr_scratch, '_dispatch.py')}"
         else:
-            dispatch = self.dispatch_code(
+            program = self.dispatch_code(
                 executable,
                 project_directory=project_directory,
                 python=python,
                 interface_directory=self._path(executable.local_directory()),
                 run_record_directory=self._path(run_record.local_directory()),
+                inline=False,
             )
+            dispatch_path = self._path(
+                run_record.save_file("_dispatch.py", program + "\n")
+            )
+            dispatch = f"'{python}' {dispatch_path}"
         script += mpi_prefix + dispatch
 
         # --- final sync (optional, requires node_local) ---

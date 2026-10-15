@@ -103,13 +103,10 @@ def test_slurm_execution(tmp_path):
             assert status, f"Timeout for {C.local_directory()}"
 
 
-def _payload(script: str) -> str:
-    import base64
-    import re
-
-    match = re.search(r"b64decode\('([^']+)'\)", script)
-    assert match is not None, script
-    return base64.b64decode(match.group(1)).decode()
+def _payload(execution) -> str:
+    program = execution.load_file("_dispatch.py")
+    assert program is not None
+    return program
 
 
 def test_submits_through_a_connected_transport(tmp_path, monkeypatch):
@@ -159,8 +156,7 @@ def test_submits_through_a_connected_transport(tmp_path, monkeypatch):
             execution.dispatch()
             script = component.execution.load_file("slurm.sh")
             submission = component.execution.load_file("slurm.json")
-
-    payload = _payload(script)
+            payload = _payload(component.execution)
 
     # the job is addressed entirely in the cluster's coordinates ...
     assert "#SBATCH --output=/scratch/me/storage/" in script
@@ -196,9 +192,10 @@ def test_submits_locally_when_no_transport_is_connected(tmp_path, monkeypatch):
         execution.add(component)
         execution.dispatch()
         script = component.execution.load_file("slurm.sh")
+        payload = _payload(component.execution)
 
     assert f"#SBATCH --output={tmp_path}" in script
-    assert str(tmp_path) in _payload(script)
+    assert str(tmp_path) in payload
 
 
 def test_node_local_staging_composes_with_a_transport(tmp_path, monkeypatch):
@@ -247,9 +244,9 @@ def test_node_local_staging_composes_with_a_transport(tmp_path, monkeypatch):
             execution.add(component)
             execution.dispatch()
             script = component.execution.load_file("slurm.sh")
+            payload = _payload(component.execution)
             uuid = component.uuid
 
-    payload = _payload(script)
     scratch = f"/nodelocal/{uuid}"
 
     # the venv is broadcast from the cluster's own filesystem: `venv_tar` is
