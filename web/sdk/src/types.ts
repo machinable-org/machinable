@@ -223,6 +223,8 @@ export interface WidgetHostAdapter {
 		message?: string;
 	}>;
 	trust(url: string): Promise<void>;
+	/** Replace the bearer token (a refreshed short-lived session token). */
+	setToken?(token: string | undefined): void;
 
 	listModules?(): Promise<{ module: string; kind?: string; doc?: string }[]>;
 	introspect(module: string): Promise<ModuleSchema>;

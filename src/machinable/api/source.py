@@ -11,6 +11,7 @@ plus a token (see ``require_source_write``).
 from __future__ import annotations
 
 import hashlib
+import hmac
 import importlib
 import os
 import sys
@@ -21,13 +22,21 @@ from machinable.api._helpers import request_project_dir
 from machinable.api.models import SourceFile
 from machinable.utils import file_to_module, safe_path, skip_source_dir
 
+SOURCE_TOKEN_HEADER = "X-Machinable-Source-Token"
+
 
 def require_source_write(request: Request) -> None:
     """FastAPI dependency guarding the source WRITE routes (put/delete/move).
 
     Secure by default: writing must be explicitly enabled *and* a token must be
-    configured; a missing/invalid bearer token yields 401. Reading is not
-    gated here — inspection is served by default.
+    configured; a missing/invalid token yields 401. Reading is not gated here —
+    inspection is served by default.
+
+    The token travels in ``X-Machinable-Source-Token``, so ``Authorization``
+    stays free for the server's own auth (``api_token`` or an OIDC token) and a
+    ``source_token`` different from it works. ``Authorization: Bearer
+    <source_token>`` is still accepted, for servers without other auth and for
+    the ``api_token`` fallback.
     """
     state = request.app.state
     if not getattr(state, "enable_source_api", False):
@@ -38,7 +47,12 @@ def require_source_write(request: Request) -> None:
             status_code=403,
             detail="Source editing API requires a configured token",
         )
-    if request.headers.get("Authorization", "") != f"Bearer {token}":
+    expected = token.encode()
+    candidates = [request.headers.get(SOURCE_TOKEN_HEADER, "")]
+    scheme, _, bearer = request.headers.get("Authorization", "").partition(" ")
+    if scheme.lower() == "bearer":
+        candidates.append(bearer.strip())
+    if not any(hmac.compare_digest(c.encode(), expected) for c in candidates if c):
         raise HTTPException(status_code=401, detail="Unauthorized")
 
 

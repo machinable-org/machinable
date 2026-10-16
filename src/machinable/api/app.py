@@ -2,15 +2,18 @@
 
 from __future__ import annotations
 
+import asyncio
 import importlib.util
 import os
 import time
 from collections import deque
+from collections.abc import Callable
 from contextlib import asynccontextmanager
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from machinable.api.routes import (
     assets,
+    auth,
     executions,
     health,
     interfaces,
@@ -45,6 +48,11 @@ async def lifespan(app: FastAPI):
     app.state.started_at = time.monotonic()
     app.state.event_log = deque(maxlen=500)
     app.state.workers = WorkerRegistry()
+    verifier = getattr(app.state, "oidc", None)
+    if verifier is not None:
+        app.state.oidc_warm = asyncio.get_running_loop().run_in_executor(
+            None, verifier.warm
+        )
     yield
     await app.state.workers.shutdown()
     app.state.interfaces.clear()
@@ -86,7 +94,21 @@ def create_app(
     sdk_dev: str | None = None,
     ambient_connections: list[dict] | None = None,
     extra_routers: list[APIRouter] | None = None,
+    oidc_issuer: str | None = None,
+    oidc_audience: str | list[str] | None = None,
+    oidc_rules: Any = None,
+    oidc_rules_file: str | None = None,
+    oidc_identity_claim: str = "sub",
+    oidc_algorithms: list[str] | None = None,
+    oidc_leeway: float = 60,
+    oidc_fetch: Callable[[str], Any] | None = None,
+    worker_secret: str | None = None,
 ) -> FastAPI:
+    """The API application.
+
+    With ``api_token`` and/or ``oidc_issuer``, every request and WebSocket
+    upgrade needs a bearer token (see :mod:`machinable.api.auth`).
+    """
     _require_fastapi()
     from fastapi import FastAPI as FastAPIClass
     from fastapi.middleware.cors import CORSMiddleware
@@ -122,33 +144,53 @@ def create_app(
     # worker when a different interpreter is requested, else serves in-process.
     _add_isolation_middleware(app)
 
+    # authentication wraps the isolation middleware, so it runs before a
+    # request is routed to a worker, and sits inside CORS, so preflights are
+    # answered and refusals still carry the CORS headers; it is a pure ASGI
+    # middleware so WebSocket upgrades are covered as well as HTTP.
+    verifier = None
+    if oidc_issuer:
+        from machinable.api.auth import OIDCVerifier
+
+        verifier = OIDCVerifier(
+            oidc_issuer,
+            oidc_audience or [],
+            rules=oidc_rules,
+            rules_file=oidc_rules_file,
+            identity_claim=oidc_identity_claim,
+            algorithms=oidc_algorithms,
+            leeway=oidc_leeway,
+            fetch=oidc_fetch,
+        )
+    app.state.oidc = verifier
+    # short-lived tokens minted for api_token holders (POST /v1/auth/token)
+    app.state.sessions = None
+    if api_token or verifier is not None:
+        from machinable.api.auth import AuthMiddleware, SessionTokens
+        from machinable.api.routes.assets import PUBLIC_PATHS
+
+        app.state.sessions = SessionTokens() if api_token else None
+        app.add_middleware(
+            AuthMiddleware,
+            api_token=api_token,
+            verifier=verifier,
+            sessions=app.state.sessions,
+            public_paths={"/docs", "/openapi.json", "/redoc"} | PUBLIC_PATHS,
+        )
+
     if allow_origins is None:
         allow_origins = ["*"]
 
+    # clients authenticate with a bearer header, never cookies, so credentialed
+    # CORS (cookies, HTTP auth) is only granted to explicitly listed origins,
+    # never to the wildcard
     app.add_middleware(
         CORSMiddleware,
         allow_origins=allow_origins,
-        allow_credentials=True,
+        allow_credentials="*" not in allow_origins,
         allow_methods=["*"],
         allow_headers=["*"],
     )
-
-    if api_token:
-        from machinable.api.routes.assets import PUBLIC_PATHS
-
-        @app.middleware("http")
-        async def bearer_auth(request: Request, call_next) -> Response:
-            if request.url.path in {"/docs", "/openapi.json", "/redoc"} | PUBLIC_PATHS:
-                return await call_next(request)
-            auth = request.headers.get("Authorization", "")
-            if auth != f"Bearer {api_token}":
-                from fastapi.responses import JSONResponse
-
-                return JSONResponse(
-                    status_code=401,
-                    content={"detail": "Unauthorized"},
-                )
-            return await call_next(request)
 
     @app.middleware("http")
     async def log_requests(request: Request, call_next) -> Response:
@@ -168,6 +210,12 @@ def create_app(
     app.include_router(project.router)
     app.include_router(project.projects_router)
     app.include_router(source.router)
+    app.include_router(auth.router)
+
+    if worker_secret:
+        from machinable.api.auth import WorkerSecretMiddleware
+
+        app.add_middleware(WorkerSecretMiddleware, secret=worker_secret)
 
     if project_dir:
         _load_project_routers(app, project_dir)

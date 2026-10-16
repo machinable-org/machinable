@@ -7,12 +7,13 @@ import contextlib
 import inspect
 import json
 import os
-from collections.abc import Awaitable, Callable
+from collections.abc import Awaitable, Callable, Mapping
 from typing import Any, cast
 
 from fastapi import HTTPException, Request
 from omegaconf import OmegaConf
 
+from machinable.api.auth import request_principal
 from machinable.api.models import (
     ConfigField,
     ExecutionInfo,
@@ -73,6 +74,14 @@ def resolve_project_dir(request: Request, explicit: str | None = None) -> str:
     )
 
 
+def request_attribution(request: Request) -> tuple[str | None, Mapping | None]:
+    """The username (and verified claims) a request's records are created by."""
+    principal = request_principal(request)
+    if principal is not None and principal.method == "oidc":
+        return principal.identity, principal.claims
+    return request.headers.get("X-Machinable-User"), None
+
+
 async def project_context(request: Request):
     """FastAPI dependency: enter the request's Project in an isolated context.
 
@@ -84,12 +93,12 @@ async def project_context(request: Request):
     surrounding code.
     """
     directory = resolve_project_dir(request)
-    username = request.headers.get("X-Machinable-User")
+    username, claims = request_attribution(request)
     request.state.project = directory
     request.state.username = username
     with (
         connection_scope(),
-        Project(directory, username=username),
+        Project(directory, username=username, claims=claims),
         contextlib.ExitStack() as stack,
     ):
         for spec in getattr(request.app.state, "ambient_connections", None) or []:

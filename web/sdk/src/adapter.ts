@@ -84,7 +84,9 @@ export function createAdapter(url?: string, token?: string): WidgetHostAdapter {
 	return {
 		connect: async (url, token) => {
 			baseUrl = url.replace(/\/+$/, '');
-			bearer = token;
+			// no token given (the connect panel's empty field) keeps the one the
+			// adapter was created or refreshed with
+			if (token !== undefined) bearer = token;
 			try {
 				await request<{ status: string }>('/v1/health');
 				const project = await request<{ project?: string; modules?: { module: string }[] }>(
@@ -101,6 +103,9 @@ export function createAdapter(url?: string, token?: string): WidgetHostAdapter {
 			}
 		},
 		trust: async () => {},
+		setToken: (token) => {
+			bearer = token;
+		},
 
 		listModules: async () => {
 			const payload = await request<{ modules?: { module: string; kind?: string; doc?: string | null }[] }>(

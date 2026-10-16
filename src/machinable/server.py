@@ -57,6 +57,13 @@ def ensure_web_asset(name: str) -> str | None:
         return None
 
 
+def _plain(value: Any) -> Any:
+    """A config value as plain JSON (lists/dicts, not OmegaConf nodes)."""
+    if value is None:
+        return None
+    return json.loads(json.dumps(value, default=serialize))
+
+
 class Server(Widget):
     """HTTP/WebSocket API server for the connected project."""
 
@@ -77,6 +84,17 @@ class Server(Widget):
         console: bool | None = None
         reload: bool = False
         api_token: str | None = None
+        # OpenID Connect: admit JWT access tokens from this issuer (beside
+        # api_token) for oidc_audience, whose claims pass the rules (inline,
+        # or a JSON file re-read when it changes); requests are attributed to
+        # the verified oidc_identity_claim. Needs machinable[oidc].
+        oidc_issuer: str | None = None
+        oidc_audience: str | list[str] | None = None
+        oidc_rules: list | dict | None = None
+        oidc_rules_file: str | None = None
+        oidc_identity_claim: str = "sub"
+        oidc_algorithms: list[str] | None = None
+        oidc_leeway: float = 60
         log_level: str = "info"
         project: str | None = None
         # roots under which additional projects may be opened per request
@@ -130,17 +148,74 @@ class Server(Widget):
     # ── views (the web client against this server) ─────────────────────────────
 
     def widget_state(self) -> dict:
-        """Displaying a Server renders the web client's run browser on it."""
-        return {
+        """Displaying a Server renders the web client's run browser on it.
+
+        The state never holds the ``api_token``: it is synced to the browser,
+        may be saved into the notebook, and is served over the API's widget
+        frames. With a token, ``auth`` tells the client to ask the kernel for a
+        short-lived session token instead (see :meth:`_session_token_reply`).
+        """
+        state: dict[str, Any] = {
             "url": self.url or f"http://{self.config.host}:{self.config.port}",
-            "token": self.config.api_token,
             "view": "list",
         }
+        if self.config.api_token:
+            state["auth"] = "kernel"
+        return state
 
     def _anywidget_view(self):
         ensure_web_asset("widget-sdk.js")
         ensure_web_asset("widget-sdk.css")
-        return super()._anywidget_view()
+        view = super()._anywidget_view()
+        self._attach_token_channel(view, view.url)
+        return view
+
+    def _session_token_reply(self, content: Any, url: str) -> dict | None:
+        """Answer the widget's ``machinable.token`` request.
+
+        The kernel holds the ``api_token`` and trades it at the server for a
+        short-lived session token (``POST /v1/auth/token``), which is all the
+        browser gets; the widget asks again before it expires.
+        """
+        if not isinstance(content, dict) or content.get("type") != "machinable.token":
+            return None
+        if not self.config.api_token:
+            return {"type": "machinable.token", "token": None}
+        import urllib.request
+
+        request = urllib.request.Request(
+            f"{url.rstrip('/')}/v1/auth/token",
+            data=b"{}",
+            method="POST",
+            headers={
+                "Authorization": f"Bearer {self.config.api_token}",
+                "Content-Type": "application/json",
+            },
+        )
+        try:
+            with urllib.request.urlopen(request, timeout=10) as response:  # noqa: S310
+                minted = json.loads(response.read())
+        except (OSError, ValueError) as ex:
+            return {"type": "machinable.token", "error": str(ex)}
+        return {
+            "type": "machinable.token",
+            "token": minted["token"],
+            "expires_in": minted["expires_in"],
+        }
+
+    def _attach_token_channel(self, view, url: str) -> None:
+        """Answer token requests on the anywidget's custom-message channel.
+
+        Custom messages are not part of the synced (and saved) state, so the
+        session token never lands in the notebook file.
+        """
+
+        def on_msg(_widget, content, _buffers) -> None:
+            reply = self._session_token_reply(content, url)
+            if reply is not None:
+                view.send(reply)
+
+        view.on_msg(on_msg)
 
     def view(
         self,
@@ -169,11 +244,11 @@ class Server(Widget):
         ensure_web_asset("widget-sdk.js")
         ensure_web_asset("widget-sdk.css")
         url = self.url or self.start()
-        state: dict[str, Any] = {
-            "url": url,
-            "token": self.config.api_token,
-            "view": view,
-        }
+        # no token in the synced state: the client asks the kernel for a
+        # short-lived one over the custom-message channel
+        state: dict[str, Any] = {"url": url, "view": view}
+        if self.config.api_token:
+            state["auth"] = "kernel"
         if target:
             state["target"] = target
         if version is not None:
@@ -189,7 +264,9 @@ class Server(Widget):
         for key, value in state.items():
             attrs[key] = traitlets.Any(value).tag(sync=True)
         view_cls = type("MachinableWebClientView", (anywidget.AnyWidget,), attrs)
-        return view_cls()
+        widget = view_cls()
+        self._attach_token_channel(widget, url)
+        return widget
 
     @staticmethod
     def _require_uvicorn():
@@ -235,6 +312,13 @@ class Server(Widget):
             source_base_dir=self.config.source_base_dir,
             sdk_dev=sdk_dev_url,
             ambient_connections=self._ambient_connections(),
+            oidc_issuer=self.config.oidc_issuer,
+            oidc_audience=_plain(self.config.oidc_audience),
+            oidc_rules=_plain(self.config.oidc_rules),
+            oidc_rules_file=self.config.oidc_rules_file,
+            oidc_identity_claim=self.config.oidc_identity_claim,
+            oidc_algorithms=_plain(self.config.oidc_algorithms),
+            oidc_leeway=self.config.oidc_leeway,
         )
 
     # ── background serving (kernel-embedded / programmatic) ────────────────────

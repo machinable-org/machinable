@@ -9,6 +9,8 @@ import socket
 import subprocess
 import sys
 import urllib.request
+from collections.abc import Mapping
+from types import MappingProxyType
 from typing import Any, cast
 
 from pydantic import BaseModel, field_validator
@@ -210,9 +212,9 @@ class Project(Interface):
         self,
         version: VersionType = None,
         username: str | None = None,
+        claims: Mapping[str, Any] | None = None,
     ):
         if is_directory_version(version):
-            # interpret as shortcut for directory
             version = {"directory": version}
         super().__init__(version=version)
         self.__model__ = schema.Project(
@@ -224,9 +226,9 @@ class Project(Interface):
         self._provider: str = "interface/project"
         self._resolved_provider: Project | None = None
         self._root_entry = None
-        # creator attribution; a plain attribute (not Config) so it never enters
-        # the project's identity_key and fragments per-project de-duplication.
         self._username = username
+        # verified token claims of the API request this project serves (OIDC)
+        self._claims = MappingProxyType(dict(claims)) if claims else None
 
     @property
     def username(self) -> str:
@@ -235,6 +237,15 @@ class Project(Interface):
         Defaults to the OS user.
         """
         return self._username or getpass.getuser()
+
+    @property
+    def claims(self) -> Mapping[str, Any]:
+        """The verified claims of the API request served in this project.
+
+        Read-only; set when the API server admitted the request with an OIDC
+        token (the identity claim is also :attr:`username`), empty otherwise.
+        """
+        return self._claims if self._claims is not None else MappingProxyType({})
 
     def __enter__(self):
         super().__enter__()
@@ -450,8 +461,8 @@ class Project(Interface):
                 raise
             except BaseException:  # noqa: BLE001 - a scheme failing never breaks discovery
                 # Importing an arbitrary project module can raise more than Exceptions:
-                # pytest's importorskip raises Skipped (a BaseException), a module may call
-                # sys.exit(). One odd module must not 500 the whole project index.
+                # pytest's importorskip raises Skipped (a BaseException), a module may
+                # call sys.exit(). One odd module must not 500 the whole index.
                 continue
         return catalog.entries()
 

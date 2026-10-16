@@ -70,6 +70,31 @@ def test_subprocess_worker_serves_project(tmp_path):
         assert worker["directory"] == proj
         assert os.path.normcase(worker["python"]) == normalize_python(sys.executable)
 
+        # the worker admits only its gateway: a local user calling it directly,
+        # with or without a spoofed identity, is refused
+        import httpx
+
+        (spawned,) = app.state.workers._workers.values()
+        direct = f"http://127.0.0.1:{spawned.port}/v1/project"
+        assert httpx.get(direct).status_code == 401
+        spoofed = httpx.get(
+            direct,
+            headers={"X-Machinable-User": "mallory", "X-Machinable-Worker-Secret": "x"},
+        )
+        assert spoofed.status_code == 401
+        assert (
+            httpx.get(
+                direct, headers={"X-Machinable-Worker-Secret": spawned.secret}
+            ).status_code
+            == 200
+        )
+        # a client cannot pass a secret through the gateway either
+        through = client.get(
+            f"/v1/project?python={sys.executable}",
+            headers={"X-Machinable-Worker-Secret": "x"},
+        )
+        assert through.status_code == 200
+
         # a disallowed interpreter is rejected
         bad = client.get("/v1/project?python=/definitely/not/allowed/python")
         assert bad.status_code == 403

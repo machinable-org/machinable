@@ -100,7 +100,8 @@ def build_protocol() -> ProtocolDoc:
                 required=False,
                 description=(
                     "Attributes created interfaces to this user (created_by). "
-                    "Defaults to the server's OS user."
+                    "Defaults to the server's OS user; ignored when an OIDC "
+                    "token admitted the request (its identity claim is used)."
                 ),
             ),
             FrameField(
@@ -116,7 +117,24 @@ def build_protocol() -> ProtocolDoc:
                 name="Authorization",
                 type="string",
                 required=False,
-                description="Bearer <token> when the server sets api_token.",
+                description=(
+                    "Bearer <token> when the server sets api_token or "
+                    "oidc_issuer: the shared api_token, or a JWT access token "
+                    "from the OIDC issuer (then attributed to its identity "
+                    "claim, X-Machinable-User ignored). On a WebSocket "
+                    "upgrade, also as Sec-WebSocket-Protocol: bearer, <token> "
+                    "(answered with bearer); an OIDC-admitted socket closes "
+                    "with 4401 when its token expires."
+                ),
+            ),
+            FrameField(
+                name="X-Machinable-Source-Token",
+                type="string",
+                required=False,
+                description=(
+                    "The source_token for source writes (PUT/DELETE/move "
+                    "/v1/source), sent beside Authorization."
+                ),
             ),
         ],
         ws_endpoints={

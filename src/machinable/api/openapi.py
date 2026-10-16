@@ -1,11 +1,3 @@
-"""Rich OpenAPI metadata so the running server is self-documenting.
-
-The live ``/openapi.json`` (and ``/docs``, ``/redoc``) are the single source of
-truth for the REST surface. The WebSocket protocol that
-OpenAPI cannot express is described by ``GET /v1/protocol`` (see
-``machinable.api.protocol``). The hand-written docs are generated from both.
-"""
-
 from __future__ import annotations
 
 import machinable
@@ -36,11 +28,20 @@ use-case-agnostic.
 - `X-Machinable-Project` (`?project=`): target project, must be under the
   server's allowlist; defaults to the launch project.
 - `X-Machinable-User` (`X-Machinable-User`): attributes created interfaces
-  (`created_by`); defaults to the server OS user.
+  (`created_by`); defaults to the server OS user. Ignored when the request was
+  admitted by an OIDC token, which is attributed to its verified identity.
 - `X-Machinable-Python` (`?python=`): interpreter; a non-gateway interpreter is
   routed to a subprocess worker.
 - `Authorization: Bearer <token>`: required when the server sets `api_token`
-  (`/docs` and `/openapi.json` are exempt).
+  or `oidc_issuer`; the token is the shared `api_token` or a JWT access token
+  from the configured OpenID Connect issuer (`/docs` and `/openapi.json` are
+  exempt). A refusal is 401 with `WWW-Authenticate: Bearer`. WebSocket upgrades
+  need it too (or `Sec-WebSocket-Protocol: bearer, <token>`, answered with
+  `bearer`); a socket admitted by an OIDC token is closed with code 4401 when
+  the token expires. `POST /v1/auth/token` trades the `api_token` for a
+  session token valid for at most an hour.
+- `X-Machinable-Source-Token`: the `source_token` for source writes, beside
+  `Authorization`.
 
 ### Capability map
 `remote_call`, `binary_upload`, `binary_read`, `config_search`, `create_by_id`,

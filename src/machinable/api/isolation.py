@@ -1,26 +1,19 @@
-"""Process isolation: per-interpreter project workers behind the gateway.
-
-A request may select a Python interpreter via ``?python=…`` or the
-``X-Machinable-Python`` header. With none (the default), the request is served
-in-process by the gateway. With an interpreter different from the gateway's, the
-gateway spawns (and then reuses) a subprocess worker running that interpreter
-and reverse-proxies the request to it. This gives the project its own
-dependencies and module namespace (its ``.venv``), which an in-process server
-cannot provide.
-
-WebSocket endpoints are served in-process by the gateway only (for now); they
-are unaffected by interpreter selection.
-"""
-
 from __future__ import annotations
 
 import asyncio
 import os
+import secrets
 import socket
 import subprocess
 import sys
 import time
 from typing import TYPE_CHECKING
+
+from machinable.api.auth import (
+    WORKER_SECRET_ENV,
+    WORKER_SECRET_HEADER,
+    request_principal,
+)
 
 if TYPE_CHECKING:
     from fastapi import Request
@@ -82,6 +75,10 @@ def _free_port() -> int:
 _HOP_BY_HOP = {"connection", "keep-alive", "transfer-encoding", "content-length"}
 
 
+class WorkerSecretError(RuntimeError):
+    """A worker that does not enforce the gateway's secret."""
+
+
 class Worker:
     """A subprocess running ``create_app(directory)`` under a chosen interpreter."""
 
@@ -91,6 +88,7 @@ class Worker:
         self.directory = directory
         self.python = normalize_python(python)
         self.port = _free_port()
+        self.secret = secrets.token_urlsafe(32)
         self.proc = subprocess.Popen(
             [
                 python,
@@ -102,9 +100,12 @@ class Worker:
                 str(self.port),
             ],
             stderr=subprocess.PIPE,
+            env={**os.environ, WORKER_SECRET_ENV: self.secret},
         )
         self.client = httpx.AsyncClient(
-            base_url=f"http://127.0.0.1:{self.port}", timeout=60.0
+            base_url=f"http://127.0.0.1:{self.port}",
+            timeout=60.0,
+            headers={WORKER_SECRET_HEADER: self.secret},
         )
 
     async def wait_ready(self, timeout: float = 30.0) -> None:
@@ -120,11 +121,28 @@ class Worker:
             try:
                 resp = await self.client.get("/v1/health")
                 if resp.status_code == 200:
+                    await self._check_secret_enforced()
                     return
+            except WorkerSecretError:
+                raise
             except Exception:
                 pass
             await asyncio.sleep(0.1)
         raise TimeoutError(f"worker for {self.directory} did not become ready")
+
+    async def _check_secret_enforced(self) -> None:
+        import httpx
+
+        async with httpx.AsyncClient(
+            base_url=f"http://127.0.0.1:{self.port}", timeout=10.0
+        ) as bare:
+            resp = await bare.get("/v1/health")
+        if resp.status_code != 401:
+            raise WorkerSecretError(
+                f"the worker for {self.directory} ({self.python}) does not "
+                "require the gateway's secret; upgrade machinable in that "
+                "interpreter"
+            )
 
     async def proxy(self, request: Request) -> Response:
         from starlette.responses import Response
@@ -133,8 +151,23 @@ class Worker:
         params = [
             (k, v) for k, v in request.query_params.multi_items() if k != "python"
         ]
-        in_drop = _HOP_BY_HOP | {"host", "x-machinable-python"}
+        # the worker trusts the gateway, so nothing the client sends speaks
+        # for it: its credential stays here and the secret is set by the client
+        in_drop = _HOP_BY_HOP | {
+            "host",
+            "x-machinable-python",
+            "authorization",
+            WORKER_SECRET_HEADER.lower(),
+        }
         headers = {k: v for k, v in request.headers.items() if k.lower() not in in_drop}
+        principal = request_principal(request)
+        if principal is not None and principal.method == "oidc":
+            # the worker has no auth of its own; it attributes by the header,
+            # so it carries the verified identity, never the client's claim
+            headers = {
+                k: v for k, v in headers.items() if k.lower() != "x-machinable-user"
+            }
+            headers["X-Machinable-User"] = principal.identity
         resp = await self.client.request(
             request.method,
             request.url.path,

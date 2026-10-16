@@ -42,6 +42,23 @@ describe('createAdapter', () => {
 		expect(headers['Authorization']).toBe('Bearer sekrit');
 	});
 
+	it('keeps its token when connect gives none, and takes a refreshed one', async () => {
+		mockFetch({
+			'/v1/health': { status: 'ok' },
+			'/v1/project': { project: '/p', modules: [] }
+		});
+		const adapter = createAdapter('http://server:8000', 'session-1');
+		await adapter.connect('http://server:8000');
+		expect((calls[0].init?.headers as Record<string, string>)['Authorization']).toBe(
+			'Bearer session-1'
+		);
+		adapter.setToken?.('session-2');
+		await adapter.connect('http://server:8000');
+		expect((calls.at(-1)?.init?.headers as Record<string, string>)['Authorization']).toBe(
+			'Bearer session-2'
+		);
+	});
+
 	it('reports a connect failure with the reason', async () => {
 		mockFetch({}); 
 		const adapter = createAdapter();

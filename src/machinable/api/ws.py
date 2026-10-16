@@ -18,6 +18,7 @@ from machinable.api._helpers import (
     evict_interface,
     get_or_create_interface,
     json_payload,
+    request_attribution,
     resolve_project_dir,
     run_api_call,
     run_widget_call,
@@ -39,6 +40,8 @@ class _AppRequest:
         self.state = types.SimpleNamespace()
         self.query_params = websocket.query_params
         self.headers = websocket.headers
+        # carries the principal the auth middleware admitted the socket as
+        self.scope = websocket.scope
 
 
 async def handle_interface_ws(
@@ -220,9 +223,11 @@ async def handle_interface_ws(
                     continue
                 try:
                     directory = resolve_project_dir(request, explicit=message.project)
-                    username = request.headers.get("X-Machinable-User")
+                    username, claims = request_attribution(request)
                     request.state.project = directory
-                    scope.enter_context(Project(directory, username=username))
+                    scope.enter_context(
+                        Project(directory, username=username, claims=claims)
+                    )
                     if connect_only_execution:
                         loaded = get_or_create_interface(message.target, request)
                         if not isinstance(loaded, Execution):

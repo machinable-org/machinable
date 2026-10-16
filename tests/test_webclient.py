@@ -69,11 +69,42 @@ def test_server_is_the_web_client_widget(tmp_storage):
 
     # displaying a remote handle renders the run browser against it
     handle = Server({"url": "http://cluster:8000", "api_token": "t"})
+    # the token never enters the synced (and saveable) state; the client asks
+    # the kernel for a short-lived session token instead
     assert handle.widget_state() == {
         "url": "http://cluster:8000",
-        "token": "t",
+        "view": "list",
+        "auth": "kernel",
+    }
+    assert "t" not in handle.widget_state().values()
+    assert Server({"url": "http://cluster:8000"}).widget_state() == {
+        "url": "http://cluster:8000",
         "view": "list",
     }
+
+
+def test_widget_gets_a_session_token_from_the_kernel(tmp_storage):
+    pytest.importorskip("uvicorn")
+    import httpx
+
+    from machinable.server import Server
+
+    with Server(
+        {"port": 0, "log_level": "warning", "console": False, "api_token": "t"}
+    ) as server:
+        url = server.start()
+        try:
+            assert server._session_token_reply({"type": "other"}, url) is None
+            reply = server._session_token_reply({"type": "machinable.token"}, url)
+            assert reply["token"] and reply["token"] != "t"
+            assert 0 < reply["expires_in"] <= 3600
+            session = {"Authorization": f"Bearer {reply['token']}"}
+            assert httpx.get(f"{url}/v1/health", headers=session).status_code == 200
+            # a session token cannot mint another one
+            minted = httpx.post(f"{url}/v1/auth/token", headers=session)
+            assert minted.status_code == 403
+        finally:
+            server.stop()
 
 
 def test_interface_and_collection_widget_views(tmp_storage):
