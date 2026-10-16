@@ -19105,7 +19105,7 @@ function TE(e, t) {
 	}
 	return {
 		connect: async (e, t) => {
-			n = e.replace(/\/+$/, ""), r = t;
+			n = e.replace(/\/+$/, ""), t !== void 0 && (r = t);
 			try {
 				await i("/v1/health");
 				let e = await i("/v1/project");
@@ -19122,6 +19122,9 @@ function TE(e, t) {
 			}
 		},
 		trust: async () => {},
+		setToken: (e) => {
+			r = e;
+		},
 		listModules: async () => ((await i("/v1/project")).modules ?? []).map((e) => ({
 			module: e.module,
 			kind: e.kind,
@@ -19299,22 +19302,47 @@ function EE(e, t = {}) {
 	});
 	return { unmount: () => void Lr(n) };
 }
-function DE({ model: e, el: t }) {
+function DE(e, t) {
+	let n, r, i = new Promise((e) => r = e), a = () => e.send({ type: "machinable.token" }), o = (e) => {
+		if (e?.type !== "machinable.token") return;
+		e.error && console.warn("[machinable] session token:", e.error);
+		let i = e.token ?? void 0;
+		t(i), r?.(i), r = void 0, clearTimeout(n);
+		let o = i && e.expires_in ? e.expires_in * 800 : 6e4;
+		n = setTimeout(a, o);
+	};
+	return e.on("msg:custom", o), a(), setTimeout(() => {
+		r?.(void 0), r = void 0;
+	}, 1e4), {
+		first: i,
+		stop: () => {
+			clearTimeout(n), e.off?.("msg:custom", o);
+		}
+	};
+}
+async function OE({ model: e, el: t }) {
 	let n = (t) => typeof e?.get == "function" ? e.get(t) ?? void 0 : void 0;
 	t.style.height || (t.style.height = n("height") ?? "440px");
-	let r = EE(t, {
+	let r = TE(n("url")), i = () => {};
+	if (n("auth") === "kernel" && typeof e?.send == "function") {
+		let t = DE(e, (e) => r.setToken?.(e));
+		i = t.stop, await t.first;
+	}
+	let a = EE(t, {
 		url: n("url"),
-		token: n("token"),
+		adapter: r,
 		view: n("view"),
 		target: n("target"),
 		version: n("version")
 	});
-	return () => r.unmount();
+	return () => {
+		i(), a.unmount();
+	};
 }
-var OE = {
-	render: DE,
+var kE = {
+	render: OE,
 	mount: EE,
 	createAdapter: TE
 };
 //#endregion
-export { $o as Browser, js as CallLoop, hs as CliView, YT as CodeView, Ga as ConfigPicker, ro as ContextStack, fa as FieldRenderer, mo as Lifecycle, xE as Machinable, Ao as Provenance, cs as ResolvedBar, zs as ResultSlot, ys as RunBanner, Ts as RunPanel, ns as StatusBadge, ja as VersionEditor, TE as createAdapter, Ms as createCallModel, OE as default, Li as elementsToVersion, Fi as moduleSchemaFromServer, EE as mount, Ai as parseAnnotation, ji as parseSignature, Ri as parseVersionToken, DE as render, zi as serializeVersionToken, Vi as shortIdentity, Ii as versionToElements };
+export { $o as Browser, js as CallLoop, hs as CliView, YT as CodeView, Ga as ConfigPicker, ro as ContextStack, fa as FieldRenderer, mo as Lifecycle, xE as Machinable, Ao as Provenance, cs as ResolvedBar, zs as ResultSlot, ys as RunBanner, Ts as RunPanel, ns as StatusBadge, ja as VersionEditor, TE as createAdapter, Ms as createCallModel, kE as default, Li as elementsToVersion, Fi as moduleSchemaFromServer, EE as mount, Ai as parseAnnotation, ji as parseSignature, Ri as parseVersionToken, OE as render, zi as serializeVersionToken, Vi as shortIdentity, Ii as versionToElements };
