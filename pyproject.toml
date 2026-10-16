@@ -1,6 +1,6 @@
 [project]
 name = "machinable"
-version = "5.0.0"
+version = "5.1.0"
 description = "A modular configuration system for research projects"
 license = "MIT"
 authors = [{ name = "Frithjof Gressmann", email = "hello@machinable.org" }]
