@@ -31,6 +31,25 @@ from machinable.project import Project
 router = APIRouter(prefix="/v1/executions", tags=["executions"])
 
 
+def _cached_runs(execution: Execution) -> list[Execution]:
+    """The latest run-record of each queued (cached) interface, in queue order."""
+    from machinable.api.models import FindRequest
+    from machinable.index import Index
+
+    runs: list[Execution] = []
+    for interface in execution.interfaces:
+        children = (
+            Index.get()
+            .find(FindRequest(parent_id=interface.uuid, kind="Execution", limit=1))
+            .items
+        )
+        if children:
+            run = Interface.find_by_id(children[0].record_id)
+            if isinstance(run, Execution):
+                runs.append(run)
+    return runs
+
+
 @router.post("", response_model=ExecutionInfo)
 def dispatch_execution(
     body: DispatchRequest, request: Request, _p: str = Depends(project_context)
@@ -51,6 +70,7 @@ def dispatch_execution(
     username = getattr(request.state, "username", None)
     holder: dict[str, Execution | None] = {"execution": None}
     failure: dict[str, BaseException | None] = {"error": None}
+    cached_runs: list[Execution] = []
 
     def _run() -> None:
         # the background thread re-enters the project in its own isolated
@@ -88,6 +108,8 @@ def dispatch_execution(
                         interface.materialize()
                         execution.add(interface)
                 execution.dispatch()
+                if execution.uuid is None:
+                    cached_runs.extend(_cached_runs(execution))
         except Exception as ex:
             failure["error"] = ex
             _log_event(request, f"dispatch failed: {ex}")
@@ -100,7 +122,18 @@ def dispatch_execution(
         execution = holder["execution"]
         if execution is not None and execution.uuid is not None:
             break
+        if not thread.is_alive():
+            break  # ended without minting a run-record: failed or all cached
         time.sleep(0.01)
+
+    if cached_runs and failure["error"] is None and not thread.is_alive():
+        runs = [execution_to_info(run) for run in cached_runs]
+        for run in cached_runs:
+            _interfaces_for(request)[cast(str, run.uuid)] = run
+        _log_event(request, f"POST /v1/executions -> cached {runs[0].uuid}")
+        return runs[0].model_copy(
+            update={"cached": True, "cached_uuids": [r.uuid for r in runs]}
+        )
 
     execution = holder["execution"]
     if execution is None or execution.uuid is None:

@@ -111,6 +111,11 @@ Everything a signed request creates is attributed (`created_by`) to its verified
 | Project | `GET /v1/project[/{module}]`, `/remotes` | module discovery + schema reflection |
 | Source | `GET/PUT/DELETE /v1/source/{path}` | the opt-in, token-gated source-editing API |
 
+`POST /v1/executions` runs only the interfaces that are not yet cached. When every
+requested interface is already cached it returns at once without dispatching: the
+answer is the existing run-record of the first interface with `cached: true`, and
+`cached_uuids` lists the existing run-records of all requested interfaces.
+
 Config reflection is first-class: `GET /v1/project/{module}` returns the config fields
 and the [version-method vocabulary](./versions.md) (signatures + docstrings), and
 `POST /v1/interfaces/resolve` dry-runs a compact version to its resolved config and CLI

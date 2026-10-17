@@ -275,6 +275,22 @@ class ExecutionInfo(BaseModel):
         default=None,
         description="Optional mutable, human-facing label.",
     )
+    cached: bool = Field(
+        default=False,
+        description=(
+            "Set by POST /v1/executions when every requested interface was already"
+            " cached: nothing was dispatched and this record is the existing"
+            " finished run of the first interface."
+        ),
+    )
+    cached_uuids: list[str] = Field(
+        default_factory=list,
+        description=(
+            "With `cached`: the uuids of the existing run-records, one per requested"
+            " interface in request order (interfaces without a run-record are"
+            " omitted)."
+        ),
+    )
 
 
 class InterfaceRef(BaseModel):

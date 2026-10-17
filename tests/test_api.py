@@ -212,6 +212,54 @@ def test_dispatch_execution(api_client):
     assert detail["is_finished"] is True
 
 
+def _dispatch_and_finish(api_client, targets):
+    response = api_client.post(
+        "/v1/executions",
+        json={"interfaces": [{"target": t, "version": []} for t in targets]},
+    )
+    assert response.status_code == 200, response.text
+    payload = response.json()
+    for _ in range(100):
+        if api_client.get(f"/v1/executions/{payload['uuid']}").json()["is_finished"]:
+            break
+        time.sleep(0.05)
+    return payload
+
+
+def test_dispatch_all_cached_returns_at_once(api_client):
+    first = _dispatch_and_finish(api_client, ["hello"])
+    assert first["cached"] is False and first["cached_uuids"] == []
+
+    started = time.monotonic()
+    response = api_client.post(
+        "/v1/executions",
+        json={"interfaces": [{"target": "hello", "version": []}]},
+    )
+    assert time.monotonic() - started < 5  # not the 10 s dispatch wait
+    assert response.status_code == 200, response.text
+    payload = response.json()
+    assert payload["cached"] is True
+    assert payload["uuid"] == first["uuid"]
+    assert payload["cached_uuids"] == [first["uuid"]]
+    assert payload["is_finished"] is True
+
+
+def test_dispatch_mixed_cached_dispatches_only_uncached(api_client):
+    cached = _dispatch_and_finish(api_client, ["hello"])
+    mixed = _dispatch_and_finish(api_client, ["hello", "basic"])
+    assert mixed["cached"] is False
+    assert mixed["uuid"] != cached["uuid"]
+    assert mixed["parent_uuid"] != cached["parent_uuid"]
+
+    both = api_client.post(
+        "/v1/executions",
+        json={"interfaces": [{"target": t, "version": []} for t in ("hello", "basic")]},
+    ).json()
+    assert both["cached"] is True
+    assert len(both["cached_uuids"]) == 2
+    assert cached["uuid"] in both["cached_uuids"]
+
+
 def test_dispatch_interfaces_with_context(api_client):
     def run(body):
         resp = api_client.post("/v1/executions", json=body)
