@@ -112,6 +112,27 @@ with Trace(uses=get(DependencyGraph)):
     get(D, uses=[b]).launch()   # runs after a and b
 ```
 
+## Concurrent dispatch
+
+An interface dispatched from several places at once runs once. That holds for threads in one process, for processes sharing one index, for processes or servers with an index each over one storage folder, and for machines whose storage is the same shared filesystem, i.e. anything that sees the same record directories. Nothing to set up; dispatch claims an interface before it runs it:
+
+1. A run of the interface that finished elsewhere is adopted (indexed here if another index made it) and the interface ends cached, with `cached()` reason `"finished elsewhere"`. An interface whose claim another dispatcher holds is running elsewhere.
+2. Otherwise it claims the interface and runs it as the claimed run-record, then releases the claim once the run's `finished_at` is written. The claim is a small file, `<identity>/.claims/<predicate>` beside the interface's directory in the storage, described in [the directory format](/design/format#claims).
+
+By default a dispatcher that finds the interface running elsewhere waits for that run and then ends cached on it. If the run dies instead (its heartbeat goes stale), exactly one waiter takes the claim over, marks the dead run-record `abandoned_at` (it reads as died and is never resumed) and runs the interface. `wait_elsewhere` changes that:
+
+```python
+from machinable import Execution, get
+
+execution = Execution().wait_elsewhere(False)        # or timeout=60, interval=1
+with execution:
+    get("train", {"lr": 0.1}).launch()
+
+execution.elsewhere   # {interface id: ("running elsewhere" | "finished elsewhere", run id)}
+```
+
+With `wait=False`, or once `timeout` seconds pass, dispatch leaves the interface uncached and goes on; `elsewhere` names the run that holds it. Waiting looks again every `interval` seconds (a second by default).
+
 ## Execution metadata
 
 A materialized execution exposes its lifecycle and a memorable handle:

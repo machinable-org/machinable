@@ -116,6 +116,9 @@ requested interface is already cached it returns at once without dispatching: th
 answer is the existing run-record of the first interface with `cached: true`, and
 `cached_uuids` lists the existing run-records of all requested interfaces.
 
+The server looks before dispatching (see [concurrent dispatch](./advanced-execution.md#concurrent-dispatch)), so several servers (or a server and scripts) over one storage folder run a request once. An interface another dispatcher holds is never waited on: when nothing was dispatched because some requested interfaces are running elsewhere (and the rest are cached), the
+answer is at once the run-record of the first interface, the one running elsewhere or the cached one, with `running_elsewhere: true`; `running_elsewhere_uuids` lists the runs held elsewhere and `cached_uuids` the cached ones. Follow the run with `GET /v1/executions/{uuid}` as usual. A run finished elsewhere counts as cached.
+
 Config reflection is first-class: `GET /v1/project/{module}` returns the config fields
 and the [version-method vocabulary](./versions.md) (signatures + docstrings), and
 `POST /v1/interfaces/resolve` dry-runs a compact version to its resolved config and CLI

@@ -51,6 +51,7 @@ from machinable.utils import (
     load_file,
     norm_version_call,
     object_hash,
+    sanitize_filename,
     save_file,
     sentinel,
     serialize,
@@ -1511,6 +1512,12 @@ class Interface(Jsonable):
         if effective_parent is None and self.parent is not None:
             effective_parent = self.parent.record_id
 
+        existing_directory = None
+        if record_id is None and not force:
+            record_id, existing_directory = self._shared_record_id(
+                index, effective_parent
+            )
+
         response = index.materialize_from(
             self, parent_id=effective_parent, force=force, record_id=record_id
         )
@@ -1549,9 +1556,59 @@ class Interface(Jsonable):
             self.save_file(filepath, data)
         self._deferred_data = {}
 
+        if existing_directory is not None:
+            from machinable.utils import walk_markers
+
+            for directory in walk_markers(existing_directory):
+                if os.path.normpath(directory) == os.path.normpath(existing_directory):
+                    continue
+                try:
+                    index.ingest_directory(directory)
+                except Exception:  # noqa: BLE001 - a half-written record ingests on its look
+                    continue
+
         self.on_after_materialize()
 
         return self
+
+    def _shared_record_id(
+        self, index: Any, parent_id: str | None
+    ) -> tuple[str | None, str | None]:
+        """The record id this interface takes when first written to a directory."""
+        if self.kind in ("Project", "Execution"):
+            return None, None
+        from machinable.claims import shared_record_id
+        from machinable.format import read_id
+        from machinable.project import Project
+
+        if parent_id is None:
+            if Project.is_connected():
+                Project.get().ensure_project_root()
+            parent = self.parent
+            parent_id = parent.record_id if parent is not None else None
+        identity_key = sanitize_filename(self.catalog_identity_key(), max_len=128)
+        predicate_key = self.predicate_key
+        if (
+            index.get_entry(parent_id, identity_key, predicate_key, include_hidden=True)
+            is not None
+        ):
+            return None, None
+        directory = index.layout_directory(parent_id, identity_key, predicate_key)
+        header = read_id(directory)
+        if (
+            header is not None
+            and header.get("kind") == self.kind
+            and header.get("identity_key") == identity_key
+            and header.get("predicate_key") == predicate_key
+            and header.get("parent") == parent_id
+            and index.get_by_id(header["uuid"]) is None
+        ):
+            # keep the record's birth date: this is the record, indexed here
+            model = load_file([directory, "model.json"], None)
+            if isinstance(model, dict) and model.get("created_at_ns"):
+                self.__model__.created_at_ns = model["created_at_ns"]
+            return header["uuid"], directory
+        return shared_record_id(parent_id, identity_key, predicate_key), None
 
     def on_before_materialize(self):
         """Event hook before interface is materialized."""

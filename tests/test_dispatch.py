@@ -118,3 +118,44 @@ def test_dispatch_detached(project_dir):
     # the child logged and the request was persisted for provenance
     assert os.path.isfile(os.path.join(record_dir, "dispatch_request.json"))
     assert os.path.isfile(os.path.join(record_dir, "dispatch.log"))
+
+
+def test_dispatch_looks_before_handing_off(project_dir):
+    """Held elsewhere is reported, finished elsewhere is cached: neither dispatches."""
+    from machinable import Project, get
+    from machinable.claims import Claim, claim_location
+    from machinable.storage import Storage
+
+    with Project(project_dir):
+        interface = get("count").materialize()
+        location = claim_location(interface.local_directory())
+        Storage.get().create_if_absent(
+            location, Claim.held("RunHeld00001", 1).to_bytes()
+        )
+
+    handle = dispatch_request(
+        {"interfaces": [{"target": "count"}]}, project=project_dir, mode="prepare"
+    )
+    assert handle["runs"] == []
+    assert handle["running_elsewhere"] == [
+        {"uuid": "RunHeld00001", "parent_uuid": interface.uuid, "record_dir": None}
+    ]
+
+    # the holder finishes elsewhere (here: in the foreground, once its claim
+    # is gone); the next dispatch adopts that run without dispatching
+    os.remove(location)
+    done = dispatch_request(
+        {"interfaces": [{"target": "count"}]}, project=project_dir, mode="foreground"
+    )
+    assert len(done["runs"]) == 1
+    # a lost release: the claim still names the finished run, and its cached
+    # marker never got written; the parent adopts the run instead of a rerun
+    os.remove(location)
+    os.remove(os.path.join(interface.local_directory(), "cached"))
+    with Project(project_dir):
+        Storage.get().create_if_absent(location, Claim.held(done["uuid"], 5).to_bytes())
+    again = dispatch_request(
+        {"interfaces": [{"target": "count"}]}, project=project_dir, mode="prepare"
+    )
+    assert again["runs"] == [] and "running_elsewhere" not in again
+    assert load_file([interface.local_directory(), "cached"], None) == "finished"

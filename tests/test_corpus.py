@@ -22,9 +22,21 @@ from machinable.utils import load_file, normjson, object_hash, walk_markers
 CORPUS = os.path.join(os.path.dirname(__file__), "corpus")
 
 
+GENERATED = (
+    "l0.json",
+    "identity.json",
+    "tracker.json",
+    "claims.json",
+    "protocol.json",
+    "expected_index.json",
+    "behavior.json",
+)
+
+
 @pytest.fixture(scope="module", autouse=True)
 def generated_corpus():
-    if not os.path.isdir(CORPUS):
+    # a corpus generated before a vector file existed regenerates whole
+    if not all(os.path.isfile(os.path.join(CORPUS, name)) for name in GENERATED):
         from machinable.corpus import generate
 
         generate(CORPUS)
@@ -138,3 +150,48 @@ def test_corpus_tracker_vectors():
         # the implementation's own default window, pinned to the corpus above
         status = ExecutionStatus(**markers)
         assert _tracker_state(status) == vector["expect"], vector
+
+
+def test_corpus_claim_vectors():
+    """Claim states from files alone, bound to the corpus the format publishes."""
+    import arrow
+
+    from machinable.claims import claim_state
+    from machinable.execution import DEFAULT_HEARTBEAT_WINDOW
+
+    corpus = load_file([CORPUS, "claims.json"])
+    assert corpus["window_seconds"] == DEFAULT_HEARTBEAT_WINDOW
+    for vector in corpus["vectors"]:
+        state = claim_state(
+            vector["claim"],
+            vector["run"],
+            now=arrow.get(vector["now"]),
+            window=corpus["window_seconds"],
+            timeout=corpus["claim_timeout_seconds"],
+        )
+        assert state == vector["expect"], vector["note"]
+
+
+def test_corpus_claim_file_is_canonical_json():
+    from machinable.claims import Claim
+
+    for vector in load_file([CORPUS, "claims.json"])["vectors"]:
+        if vector["claim"] is None:
+            continue
+        claim = Claim.from_dict(vector["claim"])
+        assert claim is not None
+        assert claim.to_bytes().decode() == normjson(vector["claim"])
+        assert Claim.from_bytes(claim.to_bytes()) == claim
+
+
+def test_corpus_protocol_vectors():
+    """The dispatch protocol's decisions, step by step."""
+    from machinable.claims import after, decide
+
+    for sequence in load_file([CORPUS, "protocol.json"])["sequences"]:
+        for step in sequence["steps"]:
+            if step["step"] == "look":
+                got = decide(**step["observed"])
+            else:
+                got = after(step["step"], step["won"])
+            assert got == step["expect"], (sequence["note"], step)

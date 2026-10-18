@@ -164,9 +164,23 @@ def _dispatch_connected(
 
         runs = []
         pairs = []  # (run, interface); cached interfaces produce no run
+        elsewhere = []  # interfaces another dispatcher holds
         for interface in interfaces:
             if interface.cached():
                 continue  # finished result exists, nothing to dispatch
+            found = execution.look_elsewhere(interface)
+            if found == "finished elsewhere":
+                continue  # adopted: cached now
+            if found == "running elsewhere":
+                record_id = execution.elsewhere[cast(str, interface.uuid)][1]
+                elsewhere.append(
+                    {
+                        "uuid": record_id,
+                        "parent_uuid": interface.uuid,
+                        "record_dir": _run_directory(interface, record_id),
+                    }
+                )
+                continue
             entry = execution.prepare_dispatch(interface)
             record_dir = uri_to_path(entry.local_uri or entry.storage_uri)
             run = {
@@ -179,6 +193,8 @@ def _dispatch_connected(
             pairs.append((run, interface))
 
         handle: dict = {"runs": runs, "project": directory}
+        if elsewhere:
+            handle["running_elsewhere"] = elsewhere
         if runs:
             handle.update(runs[0])  # spec shape for the single-interface case
         if with_metadata:
@@ -191,7 +207,7 @@ def _dispatch_connected(
             handle["metadata"] = metadata
 
         if not runs:
-            # everything cached means terminal already; nothing to supervise
+            # everything cached (or running elsewhere): nothing to supervise
             return handle
 
         if mode == "prepare":
@@ -215,6 +231,17 @@ def _dispatch_connected(
         if wait and mode != "foreground":
             _wait_for(runs)
     return handle
+
+
+def _run_directory(interface, record_id: str) -> str | None:
+    """The directory of ``interface``'s run-record ``record_id``, once written."""
+    from machinable.storage import claim_storages
+
+    for storage in claim_storages():
+        for run in storage.run_records(interface):
+            if run.record_id == record_id:
+                return run.location
+    return None
 
 
 def _spawn_detached(request: dict, project: str, record_dir: str) -> None:

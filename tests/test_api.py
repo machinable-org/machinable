@@ -260,6 +260,103 @@ def test_dispatch_mixed_cached_dispatches_only_uncached(api_client):
     assert cached["uuid"] in both["cached_uuids"]
 
 
+def test_two_servers_over_one_folder_run_a_request_once(tmp_storage):
+    from machinable.project import Project
+
+    directory = Project.get().path()
+    body = {"interfaces": [{"target": "slow", "version": []}]}
+    with (
+        TestClient(create_app(project_dir=directory)) as one,
+        TestClient(create_app(project_dir=directory)) as two,
+    ):
+        first = one.post("/v1/executions", json=body).json()
+        assert first["running_elsewhere"] is False and first["cached"] is False
+
+        started = time.monotonic()
+        second = two.post("/v1/executions", json=body).json()
+        assert time.monotonic() - started < 5  # answered at once, not waited
+        assert second["running_elsewhere"] is True
+        assert second["cached"] is False
+        assert second["uuid"] == first["uuid"]
+        assert second["running_elsewhere_uuids"] == [first["uuid"]]
+
+        for _ in range(200):
+            if one.get(f"/v1/executions/{first['uuid']}").json()["is_finished"]:
+                break
+            time.sleep(0.05)
+        third = two.post("/v1/executions", json=body).json()
+        assert third["cached"] is True and third["uuid"] == first["uuid"]
+        assert third["running_elsewhere"] is False
+
+
+SERVER = """
+import json
+import sys
+
+from fastapi.testclient import TestClient
+
+from machinable.api.app import create_app
+
+project, out = sys.argv[1:3]
+body = {"interfaces": [{"target": "slow", "version": []}]}
+with TestClient(create_app(project_dir=project)) as client:
+    answer = client.post("/v1/executions", json=body).json()
+    uuid = answer["uuid"]
+    if not answer["running_elsewhere"] and not answer["cached"]:
+        while not client.get(f"/v1/executions/{uuid}").json()["is_finished"]:
+            pass
+with open(out, "w") as f:
+    json.dump(answer, f)
+"""
+
+
+def test_two_server_processes_with_their_own_index_run_once(tmp_path):
+    import json
+    import os
+    import shutil
+    import subprocess
+    import sys
+
+    project = tmp_path / "project"
+    shutil.copytree(
+        "tests/samples/project", project, ignore=shutil.ignore_patterns("storage")
+    )
+    script = tmp_path / "server.py"
+    script.write_text(SERVER)
+    src = os.path.join(os.path.dirname(os.path.dirname(__file__)), "src")
+    processes = []
+    for name in ("a", "b"):
+        env = dict(
+            os.environ,
+            MACHINABLE_INDEX=str(tmp_path / f"{name}.sqlite"),
+            PYTHONPATH=src,
+        )
+        processes.append(
+            subprocess.Popen(
+                [sys.executable, str(script), str(project), str(tmp_path / name)],
+                env=env,
+                cwd=str(project),
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+            )
+        )
+    for process in processes:
+        output, _ = process.communicate(timeout=120)
+        assert process.returncode == 0, output.decode()
+    answers = [json.loads((tmp_path / name).read_text()) for name in ("a", "b")]
+    assert answers[0]["uuid"] == answers[1]["uuid"]
+    assert sorted(a["running_elsewhere"] or a["cached"] for a in answers) == [
+        False,
+        True,
+    ]
+    runs = [
+        dirpath
+        for dirpath, _, files in os.walk(project / "storage")
+        if "id.json" in files and '"Execution"' in open(f"{dirpath}/id.json").read()
+    ]
+    assert len(runs) == 1
+
+
 def test_dispatch_interfaces_with_context(api_client):
     def run(body):
         resp = api_client.post("/v1/executions", json=body)

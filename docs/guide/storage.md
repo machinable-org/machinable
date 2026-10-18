@@ -77,6 +77,11 @@ Index.get().ingest_directory(path)    # ingest a single run directory
 This is why you can hand a results folder to a collaborator and they can index it
 as-is.
 
+## Sharing one folder
+
+Several processes, indexes or machines can use one storage folder at once (point `Storage("/shared/experiments")` at it from each; a separate index per machine is the normal case). Records keep the same content-addressed paths and the same ids in every index, and an interface dispatched from several of them at once runs once (see [concurrent dispatch](./advanced-execution.md#concurrent-dispatch)). The `.claims/` directories beside interface directories hold the claims that make that work; they are
+not records, are never indexed, and can be deleted when nothing runs.
+
 ## Local, remote, and availability
 
 A run's data may be local, available in a remote store, or evicted (indexed but not

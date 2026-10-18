@@ -291,6 +291,22 @@ class ExecutionInfo(BaseModel):
             " omitted)."
         ),
     )
+    running_elsewhere: bool = Field(
+        default=False,
+        description=(
+            "Set by POST /v1/executions when nothing was dispatched because some"
+            " requested interfaces are running elsewhere (another server, process"
+            " or machine holds their claim) and the rest are cached: this record"
+            " is the run of the first interface."
+        ),
+    )
+    running_elsewhere_uuids: list[str] = Field(
+        default_factory=list,
+        description=(
+            "With `running_elsewhere`: the uuids of the run-records running"
+            " elsewhere, in request order (the cached ones are in `cached_uuids`)."
+        ),
+    )
 
 
 class InterfaceRef(BaseModel):

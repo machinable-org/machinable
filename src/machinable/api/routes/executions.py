@@ -31,23 +31,54 @@ from machinable.project import Project
 router = APIRouter(prefix="/v1/executions", tags=["executions"])
 
 
-def _cached_runs(execution: Execution) -> list[Execution]:
-    """The latest run-record of each queued (cached) interface, in queue order."""
+def _cached_run(interface: Interface) -> Execution | None:
+    """The latest run-record of a cached interface."""
     from machinable.api.models import FindRequest
     from machinable.index import Index
 
-    runs: list[Execution] = []
+    children = (
+        Index.get()
+        .find(FindRequest(parent_id=interface.uuid, kind="Execution", limit=1))
+        .items
+    )
+    if children:
+        run = Interface.find_by_id(children[0].record_id)
+        if isinstance(run, Execution):
+            return run
+    return None
+
+
+def _running_run(interface: Interface, record_id: str) -> Execution | None:
+    """The run-record ``record_id`` of ``interface``, running elsewhere."""
+    from machinable.storage import claim_storages
+
+    run = Interface.find_by_id(record_id, fetch=False)
+    if isinstance(run, Execution):
+        return run
+    for storage in claim_storages():
+        for found in storage.run_records(interface):
+            if found.record_id == record_id and storage.adopt(found):
+                run = Interface.find_by_id(record_id, fetch=False)
+                return run if isinstance(run, Execution) else None
+    return None
+
+
+def _answers(execution: Execution) -> list[tuple[str, Interface, str | None]]:
+    """Why each queued interface was not dispatched here, in queue order.
+
+    ``("cached", interface, None)`` or ``("running", interface, run id)``.
+    """
+    answers: list[tuple[str, Interface, str | None]] = []
     for interface in execution.interfaces:
-        children = (
-            Index.get()
-            .find(FindRequest(parent_id=interface.uuid, kind="Execution", limit=1))
-            .items
+        if interface.cached():
+            answers.append(("cached", interface, None))
+            continue
+        reason, record_id = execution.elsewhere.get(
+            cast(str, interface.uuid), (None, None)
         )
-        if children:
-            run = Interface.find_by_id(children[0].record_id)
-            if isinstance(run, Execution):
-                runs.append(run)
-    return runs
+        if reason == "running elsewhere":
+            answers.append(("running", interface, record_id))
+    return answers
 
 
 @router.post("", response_model=ExecutionInfo)
@@ -70,7 +101,7 @@ def dispatch_execution(
     username = getattr(request.state, "username", None)
     holder: dict[str, Execution | None] = {"execution": None}
     failure: dict[str, BaseException | None] = {"error": None}
-    cached_runs: list[Execution] = []
+    answers: list[tuple[str, Interface, str | None]] = []
 
     def _run() -> None:
         # the background thread re-enters the project in its own isolated
@@ -92,6 +123,7 @@ def dispatch_execution(
                     )
                 else:
                     execution = Execution()
+                execution.wait_elsewhere(False)
                 holder["execution"] = execution
 
                 for entry in entries:
@@ -109,7 +141,7 @@ def dispatch_execution(
                         execution.add(interface)
                 execution.dispatch()
                 if execution.uuid is None:
-                    cached_runs.extend(_cached_runs(execution))
+                    answers.extend(_answers(execution))
         except Exception as ex:
             failure["error"] = ex
             _log_event(request, f"dispatch failed: {ex}")
@@ -123,17 +155,13 @@ def dispatch_execution(
         if execution is not None and execution.uuid is not None:
             break
         if not thread.is_alive():
-            break  # ended without minting a run-record: failed or all cached
+            break
         time.sleep(0.01)
 
-    if cached_runs and failure["error"] is None and not thread.is_alive():
-        runs = [execution_to_info(run) for run in cached_runs]
-        for run in cached_runs:
-            _interfaces_for(request)[cast(str, run.uuid)] = run
-        _log_event(request, f"POST /v1/executions -> cached {runs[0].uuid}")
-        return runs[0].model_copy(
-            update={"cached": True, "cached_uuids": [r.uuid for r in runs]}
-        )
+    if answers and failure["error"] is None and not thread.is_alive():
+        answered = _answer(request, directory, username, answers, deadline)
+        if answered is not None:
+            return answered
 
     execution = holder["execution"]
     if execution is None or execution.uuid is None:
@@ -152,6 +180,54 @@ def dispatch_execution(
     _interfaces_for(request)[execution.uuid] = execution
     _log_event(request, f"POST /v1/executions -> {execution.uuid}")
     return execution_to_info(execution)
+
+
+def _answer(
+    request: Request,
+    directory: str,
+    username: str | None,
+    answers: list[tuple[str, Interface, str | None]],
+    deadline: float,
+) -> ExecutionInfo | None:
+    """The response when nothing was dispatched here."""
+    cached: list[Execution] = []
+    running: list[Execution] = []
+    first: Execution | None = None
+    with connection_scope(), Project(directory, username=username):
+        for kind, interface, record_id in answers:
+            run = None
+            if kind == "cached":
+                run = _cached_run(interface)
+            else:
+                # the claimant writes its run-record right after claiming
+                while run is None:
+                    run = _running_run(interface, cast(str, record_id))
+                    if run is not None or time.monotonic() >= deadline:
+                        break
+                    time.sleep(0.05)
+            if run is None:
+                continue
+            (cached if kind == "cached" else running).append(run)
+            if first is None:
+                first = run
+        if first is None:
+            return None
+        for run in cached + running:
+            _interfaces_for(request)[cast(str, run.uuid)] = run
+        info = execution_to_info(first)
+    _log_event(
+        request,
+        f"POST /v1/executions -> {'running elsewhere' if running else 'cached'}"
+        f" {info.uuid}",
+    )
+    return info.model_copy(
+        update={
+            "cached": not running,
+            "cached_uuids": [cast(str, r.uuid) for r in cached],
+            "running_elsewhere": bool(running),
+            "running_elsewhere_uuids": [cast(str, r.uuid) for r in running],
+        }
+    )
 
 
 @router.get("", response_model=list[ExecutionInfo])

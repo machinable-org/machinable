@@ -11,6 +11,10 @@ Contents:
 - ``l0.json``: canonical-JSON + sha256 vectors (float/unicode edges)
 - ``identity.json``: canonical-config + identity_key derivation vectors
 - ``tracker.json``: run-status state-machine vectors (markers + now → state)
+- ``claims.json``: claim-state vectors (claim file + claimed run's markers +
+                            now → unclaimed | held | stale)
+- ``protocol.json``: claim-protocol sequences (look and operation outcomes →
+                            the dispatcher's next step)
 - ``store/``: deterministic record directories (every kind, edge
                             logs with duplicates, status markers, hash-edge configs)
 - ``expected_index.json``: rows a conformant ingest of ``store/`` must produce
@@ -248,6 +252,319 @@ def tracker_vectors() -> list[dict]:
             },
             "now": "2026-01-02T00:00:00+00:00",
             "expect": "finished",
+        },
+        {
+            # its claim was taken over: died, however fresh its heartbeat
+            "markers": {
+                "dispatched_at": t.format(s=0),
+                "started_at": t.format(s=1),
+                "heartbeat_at": t.format(s=29),
+                "abandoned_at": t.format(s=29),
+            },
+            "now": t.format(s=30),
+            "expect": "died",
+        },
+        {
+            # a pending run whose claim was taken: died, not pending forever
+            "markers": {
+                "dispatched_at": t.format(s=0),
+                "abandoned_at": t.format(s=10),
+            },
+            "now": t.format(s=30),
+            "expect": "died",
+        },
+        {
+            # a finish racing the takeover wins
+            "markers": {
+                "dispatched_at": t.format(s=0),
+                "started_at": t.format(s=1),
+                "heartbeat_at": t.format(s=1),
+                "abandoned_at": "2026-01-01T12:02:00+00:00",
+                "finished_at": "2026-01-01T12:02:01+00:00",
+            },
+            "now": "2026-01-01T12:03:00+00:00",
+            "expect": "finished",
+        },
+    ]
+
+
+def _claim(record_id: str = "RunClaimd001", state: str = "held", **fields) -> dict:
+    claim = {
+        "record_id": record_id,
+        "state": state,
+        "host": "corpus-host",
+        "pid": 4242,
+        "claimed_at": "2026-01-01T12:00:00+00:00",
+        "generation": 1,
+    }
+    claim.update(fields)
+    return claim
+
+
+def claim_vectors() -> list[dict]:
+    """Claim-state vectors.
+
+    The claim file (``null`` when absent) and the claimed run's markers
+    (``null`` when its run-record is not there) plus a reference ``now`` →
+    ``unclaimed``, ``held`` or ``stale``, at the default 90 s heartbeat
+    window and claim timeout (the timeout defaults to the window).
+    """
+    t = "2026-01-01T12:{m:02d}:{s:02d}+00:00"
+    return [
+        {
+            "note": "no claim file",
+            "claim": None,
+            "run": None,
+            "now": t.format(m=0, s=5),
+            "expect": "unclaimed",
+        },
+        {
+            "note": "released",
+            "claim": _claim(state="released", generation=2),
+            "run": {
+                "started_at": t.format(m=0, s=1),
+                "finished_at": t.format(m=0, s=9),
+            },
+            "now": t.format(m=0, s=10),
+            "expect": "unclaimed",
+        },
+        {
+            "note": "held, but the claimed run finished: its release was lost",
+            "claim": _claim(),
+            "run": {
+                "started_at": t.format(m=0, s=1),
+                "heartbeat_at": t.format(m=0, s=1),
+                "finished_at": t.format(m=0, s=9),
+            },
+            "now": t.format(m=0, s=10),
+            "expect": "unclaimed",
+        },
+        {
+            "note": "held, fresh heartbeat",
+            "claim": _claim(),
+            "run": {
+                "started_at": t.format(m=0, s=1),
+                "heartbeat_at": t.format(m=1, s=30),
+            },
+            "now": t.format(m=2, s=0),
+            "expect": "held",
+        },
+        {
+            "note": "held, starting: no run-record yet, claimed within the timeout",
+            "claim": _claim(),
+            "run": None,
+            "now": t.format(m=1, s=29),
+            "expect": "held",
+        },
+        {
+            "note": "held, no heartbeat, claimed past the timeout",
+            "claim": _claim(),
+            "run": {"dispatched_at": t.format(m=0, s=0)},
+            "now": t.format(m=1, s=31),
+            "expect": "stale",
+        },
+        {
+            "note": "held, heartbeat 119 s old, claimed long ago",
+            "claim": _claim(),
+            "run": {
+                "started_at": t.format(m=0, s=1),
+                "heartbeat_at": t.format(m=1, s=1),
+            },
+            "now": t.format(m=3, s=0),
+            "expect": "stale",
+        },
+        {
+            "note": "held, heartbeat a day old: elapsed time is a total",
+            "claim": _claim(),
+            "run": {
+                "started_at": t.format(m=0, s=1),
+                "heartbeat_at": t.format(m=0, s=1),
+            },
+            "now": "2026-01-02T12:00:02+00:00",
+            "expect": "stale",
+        },
+        {
+            "note": "clock skew: a heartbeat in the reader's future is fresh",
+            "claim": _claim(),
+            "run": {
+                "started_at": t.format(m=0, s=1),
+                "heartbeat_at": t.format(m=9, s=0),
+            },
+            "now": t.format(m=5, s=0),
+            "expect": "held",
+        },
+        {
+            "note": "clock skew: a claim made in the reader's future is held",
+            "claim": _claim(claimed_at=t.format(m=9, s=0)),
+            "run": None,
+            "now": t.format(m=5, s=0),
+            "expect": "held",
+        },
+        {
+            "note": "re-claimed to resume a died run: a fresh claimed_at covers "
+            "the old heartbeat until the claimant beats",
+            "claim": _claim(claimed_at=t.format(m=30, s=0), generation=3),
+            "run": {
+                "started_at": t.format(m=0, s=1),
+                "heartbeat_at": t.format(m=0, s=1),
+            },
+            "now": t.format(m=30, s=5),
+            "expect": "held",
+        },
+        {
+            "note": "held by an abandoned run: its heartbeat does not count",
+            "claim": _claim(),
+            "run": {
+                "started_at": t.format(m=0, s=1),
+                "heartbeat_at": t.format(m=4, s=59),
+                "abandoned_at": t.format(m=4, s=0),
+            },
+            "now": t.format(m=5, s=0),
+            "expect": "stale",
+        },
+    ]
+
+
+# ----------------------------------------------------------- protocol vectors
+
+
+def _observed(
+    claim_file: str = "absent",
+    claim_state: str = "unclaimed",
+    *,
+    cached: bool = False,
+    finished: bool = False,
+    wait: bool = True,
+) -> dict:
+    return {
+        "cached": cached,
+        "finished": finished,
+        "claim_file": claim_file,
+        "claim_state": claim_state,
+        "wait": wait,
+    }
+
+
+def protocol_vectors() -> list[dict]:
+    """Claim-protocol sequences.
+
+    Each step is a look (what it observed: the ``cached`` marker, whether a
+    finished run this dispatch adopts is listed, the claim file and its
+    state, whether the dispatch waits) or an operation and whether it won;
+    ``expect`` is the dispatcher's next step. ``finished`` excludes runs a
+    dispatch dismissed: finished runs its index knew at its first look while
+    no held claim named them (the interface was un-cached: rerun).
+    """
+    look = "look"
+    return [
+        {
+            "note": "the first dispatcher claims, runs and releases",
+            "steps": [
+                {"step": look, "observed": _observed(), "expect": "create"},
+                {"step": "create", "won": True, "expect": "run"},
+                {"step": "release", "won": True, "expect": "done"},
+            ],
+        },
+        {
+            "note": "a second dispatcher loses the create, waits, adopts",
+            "steps": [
+                {"step": look, "observed": _observed(), "expect": "create"},
+                {"step": "create", "won": False, "expect": "look"},
+                {"step": look, "observed": _observed("held", "held"), "expect": "wait"},
+                # the claimed run wrote finished_at; its release may not be there
+                {
+                    "step": look,
+                    "observed": _observed("held", "unclaimed", finished=True),
+                    "expect": "adopt",
+                },
+            ],
+        },
+        {
+            "note": "the winner released before the waiter looked again",
+            "steps": [
+                {"step": look, "observed": _observed("held", "held"), "expect": "wait"},
+                {
+                    "step": look,
+                    "observed": _observed("released", "unclaimed", finished=True),
+                    "expect": "adopt",
+                },
+            ],
+        },
+        {
+            "note": "without waiting, a held claim is reported running elsewhere",
+            "steps": [
+                {
+                    "step": look,
+                    "observed": _observed("held", "held", wait=False),
+                    "expect": "report",
+                },
+            ],
+        },
+        {
+            "note": "a stale claim is taken over by exactly one of two waiters",
+            "steps": [
+                {
+                    "step": look,
+                    "observed": _observed("held", "stale"),
+                    "expect": "take over",
+                },
+                {"step": "take over", "won": True, "expect": "abandon"},
+                {"step": "abandon", "won": True, "expect": "run"},
+                {"step": "release", "won": True, "expect": "done"},
+            ],
+        },
+        {
+            "note": "the other waiter loses the takeover and waits on the new run",
+            "steps": [
+                {
+                    "step": look,
+                    "observed": _observed("held", "stale"),
+                    "expect": "take over",
+                },
+                {"step": "take over", "won": False, "expect": "look"},
+                {"step": look, "observed": _observed("held", "held"), "expect": "wait"},
+            ],
+        },
+        {
+            "note": "a run whose claim was taken over loses its release",
+            "steps": [
+                {"step": "release", "won": False, "expect": "dropped"},
+            ],
+        },
+        {
+            "note": "a lost release: the next dispatcher adopts the finished run",
+            "steps": [
+                {
+                    "step": look,
+                    "observed": _observed("held", "unclaimed", finished=True),
+                    "expect": "adopt",
+                },
+            ],
+        },
+        {
+            "note": "un-cached: the dismissed finished run is rerun",
+            "steps": [
+                {"step": look, "observed": _observed("released"), "expect": "replace"},
+                {"step": "replace", "won": True, "expect": "run"},
+            ],
+        },
+        {
+            "note": "a failed run released its claim without finishing: run again",
+            "steps": [
+                {"step": look, "observed": _observed("released"), "expect": "replace"},
+                {"step": "replace", "won": False, "expect": "look"},
+                {"step": look, "observed": _observed("held", "held"), "expect": "wait"},
+            ],
+        },
+        {
+            "note": "cached: nothing to do",
+            "steps": [
+                {
+                    "step": look,
+                    "observed": _observed("released", cached=True),
+                    "expect": "cached",
+                },
+            ],
         },
     ]
 
@@ -514,6 +831,15 @@ def generate(directory: str) -> dict:
         [directory, "tracker.json"],
         {"window_seconds": 90, "vectors": tracker_vectors()},
     )
+    save_file(
+        [directory, "claims.json"],
+        {
+            "window_seconds": 90,
+            "claim_timeout_seconds": 90,
+            "vectors": claim_vectors(),
+        },
+    )
+    save_file([directory, "protocol.json"], {"sequences": protocol_vectors()})
 
     # expected index rows + behavioral expectations come from running the real
     # implementation at generation time; Python is the reference.

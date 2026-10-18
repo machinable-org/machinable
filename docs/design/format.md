@@ -13,7 +13,8 @@ moment a desktop app, a Rust tracker, a sync tool, or a collaborator's script wa
 read a store without importing machinable, every implicit convention becomes a
 reverse-engineering exercise that silently drifts. The format contract turns those
 conventions into pinned, testable facts. A conformance corpus
-(`python -m machinable.corpus`, generated into `tests/corpus/` on the first test run)
+(`python -m machinable.corpus`, generated into `tests/corpus/` on the first test run;
+the run state machine, claim states and the claim protocol as vectors among the rest)
 enforces it: any implementation, in any language, must reproduce the corpus's hashes
 byte-for-byte and its index rows row-for-row.
 
@@ -33,6 +34,7 @@ A record directory is self-describing:
 | `model.json` | the full record model (module, config layers, version, predicate, ...) |
 | `updated_at` | per-record sync marker |
 | `dispatched/started/heartbeat/finished/resumed_at` | run-status markers (executions) |
+| `abandoned_at` | the run's claim was taken over (executions; see [Claims](#claims)) |
 | `related/metadata.jsonl` | the edge log |
 | everything else | the record's artifact namespace |
 
@@ -123,6 +125,151 @@ The pending window is ambiguous by nature, since a job that dies in the queue st
 since no heartbeat ever existed to go stale. This is accepted. The scheduler eventually
 starts the job or the user cancels; queue-accurate status is optional enrichment, not
 required for correctness.
+
+A fifth marker, `abandoned_at`, is written by *another* dispatcher: the one that took over
+the run's [claim](#claims) after its heartbeat went stale. An abandoned run reads as
+died whatever its other markers say (a fresh heartbeat or a pending `dispatched_at`
+included), and it is never resumed. The one exception is `finished_at`: a finish that
+raced the takeover wins, and the run reads as terminal.
+
+## Claims
+
+Content-addressed paths mean every dispatcher of one interface computes the same
+directory, so anything that sees the same record directories (threads, processes, two
+indexes over one folder, machines on a shared filesystem) could run the same interface at
+once. A claim makes it run once. It is a small file of the format, readable without
+machinable: whether an interface is claimed, by which run and whether that claim is live
+is decided from files alone, by the rules below, in every implementation.
+
+### The claim file
+
+`<identity dir>/.claims/<predicate_key>`, beside the interface directories of that
+identity: one claim per identity and predicate, so a run of any Execution fills the same
+cache entry. Canonical JSON (the profile below):
+
+```json
+{"claimed_at":"2026-01-01T12:00:00+00:00","generation":3,"host":"node-7","pid":123,"record_id":"<run-record uuid>","state":"held"}
+```
+
+- `record_id`: the run-record that holds the claim. The run is minted with this id, so
+  one folder holds one id for it, whichever index made it.
+- `state`: `held` or `released`.
+- `generation`: incremented on every write, so a replace names the version it read. A
+  store with versions of its own (an object store's ETag) compares those and still writes
+  the generation, for readers without them.
+- `host`, `pid`, `claimed_at` (ISO-8601): who claimed, and when.
+
+The claim is not an identity artifact. It lives outside every record directory, is never
+indexed and is ignored by reindex. It is safe to delete when nothing runs, together with
+its generation files (`<predicate_key>.<n>`, the disk storage's history of the claim); a
+missing claim reads as unclaimed.
+
+### Claim states, from files alone
+
+| Claim file | The claimed run's markers | State |
+|---|---|---|
+| absent, or `released` | — | **unclaimed** |
+| `held` | `finished_at` | **unclaimed** (finished; a release was lost) |
+| `held` | fresh `heartbeat_at` (and no `abandoned_at`) | **held** |
+| `held` | `claimed_at` within the claim timeout | **held** (starting) |
+| `held` | otherwise: stale heartbeat or none, claimed past the timeout | **stale** |
+
+The claim timeout defaults to the heartbeat window, freshness is measured as for runs
+(total elapsed time; a timestamp in the reader's future is fresh), and a fresh `claimed_at`
+counts whatever the heartbeat says, so a claimant resuming a died run in place is held
+from the moment it claims, before its first beat. The claimant writes `heartbeat_at` as
+soon as its run-record exists, before the payload starts (an environment to sync, a model
+to load), so the timeout only covers a claimant dying between claiming and that first
+beat. A Tracker answers "is this running somewhere?" with these rules.
+
+### The two atomic operations
+
+A store that supports claims offers two operations beside its ordinary reads:
+
+- **create-if-absent**(path, bytes): writes only if nothing is there; reports which happened.
+- **replace-if-unchanged**(path, bytes, version): writes only if the file is still the
+  version read; reports which happened.
+
+On a POSIX filesystem, create-if-absent writes a temporary file and `link()`s it to the
+claim's name, which fails if the name exists (exclusive create, like `O_CREAT|O_EXCL`, in
+the form NFS honours). Replace-if-unchanged writes the next generation `n + 1` to a
+temporary file, `link()`s it to `<claim>.<n + 1>` (no-clobber, so of all writers replacing
+generation `n` exactly one wins) and renames it over the claim (atomic, so a reader sees
+the old claim or the new one, never half a file). A `link` reported as failing over NFS
+(a retransmission finding the name it created) is told apart by the temporary file's link
+count. A writer that dies between its link and
+its rename would leave generation `n` unreplaceable; a generation file older than 30 s
+while the claim still reads `n` is installed on its behalf. Object stores use conditional
+writes (`If-None-Match: *`, `If-Match`). A store without either operation supports no
+exclusive claim: dispatch still looks there (and adopts what finished), but runs without
+exclusivity.
+
+### The protocol
+
+For one interface, a dispatcher:
+
+1. **Looks.** Reads the claim, keeping its version, *then* lists the interface's
+   run-records, then reads the interface's `cached` marker. The order matters: a run writes
+   `finished_at`, then its `cached` marker, then releases, so a claim read as released means
+   the listing includes its finished run and the marker is there.
+   - `cached`: done.
+   - a finished run: **adopt** it (index it where the dispatcher's index does not know it)
+     and end cached. Finished runs the dispatcher's index already knew at its *first* look
+     while no held claim named them are dismissed: the interface was un-cached, and
+     un-caching reruns.
+   - claim held: wait on it (look again, until the dispatch's timeout) or report it running
+     elsewhere;
+   - otherwise go on.
+2. **Claims.** create-if-absent when the look saw no claim; replace-if-unchanged against the
+   version the look saw when it saw a released or stale one, so a dispatcher never replaces
+   a claim it has not seen. Losing either means another dispatcher acted in between: look
+   again.
+3. **Takes over.** When the replaced claim was held and stale, writes `abandoned_at` into
+   the dead run-record, which is never resumed. If the dead run turns out finished after
+   all, the dispatcher releases its claim and adopts that run instead.
+4. **Runs**, with the run-record minted under the claimed record id.
+5. **Releases** after `finished_at` is written: replace-if-unchanged to `released`, against
+   the claim as it reads now, and only if it still names this run. Losing means a waiter
+   took over a claim it judged stale; the release is dropped and the run's result stands
+   (finished wins over the takeover's run, which finds it finished at its next look). A
+   run that fails writes no `finished_at` and releases all the same, so the next
+   dispatcher runs it again, as a dispatch after a failure always has.
+
+Decisions are a pure function of what a look observed and what an operation reported; the
+corpus pins them as sequences.
+
+### Why a file, not a lock service or a database
+
+A lock service (etcd, ZooKeeper, a Redis lock) or a shared database row would give
+stronger primitives (leases, fencing tokens, notifications) and none of the properties the
+format exists for. Each is a process somebody has to run and reach from every node,
+laptop and CI job, which is exactly the server-free operation the run state machine was
+built to keep. The truth of whether something runs would also move out of the
+directories: a store copied, archived or handed to a collaborator would no longer say what
+held it, and a Tracker reading files could not answer "is this running?". The index cannot
+serve either, since indexes are per-context caches that never travel and two of them over
+one folder know nothing of each other.
+
+A file next to the records needs only what every store already offers or can: exclusive
+create and a conditional replace, the operations an object store exposes as conditional
+writes. It is coordinated by the same liveness oracle as runs (the heartbeat), so there is
+no second clock, lease or timeout to reason about. The price is the heartbeat's: a claimant
+that stalls past the window can be taken over while still alive, and both runs then
+finish. The protocol orders writes so that this is the only way to run twice, and the
+format prefers it to its opposite: a false "died" costs a duplicate run, a lock that never
+expires would cost the interface.
+
+### Interface ids shared by every dispatcher
+
+The claim and the run-record's `parent` must agree across indexes, so an interface's record
+id is derived, not minted, when it is first written: if the interface's directory already
+holds an `id.json` with the same keys, its uuid is taken (and the run-records inside are
+indexed with it); otherwise the id is a deterministic function of the parent id, identity
+key and predicate key, 12 base62 characters of
+`sha256(parent_id + "\0" + identity_key + "\0" + predicate_key)` (the project root's id was
+already derived; this extends the rule one level down). An index that holds an interface
+already keeps its id, so existing random ids stay. The sharing rule "same path, different
+uuids" below stays for records made without claims.
 
 ## Canonical JSON and the float profile
 
@@ -242,7 +389,7 @@ The contract is layered so implementations can claim exactly what they need:
 | Class | Can do | Needs |
 |---|---|---|
 | **Reader** | browse records, config, edges, artifacts | directory parsing only |
-| **Tracker** | the run state machine | status markers only |
+| **Tracker** | the run state machine, claim states | status markers, claim files |
 | **Indexer** | build/refresh/query an index | + ingest & the find algebra |
 | **Verifier** | recompute keys, detect drift | + canonical JSON & hashing |
 | **Writer** | materialize new records | config resolution (**Python only**) |

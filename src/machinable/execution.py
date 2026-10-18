@@ -28,7 +28,7 @@ from machinable.interface import (
     get_dump,
     get_inherits,
 )
-from machinable.storage import Storage
+from machinable.storage import Storage, claim_storages
 from machinable.types import (
     DatetimeType,
     TimestampType,
@@ -37,15 +37,25 @@ from machinable.types import (
 from machinable.utils import (
     generate_seed,
     load_file,
+    random_str,
     save_file,
     tee_output,
     update_dict,
 )
 
 if TYPE_CHECKING:
+    from machinable.api.models import IndexEntry
+    from machinable.claims import Claim, Look, RunRecord
     from machinable.manifest import Manifest
 
-_allowed_status = ["dispatched", "started", "heartbeat", "finished", "resumed"]
+_allowed_status = [
+    "dispatched",
+    "started",
+    "heartbeat",
+    "finished",
+    "resumed",
+    "abandoned",
+]
 
 
 def _assert_allowed(status: str):
@@ -53,7 +63,9 @@ def _assert_allowed(status: str):
         raise ValueError(f"Invalid status '{status}'; must be one of {_allowed_status}")
 
 
-StatusType = Literal["dispatched", "started", "heartbeat", "finished", "resumed"]
+StatusType = Literal[
+    "dispatched", "started", "heartbeat", "finished", "resumed", "abandoned"
+]
 
 # Cadence at which a running payload writes its heartbeat marker
 HEARTBEAT_INTERVAL = 15.0
@@ -79,6 +91,11 @@ def heartbeat_window() -> float:
     except ValueError:
         return DEFAULT_HEARTBEAT_WINDOW
     return window if window > 0 else DEFAULT_HEARTBEAT_WINDOW
+
+
+def heartbeat_interval() -> float:
+    """The cadence of the heartbeat marker in seconds."""
+    return min(HEARTBEAT_INTERVAL, heartbeat_window() / 6)
 
 
 def heartbeat_is_fresh(heartbeat: DatetimeType | None, window: float) -> bool:
@@ -112,6 +129,7 @@ class ExecutionStatus:
     resumed_at: DatetimeType | None = None
     heartbeat_at: DatetimeType | None = None
     finished_at: DatetimeType | None = None
+    abandoned_at: DatetimeType | None = None
     window: float = DEFAULT_HEARTBEAT_WINDOW
 
     @property
@@ -135,9 +153,14 @@ class ExecutionStatus:
         return self.resumed_at is not None
 
     @property
+    def is_abandoned(self) -> bool:
+        """True when another dispatcher took over this run's claim."""
+        return self.abandoned_at is not None
+
+    @property
     def is_active(self) -> bool:
         """True while the heartbeat is recent and the run unfinished."""
-        if self.is_finished:
+        if self.is_finished or self.is_abandoned:
             return False
         return heartbeat_is_fresh(self.heartbeat_at, self.window)
 
@@ -152,7 +175,12 @@ class ExecutionStatus:
         Without this the state is indistinguishable from a never-dispatched
         record (see docs/design/format.md).
         """
-        return self.is_dispatched and not self.is_started and not self.is_finished
+        return (
+            self.is_dispatched
+            and not self.is_started
+            and not self.is_finished
+            and not self.is_abandoned
+        )
 
     @property
     def is_live(self) -> bool:
@@ -161,8 +189,23 @@ class ExecutionStatus:
 
     @property
     def is_incomplete(self) -> bool:
-        """True when started but no longer live."""
-        return self.is_started and not self.is_live
+        """True when started (or abandoned) but no longer live."""
+        return (self.is_started or self.is_abandoned) and not self.is_live
+
+
+@dataclass(frozen=True)
+class _Hold:
+    """A claim this dispatch holds while it runs an interface."""
+
+    storage: Storage
+    location: str
+    claim: "Claim"
+    resume: "IndexEntry | None"
+
+
+_HELD_CLAIMS: contextvars.ContextVar[frozenset[str]] = contextvars.ContextVar(
+    "machinable_held_claims", default=frozenset()
+)
 
 
 class Execution(Interface):
@@ -206,10 +249,26 @@ class Execution(Interface):
         self._interfaces: list[Interface] = []
         self._resources = {}
         self._defer_dispatch = False
+        self._wait_elsewhere = True
+        self._wait_timeout: float | None = None
+        self._wait_interval: float | None = None
+        self.elsewhere: dict[str, tuple[str, str]] = {}
 
     def deferred(self, defer: bool = True):
         """Defer dispatch on context exit (to collect a grid without running it)."""
         self._defer_dispatch = defer
+        return self
+
+    def wait_elsewhere(
+        self,
+        wait: bool = True,
+        timeout: float | None = None,
+        interval: float | None = None,
+    ) -> Self:
+        """Choose what dispatch does with an interface running elsewhere."""
+        self._wait_elsewhere = wait
+        self._wait_timeout = timeout
+        self._wait_interval = interval
         return self
 
     @classmethod
@@ -440,7 +499,13 @@ class Execution(Interface):
         if not self._interfaces:
             return self
 
-        if not any(not interface.cached() for interface in self._interfaces):
+        uncached = False
+        for interface in self._interfaces:
+            if not interface.cached():
+                uncached = True
+            elif interface.is_materialized():
+                self._index_claimed_run(interface)
+        if not uncached:
             return self
 
         if self.on_before_dispatch() is False:
@@ -449,6 +514,11 @@ class Execution(Interface):
         for interface in self._interfaces:
             if not interface.is_materialized():
                 interface.materialize()
+
+        if type(self).__call__ is not Execution.__call__:
+            for interface in self._interfaces:
+                if not interface.cached():
+                    self.look_elsewhere(interface)
 
         try:
             self.__call__()
@@ -464,28 +534,330 @@ class Execution(Interface):
         for interface in self._interfaces:
             if not interface.cached():
                 self.dispatch_interface(interface)
+            else:
+                # cached since dispatch began, maybe by another index's run
+                self._index_claimed_run(interface)
 
     def dispatch_interface(self, interface: Interface) -> None:
         """Establish a run-record for ``interface`` via the Index, then run it."""
         if not interface.is_materialized():
             interface.materialize()
 
-        resume = self._resumable_run(interface)
-        if resume is not None:
-            # Deliberate resume: the interface's latest run-record (same runner
-            # identity) is dispatched-or-started but unfinished, continue it in
-            # place; a merely-dispatched record (serverless phase 1) starts, a
-            # started one resumes.
-            self.__model__.predicate = copy.deepcopy(resume.predicate)
-            self._apply_index_entry(resume)
-        else:
-            self._apply_index_entry(self._mint_run_record(interface))
-        self.to_directory(self.local_directory(create=True), relations=False)
+        hold = None
+        if (
+            self.on_write_meta_data() is not False
+            and interface.on_write_meta_data() is not False
+        ):
+            # ranks that write no metadata (MPI workers) run under the
+            # controller's claim
+            run, hold = self._claim(interface)
+            if not run:
+                return
+        resume = hold.resume if hold is not None else self._resumable_run(interface)
 
-        if resume is None:
-            self._capture_manifest()
+        token = None
+        try:
+            if resume is not None:
+                # Deliberate resume: the interface's latest run-record (same
+                # runner identity) is dispatched-or-started but unfinished,
+                # continue it in place; a merely-dispatched record (serverless
+                # phase 1) starts, a started one resumes.
+                self.__model__.predicate = copy.deepcopy(resume.predicate)
+                self._apply_index_entry(resume)
+            else:
+                self._apply_index_entry(
+                    self._mint_run_record(
+                        interface,
+                        record_id=hold.claim.record_id if hold is not None else None,
+                    )
+                )
+            self.to_directory(self.local_directory(create=True), relations=False)
 
-        self._run_payload(interface)
+            if hold is not None:
+                # beat at once, so the claim timeout only covers the moment
+                # between claiming and this first heartbeat
+                self.update_status(status="heartbeat")
+                token = _HELD_CLAIMS.set(_HELD_CLAIMS.get() | {hold.location})
+
+            if resume is None:
+                self._capture_manifest()
+
+            self._run_payload(interface)
+        finally:
+            if token is not None:
+                _HELD_CLAIMS.reset(token)
+            if hold is not None:
+                # after _run_payload wrote finished_at (or failed)
+                self._release(hold)
+
+    def _looks(self, interface: Interface) -> "list[tuple[Storage, Look]]":
+        """Look at ``interface`` in every storage that holds it (claim, then runs)."""
+        from machinable.claims import claim_location, look
+
+        looks = []
+        seen = set()
+        for storage in claim_storages():
+            directory = storage.interface_location(interface)
+            if directory is None:
+                continue
+            location = claim_location(directory)
+            if location in seen:
+                continue
+            seen.add(location)
+            looks.append((storage, look(storage, interface, location)))
+        return looks
+
+    def look_elsewhere(self, interface: Interface) -> str | None:
+        """Look once for interface running or finished elsewhere, without waiting."""
+        waits = getattr(self, "_wait_elsewhere", True)
+        self._wait_elsewhere = False
+        try:
+            self._claim(interface, claim=False)
+        finally:
+            self._wait_elsewhere = waits
+        found = getattr(self, "elsewhere", {}).get(cast(str, interface.uuid))
+        return found[0] if found is not None else None
+
+    def _claim(
+        self, interface: Interface, claim: bool = True
+    ) -> "tuple[bool, _Hold | None]":
+        """Run the claim protocol for ``interface`` (see :mod:`machinable.claims`)."""
+        from machinable.claims import HELD, after, decide
+        from machinable.claims import Claim as ClaimFile
+        from machinable.index import Index
+
+        if not hasattr(self, "elsewhere"):
+            self.elsewhere = {}
+        uuid = cast(str, interface.uuid)
+        wait = getattr(self, "_wait_elsewhere", True)
+        timeout = getattr(self, "_wait_timeout", None)
+        interval = getattr(self, "_wait_interval", None) or max(
+            0.05, min(1.0, heartbeat_interval())
+        )
+        deadline = None if timeout is None else time.monotonic() + timeout
+        index = Index.get()
+        pending = self._resumable_run(interface)
+        dismissed: set[str] | None = None
+
+        while True:
+            looks = self._looks(interface)
+            cached = interface.cached()
+            if dismissed is None:
+                dismissed = {
+                    run.record_id
+                    for _, seen in looks
+                    for run in seen.runs
+                    if run.finished
+                    and not (
+                        seen.claim is not None
+                        and seen.claim.state == HELD
+                        and seen.claim.record_id == run.record_id
+                    )
+                    and index.get_by_id(run.record_id) is not None
+                }
+            finished = [
+                (storage, run)
+                for storage, seen in looks
+                for run in seen.runs
+                if run.finished and run.record_id not in dismissed
+            ]
+            primary = next(
+                (
+                    (storage, seen)
+                    for storage, seen in looks
+                    if storage.exclusive_claims()
+                    and (not seen.present or seen.version is not None)
+                ),
+                None,
+            )
+            if primary is None:
+                # nowhere to claim exclusively: adopt what finished, else run
+                if finished and not cached:
+                    self._adopt(interface, *finished[0])
+                    return False, None
+                return not cached, None
+            storage, seen = primary
+            if (
+                seen.claim is not None
+                and seen.claim.state == HELD
+                and seen.location in _HELD_CLAIMS.get()
+            ):
+                # this context's own run dispatches its interface again
+                return True, None
+            decision = decide(
+                cached=cached,
+                finished=bool(finished),
+                claim_file=seen.claim_file,
+                claim_state=seen.state,
+                wait=wait and claim,
+            )
+            if decision == "cached":
+                if finished:
+                    # cached by the run this dispatch waited on, maybe made
+                    # by another index: index it here too
+                    self._adopt(interface, *finished[0])
+                    self._abandon_pending(pending, finished[0][1].record_id)
+                else:
+                    self.elsewhere.pop(uuid, None)
+                return False, None
+            if decision == "adopt":
+                if self._adopt(interface, *finished[0]):
+                    self._abandon_pending(pending, finished[0][1].record_id)
+                    return False, None
+                # it does not ingest (a damaged record): not a result to adopt
+                dismissed.add(finished[0][1].record_id)
+                continue
+            if decision in ("wait", "report"):
+                assert seen.claim is not None
+                self.elsewhere[uuid] = ("running elsewhere", seen.claim.record_id)
+                if decision == "report" or (
+                    deadline is not None and time.monotonic() >= deadline
+                ):
+                    if claim:
+                        self._abandon_pending(pending, seen.claim.record_id)
+                    return False, None
+                time.sleep(interval)
+                continue
+            if not claim:
+                self.elsewhere.pop(uuid, None)
+                return False, None
+
+            resume = self._resumable_run(interface)
+            if (
+                decision == "take over"
+                and resume is not None
+                and seen.claim is not None
+                and resume.record_id == seen.claim.record_id
+            ):
+                # a run whose claim is taken over is abandoned, never resumed
+                resume = None
+            record_id = resume.record_id if resume is not None else random_str(12)
+            generation = seen.claim.generation + 1 if seen.claim is not None else 1
+            data = ClaimFile.held(record_id, generation)
+            if decision == "create":
+                won = storage.create_if_absent(seen.location, data.to_bytes())
+            else:
+                won = storage.replace_if_unchanged(
+                    seen.location, data.to_bytes(), cast(str, seen.version)
+                )
+            step = after(decision, won)
+            if step == "look":
+                continue
+            hold = _Hold(storage, seen.location, data, resume)
+            dead = seen.claimed_run
+            if (
+                step == "abandon"
+                and dead is not None
+                and dead.record_id != record_id
+                and not dead.finished
+            ):
+                storage.mark_run(dead, "abandoned_at", str(arrow.now()))
+                # a finish racing the takeover wins: give the claim back
+                again = next(
+                    (
+                        r
+                        for r in storage.run_records(interface)
+                        if r.record_id == dead.record_id
+                    ),
+                    None,
+                )
+                if again is not None and again.finished:
+                    self._release(hold)
+                    self._adopt(interface, storage, again)
+                    return False, None
+            self.elsewhere.pop(uuid, None)
+            return True, hold
+
+    def _index_claimed_run(self, interface: Interface) -> None:
+        """Index the finished run a cached interface's claim names, if unknown here."""
+        from machinable.claims import Claim as ClaimFile
+        from machinable.claims import claim_location
+        from machinable.index import Index
+
+        index = Index.get()
+        for storage in claim_storages():
+            directory = storage.interface_location(interface)
+            if directory is None:
+                continue
+            read = storage.read_versioned(claim_location(directory))
+            claim = ClaimFile.from_bytes(read[0]) if read is not None else None
+            if claim is None or index.get_by_id(claim.record_id) is not None:
+                return
+            for run in storage.run_records(interface):
+                if run.record_id == claim.record_id and run.finished:
+                    storage.adopt(run)
+                    self.elsewhere[cast(str, interface.uuid)] = (
+                        "finished elsewhere",
+                        run.record_id,
+                    )
+            return
+
+    def _adopt(self, interface: Interface, storage: Storage, run: "RunRecord") -> bool:
+        """End ``interface`` cached on ``run``, a run another dispatcher finished."""
+        from machinable.index import Index
+
+        known = Index.get().get_by_id(run.record_id) is not None
+        if not storage.adopt(run):
+            return False
+        if not interface.cached():
+            interface.cached(True, reason="finished" if known else "finished elsewhere")
+        self.elsewhere[cast(str, interface.uuid)] = (
+            "finished elsewhere",
+            run.record_id,
+        )
+        return True
+
+    def _abandon_pending(self, pending: "IndexEntry | None", other: str) -> None:
+        """Mark this dispatch's own pending run-record abandoned."""
+        from machinable.claims import RunRecord
+        from machinable.utils import uri_to_path
+
+        if pending is None or pending.record_id == other:
+            return
+        try:
+            directory = uri_to_path(pending.local_uri or pending.storage_uri)
+        except ValueError:
+            return
+        if not os.path.isdir(directory):
+            return
+        if any(
+            load_file([directory, marker], None) is not None
+            for marker in ("started_at", "finished_at", "abandoned_at")
+        ):
+            return
+        Storage.get().mark_run(
+            RunRecord(pending.record_id, directory), "abandoned_at", str(arrow.now())
+        )
+
+    @staticmethod
+    def _release(hold: _Hold) -> bool:
+        """Give the claim up (state ``released``); False when it was taken over."""
+        from machinable.claims import HELD
+        from machinable.claims import Claim as ClaimFile
+
+        try:
+            current = hold.storage.read_versioned(hold.location)
+            if current is None:
+                return False
+            claim = ClaimFile.from_bytes(current[0])
+            if (
+                claim is None
+                or claim.state != HELD
+                or claim.record_id != hold.claim.record_id
+            ):
+                return False  # a waiter took it over; the run's result stands
+            version = current[1] if current[1] is not None else str(claim.generation)
+            return hold.storage.replace_if_unchanged(
+                hold.location, claim.released().to_bytes(), version
+            )
+        except Exception as ex:  # noqa: BLE001 - a lost release must not fail the run
+            import warnings
+
+            warnings.warn(
+                f"Releasing the claim at {hold.location} failed: {ex}",
+                stacklevel=2,
+            )
+            return False
 
     def continue_run(self, interface: Interface) -> None:
         """Run ``interface`` into this existing run-record, in place and index-free."""
@@ -540,7 +912,7 @@ class Execution(Interface):
                 self.update_status(status="heartbeat")
 
             def beat():
-                while not _beat_stop.wait(HEARTBEAT_INTERVAL):
+                while not _beat_stop.wait(heartbeat_interval()):
                     _write_beat()
 
             if writes_meta_data:
@@ -634,11 +1006,12 @@ class Execution(Interface):
                 for storage in Storage.connected():
                     storage.update(self)
 
-    def _mint_run_record(self, interface: Interface):
+    def _mint_run_record(self, interface: Interface, record_id: str | None = None):
         """Materialize a fresh run-record child of ``interface``.
 
         Each new dispatch creates one; a prior runner uuid is only ever
-        continued via :meth:`_resumable_run`. Returns the IndexEntry.
+        continued via :meth:`_resumable_run`. ``record_id`` is the id the run
+        was claimed under (minted when not given). Returns the IndexEntry.
         """
         from machinable.index import Index, materialize_keys_from_model
 
@@ -651,7 +1024,7 @@ class Execution(Interface):
                 identity_key=self.catalog_identity_key(),
                 predicate=self.predicate,
                 predicate_key=self.predicate_key,
-                record_id=None,
+                record_id=record_id,
             )
             response = Index.get().materialize(keys, force=True)
         finally:
@@ -667,11 +1040,15 @@ class Execution(Interface):
         its own run-record
         instead of continuing a foreign one). A merely-dispatched record is the
         serverless phase-1 "pending" state; the payload continues it and marks
-        it "started"; a started one resumes. Returns the IndexEntry to
-        continue, or ``None`` to mint a new run-record. Note: markers cannot
-        distinguish a very recently failed run from a live one, so no liveness
-        guard is applied; dispatching the same interface concurrently from two
-        processes is unsupported either way.
+        it "started"; a started one resumes. A run-record marked
+        ``abandoned_at`` (its claim was taken over) is never continued.
+        Returns the IndexEntry to continue, or ``None`` to mint a new
+        run-record. Markers cannot distinguish a very recently failed run
+        from a live one, so no liveness guard is applied here: concurrent
+        dispatch is coordinated by the claim :meth:`dispatch_interface` takes
+        before it continues or mints a run-record (``docs/design/format.md``,
+        "Claims"), so a run held by another thread, process or machine is
+        waited on rather than continued twice.
         """
         from machinable.api.models import FindRequest
         from machinable.index import Index
@@ -707,6 +1084,8 @@ class Execution(Interface):
         ):
             return None
         if load_file([directory, "finished_at"], None) is not None:
+            return None
+        if load_file([directory, "abandoned_at"], None) is not None:
             return None
         return entry
 
@@ -960,6 +1339,7 @@ class Execution(Interface):
             resumed_at=_read("resumed"),
             heartbeat_at=_read("heartbeat"),
             finished_at=_read("finished"),
+            abandoned_at=_read("abandoned"),
             window=heartbeat_window(),
         )
 
@@ -993,6 +1373,16 @@ class Execution(Interface):
             return None
         return self.retrieve_status("finished")
 
+    def abandoned_at(self) -> DatetimeType | None:
+        """When another dispatcher took over this run's claim, if it did."""
+        if not self.is_mounted():
+            return None
+        return self.retrieve_status("abandoned")
+
+    def is_abandoned(self) -> bool:
+        """True if another dispatcher took over this run's claim."""
+        return bool(self.abandoned_at())
+
     def is_finished(self):
         """True if finishing time has been written."""
         return bool(self.finished_at())
@@ -1007,7 +1397,12 @@ class Execution(Interface):
 
     def is_pending(self):
         """True if submitted to a scheduler but not yet running."""
-        return self.is_dispatched() and not self.is_started() and not self.is_finished()
+        return (
+            self.is_dispatched()
+            and not self.is_started()
+            and not self.is_finished()
+            and not self.is_abandoned()
+        )
 
     def is_resumed(self):
         """True if resumed time has been written."""
@@ -1015,7 +1410,7 @@ class Execution(Interface):
 
     def is_active(self):
         """True if not finished and the heartbeat is within the liveness window."""
-        if self.is_finished():
+        if self.is_finished() or self.is_abandoned():
             return False
 
         return heartbeat_is_fresh(self.heartbeat_at(), heartbeat_window())
@@ -1025,8 +1420,8 @@ class Execution(Interface):
         return self.is_finished() or self.is_active()
 
     def is_incomplete(self):
-        """Shorthand for is_started() and not is_live()."""
-        return self.is_started() and not self.is_live()
+        """Started (or abandoned) and no longer live."""
+        return (self.is_started() or self.is_abandoned()) and not self.is_live()
 
     def on_before_dispatch(self) -> bool | None:
         """Hook: return False to abort dispatch of this execution."""

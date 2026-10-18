@@ -95,6 +95,11 @@ def migrate(db: sqlite3.Connection) -> bool:
     version = cur.execute("PRAGMA user_version;").fetchone()[0]
     did_reset = False
     if version < SCHEMA_VERSION:
+        cur.execute("BEGIN IMMEDIATE")
+        version = cur.execute("PRAGMA user_version;").fetchone()[0]
+    if version >= SCHEMA_VERSION and db.in_transaction:
+        db.rollback()
+    if version < SCHEMA_VERSION:
         if version > 0:
             cur.execute("DROP TABLE IF EXISTS relations")
             cur.execute("DROP TABLE IF EXISTS 'index'")
@@ -161,6 +166,20 @@ _PENDING_REINDEX: set[str] = set()
 _MIGRATION_CHECKED: set[str] = set()
 
 
+def _enable_wal(db: sqlite3.Connection, timeout: float = 5.0) -> None:
+    deadline = time.monotonic() + timeout
+    while True:
+        try:
+            mode = db.execute("PRAGMA journal_mode").fetchone()[0]
+            if str(mode).lower() != "wal":
+                db.execute("PRAGMA journal_mode=WAL")
+            return
+        except sqlite3.OperationalError:
+            if time.monotonic() >= deadline:
+                raise
+            time.sleep(0.05)
+
+
 def load(database: str, create=False) -> sqlite3.Connection:
     """Open (or create) the index database with the pinned connection profile."""
     if database.startswith("sqlite:///"):
@@ -181,7 +200,7 @@ def load(database: str, create=False) -> sqlite3.Connection:
     # foreign_keys stays OFF by design: relation/parent rows may forward-
     # reference records that ingest later (order-independent reindex).
     if ":memory:" not in database:
-        db.execute("PRAGMA journal_mode=WAL")
+        _enable_wal(db)
     db.execute("PRAGMA busy_timeout=5000")
     db.execute("PRAGMA synchronous=NORMAL")
     if migrate(db):
@@ -776,6 +795,41 @@ class Index(Interface):
             return target
         return None
 
+    def _layout(
+        self,
+        parent_entry: IndexEntry | None,
+        identity_key: str,
+        predicate_key: str,
+    ) -> str:
+        segments = (
+            sanitize_filename(identity_key),
+            sanitize_filename(predicate_key),
+        )
+        if parent_entry is None:
+            return os.path.join(self._storage_root(), *segments)
+        if parent_entry.kind == "Project":
+            # top-level interfaces are scoped under their project's identity
+            # so that interfaces from different projects sharing one index do
+            # not collide on disk.
+            return os.path.join(
+                self._storage_root(),
+                sanitize_filename(parent_entry.identity_key),
+                sanitize_filename(parent_entry.predicate_key),
+                *segments,
+            )
+        # run-records nest under their parent interface's directory
+        return os.path.join(uri_to_path(parent_entry.storage_uri), *segments)
+
+    def layout_directory(
+        self,
+        parent_id: str | None,
+        identity_key: str,
+        predicate_key: str,
+    ) -> str:
+        """The directory :meth:`materialize` gives a new record with these keys."""
+        parent_entry = self.get_by_id(parent_id) if parent_id else None
+        return self._layout(parent_entry, identity_key, predicate_key)
+
     @contextmanager
     def bind(self, entry: IndexEntry):
         """Context manager exposing ``entry`` as the current entry."""
@@ -879,26 +933,7 @@ class Index(Interface):
                 storage_uri = path_to_uri(project_directory)
                 local_uri = storage_uri
             else:
-                segments = (
-                    sanitize_filename(identity_key),
-                    sanitize_filename(predicate_key),
-                )
-                if parent_entry is None:
-                    base = os.path.join(self._storage_root(), *segments)
-                elif parent_entry.kind == "Project":
-                    # top-level interfaces are scoped under their project's
-                    # identity so that interfaces from different projects sharing
-                    # one index do not collide on disk.
-                    base = os.path.join(
-                        self._storage_root(),
-                        sanitize_filename(parent_entry.identity_key),
-                        sanitize_filename(parent_entry.predicate_key),
-                        *segments,
-                    )
-                else:
-                    # run-records nest under their parent interface's directory
-                    parent_path = uri_to_path(parent_entry.storage_uri)
-                    base = os.path.join(parent_path, *segments)
+                base = self._layout(parent_entry, identity_key, predicate_key)
                 # durable home; for disk storage the runtime working copy is the
                 # same path (passthrough), so local_uri mirrors storage_uri.
                 storage_uri = path_to_uri(base)
@@ -1020,6 +1055,8 @@ class Index(Interface):
         parent_id: str | None,
         identity_key: str,
         predicate_key: str,
+        *,
+        include_hidden: bool = False,
     ) -> IndexEntry | None:
         """Look up an entry by its dedup triple (parent, identity, predicate)."""
         with db(self._resolved_database(), create=False) as _db:
@@ -1028,8 +1065,9 @@ class Index(Interface):
             row = _db.execute(
                 """SELECT * FROM 'index' WHERE
                 (parent_id IS ? OR (parent_id IS NULL AND ? IS NULL))
-                AND identity_key=? AND predicate_key=? AND hidden=0
-                LIMIT 1""",
+                AND identity_key=? AND predicate_key=?"""
+                + ("" if include_hidden else " AND hidden=0")
+                + " LIMIT 1",
                 (parent_id, parent_id, identity_key, predicate_key),
             ).fetchone()
             if row is None:

@@ -2,6 +2,11 @@
 
 <!-- Please add changes under the Unreleased section that reads 'No current changes' otherwise -->
 
+# Unreleased
+
+- Interfaces dispatched at once from several threads, processes, indexes or machines over one storage folder now only run once
+- Fix concurrent openers of a new index database racing on its schema and WAL switch
+
 # v5.1
 
 - Added axes: an `axis_<name>` staticmethod expands an interface over itself via a `~~name`
