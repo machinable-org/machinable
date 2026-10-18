@@ -98,6 +98,18 @@ def heartbeat_interval() -> float:
     return min(HEARTBEAT_INTERVAL, heartbeat_window() / 6)
 
 
+def _later(a: str, b: str) -> bool:
+    """Whether timestamp ``a`` is after ``b`` (an unreadable ``b`` is earlier)."""
+    try:
+        later = arrow.get(a.strip())
+    except (arrow.ParserError, ValueError, TypeError):
+        return False
+    try:
+        return later > arrow.get(b.strip())
+    except (arrow.ParserError, ValueError, TypeError):
+        return True
+
+
 def heartbeat_is_fresh(heartbeat: DatetimeType | None, window: float) -> bool:
     """Whether ``heartbeat`` is recent enough for the run to count as live.
 
@@ -206,6 +218,14 @@ class _Hold:
 _HELD_CLAIMS: contextvars.ContextVar[frozenset[str]] = contextvars.ContextVar(
     "machinable_held_claims", default=frozenset()
 )
+
+# The least time between two reads of a run's markers from its remote home
+# (:meth:`Execution.refresh_status`), so a status read in a loop is cheap.
+STATUS_REFRESH_SECONDS = 1.0
+# record id -> monotonic time of its last refresh from the home
+_STATUS_REFRESHED: dict[str, float] = {}
+# working copies a payload in this process writes: they are the run's truth
+_RUNNING_HERE: set[str] = set()
 
 
 class Execution(Interface):
@@ -917,6 +937,8 @@ class Execution(Interface):
         in_run = _IN_RUN.set(
             _IN_RUN.get() | {cast(str, self.uuid), cast(str, interface.uuid)}
         )
+        running_here = os.path.abspath(self.local_directory())
+        _RUNNING_HERE.add(running_here)
 
         # both the execution and the dispatched interface can veto (an MPI
         # component may know that only its controller rank should write)
@@ -1044,6 +1066,7 @@ class Execution(Interface):
             _watch_stop.set()
             _stop_beat()
             _IN_RUN.reset(in_run)
+            _RUNNING_HERE.discard(running_here)
             if writes_meta_data:
                 interface._write_through()
                 mirror_interface = interface.on_commit() is not False
@@ -1353,12 +1376,78 @@ class Execution(Interface):
             self._last_beat_through = now
         home.write_through(uuid, self.local_directory(), [f"{status}_at", "updated_at"])
 
+    def refresh_status(self, force: bool = False) -> bool:
+        """Bring this run's status from its remote home, if it runs elsewhere.
+
+        A run whose home is not its working copy (an object store) and that
+        is not finished here may be running (or have finished, or died) on
+        another machine, whose markers reach this working copy only through
+        the home. Reads the home's status markers (small files, no
+        artifacts), at most every ``STATUS_REFRESH_SECONDS`` unless
+        ``force``: a newer heartbeat and markers missing here are written
+        into the working copy; once the home has ``finished_at``, the run is
+        re-ingested (its catalog and its interface's), so the working copy
+        and the index are complete. Nothing for a local home (it is the
+        working copy), a run finished here, or a run whose payload runs in
+        this process. Every status read calls it. Returns whether the
+        working copy changed.
+        """
+        uuid = self.uuid
+        if uuid is None or not self.is_materialized():
+            return False
+        directory = os.path.abspath(self.local_directory())
+        if (
+            directory in _RUNNING_HERE
+            or not os.path.isdir(directory)
+            or os.path.exists(os.path.join(directory, "finished_at"))
+        ):
+            return False
+        now = time.monotonic()
+        last = _STATUS_REFRESHED.get(uuid)
+        if not force and last is not None and now - last < STATUS_REFRESH_SECONDS:
+            return False
+        _STATUS_REFRESHED[uuid] = now
+        try:
+            home = self._remote_home()
+            if home is None:
+                _STATUS_REFRESHED.pop(uuid, None)
+                return False
+            entry = cast("IndexEntry", self._resolve_index_entry())
+            location = home.handle(home.location(entry))
+            markers = home.markers(location)
+        except Exception:  # noqa: BLE001 - an unreachable home leaves the copy as is
+            return False
+        if "finished_at" in markers:
+            from machinable.claims import RunRecord
+
+            try:
+                adopted = home.adopt(RunRecord(uuid, location, markers))
+            except Exception:  # noqa: BLE001 - the markers below still tell the state
+                adopted = False
+            if adopted and os.path.exists(os.path.join(directory, "finished_at")):
+                self._index_entry = None
+                self._cache.pop("output.log", None)
+                _STATUS_REFRESHED.pop(uuid, None)
+                return True
+        changed = False
+        for name, value in markers.items():
+            path = os.path.join(directory, name)
+            local = load_file(path, default=None)
+            if local is not None and not (
+                name == "heartbeat_at" and _later(value, str(local))
+            ):
+                continue
+            save_file(path, value)
+            changed = True
+        return changed
+
     def retrieve_status(
         self,
         status: StatusType = "heartbeat",
     ) -> DatetimeType | None:
         """Read one status marker as a datetime, or ``None`` if unwritten."""
         _assert_allowed(status)
+        self.refresh_status()
 
         status_value = self.load_file(f"{status}_at", default=None)
         if status_value is None:
@@ -1385,6 +1474,7 @@ class Execution(Interface):
         # accessors would re-resolve the directory on every call
         if not self.is_mounted():
             return ExecutionStatus()
+        self.refresh_status()
         directory = self.local_directory()
 
         def _read(status: str) -> DatetimeType | None:
