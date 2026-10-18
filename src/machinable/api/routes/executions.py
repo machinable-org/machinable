@@ -18,6 +18,7 @@ from machinable.api._helpers import (
     list_executions,
     project_context,
     request_project_dir,
+    server_context,
 )
 from machinable.api._helpers import (
     log_event as _log_event,
@@ -25,17 +26,20 @@ from machinable.api._helpers import (
 from machinable.api.models import DispatchRequest, ExecutionInfo, OutputChunk
 from machinable.api.ws import handle_interface_ws
 from machinable.execution import Execution
-from machinable.interface import Interface, connection_scope
-from machinable.project import Project
+from machinable.interface import Interface
 
 router = APIRouter(prefix="/v1/executions", tags=["executions"])
 
 
-def _cached_run(interface: Interface) -> Execution | None:
+def _cached_run(interface: Interface, record_id: str | None = None) -> Execution | None:
     """The latest run-record of a cached interface."""
     from machinable.api.models import FindRequest
     from machinable.index import Index
 
+    if record_id is not None:
+        run = Interface.find_by_id(record_id)
+        if isinstance(run, Execution):
+            return run
     children = (
         Index.get()
         .find(FindRequest(parent_id=interface.uuid, kind="Execution", limit=1))
@@ -66,16 +70,18 @@ def _running_run(interface: Interface, record_id: str) -> Execution | None:
 def _answers(execution: Execution) -> list[tuple[str, Interface, str | None]]:
     """Why each queued interface was not dispatched here, in queue order.
 
-    ``("cached", interface, None)`` or ``("running", interface, run id)``.
+    ``("cached", interface, run id or None)`` or ``("running", interface, run id)``;
+    a cached interface has its run id when it was finished elsewhere.
     """
     answers: list[tuple[str, Interface, str | None]] = []
     for interface in execution.interfaces:
-        if interface.cached():
-            answers.append(("cached", interface, None))
-            continue
         reason, record_id = execution.elsewhere.get(
             cast(str, interface.uuid), (None, None)
         )
+        if interface.cached():
+            finished = record_id if reason == "finished elsewhere" else None
+            answers.append(("cached", interface, finished))
+            continue
         if reason == "running elsewhere":
             answers.append(("running", interface, record_id))
     return answers
@@ -102,12 +108,11 @@ def dispatch_execution(
     holder: dict[str, Execution | None] = {"execution": None}
     failure: dict[str, BaseException | None] = {"error": None}
     answers: list[tuple[str, Interface, str | None]] = []
+    app = request.app
 
     def _run() -> None:
-        # the background thread re-enters the project in its own isolated
-        # connection stack, independent of this request's teardown.
         try:
-            with connection_scope(), Project(directory, username=username):
+            with server_context(app, directory, username=username):
                 if body.execution_ref:
                     execution = cast(
                         Execution, Execution.find_by_id(body.execution_ref)
@@ -193,11 +198,11 @@ def _answer(
     cached: list[Execution] = []
     running: list[Execution] = []
     first: Execution | None = None
-    with connection_scope(), Project(directory, username=username):
+    with server_context(request.app, directory, username=username):
         for kind, interface, record_id in answers:
             run = None
             if kind == "cached":
-                run = _cached_run(interface)
+                run = _cached_run(interface, record_id)
             else:
                 # the claimant writes its run-record right after claiming
                 while run is None:

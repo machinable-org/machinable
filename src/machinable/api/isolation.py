@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import os
 import secrets
 import socket
@@ -73,6 +74,7 @@ def _free_port() -> int:
 
 
 _HOP_BY_HOP = {"connection", "keep-alive", "transfer-encoding", "content-length"}
+WORKER_AMBIENT_ENV = "MACHINABLE_WORKER_AMBIENT_CONNECTIONS"
 
 
 class WorkerSecretError(RuntimeError):
@@ -82,7 +84,9 @@ class WorkerSecretError(RuntimeError):
 class Worker:
     """A subprocess running ``create_app(directory)`` under a chosen interpreter."""
 
-    def __init__(self, directory: str, python: str) -> None:
+    def __init__(
+        self, directory: str, python: str, ambient: list[dict] | None = None
+    ) -> None:
         import httpx
 
         self.directory = directory
@@ -100,7 +104,11 @@ class Worker:
                 str(self.port),
             ],
             stderr=subprocess.PIPE,
-            env={**os.environ, WORKER_SECRET_ENV: self.secret},
+            env={
+                **os.environ,
+                WORKER_SECRET_ENV: self.secret,
+                WORKER_AMBIENT_ENV: json.dumps(list(ambient or [])),
+            },
         )
         self.client = httpx.AsyncClient(
             base_url=f"http://127.0.0.1:{self.port}",
@@ -200,8 +208,9 @@ class Worker:
 class WorkerRegistry:
     """Spawns and reuses one worker per (project directory, interpreter)."""
 
-    def __init__(self) -> None:
+    def __init__(self, ambient: list[dict] | None = None) -> None:
         self._workers: dict[tuple[str, str], Worker] = {}
+        self._ambient = list(ambient or [])
         self._lock = asyncio.Lock()
 
     async def ensure(self, directory: str, python: str) -> Worker:
@@ -210,7 +219,7 @@ class WorkerRegistry:
             worker = self._workers.get(key)
             if worker is not None and worker.proc.poll() is None:
                 return worker
-            worker = Worker(directory, python)
+            worker = Worker(directory, python, self._ambient)
             try:
                 await worker.wait_ready()
             except Exception:

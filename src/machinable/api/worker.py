@@ -12,6 +12,7 @@ call it on loopback.
 from __future__ import annotations
 
 import argparse
+import json
 import os
 
 
@@ -27,13 +28,19 @@ def main() -> None:
 
     from machinable.api.app import create_app
     from machinable.api.auth import WORKER_SECRET_ENV
+    from machinable.api.isolation import WORKER_AMBIENT_ENV
 
     secret = os.environ.pop(WORKER_SECRET_ENV, None)
     if not secret:
         parser.error(
             f"{WORKER_SECRET_ENV} is not set; workers are spawned by the gateway"
         )
-    app = create_app(project_dir=args.project, worker_secret=secret)
+    ambient = json.loads(os.environ.pop(WORKER_AMBIENT_ENV, None) or "[]")
+    app = create_app(
+        project_dir=args.project,
+        worker_secret=secret,
+        ambient_connections=ambient,
+    )
     uvicorn.run(app, host=args.host, port=args.port, log_level=args.log_level)
 
 

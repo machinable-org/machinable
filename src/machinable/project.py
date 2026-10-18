@@ -360,6 +360,28 @@ class Project(Interface):
         """
         return self.on_compute_predicate()
 
+    def catalog_identity_key(self) -> str:
+        """The root's identity key: the same for every project."""
+        from machinable.config import canonical_identity_key, identity_exclude
+
+        layers = self.config_layers()
+        fields = Project.Config.model_fields
+        return canonical_identity_key(
+            "machinable.project",
+            {k: v for k, v in layers.resolved.items() if k in fields},
+            {k: v for k, v in layers.default.items() if k in fields},
+            identity_exclude(Project.Config),
+        )
+
+    def _root_id(self, identity_key: str) -> str:
+        from machinable.utils import object_hash, sanitize_filename
+
+        identity = sanitize_filename(identity_key, max_len=128)
+        return (
+            "P"
+            + object_hash({"identity": identity, "predicate": self.predicate_key})[:11]
+        )
+
     def compute_record_id(self) -> str:
         """Deterministic root record id, derived from the identity triple.
 
@@ -369,13 +391,7 @@ class Project(Interface):
         machines, where random per-index root ids would orphan every shared
         record.
         """
-        from machinable.utils import object_hash, sanitize_filename
-
-        identity = sanitize_filename(self.catalog_identity_key(), max_len=128)
-        return (
-            "P"
-            + object_hash({"identity": identity, "predicate": self.predicate_key})[:11]
-        )
+        return self._root_id(self.catalog_identity_key())
 
     def path(self, *append: str) -> str:
         """Absolute path inside the project directory."""

@@ -7,7 +7,7 @@ import contextlib
 import inspect
 import json
 import os
-from collections.abc import Awaitable, Callable, Mapping
+from collections.abc import Awaitable, Callable, Iterator, Mapping
 from typing import Any, cast
 
 from fastapi import HTTPException, Request
@@ -82,27 +82,48 @@ def request_attribution(request: Request) -> tuple[str | None, Mapping | None]:
     return request.headers.get("X-Machinable-User"), None
 
 
-async def project_context(request: Request):
-    """FastAPI dependency: enter the request's Project in an isolated context.
+def enter_ambient_connections(stack: contextlib.ExitStack, app: Any) -> None:
+    """Re-enter the server's ambient connections, in order, onto ``stack``."""
+    for spec in getattr(app.state, "ambient_connections", None) or []:
+        stack.enter_context(Interface.make(spec["target"], version=spec["version"]))
 
-    Runs as an async dependency so the (context-local) connection stack it sets
-    is inherited by both async routes and sync routes dispatched to the
-    threadpool. An in-process server (``Server.start()`` in a notebook kernel)
-    passes the caller's ambient Storage/Index as ``ambient_connections``; they
-    are re-entered per request so the API sees the same records as the
-    surrounding code.
+
+@contextlib.contextmanager
+def server_context(
+    app: Any,
+    directory: str,
+    *,
+    username: str | None = None,
+    claims: Mapping | None = None,
+) -> Iterator[None]:
+    """A fresh connection stack with the Project and the server's connections.
+
+    What every request, dispatch thread and socket of the server works in, so
+    all of them see (and write to) the same records.
     """
-    directory = resolve_project_dir(request)
-    username, claims = request_attribution(request)
-    request.state.project = directory
-    request.state.username = username
     with (
         connection_scope(),
         Project(directory, username=username, claims=claims),
         contextlib.ExitStack() as stack,
     ):
-        for spec in getattr(request.app.state, "ambient_connections", None) or []:
-            stack.enter_context(Interface.make(spec["target"], version=spec["version"]))
+        enter_ambient_connections(stack, app)
+        yield
+
+
+async def project_context(request: Request):
+    """FastAPI dependency: enter the request's Project in an isolated context.
+
+    Runs as an async dependency so the (context-local) connection stack it sets
+    is inherited by both async routes and sync routes dispatched to the
+    threadpool. The server's ambient Storage/Index (``ambient_connections``)
+    are re-entered per request (see :func:`server_context`) so the API sees the
+    same records as the surrounding code.
+    """
+    directory = resolve_project_dir(request)
+    username, claims = request_attribution(request)
+    request.state.project = directory
+    request.state.username = username
+    with server_context(request.app, directory, username=username, claims=claims):
         yield directory
 
 

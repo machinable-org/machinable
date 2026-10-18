@@ -11,10 +11,9 @@ from machinable.api._helpers import (
     active_execution_count,
     default_project_dir,
     open_projects,
+    server_context,
 )
 from machinable.api.models import HealthResponse
-from machinable.interface import connection_scope
-from machinable.project import Project
 
 router = APIRouter(prefix="/v1/health", tags=["health"])
 
@@ -22,7 +21,7 @@ router = APIRouter(prefix="/v1/health", tags=["health"])
 @router.get("", response_model=HealthResponse)
 def health(request: Request) -> HealthResponse:
     default = default_project_dir(request)
-    with connection_scope(), Project(default):
+    with server_context(request.app, default):
         active = active_execution_count()
     return HealthResponse(
         status="ok",

@@ -336,11 +336,22 @@ when the process was launched from inside the project. The same project therefor
 two identities depending on where you stood when you ran it (a serverless dispatch
 parent and its detached child could scatter one dispatch across two roots).
 
-Format v1 resolves this with three coupled decisions:
+Format v1 resolves this with four coupled decisions:
 
 - **`directory` is non-identifying.** A project's identity must not encode its
   filesystem location: the same rule as every other record ([Storage](./storage.md)),
   applied to the root itself.
+- **The provider is non-identifying.** A project's `interface/project.py` (or a
+  `Project` subclass connected directly) supplies hooks such as `on_resolve_remotes`
+  and its own config, but the root's identity is always the base `machinable.project`'s
+  with an empty config: the same identity key for every project. Were the provider's
+  module (`interface.project`) part of it, adding one to a project would move the root,
+  and with it the first folder of every record path and every record's `id.json` parent,
+  so every existing record would stop being found. A provider is how a project is run,
+  not which project it is, so it falls under the same
+  rule as the location. The fields a provider or a subclass adds to `Config` are left
+  out for the same reason, leaving the directory name below as the root's only
+  discriminator.
 - **The directory name is the discriminator**, contributed as the root's predicate.
   Something portable must distinguish two different projects sharing one index, and the
   folder name is the pragmatic choice, since two checkouts of `my-study` on different machines

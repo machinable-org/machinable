@@ -86,3 +86,92 @@ def test_fetch_remote_without_import(tmp_storage):
     assert os.path.isfile(os.path.join(remotes_dir, "!hello.py"))
     assert main(["fetch", "nonexistent", "--project", "tests/samples/project"]) == 1
     shutil.rmtree(remotes_dir, ignore_errors=True)
+
+
+_TARGET = (
+    "from pydantic import BaseModel\n"
+    "\n"
+    "from machinable import Interface\n"
+    "\n"
+    "\n"
+    "class Target(Interface):\n"
+    "    class Config(BaseModel):\n"
+    "        a: int = 1\n"
+)
+
+_PROVIDER = (
+    "from pydantic import BaseModel\n"
+    "\n"
+    "from machinable import Project\n"
+    "\n"
+    "\n"
+    "class Provider(Project):\n"
+    "    class Config(BaseModel):\n"
+    "        directory: str | None = None\n"
+    "        cluster: str = 'the-lab'\n"
+    "\n"
+    "    def on_resolve_remotes(self):\n"
+    "        return {'tool': 'file+/dev/null'}\n"
+)
+
+
+def _study(base, provider: bool):
+    """A project named my-study under ``base``, with or without a provider."""
+    directory = base / "my-study"
+    (directory / "interface").mkdir(parents=True)
+    (directory / "target.py").write_text(_TARGET)
+    if provider:
+        (directory / "interface" / "project.py").write_text(_PROVIDER)
+    return directory
+
+
+def _record_path(tmp_path, directory, project_cls=Project):
+    from machinable import Index, Storage, get
+
+    storage = tmp_path / f"storage-{directory.parent.name}"
+    with (
+        project_cls(str(directory)) as project,
+        Storage(str(storage)),
+        Index({"database": str(tmp_path / f"{directory.parent.name}.sqlite")}),
+    ):
+        target = get("target", {"a": 2}).materialize()
+        root = project.ensure_project_root()
+        local = os.path.relpath(target.local_directory(), storage)
+        remotes = project.provider().on_resolve_remotes()
+        return root.record_id, root.identity_key, local.replace(os.sep, "/"), remotes
+
+
+def test_root_identity_ignores_the_provider(tmp_path):
+    """Adding a provider (or connecting a subclass) never moves a record."""
+
+    class Custom(Project):
+        class Config(Project.Config):
+            cluster: str = "elsewhere"
+
+        def on_resolve_remotes(self):
+            return {"custom": "file+/dev/null"}
+
+    without = _record_path(tmp_path, _study(tmp_path / "without", False))
+    with_provider = _record_path(tmp_path, _study(tmp_path / "with", True))
+    subclass = _record_path(tmp_path, _study(tmp_path / "subclass", False), Custom)
+
+    # the provider still provides: only identity ignores it
+    assert without[3] == {}
+    assert with_provider[3] == {"tool": "file+/dev/null"}
+    assert subclass[3] == {"custom": "file+/dev/null"}
+    # one root id, one root identity, one record path for all three
+    assert without[:3] == with_provider[:3] == subclass[:3]
+    root_id, identity_key, local = without[:3]
+    assert local.split("/")[0] == identity_key
+    assert root_id == Project(str(tmp_path / "with" / "my-study")).compute_record_id()
+
+
+def test_root_identity_is_the_base_project(tmp_path):
+    from machinable.config import canonical_identity_key
+
+    directory = _study(tmp_path, True)
+    project = Project(str(directory))
+    assert project.module == "interface.project"
+    assert project.catalog_identity_key() == canonical_identity_key(
+        "machinable.project", {}, {}
+    )

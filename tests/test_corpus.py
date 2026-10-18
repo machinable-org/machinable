@@ -25,6 +25,7 @@ CORPUS = os.path.join(os.path.dirname(__file__), "corpus")
 GENERATED = (
     "l0.json",
     "identity.json",
+    "roots.json",
     "tracker.json",
     "claims.json",
     "protocol.json",
@@ -64,6 +65,35 @@ def test_corpus_identity_vectors():
             )
             == vector["identity_key"]
         )
+
+
+def _root_id(identity_key: str, predicate_key: str) -> str:
+    return (
+        "P" + object_hash({"identity": identity_key, "predicate": predicate_key})[:11]
+    )
+
+
+def test_corpus_root_vectors():
+    """A project's root is keyed by its directory name; the provider is not identity."""
+    vectors = load_file([CORPUS, "roots.json"])["vectors"]
+    assert {v["provider"] for v in vectors} == {None, "interface/project.py"}
+    for vector in vectors:
+        assert vector["predicate"] == {"name": vector["name"]}
+        assert vector["predicate_key"] == object_hash(vector["predicate"])[:32]
+        assert vector["identity_key"] == canonical_identity_key(
+            "machinable.project", {}, {}
+        )
+        assert vector["record_id"] == _root_id(
+            vector["identity_key"], vector["predicate_key"]
+        )
+    by_name: dict[str, set] = {}
+    for vector in vectors:
+        by_name.setdefault(vector["name"], set()).add(
+            (vector["identity_key"], vector["predicate_key"], vector["record_id"])
+        )
+    # with or without a provider, one project derives one root
+    assert all(len(roots) == 1 for roots in by_name.values())
+    assert len(by_name) == 2
 
 
 @pytest.fixture()

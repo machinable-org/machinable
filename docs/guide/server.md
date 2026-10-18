@@ -33,6 +33,17 @@ Clients authenticate with a bearer header instead of cookies, so the API's CORS 
 
 Source writes need the `source_token` in `X-Machinable-Source-Token`, beside the server's own auth in `Authorization`, so a `source_token` different from `api_token` (or an OIDC token) works. `Authorization: Bearer <source_token>` is still accepted when the server has no other auth, or when `source_token` is unset and falls back to `api_token`.
 
+### With a storage
+
+Put a [storage](./storage.md) (or an index) before the server in the element chain and the server keeps its records there:
+
+```bash
+machinable get interface.remotes.s3 url=s3://my-bucket/lab/machinable region=us-east-1 \
+  machinable.server project="/path/to/project" --launch
+```
+
+Here the [s3 integration](/integrations/s3), pulled into the project through `on_resolve_remotes`, makes the bucket the home of every record the server creates. The connections around the launch are re-entered, in order, wherever the server works: each request, the thread that runs a dispatched execution, the cached or running-elsewhere answer to `POST /v1/executions` (so servers on several machines over one bucket run a request once), each WebSocket connection, and the [workers](#process-isolated-workers). The server itself is only launched in them, not dispatched, so it is no run in the storage. A server started in-process (`Server.start()`, as a notebook does) takes the storage and index connected around it the same way.
+
 ### Process-isolated workers
 
 A request for another interpreter (`?python=`) is proxied to a worker process on loopback. The gateway gives each worker a random secret at spawn (in its environment) and the worker refuses every request without it, so other local users cannot call a worker directly or claim an `X-Machinable-User`. The client's `Authorization` is not forwarded to the worker, and a request the gateway admitted by OIDC reaches the worker with the verified identity as its `X-Machinable-User`.

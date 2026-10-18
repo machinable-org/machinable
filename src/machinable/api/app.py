@@ -47,7 +47,9 @@ async def lifespan(app: FastAPI):
     app.state.interface_meta = {}
     app.state.started_at = time.monotonic()
     app.state.event_log = deque(maxlen=500)
-    app.state.workers = WorkerRegistry()
+    app.state.workers = WorkerRegistry(
+        getattr(app.state, "ambient_connections", None) or []
+    )
     verifier = getattr(app.state, "oidc", None)
     if verifier is not None:
         app.state.oidc_warm = asyncio.get_running_loop().run_in_executor(

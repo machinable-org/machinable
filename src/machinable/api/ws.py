@@ -15,6 +15,7 @@ from machinable.api._helpers import (
     attach_emit_bridge,
     create_interface_from_target,
     dispatch_call_result,
+    enter_ambient_connections,
     evict_interface,
     get_or_create_interface,
     json_payload,
@@ -56,8 +57,9 @@ async def handle_interface_ws(
     interface: Interface | None = None
     connected = False
     active_chunk: ChunkUpload | None = None
-    # isolated connection stack for this WS connection; the project is entered
-    # on the connect frame and torn down (with the stack) when the socket closes.
+    # isolated connection stack for this WS connection; the project (and the
+    # server's ambient connections) are entered on the connect frame and torn
+    # down (with the stack) when the socket closes.
     scope = contextlib.ExitStack()
     scope.enter_context(connection_scope())
     # connection-lifetime emit bridge so server pushes (events, widget changes)
@@ -228,6 +230,7 @@ async def handle_interface_ws(
                     scope.enter_context(
                         Project(directory, username=username, claims=claims)
                     )
+                    enter_ambient_connections(scope, request.app)
                     if connect_only_execution:
                         loaded = get_or_create_interface(message.target, request)
                         if not isinstance(loaded, Execution):

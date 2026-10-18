@@ -10,6 +10,9 @@ row-for-row (ingest).
 Contents:
 - ``l0.json``: canonical-JSON + sha256 vectors (float/unicode edges)
 - ``identity.json``: canonical-config + identity_key derivation vectors
+- ``roots.json``: project-root derivation vectors (directory name → root
+                            identity_key, predicate_key and record id, the same
+                            with or without a project provider)
 - ``tracker.json``: run-status state-machine vectors (markers + now → state)
 - ``claims.json``: claim-state vectors (claim file + claimed run's markers +
                             now → unclaimed | held | stale)
@@ -163,6 +166,51 @@ def identity_vectors() -> list[dict]:
                 ),
             }
         )
+    return vectors
+
+
+# -------------------------------------------------------------- root vectors
+
+_PROVIDER_SOURCE = """from pydantic import BaseModel
+
+from machinable import Project
+
+
+class Provider(Project):
+    class Config(BaseModel):
+        directory: str | None = None
+        cluster: str = "the-lab"
+
+    def on_resolve_remotes(self):
+        return {"tool": "file+/dev/null"}
+"""
+
+
+def root_vectors() -> list[dict]:
+    """Project-root derivation vectors."""
+    import tempfile
+
+    from machinable.project import Project
+
+    vectors = []
+    with tempfile.TemporaryDirectory() as tmp:
+        for name in ("my-study", "café study"):
+            for provider in (False, True):
+                directory = os.path.join(tmp, "with" if provider else "without", name)
+                os.makedirs(os.path.join(directory, "interface"))
+                if provider:
+                    save_file([directory, "interface", "project.py"], _PROVIDER_SOURCE)
+                project = Project(directory)
+                vectors.append(
+                    {
+                        "name": name,
+                        "provider": "interface/project.py" if provider else None,
+                        "predicate": project.predicate,
+                        "identity_key": project.catalog_identity_key(),
+                        "predicate_key": project.predicate_key,
+                        "record_id": project.compute_record_id(),
+                    }
+                )
     return vectors
 
 
@@ -827,6 +875,7 @@ def generate(directory: str) -> dict:
 
     save_file([directory, "l0.json"], {"vectors": l0_vectors()})
     save_file([directory, "identity.json"], {"vectors": identity_vectors()})
+    save_file([directory, "roots.json"], {"vectors": root_vectors()})
     save_file(
         [directory, "tracker.json"],
         {"window_seconds": 90, "vectors": tracker_vectors()},
