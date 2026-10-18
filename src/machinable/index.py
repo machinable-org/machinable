@@ -46,7 +46,6 @@ from machinable.utils import (
     random_str,
     sanitize_filename,
     uri_to_path,
-    walk_markers,
 )
 
 SCHEMA_VERSION = 11
@@ -590,8 +589,11 @@ class Index(Interface):
                 pass
         if database not in _PENDING_REINDEX:
             return
-        root = self._storage_root()
-        markers = list(walk_markers(root)) if os.path.isdir(root) else []
+        from machinable.storage import Storage
+
+        # the home's records (a disk home: the directories under its root)
+        storage = Storage.get()
+        markers = list(storage.walk())
         if not markers and not Project.is_connected():
             # Before a Project is connected, _storage_root() anchors to the cwd,
             # which may not be where the runs live. Defer without discarding so a
@@ -599,9 +601,9 @@ class Index(Interface):
             return
         # discard before ingesting so ingest's own db access does not re-enter this path
         _PENDING_REINDEX.discard(database)
-        for directory in markers:
+        for location in markers:
             try:
-                self.ingest_directory(directory)
+                storage.ingest(location)
             except Exception:  # noqa: BLE001 - a bad directory must not abort the rebuild
                 continue
 
@@ -625,8 +627,8 @@ class Index(Interface):
     ) -> str:
         """Resolve the current local working directory for ``record_id``.
 
-        Prefers the (rewritable) ``local_uri`` working copy, falling back to the
-        durable ``storage_uri`` when it is locally resolvable (disk passthrough).
+        The record's ``local_uri`` working copy; for a row without one, its
+        home's working directory as the home's storage gives it.
         """
         with db(self._resolved_database(), create=False) as _db:
             if _db:
@@ -635,10 +637,33 @@ class Index(Interface):
                     (record_id,),
                 ).fetchone()
                 if row is not None:
-                    working = row["local_uri"] or row["storage_uri"]
-                    base = uri_to_path(working)
-                    return os.path.join(base, *append)
+                    return os.path.join(
+                        self._working_directory(row["storage_uri"], row["local_uri"]),
+                        *append,
+                    )
         return os.path.join(self._storage_root(), record_id, *append)
+
+    @staticmethod
+    def _working_directory(storage_uri: str, local_uri: str | None) -> str:
+        if local_uri:
+            return uri_to_path(local_uri)
+        from machinable.storage import storage_for
+
+        return storage_for(storage_uri).local_path(storage_uri)
+
+    def working_directory(self, entry: IndexEntry) -> str:
+        """The local working directory of ``entry``'s record."""
+        return self._working_directory(entry.storage_uri, entry.local_uri)
+
+    def set_bytes_missing(self, record_id: str, missing: bool) -> None:
+        """Flag (or clear) that some of the record's files are not local."""
+        with db(self._resolved_database(), create=True) as _db:
+            assert _db is not None
+            _db.execute(
+                "UPDATE 'index' SET bytes_missing=? WHERE record_id=?",
+                (1 if missing else 0, record_id),
+            )
+            _db.commit()
 
     def register_location(self, record_id: str, local_uri: str) -> None:
         """Record a rewrite of the working-copy location for ``record_id``.
@@ -769,66 +794,26 @@ class Index(Interface):
     def resolve(self, record_id: str) -> str | None:
         """Return the current local working directory, pulling from the home.
 
-        Storage when the working copy is cold/remote. Returns None if unknown.
-
-        For local (disk) storage this is a passthrough; remote schemes delegate
-        to the connected Storage providers via :func:`machinable.storage.fetch`.
+        Fetches the record from its home (or a mirror) through
+        :func:`machinable.storage.fetch` when the working copy is cold.
+        Returns None if unknown.
         """
         entry = self.get_by_id(record_id)
         if entry is None:
             return None
-        for uri in (entry.local_uri, entry.storage_uri):
-            if uri is None:
-                continue
-            try:
-                path = uri_to_path(uri)
-            except ValueError:
-                continue  # remote scheme, needs a pull
-            if os.path.isdir(path):
-                return path
-        # cold or remote: ask connected Storage providers to materialize a copy
+        try:
+            path = self.working_directory(entry)
+        except ValueError:
+            path = os.path.join(self._storage_root(), record_id)
+        if os.path.isdir(path):
+            return path
+        # cold: ask the home, then the mirrors, to bring the working copy
         from machinable.storage import fetch
 
-        target = os.path.join(self._storage_root(), record_id)
-        if fetch(record_id, target):
-            self.register_location(record_id, path_to_uri(target))
-            return target
+        if fetch(record_id, path):
+            self.register_location(record_id, path_to_uri(path))
+            return path
         return None
-
-    def _layout(
-        self,
-        parent_entry: IndexEntry | None,
-        identity_key: str,
-        predicate_key: str,
-    ) -> str:
-        segments = (
-            sanitize_filename(identity_key),
-            sanitize_filename(predicate_key),
-        )
-        if parent_entry is None:
-            return os.path.join(self._storage_root(), *segments)
-        if parent_entry.kind == "Project":
-            # top-level interfaces are scoped under their project's identity
-            # so that interfaces from different projects sharing one index do
-            # not collide on disk.
-            return os.path.join(
-                self._storage_root(),
-                sanitize_filename(parent_entry.identity_key),
-                sanitize_filename(parent_entry.predicate_key),
-                *segments,
-            )
-        # run-records nest under their parent interface's directory
-        return os.path.join(uri_to_path(parent_entry.storage_uri), *segments)
-
-    def layout_directory(
-        self,
-        parent_id: str | None,
-        identity_key: str,
-        predicate_key: str,
-    ) -> str:
-        """The directory :meth:`materialize` gives a new record with these keys."""
-        parent_entry = self.get_by_id(parent_id) if parent_id else None
-        return self._layout(parent_entry, identity_key, predicate_key)
 
     @contextmanager
     def bind(self, entry: IndexEntry):
@@ -919,8 +904,6 @@ class Index(Interface):
                     else os.getcwd()
                 )
             )
-            identity_key = keys.identity_key
-            predicate_key = keys.predicate_key
             if keys.storage_uri is not None:
                 # ingestion at an existing location (reindex of a moved/remote dir)
                 storage_uri = keys.storage_uri
@@ -933,12 +916,15 @@ class Index(Interface):
                 storage_uri = path_to_uri(project_directory)
                 local_uri = storage_uri
             else:
-                base = self._layout(parent_entry, identity_key, predicate_key)
-                # durable home; for disk storage the runtime working copy is the
-                # same path (passthrough), so local_uri mirrors storage_uri.
-                storage_uri = path_to_uri(base)
-                local_uri = storage_uri
-                os.makedirs(uri_to_path(storage_uri), exist_ok=True)
+                # the home storage lays the record out; for the disk storage the
+                # working copy is the home itself, so local_uri is storage_uri
+                from machinable.storage import Storage
+
+                storage = Storage.get()
+                storage_uri = storage.home(keys, parent_entry)
+                working = storage.local_path(storage_uri)
+                local_uri = path_to_uri(working)
+                os.makedirs(working, exist_ok=True)
 
             try:
                 _db.execute(
@@ -1145,11 +1131,10 @@ class Index(Interface):
         missing: list[str] = []
         ok = 0
         for summary in entries:
-            working = summary.local_uri or summary.storage_uri
             try:
-                path = uri_to_path(working)
+                path = self._working_directory(summary.storage_uri, summary.local_uri)
             except ValueError:
-                # remote-only storage; treat as present (cannot stat locally)
+                # a home no connected storage holds; treat as present
                 ok += 1
                 continue
             exists = os.path.isdir(path) or os.path.isfile(path)
@@ -1311,6 +1296,7 @@ class Index(Interface):
         *,
         storage_id: str | None = None,
         relations: bool = True,
+        storage_uri: str | None = None,
     ) -> str | None:
         """Index a ``.machinable`` directory at its current location.
 
@@ -1322,6 +1308,10 @@ class Index(Interface):
         yet (forward references); they resolve once the targets ingest.
         Re-ingesting an existing record refreshes the derived columns and
         preserves the private overlay.
+
+        ``storage_uri`` is the record's home when ``directory`` is a working
+        copy of it (a record ingested from a remote home); by default the
+        directory is the home.
 
         Returns the ingested ``record_id`` (uuid), ``None`` if the directory
         holds no ``.machinable`` sentinel; raises when the sentinel is present
@@ -1352,7 +1342,8 @@ class Index(Interface):
             )
 
         model = getattr(schema, data["kind"], schema.Interface)(**data)
-        uri = path_to_uri(directory)
+        local = path_to_uri(directory)
+        uri = storage_uri or local
         keys = materialize_keys_from_model(
             model,
             parent_id=header.get("parent"),
@@ -1361,7 +1352,7 @@ class Index(Interface):
             predicate_key=header["predicate_key"],
             record_id=model.uuid,
             storage_uri=uri,
-            local_uri=uri,
+            local_uri=local,
             storage_id=storage_id,
         )
         response = self.materialize(keys)
@@ -1372,7 +1363,7 @@ class Index(Interface):
         # location, supporting reindex after a move or upload.
         uuid = cast(str, model.uuid)
         self.set_storage(uuid, uri, storage_id)
-        self.register_location(uuid, uri)
+        self.register_location(uuid, local)
         updated_at_ns = read_updated_at_ns(directory)
         if updated_at_ns is not None:
             self.set_updated_at(uuid, updated_at_ns)
@@ -1397,11 +1388,15 @@ class Index(Interface):
 
             storage = Storage.get()
         storage_id = getattr(storage, "id", None)
+        ingest = getattr(storage, "ingest", None)
         ingested: list[str] = []
-        for directory in storage.walk():
-            uuid = self.ingest_directory(
-                directory, storage_id=storage_id, relations=relations
-            )
+        for location in storage.walk():
+            if callable(ingest):
+                uuid = ingest(location, relations=relations)
+            else:
+                uuid = self.ingest_directory(
+                    location, storage_id=storage_id, relations=relations
+                )
             if uuid is not None:
                 ingested.append(uuid)
         return ingested

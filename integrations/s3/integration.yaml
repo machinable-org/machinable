@@ -1,0 +1,8 @@
+name: s3
+summary: Records in an S3 or S3-compatible bucket, read on demand
+tags: [storage, cloud]
+maintainer: machinable-org
+maintainer_url: https://github.com/machinable-org
+upstream: https://developmentseed.org/obstore/
+requires: [obstore]
+status: active

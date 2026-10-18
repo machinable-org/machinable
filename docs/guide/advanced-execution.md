@@ -133,6 +133,8 @@ execution.elsewhere   # {interface id: ("running elsewhere" | "finished elsewher
 
 With `wait=False`, or once `timeout` seconds pass, dispatch leaves the interface uncached and goes on; `elsewhere` names the run that holds it. Waiting looks again every `interval` seconds (a second by default).
 
+With several storages connected, dispatch looks in all of them; the claim goes to the [home](./storage.md#homes-and-mirrors) (the innermost connected storage), or, when it cannot claim exclusively, to the first mirror that can, from the inside out. An object store claims with conditional writes; machines sharing one bucket run an interface once just as processes sharing one folder do (see the [s3 integration](/integrations/s3#several-machines-on-one-bucket)).
+
 ## Execution metadata
 
 A materialized execution exposes its lifecycle and a memorable handle:

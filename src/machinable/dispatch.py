@@ -40,7 +40,7 @@ import sys
 import time
 from typing import cast
 
-from machinable.utils import load_file, save_file, uri_to_path
+from machinable.utils import load_file, save_file
 
 REQUEST_FILENAME = "dispatch_request.json"
 LOG_FILENAME = "dispatch.log"
@@ -182,7 +182,9 @@ def _dispatch_connected(
                 )
                 continue
             entry = execution.prepare_dispatch(interface)
-            record_dir = uri_to_path(entry.local_uri or entry.storage_uri)
+            from machinable.index import Index
+
+            record_dir = Index.get().working_directory(entry)
             run = {
                 "uuid": entry.record_id,
                 "parent_uuid": interface.uuid,

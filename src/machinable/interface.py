@@ -354,6 +354,11 @@ def _connections() -> collections.defaultdict[str, list]:
 # key inside the kind-keyed connection dict) so that iterating connections never has
 # to skip a phantom "kind". It records the order contexts were entered so the folded
 # predicate stays invertible (see get_context); kept in sync with connection_scope.
+# records of a run in progress in this context: their working copies are
+# pushed to a remote home when the run ends, not on every write
+_IN_RUN: contextvars.ContextVar[frozenset[str]] = contextvars.ContextVar(
+    "machinable_in_run", default=frozenset()
+)
 _CONTEXT_ORDER_VAR: contextvars.ContextVar[list] = contextvars.ContextVar(
     "machinable_context_order"
 )
@@ -1557,13 +1562,14 @@ class Interface(Jsonable):
         self._deferred_data = {}
 
         if existing_directory is not None:
-            from machinable.utils import walk_markers
-
-            for directory in walk_markers(existing_directory):
-                if os.path.normpath(directory) == os.path.normpath(existing_directory):
+            # the record was in its home already: index what is under it
+            # (its runs; for a remote home its own catalog too)
+            home = Storage.get()
+            for location in home.walk(existing_directory):
+                if location == existing_directory and "://" not in location:
                     continue
                 try:
-                    index.ingest_directory(directory)
+                    home.ingest(location)
                 except Exception:  # noqa: BLE001 - a half-written record ingests on its look
                     continue
 
@@ -1578,7 +1584,7 @@ class Interface(Jsonable):
         if self.kind in ("Project", "Execution"):
             return None, None
         from machinable.claims import shared_record_id
-        from machinable.format import read_id
+        from machinable.format import ID_FILENAME
         from machinable.project import Project
 
         if parent_id is None:
@@ -1593,8 +1599,14 @@ class Interface(Jsonable):
             is not None
         ):
             return None, None
-        directory = index.layout_directory(parent_id, identity_key, predicate_key)
-        header = read_id(directory)
+        from machinable.storage import Keys, Storage
+
+        home = Storage.get()
+        parent_entry = index.get_by_id(parent_id) if parent_id else None
+        location = home.handle(
+            home.home(Keys(identity_key, predicate_key), parent_entry)
+        )
+        header = home.read_json(location, ID_FILENAME)
         if (
             header is not None
             and header.get("kind") == self.kind
@@ -1604,10 +1616,10 @@ class Interface(Jsonable):
             and index.get_by_id(header["uuid"]) is None
         ):
             # keep the record's birth date: this is the record, indexed here
-            model = load_file([directory, "model.json"], None)
+            model = home.read_json(location, "model.json")
             if isinstance(model, dict) and model.get("created_at_ns"):
                 self.__model__.created_at_ns = model["created_at_ns"]
-            return header["uuid"], directory
+            return header["uuid"], location
         return shared_record_id(parent_id, identity_key, predicate_key), None
 
     def on_before_materialize(self):
@@ -2184,8 +2196,24 @@ class Interface(Jsonable):
     def fetch(self, directory: str | None = None, force: bool = False) -> bool:
         """Ensure the record's files are locally available.
 
-        Pulls from a connected storage if needed.
+        Pulls from a connected storage if needed: all of the record's files,
+        also when only its catalog is here (a record read on demand).
         """
+        if not self.is_materialized():
+            return False
+        if not force:
+            from machinable.index import Index
+
+            entry = (
+                Index.get().get_by_id(cast(str, self.uuid))
+                if Index.is_connected() or self._index_entry is not None
+                else None
+            )
+            force = entry is not None and entry.bytes_missing
+        return self._mount(directory, force)
+
+    def _mount(self, directory: str | None = None, force: bool = False) -> bool:
+        """Bring the record's working copy here when it is not (or ``force``)."""
         if not self.is_materialized():
             return False
 
@@ -2202,6 +2230,7 @@ class Interface(Jsonable):
 
             if not fetch(cast(str, self.uuid), directory):
                 return False
+            self._index_entry = None
 
         # a fetch (re)locates the working copy so re-pin to where the bytes are
         self._local_directory = os.path.abspath(directory)
@@ -2224,8 +2253,52 @@ class Interface(Jsonable):
 
         if create:
             os.makedirs(directory, exist_ok=True)
+        elif append and not os.path.exists(directory):
+            # a file of a record ingested catalog-first comes on first use
+            self._fetch_file(joinpath(list(append)))
 
         return directory
+
+    def _fetch_file(self, name: str) -> bool:
+        """Bring file ``name`` from the record's home when it is not local yet."""
+        from machinable.index import Index
+        from machinable.storage import remote_home
+
+        entry = self._index_entry
+        if entry is None and self.is_materialized() and Index.is_connected():
+            entry = self._resolve_index_entry()
+        if entry is None or not entry.bytes_missing:
+            return False
+        entry = Index.get().get_by_id(entry.record_id)
+        self._index_entry = entry
+        storage = remote_home(entry)
+        if entry is None or storage is None or not entry.bytes_missing:
+            return False
+        fetched = storage.fetch_file(entry, name, self.local_directory())
+        if fetched:
+            self._index_entry = None
+        return fetched
+
+    def _remote_home(self):
+        """The storage of this record's home when it is not the working copy."""
+        from machinable.index import Index
+        from machinable.storage import remote_home
+
+        entry = self._index_entry
+        if entry is None and self.is_materialized() and Index.is_connected():
+            entry = self._resolve_index_entry()
+        return remote_home(entry)
+
+    def _write_through(self, *names: str) -> None:
+        """Write the working copy (or files of it) through to a remote home."""
+        storage = self._remote_home()
+        if storage is None:
+            return
+        uuid = cast(str, self.uuid)
+        if names:
+            storage.write_through(uuid, self.local_directory(), names)
+        else:
+            storage.push(self.local_directory(), uuid)
 
     def load_file(self, filepath: str | list[str], default=None) -> Any | None:
         """Read a file from the record directory (format chosen by extension)."""
@@ -2238,6 +2311,8 @@ class Interface(Jsonable):
             return default
 
         data = load_file(self.local_directory(filepath), default=None)
+        if data is None and self._fetch_file(filepath):
+            data = load_file(self.local_directory(filepath), default=None)
 
         return data if data is not None else default
 
@@ -2311,6 +2386,9 @@ class Interface(Jsonable):
 
         directory = self.local_directory()
         bump_updated_at(directory)
+        if cast(str, self.uuid) not in _IN_RUN.get():
+            # outside a run, a remote home receives every change as made
+            self._write_through()
         now = _time.monotonic()
         # The marker file (the source of truth) is bumped on every call; the
         # index write-through is debounced because write bursts (a dispatch
@@ -2653,7 +2731,7 @@ class Interface(Jsonable):
                     ).launch()
             return self
 
-        self.fetch()
+        self._mount()
 
         if Execution.is_connected():
             execution = Execution.get()
@@ -2735,6 +2813,24 @@ class Interface(Jsonable):
 
         return Index.get().local_directory(record_id, name)
 
+    def _write_through_marker(self, name: str, catalog_id: str | None) -> None:
+        """Write a catalog-level marker through to its record's remote home."""
+        if not self.is_materialized():
+            return
+        from machinable.index import Index
+        from machinable.storage import remote_home
+
+        record_id = catalog_id or self._catalog_record_id()
+        if record_id == self.uuid:
+            self._write_through(name)
+            return
+        entry = Index.get().get_by_id(record_id)
+        storage = remote_home(entry)
+        if storage is not None:
+            storage.write_through(
+                record_id, Index.get().local_directory(record_id), [name]
+            )
+
     def cached(
         self,
         cached: bool | None = None,
@@ -2757,6 +2853,7 @@ class Interface(Jsonable):
             path = self._catalog_marker_path("cached", catalog_id)
             os.makedirs(os.path.dirname(path), exist_ok=True)
             save_file(path, str(reason))
+            self._write_through_marker("cached", catalog_id)
             if (
                 self.is_materialized()
                 and catalog_id is None
@@ -2775,6 +2872,7 @@ class Interface(Jsonable):
                 os.remove(self._catalog_marker_path("cached", catalog_id))
             except OSError:
                 pass
+            self._write_through_marker("cached", catalog_id)
 
         return cached
 

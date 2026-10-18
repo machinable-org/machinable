@@ -564,6 +564,7 @@ class Execution(Interface):
                 # phase 1) starts, a started one resumes.
                 self.__model__.predicate = copy.deepcopy(resume.predicate)
                 self._apply_index_entry(resume)
+                self._pull_working_copy(resume)
             else:
                 self._apply_index_entry(
                     self._mint_run_record(
@@ -589,6 +590,33 @@ class Execution(Interface):
             if hold is not None:
                 # after _run_payload wrote finished_at (or failed)
                 self._release(hold)
+
+    def _pull_working_copy(self, entry: "IndexEntry") -> None:
+        """Bring a resumed run's files from its remote home into its working copy."""
+        from machinable.storage import remote_home
+
+        home = remote_home(entry)
+        if home is None:
+            return
+        home.pull(entry.record_id)
+        self._home_pushed = True
+
+    def _cached_in_home(self, interface: Interface) -> bool:
+        """The interface's ``cached`` marker, as its home has it.
+
+        A remote home's marker is brought into the working copy.
+        """
+        if interface.cached():
+            return True
+        home = interface._remote_home()
+        if home is None:
+            return False
+        location = home.interface_location(interface)
+        reason = home.read_bytes(location, "cached") if location else None
+        if reason is None:
+            return False
+        save_file(interface.local_directory("cached"), reason.decode("utf-8"))
+        return True
 
     def _looks(self, interface: Interface) -> "list[tuple[Storage, Look]]":
         """Look at ``interface`` in every storage that holds it (claim, then runs)."""
@@ -638,10 +666,11 @@ class Execution(Interface):
         index = Index.get()
         pending = self._resumable_run(interface)
         dismissed: set[str] | None = None
+        rechecked = False
 
         while True:
             looks = self._looks(interface)
-            cached = interface.cached()
+            cached = self._cached_in_home(interface)
             if dismissed is None:
                 dismissed = {
                     run.record_id
@@ -691,6 +720,14 @@ class Execution(Interface):
                 claim_state=seen.state,
                 wait=wait and claim,
             )
+            if (
+                decision == "cached"
+                and not finished
+                and not rechecked
+                and interface._remote_home() is not None
+            ):
+                rechecked = True
+                continue
             if decision == "cached":
                 if finished:
                     # cached by the run this dispatch waited on, maybe made
@@ -810,23 +847,23 @@ class Execution(Interface):
     def _abandon_pending(self, pending: "IndexEntry | None", other: str) -> None:
         """Mark this dispatch's own pending run-record abandoned."""
         from machinable.claims import RunRecord
-        from machinable.utils import uri_to_path
+        from machinable.storage import storage_for
 
         if pending is None or pending.record_id == other:
             return
         try:
-            directory = uri_to_path(pending.local_uri or pending.storage_uri)
+            home = storage_for(pending.storage_uri)
         except ValueError:
             return
-        if not os.path.isdir(directory):
-            return
-        if any(
-            load_file([directory, marker], None) is not None
+        location = home.handle(pending.storage_uri)
+        markers = home.markers(location)
+        if not markers or any(
+            marker in markers
             for marker in ("started_at", "finished_at", "abandoned_at")
         ):
             return
-        Storage.get().mark_run(
-            RunRecord(pending.record_id, directory), "abandoned_at", str(arrow.now())
+        home.mark_run(
+            RunRecord(pending.record_id, location), "abandoned_at", str(arrow.now())
         )
 
     @staticmethod
@@ -870,12 +907,16 @@ class Execution(Interface):
 
     def _run_payload(self, interface: Interface) -> None:
         """The execution lifecycle shared by dispatch_interface and continue_run."""
+        from machinable.interface import _IN_RUN
         from machinable.project import Project
 
         catalog_uuid = interface.uuid
 
         self.of(interface)
         self.computed_resources()
+        in_run = _IN_RUN.set(
+            _IN_RUN.get() | {cast(str, self.uuid), cast(str, interface.uuid)}
+        )
 
         # both the execution and the dispatched interface can veto (an MPI
         # component may know that only its controller rank should write)
@@ -1002,9 +1043,14 @@ class Execution(Interface):
         finally:
             _watch_stop.set()
             _stop_beat()
+            _IN_RUN.reset(in_run)
             if writes_meta_data:
+                interface._write_through()
+                mirror_interface = interface.on_commit() is not False
                 for storage in Storage.connected():
                     storage.update(self)
+                    if mirror_interface:
+                        storage.update(interface)
 
     def _mint_run_record(self, interface: Interface, record_id: str | None = None):
         """Materialize a fresh run-record child of ``interface``.
@@ -1052,7 +1098,8 @@ class Execution(Interface):
         """
         from machinable.api.models import FindRequest
         from machinable.index import Index
-        from machinable.utils import load_file, sanitize_filename, uri_to_path
+        from machinable.storage import storage_for
+        from machinable.utils import sanitize_filename
 
         index = Index.get()
         latest = index.find(
@@ -1072,20 +1119,15 @@ class Execution(Interface):
             self.catalog_identity_key(), max_len=128
         ):
             return None
+
         try:
-            directory = uri_to_path(entry.local_uri or entry.storage_uri)
+            home = storage_for(entry.storage_uri)
+            markers = home.markers(home.handle(entry.storage_uri))
         except ValueError:
             return None
-        if not os.path.isdir(directory):
+        if "started_at" not in markers and "dispatched_at" not in markers:
             return None
-        if (
-            load_file([directory, "started_at"], None) is None
-            and load_file([directory, "dispatched_at"], None) is None
-        ):
-            return None
-        if load_file([directory, "finished_at"], None) is not None:
-            return None
-        if load_file([directory, "abandoned_at"], None) is not None:
+        if "finished_at" in markers or "abandoned_at" in markers:
             return None
         return entry
 
@@ -1136,8 +1178,8 @@ class Execution(Interface):
         run_record_directory: str | None = None,
     ) -> str | None:
         """Python code (or an inline shell command) re-running ``interface``."""
+        from machinable.index import Index
         from machinable.project import Project
-        from machinable.utils import uri_to_path
 
         if project_directory is None:
             project_directory = Project.get().path()
@@ -1172,7 +1214,7 @@ class Execution(Interface):
             if run_record_directory is None:
                 entry = Execution().prepare_dispatch(interface)
                 run_record_directory = os.path.abspath(
-                    uri_to_path(entry.local_uri or entry.storage_uri)
+                    Index.get().working_directory(entry)
                 )
             if interface_directory is None:
                 interface_directory = os.path.abspath(interface.local_directory())
@@ -1278,6 +1320,12 @@ class Execution(Interface):
 
         multiple = status == "resumed"
 
+        home = self._remote_home()
+        if home is not None and status == "finished":
+            home.push(self.local_directory(), cast(str, self.uuid))
+            interface = getattr(self, "_interface_", None) or self.interface
+            if interface is not None and interface.is_materialized():
+                interface._write_through()
         save_file(
             self.local_directory(f"{status}_at"),
             str(timestamp) + ("\n" if multiple else ""),
@@ -1285,8 +1333,25 @@ class Execution(Interface):
         )
         # status markers are official record writes → bump updated_at
         self.touch()
+        if home is not None:
+            self._write_status_through(home, status)
 
         return timestamp
+
+    def _write_status_through(self, home: Storage, status: str) -> None:
+        """Write a status marker through to the run's remote home."""
+        uuid = cast(str, self.uuid)
+        now = time.monotonic()
+        if not getattr(self, "_home_pushed", False):
+            home.push(self.local_directory(), uuid)
+            self._home_pushed = True
+            self._last_beat_through = now
+            return
+        if status == "heartbeat":
+            if now - getattr(self, "_last_beat_through", 0.0) < heartbeat_window() / 2:
+                return
+            self._last_beat_through = now
+        home.write_through(uuid, self.local_directory(), [f"{status}_at", "updated_at"])
 
     def retrieve_status(
         self,

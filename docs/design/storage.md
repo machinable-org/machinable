@@ -28,6 +28,12 @@ directory sits. This is deliberate, and it enables several things:
   availability and fetch on demand, and lets storage backends (mirrors like
   Globus/Aimstack) be ordinary interfaces you connect as a context.
 
+## Home ≠ working copy
+
+The same separation holds one level down. A record's **home** is where it durably lives, a URI its storage derives from the record's identity (`file://…`, `s3://…`); its **working copy** is the local directory a run writes in. On disk they coincide, which is why most people never meet the distinction. For a home that is not a directory, the working copy is a cache of it: dispatch writes the run-record and each status marker through to the home as they are written, pushes the run's files at the end (`finished_at` after them, then `cached`, then the release, the [claims](./format.md#claims) ordering), and pulls them back for a resume. Lose the working copy and nothing is lost.
+
+This is what makes the `Storage` contract small. The index stores whatever URI a storage returns and never derives one location from another, and dispatch never assumes a home is a path, so a backend is four file methods (`list`, `read`, `write`, `remove`) and, to claim, the two conditional writes. Committing, fetching, catalog-first ingest and the claim protocol's reads are written once in core over them.
+
 ## Why not store identity in the index alone?
 
 Putting identity only in the database would make the database load-bearing: lose it and

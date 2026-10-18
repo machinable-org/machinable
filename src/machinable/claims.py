@@ -42,8 +42,12 @@ def claim_location(interface_directory: str) -> str:
 
     ``<identity dir>/.claims/<predicate_key>``: one claim per identity and
     predicate, beside (not inside) the interface's own record directory, so
-    the claim is never part of the record.
+    the claim is never part of the record. ``interface_directory`` is a path,
+    or the URI of an interface in a store that is not a directory.
     """
+    if "://" in interface_directory:
+        identity, _, predicate_key = interface_directory.rstrip("/").rpartition("/")
+        return f"{identity}/{CLAIMS_DIRECTORY}/{predicate_key}"
     interface_directory = os.path.normpath(interface_directory)
     identity_directory, predicate_key = os.path.split(interface_directory)
     return os.path.join(identity_directory, CLAIMS_DIRECTORY, predicate_key)

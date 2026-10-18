@@ -82,18 +82,49 @@ as-is.
 Several processes, indexes or machines can use one storage folder at once (point `Storage("/shared/experiments")` at it from each; a separate index per machine is the normal case). Records keep the same content-addressed paths and the same ids in every index, and an interface dispatched from several of them at once runs once (see [concurrent dispatch](./advanced-execution.md#concurrent-dispatch)). The `.claims/` directories beside interface directories hold the claims that make that work; they are
 not records, are never indexed, and can be deleted when nothing runs.
 
-## Local, remote, and availability
+## Homes and mirrors
 
-A run's data may be local, available in a remote store, or evicted (indexed but not
-present locally). machinable tracks this so you can fetch on demand:
+A record's home is where it durably lives. The innermost connected storage is the home new records are laid out in while storages connected around it are mirrors, i.e. every commit reaches them too, and they are read when the home lacks a record.
 
 ```python
-run.is_mounted()     # is the data here right now?
-run.fetch()          # pull it from a connected remote store if needed
+from machinable import Storage, get
+
+with get("s3", {"url": "s3://my-bucket/experiments"}):   # a mirror
+    with Storage("/data/experiments"):                  # the home
+        get("optimize", {"lr": 0.5}).launch()
 ```
 
-[Storage backends](/integrations/) (e.g. [Globus](/integrations/globus))
-are interfaces too. Connect one as a context and committed runs are mirrored to it.
+A home need not be a directory. The [`s3` integration](/integrations/s3) makes a bucket the home (`with get("s3", {...}):` alone), and any store that can list, read, write and remove files can be one. A `Storage` implements those four [file methods](/reference/python/storage) (and, to [claim](./advanced-execution.md#concurrent-dispatch),  two conditional writes), and machinable does the rest. Every record's place is a URI the storage derives from the record's identity (`file://…` on disk, `s3://…` in a bucket); the index stores it and never derives one location from another.
+
+Dispatch looks for an interface in the home first, then in the mirrors from the inside out, and claims it in the first of them that can claim exclusively.
+
+## The working copy
+
+A run always writes into a local directory, its working copy (`run.local_directory()`). On disk the working copy is the home itself, so nothing is ever copied. For a remote home, the working copy sits under the storage's local `directory` (`./storage` by default, in the same layout as the bucket), and dispatch keeps the home current:
+
+- the run-record goes to the home when the run starts, and each status marker as it is written (heartbeats at most every half liveness window), so another machine sees a live run in the home;
+- when the run ends, its files and the results it wrote into its interface are pushed, then `finished_at`, then the interface's `cached` marker, then the claim is released;
+- outside a run, every change through a machinable API (`save_file`, `set_label`, …) is written through as it is made.
+
+A resumed run pulls its files from the home first, so the working copy can be lost at any time, e.g. delete it and the next read fetches the record again.
+
+## Availability
+
+A record ingested from a remote home arrives catalog-first with its small files (up to `catalog_max_bytes`, 1 MB by default), markers and edge log, but not its large artifacts. It is indexed as `bytes_missing`, and each file is fetched from the home when something reads it:
+
+```python
+storage.sync()                    # index what other machines added to the store
+run = get("optimize", {"lr": 0.5})
+run.load_file("metrics.json")     # small: already here
+run.local_directory("model.pt")   # large: fetched now, on first use
+run.is_mounted()                  # is a working copy here?
+run.fetch()                       # bring everything
+```
+
+`reindex(storage)` rebuilds an index from a store the same way. `storage.sync(since)` returns the records ingested and a position to pass next time; an object store keeps a small log of new records (`.catalog/` under its root) for it, because its listing is alphabetical rather than in time order.
+
+[Storage backends](/integrations/) (e.g. [S3](/integrations/s3),
+[Globus](/integrations/globus)) are interfaces too.
 
 ## Remotes: shareable interfaces
 
