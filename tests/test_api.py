@@ -935,3 +935,83 @@ def test_pending_run_is_not_a_draft(tmp_storage):
     run.update_status("heartbeat")
     assert not run.status_snapshot().is_pending
     assert _entry_status(interface.uuid) == ("running", 1)
+
+
+SLOW = """
+import os
+import time
+
+from machinable import Interface
+
+with open(os.environ["MACHINABLE_TEST_BUILDS"], "a") as f:
+    f.write("x")
+time.sleep(float(os.environ.get("MACHINABLE_TEST_BUILD_SECONDS", "0")))
+
+
+class Slow(Interface):
+    def hello(self):
+        return "slow"
+"""
+
+
+def test_a_call_builds_off_the_event_loop_and_once(tmp_storage, monkeypatch):
+    """A slow build does not hold up other requests; a repeated call reuses it."""
+    import os
+    import threading
+
+    from machinable.project import Project
+
+    project = Project.get().path()
+    module = os.path.join(project, "slow_build.py")
+    with open(module, "w") as f:
+        f.write(SLOW)
+    builds = os.path.join(project, "builds.txt")
+    monkeypatch.setenv("MACHINABLE_TEST_BUILDS", builds)
+
+    def count() -> int:
+        with open(builds) as f:
+            return len(f.read())
+
+    app = create_app(project_dir=project)
+    with TestClient(app) as client:
+
+        def call(version=None):
+            return client.post(
+                "/v1/interfaces/call",
+                json={
+                    "target": "slow_build",
+                    "version": version or [],
+                    "method": "hello",
+                    "args": [],
+                },
+            )
+
+        monkeypatch.setenv("MACHINABLE_TEST_BUILD_SECONDS", "1.5")
+        answers = []
+        slow = threading.Thread(target=lambda: answers.append(call()))
+        slow.start()
+        deadline = time.monotonic() + 10
+        while not os.path.exists(builds):  # the slow build has begun
+            assert time.monotonic() < deadline
+            time.sleep(0.01)
+        started = time.monotonic()
+        assert client.get("/v1/health").status_code == 200
+        assert time.monotonic() - started < 1.0  # not behind the build
+        slow.join()
+        assert answers[0].status_code == 200, answers[0].text
+        assert answers[0].json()["payload"] == "slow"
+        built = count()
+
+        # the same module and version again: no build
+        monkeypatch.setenv("MACHINABLE_TEST_BUILD_SECONDS", "0")
+        for _ in range(3):
+            assert call().json()["payload"] == "slow"
+        assert count() == built
+
+        # a different version, or an edited module, builds again
+        assert call([{"_tag": "other"}]).status_code in (200, 400)
+        assert count() == built + 1
+        stat = os.stat(module)
+        os.utime(module, ns=(stat.st_atime_ns, stat.st_mtime_ns + 10**9))
+        assert call().json()["payload"] == "slow"
+        assert count() == built + 2

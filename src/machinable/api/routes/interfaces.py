@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from typing import Any, cast
 
 from fastapi import APIRouter, Depends, HTTPException, Request, WebSocket
@@ -150,9 +151,16 @@ async def call_interface(
     request: Request,
     _p: str = Depends(project_context),
 ) -> dict[str, Any]:
-    """Invoke a public method; failures carry a structured detail, never a bare 500."""
+    """Invoke a public method; failures carry a structured detail, never a bare 500.
+
+    The interface is built (and materialized) in a worker thread, with the
+    request's context, so a slow build does not hold up the server's other
+    requests; a module and version built before is reused while its source is
+    unchanged.
+    """
     try:
-        interface = create_interface_from_target(
+        interface = await asyncio.to_thread(
+            create_interface_from_target,
             request,
             body.target,
             version=body.version,

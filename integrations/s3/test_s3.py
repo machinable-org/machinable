@@ -42,6 +42,7 @@ class SharedJob(Interface):
         seconds: float = 0.0
         hang: str = ""
         size: int = 0
+        folder: int = 0
 
     def __call__(self):
         print("running")
@@ -57,6 +58,12 @@ class SharedJob(Interface):
         if self.config.size:
             with open(self.local_directory("big.bin"), "wb") as f:
                 f.truncate(self.config.size)
+        for i in range(self.config.folder):
+            os.makedirs(self.local_directory("folder"), exist_ok=True)
+            with open(self.local_directory(f"folder/part{i}.bin"), "wb") as f:
+                f.truncate(4096)
+        if self.config.folder:
+            self.save_file("folder/small.json", {"parts": self.config.folder})
 """
 
 WORKER = """
@@ -423,6 +430,46 @@ def test_reading_on_demand(machines):
         assert storage.contains(run) and storage.delete(uuid_)
         assert not storage.contains(run)
         assert found.load_file("result.json") == result
+
+
+def test_a_folder_read_by_name_brings_its_missing_files(machines):
+    a, b, _, _ = machines["projects"]
+    stack, _ = machines["connect"](a)
+    with stack:
+        uuid_ = get("shared_job", {"folder": 3}).launch().uuid
+
+    stack, storage = machines["connect"](b, catalog_max_bytes=1024)
+    reads = []
+    original = storage.read
+
+    def counting(location, name):
+        reads.append(name)
+        return original(location, name)
+
+    storage.read = counting  # ty: ignore[invalid-assignment]
+    with stack:
+        storage.sync()
+        found = Interface.find_by_id(uuid_)
+        assert found is not None
+        assert os.path.isfile(
+            os.path.join(Index.get().local_directory(uuid_), "folder", "small.json")
+        )
+        reads.clear()
+        folder = found.local_directory("folder")
+        assert sorted(os.listdir(folder)) == [
+            "part0.bin",
+            "part1.bin",
+            "part2.bin",
+            "small.json",
+        ]
+        assert sorted(reads) == [
+            "folder/part0.bin",
+            "folder/part1.bin",
+            "folder/part2.bin",
+        ]
+        assert not Index.get().get_by_id(uuid_).bytes_missing  # ty: ignore[possibly-missing-attribute]
+        reads.clear()
+        assert found.local_directory("folder") == folder and reads == []
 
 
 # -- several machines on one bucket --------------------------------------------

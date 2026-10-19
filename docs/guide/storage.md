@@ -117,11 +117,26 @@ storage.sync()                    # index what other machines added to the store
 run = get("optimize", {"lr": 0.5})
 run.load_file("metrics.json")     # small: already here
 run.local_directory("model.pt")   # large: fetched now, on first use
+run.local_directory("analyzer")   # a folder: the files it lacks, fetched now
 run.is_mounted()                  # is a working copy here?
 run.fetch()                       # bring everything
 ```
 
-`reindex(storage)` rebuilds an index from a store the same way. `storage.sync(since)` returns the records ingested and a position to pass next time; an object store keeps a small log of new records (`.catalog/` under its root) for it, because its listing is alphabetical rather than in time order.
+A folder read by name (`local_directory("analyzer")`, a zarr store, a model checkpoint directory) may already be here with only its small files, the ones that came with the catalog. While the record is `bytes_missing`, reading the folder fetches every file under it that is not here at the home's size, so it is complete when the call returns; once it is, asking again reads nothing, and the record stops being `bytes_missing` when its last file arrives.
+
+`reindex(storage)` rebuilds an index from a store the same way. `storage.sync(since)` returns the records ingested or refreshed and a position to pass next time; an object store keeps a small log of new and changed records (`.catalog/` under its root) for it, because its listing is alphabetical rather than in time order.
+
+## Following a remote home
+
+A record another machine is still writing (a run in progress, an interface whose results it saves later) changes after this machine indexed it. `sync` keeps up with it. The machine that writes a record is never refreshed from the home, since its working copy is at least as new. To keep an index current without a loop of your own, follow the store:
+
+```python
+with get("s3", {"url": "s3://my-bucket/lab"}) as storage:
+    with storage.follow(15):          # sync now, then every 15 s in the background
+        get("machinable.server", {...}).launch()
+```
+
+`follow` syncs once before it returns, then in a background thread with the connections of the context it was called in, and `stop()` (or leaving the `with`) ends it. Elsewhere, call `position = storage.sync(position)[1]` on a schedule of your own.
 
 [Storage backends](/integrations/) (e.g. [S3](/integrations/s3),
 [Globus](/integrations/globus)) are interfaces too.

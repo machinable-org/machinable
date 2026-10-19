@@ -655,6 +655,21 @@ class Index(Interface):
         """The local working directory of ``entry``'s record."""
         return self._working_directory(entry.storage_uri, entry.local_uri)
 
+    def entries_under(self, uri: str, kind: str | None = None) -> list[IndexEntry]:
+        """The entries whose home is ``uri`` or under it (of ``kind``, if given)."""
+        root = uri.rstrip("/")
+        sql = (
+            "SELECT * FROM 'index' WHERE (storage_uri=? OR substr(storage_uri, 1, ?)=?)"
+        )
+        params: list = [root, len(root) + 1, root + "/"]
+        if kind is not None:
+            sql += " AND kind=?"
+            params.append(kind)
+        with db(self._resolved_database(), create=False) as _db:
+            if not _db:
+                return []
+            return [_row_to_entry(r) for r in _db.execute(sql, params).fetchall()]
+
     def set_bytes_missing(self, record_id: str, missing: bool) -> None:
         """Flag (or clear) that some of the record's files are not local."""
         with db(self._resolved_database(), create=True) as _db:

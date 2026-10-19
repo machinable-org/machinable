@@ -1,10 +1,12 @@
 """Storage: durable homes for records, and the working copies runs write in."""
 
 import builtins
+import contextvars
 import json
 import os
 import posixpath
 import shutil
+import threading
 import time
 from collections.abc import Iterable, Iterator
 from typing import IO, TYPE_CHECKING, NamedTuple, Protocol, cast
@@ -13,6 +15,7 @@ from pydantic import BaseModel
 
 from machinable import schema
 from machinable.api.models import IndexEntry
+from machinable.format import UPDATED_AT_FILENAME, is_later
 from machinable.index import Index
 from machinable.interface import Interface, get_inherits
 from machinable.types import VersionType
@@ -38,9 +41,12 @@ CATALOG_DIRECTORY = ".catalog"
 # a record's catalog files besides those up to ``catalog_max_bytes``
 CATALOG_FILES = ("related/metadata.jsonl",)
 CATALOG_MAX_BYTES = 1024 * 1024
+CATALOG_LOOKBACK_NS = 60 * 10**9
 # pushed last, so a home that has it has the rest of the run
 LAST_FILES = ("finished_at",)
+UNLOGGED_FILES = ("heartbeat_at", UPDATED_AT_FILENAME)
 _LOCAL_SCHEMES = ("file://", "scratch://")
+_FETCHED: dict[str, set[str]] = {}
 
 
 class RecordKeys(Protocol):
@@ -111,6 +117,10 @@ class Storage(Interface):
         self._entry: IndexEntry | None = None
         # (size, mtime) of each file last pushed, by its location here
         self._pushed: dict[str, tuple[int, int]] = {}
+        # logged records a sync could not read (half-written): uuid -> location
+        self._unread: dict[str, str] = {}
+        # catalog-log entries read lately, so one listed late is read once
+        self._logged: set[str] = set()
 
     def __enter__(self):
         super().__enter__()
@@ -462,6 +472,7 @@ class Storage(Interface):
         )
         if uuid is not None:
             index.set_bytes_missing(uuid, missing)
+            _FETCHED.pop(uuid, None)
         return uuid
 
     def catalog_max_bytes(self) -> int:
@@ -469,38 +480,154 @@ class Storage(Interface):
         return int(getattr(self.config, "catalog_max_bytes", CATALOG_MAX_BYTES))
 
     def sync(self, since: str | None = None) -> tuple[builtins.list[str], str | None]:
-        """Index the records added to this storage since position ``since``.
+        """Index what was added to or changed in this storage since ``since``.
 
-        Returns the uuids ingested and the position to pass next time. A
-        store with a catalog log reads the log after ``since``, skipping
-        records this index already has; any other store is walked whole.
+        Returns the uuids ingested or refreshed and the position to pass next
+        time. A store with a catalog log reads the log after ``since``: a
+        record new to this index is ingested; one it has is refreshed
+        (:meth:`refresh`), since writers log a record again when they change
+        it. Runs indexed from here that are not finished are refreshed too, as
+        their heartbeats are not logged; finished runs and records nobody
+        logged cost no reads. Any other store is walked whole.
         """
         if not self.catalog_log:
             return [u for u in map(self.ingest, self.walk()) if u is not None], None
         index = Index.get()
         root = self.handle(self.root_uri())
         log = self.join(root, CATALOG_DIRECTORY)
+        # an entry can be listed after a later one (another writer's clock, a
+        # slow write): those up to CATALOG_LOOKBACK_NS before ``since`` are read
+        # too, once each per storage instance
+        earliest = _log_time(since) - CATALOG_LOOKBACK_NS if since else 0
         names = sorted(
             n
             for n, _, _ in self.list(log, recursive=False)
-            if not n.endswith("/") and (since is None or n > since)
+            if not n.endswith("/")
+            and (
+                since is None
+                or n > since
+                or (_log_time(n) > earliest and n not in self._logged)
+            )
         )
-        ingested = []
-        for name in names:
-            uuid = name.partition("-")[2]
-            if uuid and index.get_by_id(uuid) is not None:
-                if os.path.isdir(index.local_directory(uuid)):
-                    continue
-            relative = self.read_bytes(log, name)
-            if relative is None:
+        ingested: builtins.list[str] = []
+        seen: set[str] = set()
+        unread, self._unread = self._unread, {}
+        # (uuid, its location if known, its log entry if any)
+        logged: builtins.list[tuple[str, str | None, str | None]] = [
+            (uuid, location, None) for uuid, location in unread.items()
+        ]
+        logged += [(name.partition("-")[2], None, name) for name in names]
+        for uuid, location, name in logged:
+            if uuid in seen:
                 continue
-            found = self.ingest(self.join(root, relative.decode("utf-8").strip()))
-            if found is not None:
-                ingested.append(found)
-        return ingested, names[-1] if names else since
+            seen.add(uuid)
+            entry = index.get_by_id(uuid) if uuid else None
+            if entry is not None and os.path.isdir(index.working_directory(entry)):
+                if self.owns(entry.storage_uri):
+                    refreshed = self._refresh_logged(entry)
+                    ingested.extend(u for u in refreshed if u not in ingested)
+                    seen.update(refreshed)
+                continue
+            if location is None and name is not None:
+                relative = self.read_bytes(log, name)
+                if relative is None:
+                    continue
+                location = self.join(root, relative.decode("utf-8").strip())
+            if location is not None and self._ingest_logged(uuid, location):
+                ingested.append(uuid)
+        for entry in index.entries_under(self.root_uri(), kind="Execution"):
+            if entry.record_id in seen:
+                continue
+            directory = index.working_directory(entry)
+            if not os.path.isdir(directory) or os.path.exists(
+                os.path.join(directory, "finished_at")
+            ):
+                continue
+            refreshed = self._refresh_logged(entry)
+            ingested.extend(u for u in refreshed if u not in ingested)
+            seen.update(refreshed)
+        position = max([n for n in (since, *names) if n is not None], default=None)
+        if position is not None:
+            # what an entry listed late can still be weighed against
+            latest = _log_time(position) - CATALOG_LOOKBACK_NS
+            self._logged = {
+                n for n in self._logged | set(names) if _log_time(n) > latest
+            }
+        return ingested, position
+
+    def _ingest_logged(self, uuid: str, location: str) -> bool:
+        """Ingest a logged record; one that cannot be read yet is read next sync."""
+        try:
+            return self.ingest(location) is not None
+        except Exception:  # noqa: BLE001 - a half-written record is read next sync
+            if uuid:
+                self._unread[uuid] = location
+            return False
+
+    def _refresh_logged(self, entry: IndexEntry) -> builtins.list[str]:
+        try:
+            return self.refresh(entry)
+        except Exception:  # noqa: BLE001 - a half-written record is read next sync
+            self._unread[entry.record_id] = self.handle(entry.storage_uri)
+            return []
+
+    def refresh(self, entry: IndexEntry) -> builtins.list[str]:
+        """Bring an indexed record of this home up to date with the home.
+
+        Reads its ``updated_at`` there (the single writer's sync signal, one
+        small read). When it is later than the working copy's, a run not
+        finished there gets its status markers (no artifacts); a run finished
+        there is adopted (:meth:`adopt`: its catalog and its interface's), and
+        any other record is ingested again, catalog-first. Nothing for a
+        working copy as current as the home (the writer's always is), a home
+        that is local, or a record not here yet. Returns the uuids of the
+        working copies that changed (an adopted run's interface with it).
+        """
+        uri = entry.storage_uri
+        if _is_local(uri) or not self.owns(uri):
+            return []
+        directory = Index.get().working_directory(entry)
+        if not os.path.isdir(directory):
+            return []
+        location = self.handle(uri)
+        home = self.read_bytes(location, UPDATED_AT_FILENAME)
+        if home is None:
+            return []
+        updated_at = home.decode("utf-8", "replace").strip()
+        local = load_file([directory, UPDATED_AT_FILENAME], None)
+        if local is not None and not is_later(updated_at, str(local)):
+            return []
+        if entry.kind == "Execution":
+            from machinable.claims import RunRecord
+
+            markers = self.markers(location)
+            if "finished_at" in markers:
+                if not self.adopt(RunRecord(entry.record_id, location, markers)):
+                    return []
+                return [
+                    entry.record_id,
+                    *([entry.parent_id] if entry.parent_id else []),
+                ]
+            for name, value in markers.items():
+                if str(load_file([directory, name], "")).strip() != value:
+                    save_file([directory, name], value)
+            save_file([directory, UPDATED_AT_FILENAME], updated_at)
+            return [entry.record_id]
+        return [entry.record_id] if self.ingest(location) is not None else []
+
+    def follow(self, interval: float = 15.0, since: str | None = None) -> "Following":
+        """Keep this index current with this storage: :meth:`sync` every ``interval`` s.
+
+        Syncs once now, then in a background thread with this context's
+        connections (the project, storages and index connected here), until
+        the returned :class:`Following` is stopped (or used as a context
+        manager). A sync that fails (the store cannot be reached) is tried
+        again at the next interval.
+        """
+        return Following(self, interval, since)
 
     def _log(self, location: str, uuid: str) -> None:
-        """Add a new record to the catalog log."""
+        """Add a new or changed record to the catalog log."""
         root = self.handle(self.root_uri()).rstrip("/")
         self.write(
             self.join(root, CATALOG_DIRECTORY),
@@ -523,9 +650,14 @@ class Storage(Interface):
         if MACHINABLE_MARKER not in files:
             return False, False
         missing = False
-        for name, (size, _) in sorted(files.items()):
+        # updated_at last: a copy that has the home's has the rest of it
+        for name, (size, _) in sorted(
+            files.items(), key=lambda f: (f[0] == UPDATED_AT_FILENAME, f[0])
+        ):
             if max_bytes is not None and size > max_bytes and name not in CATALOG_FILES:
-                missing = True
+                # a large file fetched before stays (the record is not missing it)
+                if _size(os.path.join(directory, *name.split("/"))) != size:
+                    missing = True
                 continue
             self._download_file(location, name, directory)
         return True, missing
@@ -543,19 +675,20 @@ class Storage(Interface):
         os.replace(temporary, target)
         return True
 
-    def _upload_file(self, path: str, location: str, name: str) -> None:
+    def _upload_file(self, path: str, location: str, name: str) -> bool:
         """Write a working copy's file to ``location`` unless pushed unchanged."""
         try:
             stat = os.stat(path)
         except OSError:
-            return
+            return False
         key = self.join(location, name)
         signature = (stat.st_size, stat.st_mtime_ns)
         if self._pushed.get(key) == signature:
-            return
+            return False
         with open(path, "rb") as f:
             self.write(location, name, f)
         self._pushed[key] = signature
+        return True
 
     @staticmethod
     def _local_files(directory: str) -> builtins.list[str]:
@@ -603,7 +736,8 @@ class Storage(Interface):
         """Persist a working copy into this storage; the record's URI here.
 
         Only the files changed since this storage last pushed them,
-        ``finished_at`` last; nothing when the working copy is the place.
+        ``finished_at`` last; nothing when the working copy is the place. A
+        store with a catalog log logs the record when it is new or changed.
         """
         entry = Index.get().get_by_id(uuid)
         if entry is None:
@@ -619,9 +753,12 @@ class Storage(Interface):
             and self.join(location, MACHINABLE_MARKER) not in self._pushed
             and self.read_bytes(location, MACHINABLE_MARKER) is None
         )
+        changed = False
         for name in self._local_files(source):
-            self._upload_file(os.path.join(source, *name.split("/")), location, name)
-        if fresh:
+            path = os.path.join(source, *name.split("/"))
+            if self._upload_file(path, location, name) and name not in UNLOGGED_FILES:
+                changed = True
+        if fresh or (self.catalog_log and changed):
             self._log(location, uuid)
         return uri
 
@@ -629,7 +766,8 @@ class Storage(Interface):
         """Write files of a working copy through to the record's place here.
 
         A file missing from the working copy is removed there. Nothing when
-        the working copy is the place.
+        the working copy is the place. A store with a catalog log logs the
+        change, unless it is only a heartbeat.
         """
         entry = Index.get().get_by_id(uuid)
         if entry is None:
@@ -638,13 +776,18 @@ class Storage(Interface):
         location = self.handle(uri)
         if _is_local(uri) and _same(location, directory):
             return
+        changed = False
         for name in names:
             path = os.path.join(directory, *name.split("/"))
             if os.path.isfile(path):
-                self._upload_file(path, location, name)
+                written = self._upload_file(path, location, name)
             else:
                 self.remove(location, name)
                 self._pushed.pop(self.join(location, name), None)
+                written = True
+            changed = changed or (written and name not in UNLOGGED_FILES)
+        if self.catalog_log and changed:
+            self._log(location, uuid)
 
     # -- provider methods --------------------------------------------------------
 
@@ -755,20 +898,36 @@ class Storage(Interface):
         return self._download(location, local_directory)[0]
 
     def fetch_file(self, entry: IndexEntry, name: str, directory: str) -> bool:
-        """Bring one file, or the files under ``name``, into ``directory``.
+        """Bring one file, or the files under ``name`` (a folder), into ``directory``.
 
-        Clears the record's ``bytes_missing`` once it is all there.
+        Only those not here at the home's size, so it is cheap to call again:
+        once ``name`` is whole, later calls in this process read nothing
+        (until the record is ingested again). Clears the record's
+        ``bytes_missing`` once it is all there. Returns whether the home has
+        ``name``.
         """
         location = self.handle(self.location(entry))
         if _is_local(location) and _same(location, directory):
             return False
         name = name.replace(os.sep, "/").strip("/")
+        if not name:
+            return False
+        if name in _FETCHED.get(entry.record_id, ()) and os.path.exists(
+            os.path.join(directory, *name.split("/"))
+        ):
+            return True
         files = self.record_files(location)
         names = [n for n in files if n == name or n.startswith(name + "/")]
         for n in names:
-            self._download_file(location, n, directory)
+            if _size(os.path.join(directory, *n.split("/"))) != files[n][0]:
+                self._download_file(location, n, directory)
+        if names:
+            _FETCHED.setdefault(entry.record_id, set()).add(name)
+        max_bytes = self.catalog_max_bytes()
         if files and all(
-            os.path.isfile(os.path.join(directory, *n.split("/"))) for n in files
+            (local := _size(os.path.join(directory, *n.split("/")))) == size
+            or (local is not None and size <= max_bytes)
+            for n, (size, _) in files.items()
         ):
             Index.get().set_bytes_missing(entry.record_id, False)
         return bool(names)
@@ -823,11 +982,11 @@ class Storage(Interface):
         """
         import arrow
 
-        from machinable.format import UPDATED_AT_FILENAME
-
         updated_at = str(arrow.now())
         self.write(run.location, marker, value.encode())
         self.write(run.location, UPDATED_AT_FILENAME, updated_at.encode())
+        if self.catalog_log:
+            self._log(run.location, run.record_id)
         if not _is_local(run.location):
             local = self.local_path(run.location)
             if os.path.isdir(local):
@@ -876,6 +1035,62 @@ def _path(location: str) -> str:
 
 def _same(a: str, b: str) -> bool:
     return os.path.abspath(a) == os.path.abspath(b)
+
+
+def _log_time(name: str) -> int:
+    """The time (ns) of a catalog-log entry ``<time>-<uuid>``; 0 if unreadable."""
+    try:
+        return int(name.partition("-")[0])
+    except ValueError:
+        return 0
+
+
+def _size(path: str) -> int | None:
+    """The size of the file at ``path``; None when there is none."""
+    try:
+        return os.stat(path).st_size if os.path.isfile(path) else None
+    except OSError:
+        return None
+
+
+class Following:
+    """A storage followed in the background (:meth:`Storage.follow`).
+
+    ``position`` is the catalog position reached, ``error`` the last sync's
+    failure (None after a sync that worked). ``stop()`` ends it.
+    """
+
+    def __init__(self, storage: Storage, interval: float, since: str | None = None):
+        self.storage = storage
+        self.interval = interval
+        self.error: Exception | None = None
+        self.position = storage.sync(since)[1]
+        self._stopped = threading.Event()
+        context = contextvars.copy_context()
+        self._thread = threading.Thread(
+            target=context.run, args=(self._run,), name="machinable-follow", daemon=True
+        )
+        self._thread.start()
+
+    def _run(self) -> None:
+        while not self._stopped.wait(self.interval):
+            try:
+                self.position = self.storage.sync(self.position)[1]
+                self.error = None
+            except Exception as ex:  # noqa: BLE001 - the store cannot be read now
+                self.error = ex
+
+    def stop(self) -> None:
+        """End following (after a sync in progress)."""
+        self._stopped.set()
+        if self._thread is not threading.current_thread():
+            self._thread.join()
+
+    def __enter__(self) -> "Following":
+        return self
+
+    def __exit__(self, *exc) -> None:
+        self.stop()
 
 
 def _write_temporary(directory: str, data: bytes) -> str:

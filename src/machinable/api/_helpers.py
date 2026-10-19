@@ -271,11 +271,22 @@ def create_interface_from_target(
     """
     cache = _interfaces_for(request)
     meta_store = _meta_for(request)
+    built = _built_targets(request)
+    key = _target_key(request, target, version) if uuid is None else None
+    known = built.get(key) if key is not None else None
 
     if uuid is not None and uuid in cache:
         interface = cache[uuid]
     elif target in cache:
         interface = cache[target]
+    elif (
+        known is not None
+        and known[0] in cache
+        and known[1] is not None
+        and _source_signature(known[1][0]) == known[1]
+    ):
+        # built before from the same module source and version
+        interface = cache[known[0]]
     else:
         # Resolve `target` as an existing interface id first, i.e. a record id (any
         # length) or a content-hash uuid, and only treat it as a module path to
@@ -290,6 +301,8 @@ def create_interface_from_target(
             if label is not None:
                 interface.set_label(label)
             interface.materialize(record_id=uuid)
+            if key is not None:
+                built[key] = (cast(str, interface.uuid), _class_source(interface))
         cache[cast(str, interface.uuid)] = interface
 
     if label is not None and interface.label != label:
@@ -297,6 +310,47 @@ def create_interface_from_target(
     if meta:
         meta_store[cast(str, interface.uuid)] = meta
     return interface
+
+
+def _built_targets(request: Request) -> dict:
+    """(project, module, version) -> (uuid, its module's source signature)."""
+    state = request.app.state
+    built = getattr(state, "built_targets", None)
+    if built is None:
+        built = state.built_targets = {}
+    return built
+
+
+def _target_key(
+    request: Request, target: str, version: list[str | dict] | None
+) -> tuple[str, str, str] | None:
+    try:
+        encoded = json.dumps(version or [], sort_keys=True)
+    except (TypeError, ValueError):
+        return None
+    return (request_project_dir(request), target, encoded)
+
+
+def _source_signature(path: str) -> tuple[str, int, int] | None:
+    try:
+        stat = os.stat(path)
+    except OSError:
+        return None
+    return (path, stat.st_mtime_ns, stat.st_size)
+
+
+def _class_source(interface: Interface) -> tuple[str, int, int] | None:
+    """The signature of the file ``interface``'s class is defined in.
+
+    A project module is executed again from its file on every build, so an
+    edit changes what a build gives: a build is reused only while the file is
+    unchanged. A class without a file (a session class) is not reused.
+    """
+    try:
+        path = inspect.getsourcefile(type(interface))
+    except TypeError:
+        return None
+    return _source_signature(path) if path else None
 
 
 def search_interfaces(request: Request, req) -> Any:

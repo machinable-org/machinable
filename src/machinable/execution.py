@@ -22,6 +22,7 @@ from machinable.errors import (
     ExecutionFailed,
     ExecutionInterrupted,
 )
+from machinable.format import is_later
 from machinable.interface import (
     Interface,
     _connections,
@@ -96,18 +97,6 @@ def heartbeat_window() -> float:
 def heartbeat_interval() -> float:
     """The cadence of the heartbeat marker in seconds."""
     return min(HEARTBEAT_INTERVAL, heartbeat_window() / 6)
-
-
-def _later(a: str, b: str) -> bool:
-    """Whether timestamp ``a`` is after ``b`` (an unreadable ``b`` is earlier)."""
-    try:
-        later = arrow.get(a.strip())
-    except (arrow.ParserError, ValueError, TypeError):
-        return False
-    try:
-        return later > arrow.get(b.strip())
-    except (arrow.ParserError, ValueError, TypeError):
-        return True
 
 
 def heartbeat_is_fresh(heartbeat: DatetimeType | None, window: float) -> bool:
@@ -1434,7 +1423,7 @@ class Execution(Interface):
             path = os.path.join(directory, name)
             local = load_file(path, default=None)
             if local is not None and not (
-                name == "heartbeat_at" and _later(value, str(local))
+                name == "heartbeat_at" and is_later(value, str(local))
             ):
                 continue
             save_file(path, value)

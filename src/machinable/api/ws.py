@@ -239,7 +239,9 @@ async def handle_interface_ws(
                             )
                         interface = loaded
                     else:
-                        interface = create_interface_from_target(
+                        # built off the event loop, with this context
+                        interface = await asyncio.to_thread(
+                            create_interface_from_target,
                             request,
                             message.target,
                             version=message.version,

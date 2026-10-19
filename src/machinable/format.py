@@ -83,6 +83,18 @@ def read_updated_at_ns(directory: str) -> int | None:
         return None
 
 
+def is_later(a: str, b: str) -> bool:
+    """Whether timestamp ``a`` is after ``b`` (an unreadable ``b`` is earlier)."""
+    try:
+        later = arrow.get(a.strip())
+    except (arrow.ParserError, ValueError, TypeError):
+        return False
+    try:
+        return later > arrow.get(b.strip())
+    except (arrow.ParserError, ValueError, TypeError):
+        return True
+
+
 def is_record_directory(directory: str) -> bool:
     """A conformant format-v1 record directory: sentinel + header."""
     from machinable.utils import is_machinable_directory

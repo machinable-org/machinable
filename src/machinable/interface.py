@@ -2253,14 +2253,13 @@ class Interface(Jsonable):
 
         if create:
             os.makedirs(directory, exist_ok=True)
-        elif append and not os.path.exists(directory):
-            # a file of a record ingested catalog-first comes on first use
+        elif append and (not os.path.exists(directory) or os.path.isdir(directory)):
             self._fetch_file(joinpath(list(append)))
 
         return directory
 
     def _fetch_file(self, name: str) -> bool:
-        """Bring file ``name`` from the record's home when it is not local yet."""
+        """Bring file ``name``, or what a folder ``name`` lacks, from the home."""
         from machinable.index import Index
         from machinable.storage import remote_home
 
@@ -2814,22 +2813,26 @@ class Interface(Jsonable):
         return Index.get().local_directory(record_id, name)
 
     def _write_through_marker(self, name: str, catalog_id: str | None) -> None:
-        """Write a catalog-level marker through to its record's remote home."""
+        """Write a catalog-level marker through to its record's remote home.
+
+        With ``updated_at`` bumped, so a machine following the home sees it.
+        """
         if not self.is_materialized():
             return
+        from machinable.format import bump_updated_at
         from machinable.index import Index
         from machinable.storage import remote_home
 
         record_id = catalog_id or self._catalog_record_id()
         if record_id == self.uuid:
-            self._write_through(name)
-            return
-        entry = Index.get().get_by_id(record_id)
-        storage = remote_home(entry)
+            storage = self._remote_home()
+            directory = self.local_directory()
+        else:
+            storage = remote_home(Index.get().get_by_id(record_id))
+            directory = Index.get().local_directory(record_id)
         if storage is not None:
-            storage.write_through(
-                record_id, Index.get().local_directory(record_id), [name]
-            )
+            bump_updated_at(directory)
+            storage.write_through(record_id, directory, [name, "updated_at"])
 
     def cached(
         self,

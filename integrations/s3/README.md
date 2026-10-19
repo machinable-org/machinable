@@ -68,10 +68,11 @@ with get("s3", {"url": "s3://my-bucket/lab/machinable"}) as storage:
     run = get("my_analysis", {"session": 12})
     run.load_file("metrics.json")            # small files are already here
     run.local_directory("model.pt")          # a large one is downloaded now
+    run.local_directory("analyzer")          # a folder: the files it lacks
     run.fetch()                              # everything
 ```
 
-`sync(since)` reads the bucket's log of new records (`.catalog/<time>-<uuid>` under the prefix, written when a record is first pushed) after `since` and indexes each record's catalog: its files up to `catalog_max_bytes`, its markers and its edge log. Such records are `bytes_missing` until the rest is read. `Index.get().reindex(storage)` rebuilds an index from the whole bucket the same way.
+`sync(since)` reads the bucket's log of new and changed records (`.catalog/<time>-<uuid>` under the prefix, written when a record is first pushed and again when it changes) after `since`, indexes each new record's catalog (its files up to `catalog_max_bytes`, its markers and its edge log) and refreshes each changed one. Such records are `bytes_missing` until the rest is read. `storage.follow(15)` keeps a machine's index current by syncing every 15 s in the background ([following a home](/guide/storage#following-a-remote-home)). `Index.get().reindex(storage)` rebuilds an index from the whole bucket the same way.
 
 `storage.delete(uuid)` removes a record (and its runs) from the bucket; the working copy stays.
 
