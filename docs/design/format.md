@@ -329,7 +329,7 @@ json results are a JSON value, written as canonical JSON with NaN and infinities
   bytes.
 - **A chunk file that is not there** reads as the `fill_value` (zarr's rule).
 
-These are plain zarr v3 arrays: zarr-python, zarrs (Rust) and zarrita (JS) read them as they are, and the subset is a few dozen lines without a zarr library. machinable's writer needs only numpy. It writes columns and ragged values 65536 rows to a chunk, and an array's chunks as whole items of about 64 KiB unless `chunks` says otherwise.
+These are plain zarr v3 arrays: zarr-python, zarrs (Rust) and zarrita (JS) read them as they are, and the subset is a few dozen lines without a zarr library. machinable's writer needs only numpy. Since every chunk file holds the full chunk shape, a chunk much longer than the data is mostly padding, so unless `chunks` says otherwise the writer sizes a chunk to the data: a column, ragged `values` or `offsets` of `n` rows gets `n` rounded up to a power of two (at least 64, at most 65536) rows to a chunk, and an array whole items of at most about 64 KiB, no more than its length rounded the same way. A result first written with `append=True` (live) does not know its final length and gets 4096 rows to a chunk (an array 64 KiB of items): appends keep a result's chunk shape, so a small result appended to later grows by chunks of its first size (pass `chunks` to choose). A reader takes the chunk shape from `zarr.json`, never from these defaults.
 
 ### Reading
 

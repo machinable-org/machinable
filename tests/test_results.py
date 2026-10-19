@@ -201,6 +201,90 @@ def test_stale_chunks_of_a_cached_copy():
     ]
 
 
+def _bytes_on_disk(directory: str) -> int:
+    return sum(
+        os.path.getsize(os.path.join(path, name))
+        for path, _, names in os.walk(directory)
+        for name in names
+    )
+
+
+def _chunk_rows(directory: str, file: str) -> int:
+    meta = json.load(open(os.path.join(directory, file, "zarr.json")))
+    return meta["chunk_grid"]["configuration"]["chunk_shape"][0]
+
+
+def test_small_results_stay_small(tmp_path):
+    """A chunk is written whole (padded), so a fresh write fits it to the data."""
+    small = {f"x{i}": np.arange(23, dtype="float64") for i in range(8)}
+    small["label"] = np.array(["good"] * 23)
+    small["good"] = np.ones(23, dtype=bool)
+    table, ragged, array = (str(tmp_path / n) for n in ("table", "ragged", "array"))
+    R.save(table, "units", small)
+    R.save(ragged, "trains", [np.arange(n, dtype="int64") for n in range(23)])
+    R.save(array, "peaks", np.arange(23, dtype="float32"))
+    # 23 rows of 10 columns: 64-row chunks, the metadata the larger part
+    assert _bytes_on_disk(table) < 12_000
+    assert _bytes_on_disk(ragged) < 6_000
+    assert _bytes_on_disk(array) < 2_000
+    entry = R.read_manifest(table)["results"]["units"]
+    assert _chunk_rows(table, f"{entry['file']}/x0") == R.MIN_ROWS_PER_CHUNK
+    entry = R.read_manifest(ragged)["results"]["trains"]
+    assert _chunk_rows(ragged, f"{entry['file']}/values") == 256  # 253 values
+    assert _chunk_rows(ragged, f"{entry['file']}/offsets") == 64  # 24 offsets
+    read = R.read(table, R.read_manifest(table)["results"]["units"])
+    assert list(read["label"]) == ["good"] * 23
+
+
+def test_a_large_table_chunks_at_the_default(tmp_path):
+    directory = str(tmp_path)
+    R.save(directory, "big", {"x": np.arange(R.ROWS_PER_CHUNK * 2 + 5)})
+    entry = R.read_manifest(directory)["results"]["big"]
+    assert _chunk_rows(directory, f"{entry['file']}/x") == R.ROWS_PER_CHUNK
+    assert sorted(os.listdir(os.path.join(directory, entry["file"], "x", "c"))) == [
+        "0",
+        "1",
+        "2",
+    ]
+    assert R.read(directory, entry)["x"][-1] == R.ROWS_PER_CHUNK * 2 + 4
+
+
+def test_live_results_keep_a_chunk_to_grow_into(tmp_path):
+    directory = str(tmp_path)
+    for start in range(0, 10_000, 1000):
+        R.save(directory, "units", _units(1000, start), append=True)
+        R.save(directory, "trains", TRAINS, append=True)
+    manifest = R.read_manifest(directory)
+    units, trains = manifest["results"]["units"], manifest["results"]["trains"]
+    assert _chunk_rows(directory, f"{units['file']}/unit_id") == R.LIVE_ROWS_PER_CHUNK
+    assert _chunk_rows(directory, f"{trains['file']}/values") == R.LIVE_ROWS_PER_CHUNK
+    column = os.path.join(directory, units["file"], "unit_id", "c")
+    assert sorted(os.listdir(column)) == ["0", "1", "2"]  # 10000 rows, 4096 a chunk
+    table = R.read(directory, units)
+    assert table["unit_id"].tolist() == list(range(10_000))
+    assert len(R.read(directory, trains)) == 70
+    # an append past a chunk boundary leaves the chunks before it as they were
+    before = dict(manifest)
+    R.save(directory, "units", _units(5000, 10_000), append=True)
+    after = R.read_manifest(directory)
+    stale = R.stale_files(directory, before, after)
+    prefix = f"{units['file']}/unit_id/"
+    assert sorted(n[len(prefix) :] for n in stale if n.startswith(prefix)) == [
+        "c/2",
+        "c/3",
+        "zarr.json",
+    ]
+
+
+def test_a_fresh_small_result_still_takes_appends(tmp_path):
+    directory = str(tmp_path)
+    R.save(directory, "units", _units(3))
+    R.save(directory, "units", _units(200, 3), append=True)
+    entry = R.read_manifest(directory)["results"]["units"]
+    assert _chunk_rows(directory, f"{entry['file']}/unit_id") == R.MIN_ROWS_PER_CHUNK
+    assert R.read(directory, entry)["unit_id"].tolist() == list(range(203))
+
+
 # -- another machine, a remote home -------------------------------------------------
 
 

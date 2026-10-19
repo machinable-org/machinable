@@ -2451,9 +2451,13 @@ class Interface(Jsonable):
         ``ragged`` (items of different lengths), anything else ``json``.
         ``append=True`` adds rows to a table, items to an array or a ragged
         result (a run's results growing live). ``chunks`` sets the rows per
-        chunk (an array's chunk shape); ``dims`` names an array's axes,
-        ``index`` a ragged result's items; ``units`` is the values' physical
-        unit (by column for a table); ``compression`` is None or ``"gzip"``.
+        chunk (an array's chunk shape); by default a chunk fits the data (its
+        length rounded up to a power of two, at least 64, at most 65536 rows
+        or about 64 KiB of an array's items), and a result first saved with
+        ``append=True`` has 4096 rows per chunk to grow into. ``dims`` names
+        an array's axes, ``index`` a ragged result's items; ``units`` is the
+        values' physical unit (by column for a table); ``compression`` is
+        None or ``"gzip"``.
 
         The data is written first, then ``results.json`` (the manifest), then
         ``updated_at``; during a run the manifest reads incomplete until the

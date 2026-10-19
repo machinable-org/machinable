@@ -63,10 +63,21 @@ NUMERIC_DTYPES = (
 STRING_DTYPE = "string"
 NAME_PATTERN = re.compile(r"^[A-Za-z0-9_][A-Za-z0-9_.-]{0,127}$")
 ZARR_JSON = "zarr.json"
-# rows per chunk of a table's columns and a ragged result's values and offsets
+# Default chunks. A chunk file always holds the whole chunk shape (zarr v3's
+# regular grid pads the edge chunk with the fill value), so a chunk much longer
+# than the data is mostly padding on disk: a fresh write sizes the chunk to the
+# data, up to these limits.
+# at most this many rows per chunk of a table's columns and a ragged result's
+# values and offsets
 ROWS_PER_CHUNK = 65536
-# an array's default chunk: whole items, about this many bytes (at least one item)
+# an array's chunk: whole items, at most about this many bytes (at least one item)
 ITEM_CHUNK_BYTES = 65536
+# a fresh write's chunk: the length rounded up to a power of two, at least this
+# (so a small result later appended to still grows by whole chunks of some size)
+MIN_ROWS_PER_CHUNK = 64
+# rows per chunk of a column, values or offsets first written with append=True:
+# a live result grows, so its chunk is fixed ahead of its length
+LIVE_ROWS_PER_CHUNK = 4096
 
 # brings record-relative file names into the working copy (a remote home's)
 Fetch = Callable[[list[str]], None]
@@ -516,9 +527,24 @@ def _columns(value: Any) -> dict[str, np.ndarray]:
     return columns
 
 
-def _default_chunks(shape: Sequence[int], itemsize: int) -> list[int]:
+def _fitted(length: int) -> int:
+    """A fresh write's rows per chunk for ``length`` rows (before the limits)."""
+    return max(MIN_ROWS_PER_CHUNK, 1 << max(0, length - 1).bit_length())
+
+
+def _default_rows(length: int, append: bool) -> int:
+    """Rows per chunk of a column, ragged values or offsets of ``length`` rows."""
+    if append:
+        return LIVE_ROWS_PER_CHUNK
+    return min(ROWS_PER_CHUNK, _fitted(length))
+
+
+def _default_chunks(shape: Sequence[int], itemsize: int, append: bool) -> list[int]:
     per_item = max(1, itemsize * math.prod(shape[1:]))
-    return [max(1, ITEM_CHUNK_BYTES // per_item), *shape[1:]]
+    items = max(1, ITEM_CHUNK_BYTES // per_item)
+    if not append:
+        items = min(items, _fitted(shape[0]))
+    return [items, *shape[1:]]
 
 
 # -- writing ------------------------------------------------------------------------
@@ -625,6 +651,7 @@ def save(
             dims=dims,
             index=index,
             compression=compression,
+            append=append,
         )
         if previous is not None:
             stale.append(previous)
@@ -689,6 +716,7 @@ def _write_new(
     dims: Sequence[str] | None,
     index: str | None,
     compression: str | None,
+    append: bool = False,
 ) -> dict:
     if kind == "json":
         file = _fresh_file(name, "json")
@@ -710,7 +738,7 @@ def _write_new(
         chunk_shape = (
             list(chunks)
             if chunks is not None
-            else _default_chunks(shape, array.dtype.itemsize)
+            else _default_chunks(shape, array.dtype.itemsize, append)
         )
         if len(chunk_shape) == 1 and len(shape) > 1:
             chunk_shape = [chunk_shape[0], *shape[1:]]
@@ -738,7 +766,7 @@ def _write_new(
     if kind == "table":
         columns = _columns(value)
         rows = len(next(iter(columns.values())))
-        k = int(chunks[0]) if chunks is not None else ROWS_PER_CHUNK
+        k = int(chunks[0]) if chunks is not None else _default_rows(rows, append)
         described = []
         for column_name, column in columns.items():
             dtype = _dtype_name(column, f"Column '{column_name}'")
@@ -768,11 +796,15 @@ def _write_new(
         )
         offsets = numpy.zeros(len(items) + 1, dtype="int64")
         offsets[1:] = numpy.cumsum([len(v) for v in items])
-        k = int(chunks[0]) if chunks is not None else ROWS_PER_CHUNK
         for part, data, part_dtype in (
             ("values", values, dtype),
             ("offsets", offsets, "int64"),
         ):
+            k = (
+                int(chunks[0])
+                if chunks is not None
+                else _default_rows(len(data), append)
+            )
             target = ZarrArray(directory, f"{file}/{part}")
             meta = array_metadata([len(data)], part_dtype, [k], compression=compression)
             target._meta = meta
