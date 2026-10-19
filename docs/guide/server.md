@@ -118,7 +118,7 @@ Everything a signed request creates is attributed (`created_by`) to its verified
 | Family | Examples | Purpose |
 | --- | --- | --- |
 | Interfaces | `POST /v1/interfaces`, `/search`, `/resolve`, `/{uuid}/provenance` `/data` `/related` | create, search, dry-run, inspect |
-| Executions | `POST /v1/executions`, `GET /{uuid}`, `/output` | run lifecycle + output |
+| Executions | `POST /v1/executions`, `GET /{uuid}`, `/output`, `/results` | run lifecycle, output, declared results |
 | Project | `GET /v1/project[/{module}]`, `/remotes` | module discovery + schema reflection |
 | Source | `GET/PUT/DELETE /v1/source/{path}` | the opt-in, token-gated source-editing API |
 
@@ -129,6 +129,8 @@ answer is the existing run-record of the first interface with `cached: true`, an
 
 The server looks before dispatching (see [concurrent dispatch](./advanced-execution.md#concurrent-dispatch)), so several servers (or a server and scripts) over one storage folder run a request once. An interface another dispatcher holds is never waited on: when nothing was dispatched because some requested interfaces are running elsewhere (and the rest are cached), the
 answer is at once the run-record of the first interface, the one running elsewhere or the cached one, with `running_elsewhere: true`; `running_elsewhere_uuids` lists the runs held elsewhere and `cached_uuids` the cached ones. Follow the run with `GET /v1/executions/{uuid}` (or the executions WebSocket) as usual. The answer has indexed the run, so this server finds it, and while it is not finished here its status is read from its home: when the home is not the server's working copy (a bucket), each status read brings the home's status markers (small files, at most once a second per run) into the working copy, so the run reads live while the other machine beats, finished once it is (its catalog, output log and small results then come into the working copy, and its interface reads cached), and died when the other machine stops beating without finishing. A run whose home is a shared folder needs none of this, the folder being every server's working copy. A run finished elsewhere counts as cached.
+
+A run's [declared results](./results.md#declared-results) are served from its files, never by importing its interface, so a server without the interface's code or Python environment serves them: `GET /v1/executions/{uuid}/results` is the manifest (`uuid` a run-record or its interface), `GET /v1/executions/{uuid}/results/{name}` one result as JSON (a json result's `value`; a table's columns as `data`, rows `?start=&stop=`; an array's or a ragged result's `?item=12` or `?start=&stop=`, reading only the chunks those need; NaN as null), and the WebSocket `/v1/executions/{uuid}/results/ws` sends a `results` frame with the manifest at once and whenever it changes. A record whose home is a bucket is refreshed from it on each request (one small read), so a live run's results are current.
 
 An interface can have several runs (dispatched again after `cached(False)`, say), so every API response returns the newest by creation: `POST /v1/interfaces/lifecycle` reports the newest run's status and its `execution_uuid`, an interface's `latest_execution_uuid` is the newest run, and `GET /v1/executions` and `GET /v1/interfaces/{uuid}/executions` list runs newest first (so `?limit=1` is the newest).
 

@@ -18,6 +18,14 @@ from machinable.api.models import IndexEntry
 from machinable.format import UPDATED_AT_FILENAME, is_later
 from machinable.index import Index
 from machinable.interface import Interface, get_inherits
+from machinable.results import (
+    RESULTS_FILENAME,
+    ResultError,
+    data_files,
+    is_data_file,
+    read_manifest,
+    stale_files,
+)
 from machinable.types import VersionType
 from machinable.utils import (
     MACHINABLE_MARKER,
@@ -39,11 +47,12 @@ Listing = list[tuple[str, int, str | None]]
 
 CATALOG_DIRECTORY = ".catalog"
 # a record's catalog files besides those up to ``catalog_max_bytes``
-CATALOG_FILES = ("related/metadata.jsonl",)
+CATALOG_FILES = ("related/metadata.jsonl", RESULTS_FILENAME)
 CATALOG_MAX_BYTES = 1024 * 1024
 CATALOG_LOOKBACK_NS = 60 * 10**9
-# pushed last, so a home that has it has the rest of the run
-LAST_FILES = ("finished_at",)
+# pushed last, in this order: a home that has the results' manifest has the
+# results it declares, and one that has finished_at has the rest of the run
+LAST_FILES = (RESULTS_FILENAME, "finished_at")
 UNLOGGED_FILES = ("heartbeat_at", UPDATED_AT_FILENAME)
 _LOCAL_SCHEMES = ("file://", "scratch://")
 _FETCHED: dict[str, set[str]] = {}
@@ -650,14 +659,34 @@ class Storage(Interface):
         if MACHINABLE_MARKER not in files:
             return False, False
         missing = False
+        manifest: bytes | None = None
+        on_demand: builtins.list[str] = []
+        if max_bytes is not None and RESULTS_FILENAME in files:
+            # results read on demand (tables, arrays) are not the catalog, and
+            # chunks of them here that the home's manifest outdated go
+            manifest = self.read_bytes(location, RESULTS_FILENAME)
+            new = _manifest(manifest)
+            try:
+                old = read_manifest(directory)
+            except ResultError:
+                old = None
+            for name in stale_files(directory, old, new):
+                _unlink(os.path.join(directory, *name.split("/")))
+            on_demand = data_files(new)
         # updated_at last: a copy that has the home's has the rest of it
         for name, (size, _) in sorted(
             files.items(), key=lambda f: (f[0] == UPDATED_AT_FILENAME, f[0])
         ):
-            if max_bytes is not None and size > max_bytes and name not in CATALOG_FILES:
+            if max_bytes is not None and (
+                (size > max_bytes and name not in CATALOG_FILES)
+                or is_data_file(name, on_demand)
+            ):
                 # a large file fetched before stays (the record is not missing it)
                 if _size(os.path.join(directory, *name.split("/"))) != size:
                     missing = True
+                continue
+            if name == RESULTS_FILENAME and manifest is not None:
+                _write_local(directory, name, manifest)
                 continue
             self._download_file(location, name, directory)
         return True, missing
@@ -708,7 +737,9 @@ class Storage(Interface):
                 for name in filenames
                 if not name.startswith(".tmp-")
             )
-        return sorted(names, key=lambda n: (n in LAST_FILES, n))
+        return sorted(
+            names, key=lambda n: (LAST_FILES.index(n) + 1 if n in LAST_FILES else 0, n)
+        )
 
     # -- the working copy --------------------------------------------------------
 
@@ -932,6 +963,35 @@ class Storage(Interface):
             Index.get().set_bytes_missing(entry.record_id, False)
         return bool(names)
 
+    def fetch_files(
+        self, entry: IndexEntry, names: Iterable[str], directory: str
+    ) -> builtins.list[str]:
+        """Bring files ``names`` into ``directory`` when they are not there.
+
+        By name, without listing the record (a result's chunks), several at
+        once. Returns the names the home has.
+        """
+        location = self.handle(self.location(entry))
+        if _is_local(location) and _same(location, directory):
+            return []
+        names = builtins.list(dict.fromkeys(names))
+        present = [
+            n for n in names if os.path.isfile(os.path.join(directory, *n.split("/")))
+        ]
+        wanted = [n for n in names if n not in present]
+        if len(wanted) > 1:
+            from concurrent.futures import ThreadPoolExecutor
+
+            with ThreadPoolExecutor(max_workers=min(8, len(wanted))) as pool:
+                found = builtins.list(
+                    pool.map(
+                        lambda n: self._download_file(location, n, directory), wanted
+                    )
+                )
+        else:
+            found = [self._download_file(location, n, directory) for n in wanted]
+        return present + [n for n, ok in zip(wanted, found) if ok]
+
     def search_for(self, interface: "Interface") -> builtins.list[str]:
         """Locate records for ``interface`` (remote backends implement this)."""
         raise NotImplementedError()
@@ -1043,6 +1103,23 @@ def _log_time(name: str) -> int:
         return int(name.partition("-")[0])
     except ValueError:
         return 0
+
+
+def _manifest(data: bytes | None) -> dict | None:
+    try:
+        manifest = json.loads(data.decode("utf-8")) if data is not None else None
+    except (UnicodeDecodeError, ValueError):
+        return None
+    return manifest if isinstance(manifest, dict) else None
+
+
+def _write_local(directory: str, name: str, data: bytes) -> None:
+    target = os.path.join(directory, *name.split("/"))
+    os.makedirs(os.path.dirname(target), exist_ok=True)
+    temporary = os.path.join(os.path.dirname(target), f".tmp-{random_str(12)}")
+    with open(temporary, "wb") as f:
+        f.write(data)
+    os.replace(temporary, target)
 
 
 def _size(path: str) -> int | None:

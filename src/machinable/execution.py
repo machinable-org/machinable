@@ -928,6 +928,9 @@ class Execution(Interface):
         )
         running_here = os.path.abspath(self.local_directory())
         _RUNNING_HERE.add(running_here)
+        # the run whose results the interface saves (results.json's "run")
+        results_run = getattr(interface, "_results_run", None)
+        interface._results_run = self.uuid
 
         # both the execution and the dispatched interface can veto (an MPI
         # component may know that only its controller rank should write)
@@ -1028,6 +1031,9 @@ class Execution(Interface):
                     interface._emit_queue.put_nowait, None
                 )
 
+            if writes_meta_data:
+                self._finish_results(interface)
+
             interface.on_success()
             interface.on_finish(success=True)
 
@@ -1055,6 +1061,7 @@ class Execution(Interface):
             _watch_stop.set()
             _stop_beat()
             _IN_RUN.reset(in_run)
+            interface._results_run = results_run
             _RUNNING_HERE.discard(running_here)
             if writes_meta_data:
                 interface._write_through()
@@ -1063,6 +1070,16 @@ class Execution(Interface):
                     storage.update(self)
                     if mirror_interface:
                         storage.update(interface)
+
+    def _finish_results(self, interface: Interface) -> None:
+        """Save the interface's ``@result`` methods and mark its results complete."""
+        from machinable.results import declared_results, read_manifest
+
+        for name, options, method in declared_results(interface):
+            interface.save_result(name, method(interface), **options)
+        manifest = read_manifest(interface.local_directory())
+        if manifest is not None and manifest.get("run") == self.uuid:
+            interface.results_complete()
 
     def _mint_run_record(self, interface: Interface, record_id: str | None = None):
         """Materialize a fresh run-record child of ``interface``.

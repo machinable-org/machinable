@@ -16,6 +16,7 @@ __all__ = [
     "Field",
     "import_ref",
     "resolve_ref",
+    "result",
 ]
 __doc__ = """A modular system for machinable research code"""
 
@@ -30,6 +31,7 @@ from machinable.inference import Inference
 from machinable.interface import Interface
 from machinable.project import Project
 from machinable.query import Query
+from machinable.results import result
 from machinable.scope import Scope
 from machinable.storage import Storage
 from machinable.transport import Transport

@@ -22,6 +22,11 @@ Contents:
                             logs with duplicates, status markers, hash-edge configs)
 - ``expected_index.json``: rows a conformant ingest of ``store/`` must produce
 - ``behavior.json``: find-request/expected-result pairs over the store
+- ``results_store/``: records with declared results (``results.json``), one
+                            with every kind and encoding, one live
+                            (``complete: false``, an append half-written)
+- ``results_vectors.json``: each result's expected value as JSON, by item and
+                            slice, with the files a read of it needs
 
 Regenerate with ``python -m machinable.corpus [directory]``. Python is the
 reference implementation: the expected outputs are what its code produces at
@@ -41,7 +46,7 @@ from machinable import schema
 from machinable.api.models import FindRequest
 from machinable.config import canonical, canonical_identity_key
 from machinable.format import bump_updated_at, write_id
-from machinable.utils import normjson, object_hash, save_file
+from machinable.utils import load_file, normjson, object_hash, save_file
 
 # fixed reference time: 2026-01-01T00:00:00+00:00
 EPOCH_ISO = "2026-01-01T00:00:00+00:00"
@@ -776,6 +781,289 @@ def _write_record(root: str, record: dict, by_uuid: dict) -> str:
     return directory
 
 
+# ---------------------------------------------------------------- results
+
+
+def _results_records() -> list[dict[str, Any]]:
+    done = _record(
+        uuid="ResultsDone1",
+        module="example.sort",
+        resolved={"sorter": "fake"},
+        default={"sorter": "fake"},
+    )
+    live = _record(
+        uuid="ResultsLive2",
+        module="example.sort",
+        resolved={"sorter": "live"},
+        default={"sorter": "fake"},
+    )
+    for i, record in enumerate((done, live)):
+        record["created_at_ns"] = EPOCH_NS + i * 1_000_000_000
+    return [done, live]
+
+
+def _write_results(directory: str, live: bool) -> None:
+    """Every kind and encoding (``live``: an append the manifest does not have yet)."""
+    import itertools
+
+    import numpy as np
+
+    from machinable import results
+
+    tokens = itertools.count(1)
+    pinned = results._token
+    results._token = lambda: f"v{next(tokens)}"
+    try:
+        if live:
+            results.save(
+                directory,
+                "units",
+                {"unit_id": np.array([4, 9, 11], dtype="int64")},
+                chunks=2,
+                run="RunLiveAbc01",
+            )
+            results.save(
+                directory,
+                "templates",
+                np.arange(12, dtype="float32").reshape(3, 2, 2) / 2,
+                chunks=[2, 2, 2],
+                run="RunLiveAbc01",
+            )
+            results.save(
+                directory,
+                "spike_trains",
+                [np.array([5, 6], dtype="int64"), np.array([], dtype="int64")],
+                chunks=2,
+                run="RunLiveAbc01",
+            )
+            # a writer mid-append: its chunks and zarr.json are written, the
+            # manifest is not yet; readers read the manifest's length only
+            manifest = _manifest(directory)
+            results.save(
+                directory,
+                "units",
+                {"unit_id": np.array([12, 13], dtype="int64")},
+                append=True,
+                run="RunLiveAbc01",
+            )
+            results.save(
+                directory,
+                "templates",
+                np.full((2, 2, 2), 7, dtype="float32"),
+                append=True,
+                run="RunLiveAbc01",
+            )
+            results.save(
+                directory,
+                "spike_trains",
+                [np.array([8, 9, 10], dtype="int64")],
+                append=True,
+                run="RunLiveAbc01",
+            )
+            results.write_manifest(directory, manifest)
+            return
+        results.save(
+            directory,
+            "summary",
+            {"sorter": "fake", "units": 5, "duration_s": 600.5, "note": "café 😀"},
+            description="what the sort found",
+        )
+        results.save(
+            directory,
+            "units",
+            {
+                "unit_id": np.array([0, 3, 4, 8, 11], dtype="int64"),
+                "snr": np.array([1.5, float("nan"), 2.25, -0.0, 1e-5]),
+                "amplitude": np.array([0.5, 1.25, -2.0, 3.0, 0.0], dtype="float32"),
+                "channel": np.array([0, 1, 255, 7, 2], dtype="uint8"),
+                "count": np.array([10, -1, 2**31 - 1, 0, 5], dtype="int32"),
+                "good": np.array([True, False, True, True, False]),
+                "label": np.array(["good", "mua", "", "café", "noise"], dtype=object),
+            },
+            chunks=2,
+            units={"snr": "1", "amplitude": "uV"},
+        )
+        results.save(
+            directory,
+            "templates",
+            (np.arange(5 * 4 * 3, dtype="float32") - 30).reshape(5, 4, 3) / 4,
+            chunks=[1, 4, 3],
+            dims=["unit", "sample", "channel"],
+            units="uV",
+        )
+        # chunks splitting every axis, gzip-compressed
+        results.save(
+            directory,
+            "waveforms",
+            (np.arange(5 * 7, dtype="int16") - 17).reshape(5, 7),
+            chunks=[2, 3],
+            compression="gzip",
+        )
+        results.save(directory, "mask", np.array([True, False, False, True]), chunks=3)
+        # a chunk never written reads as the fill value (0)
+        results.save(directory, "sparse", np.array([1.0, 2.0, 3.0, 4.0, 5.0]), chunks=2)
+        sparse = _manifest(directory)["results"]["sparse"]["file"]
+        os.remove(os.path.join(directory, *sparse.split("/"), "c", "1"))
+        # big-endian bytes (any zarr writer may produce them)
+        big = results.array_metadata([3], "uint16", [2])
+        big["codecs"] = [{"name": "bytes", "configuration": {"endian": "big"}}]
+        target = results.ZarrArray(directory, "results/big_endian.v0.zarr")
+        target._meta = big
+        target.write(np.array([1, 258, 65535], dtype="uint16"), 0)
+        target.write_meta(big)
+        manifest = _manifest(directory)
+        manifest["results"]["big_endian"] = {
+            "kind": "array",
+            "file": "results/big_endian.v0.zarr",
+            "dtype": "uint16",
+            "shape": [3],
+            "chunks": [2],
+        }
+        results.write_manifest(directory, manifest)
+        results.save(
+            directory,
+            "spike_trains",
+            [
+                np.array([1, 5, 9], dtype="int64"),
+                np.array([], dtype="int64"),
+                np.array([2], dtype="int64"),
+                np.array([3, 4, 6, 7], dtype="int64"),
+                np.array([10, 2**40], dtype="int64"),
+            ],
+            chunks=3,
+            index="unit",
+        )
+        results.save(
+            directory,
+            "amplitudes",
+            [np.array([0.5, -1.0], dtype="float32"), np.array([2.0], dtype="float32")],
+            compression="gzip",
+        )
+        # a kind this version does not know: listed, not read
+        manifest = _manifest(directory)
+        manifest["results"]["frames"] = {"kind": "video", "file": "results/frames.mp4"}
+        results.write_manifest(directory, manifest)
+    finally:
+        results._token = pinned
+
+
+def _manifest(directory: str) -> dict:
+    from machinable import results
+
+    manifest = results.read_manifest(directory)
+    assert manifest is not None
+    return manifest
+
+
+def _read_files(directory: str, entry: dict, read) -> list[str]:
+    """The record files ``read(fetch)`` brings, from a copy without data files."""
+    import tempfile
+
+    from machinable import results
+
+    with tempfile.TemporaryDirectory() as empty:
+        brought: list[str] = []
+
+        def fetch(names: list[str]) -> None:
+            for name in names:
+                source = os.path.join(directory, *name.split("/"))
+                if os.path.isfile(source):
+                    target = os.path.join(empty, *name.split("/"))
+                    os.makedirs(os.path.dirname(target), exist_ok=True)
+                    shutil.copyfile(source, target)
+                brought.append(name)
+
+        read(results, empty, entry, fetch)
+        return sorted(set(brought))
+
+
+def results_vectors(directory: str) -> dict:
+    """Each result of ``directory``'s records as JSON, as a conformant reader reads it.
+
+    ``value`` the whole result (a table's columns by name, an array as nested
+    lists, a ragged result as a list of lists, NaN as null); ``items`` single
+    items with the record files reading one needs (``zarr.json`` and chunks;
+    a chunk absent from the record reads as the fill value); ``slices`` rows
+    or items ``[start, stop)``.
+    """
+    from machinable import results
+
+    vectors = []
+    for record_dir in sorted(_walk(directory)):
+        manifest = results.read_manifest(record_dir)
+        if manifest is None:
+            continue
+        expected: dict[str, Any] = {}
+        for name, entry in sorted(manifest["results"].items()):
+            kind = entry["kind"]
+            if kind not in results.KINDS:
+                expected[name] = {"kind": kind, "read": False}
+                continue
+            value = results.read(record_dir, entry)
+            vector: dict[str, Any] = {
+                "kind": kind,
+                "read": True,
+                "value": results.to_json(value),
+            }
+            if kind == "table":
+                stop = min(4, int(entry["rows"]))
+                vector["slices"] = [
+                    {
+                        "start": 1,
+                        "stop": stop,
+                        "value": results.to_json(
+                            results.read_table(record_dir, entry, None, 1, stop)
+                        ),
+                        "files": _read_files(
+                            record_dir,
+                            entry,
+                            lambda r, d, e, f, stop=stop: r.read_table(
+                                d, e, f, 1, stop
+                            ),
+                        ),
+                    }
+                ]
+            if kind in ("array", "ragged"):
+                count = len(value)
+                vector["items"] = [
+                    {
+                        "item": i,
+                        "value": results.to_json(value[i]),
+                        "files": _read_files(
+                            record_dir,
+                            entry,
+                            lambda r, d, e, f, i=i: r.read(d, e, f)[i],
+                        ),
+                    }
+                    for i in sorted({0, count // 2, count - 1})
+                    if count
+                ]
+                vector["slices"] = [
+                    {
+                        "start": 1,
+                        "stop": count,
+                        "value": results.to_json(value[1:count]),
+                    }
+                ]
+            expected[name] = vector
+        vectors.append(
+            {
+                "path": os.path.relpath(record_dir, directory).replace(os.sep, "/"),
+                "uuid": load_file([record_dir, ".machinable"]),
+                "complete": manifest["complete"],
+                "run": manifest.get("run"),
+                "results": expected,
+            }
+        )
+    return {"records": vectors}
+
+
+def _walk(directory: str) -> list[str]:
+    from machinable.utils import walk_markers
+
+    return list(walk_markers(directory))
+
+
 def _behavior_requests() -> list[dict]:
     """Find-request cases over the store.
 
@@ -889,6 +1177,14 @@ def generate(directory: str) -> dict:
         },
     )
     save_file([directory, "protocol.json"], {"sequences": protocol_vectors()})
+
+    results_store = os.path.join(directory, "results_store")
+    results_records = _results_records()
+    for record in results_records:
+        record_dir = _write_record(results_store, record, {})
+        _write_results(record_dir, live=record["uuid"] == "ResultsLive2")
+        bump_updated_at(record_dir, EPOCH_ISO)
+    save_file([directory, "results_vectors.json"], results_vectors(results_store))
 
     # expected index rows + behavioral expectations come from running the real
     # implementation at generation time; Python is the reference.

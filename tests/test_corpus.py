@@ -31,6 +31,7 @@ GENERATED = (
     "protocol.json",
     "expected_index.json",
     "behavior.json",
+    "results_vectors.json",
 )
 
 
@@ -225,3 +226,63 @@ def test_corpus_protocol_vectors():
             else:
                 got = after(step["step"], step["won"])
             assert got == step["expect"], (sequence["note"], step)
+
+
+def test_corpus_results_vectors():
+    """Every kind reads as the vectors say, needing only the files they name."""
+    from machinable import results
+    from machinable.corpus import _read_files
+
+    store = os.path.join(CORPUS, "results_store")
+    records = load_file([CORPUS, "results_vectors.json"])["records"]
+    assert {r["uuid"] for r in records} == {"ResultsDone1", "ResultsLive2"}
+    kinds = set()
+    for record in records:
+        directory = os.path.join(store, *record["path"].split("/"))
+        assert load_file([directory, ".machinable"]) == record["uuid"]
+        manifest = results.read_manifest(directory)
+        assert manifest is not None and manifest["version"] == 1
+        assert manifest["complete"] is record["complete"]
+        assert manifest.get("run") == record["run"]
+        assert set(manifest["results"]) == set(record["results"])
+        for name, expected in record["results"].items():
+            entry = manifest["results"][name]
+            assert entry["kind"] == expected["kind"]
+            if not expected["read"]:
+                assert entry["kind"] not in results.KINDS
+                continue
+            kinds.add(entry["kind"])
+            value = results.read(directory, entry)
+            assert results.to_json(value) == expected["value"], name
+            for item in expected.get("items", []):
+                i = item["item"]
+                assert results.to_json(value[i]) == item["value"]
+                assert (
+                    _read_files(
+                        directory, entry, lambda r, d, e, f, i=i: r.read(d, e, f)[i]
+                    )
+                    == item["files"]
+                )
+            for part in expected.get("slices", []):
+                start, stop = part["start"], part["stop"]
+                if entry["kind"] == "table":
+                    read = results.read_table(directory, entry, None, start, stop)
+                    assert results.to_json(read) == part["value"]
+                    assert (
+                        _read_files(
+                            directory,
+                            entry,
+                            lambda r, d, e, f: r.read_table(d, e, f, start, stop),
+                        )
+                        == part["files"]
+                    )
+                else:
+                    assert results.to_json(value[start:stop]) == part["value"]
+    assert kinds == set(results.KINDS)
+    # the live record's arrays hold more than its manifest declares (an append
+    # half-written): a reader reads the manifest's length
+    live = next(r for r in records if not r["complete"])
+    directory = os.path.join(store, *live["path"].split("/"))
+    units = results.read_manifest(directory)["results"]["units"]
+    meta = load_file([directory, units["file"], "unit_id", "zarr.json"])
+    assert meta["shape"] == [units["rows"] + 2]

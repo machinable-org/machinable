@@ -36,6 +36,7 @@ A record directory is self-describing:
 | `dispatched/started/heartbeat/finished/resumed_at` | run-status markers (executions) |
 | `abandoned_at` | the run's claim was taken over (executions; see [Claims](#claims)) |
 | `related/metadata.jsonl` | the edge log |
+| `results.json`, `results/` | the record's declared results (see [Results](#results)) |
 | everything else | the record's artifact namespace |
 
 ### `id.json`: identity written down, not re-derived
@@ -271,6 +272,97 @@ already derived; this extends the rule one level down). An index that holds an i
 already keeps its id, so existing random ids stay. The sharing rule "same path, different
 uuids" below stays for records made without claims.
 
+## Results
+
+A run's results are files in its record, declared in a manifest, so any implementation can read them without Python. The interface writes them as it runs via `save_result`.
+
+### The manifest
+
+`results.json` in the record directory, canonical JSON:
+
+```json
+{"complete":true,"results":{
+  "summary":{"file":"results/summary.Xk2f9aQe.json","kind":"json"},
+  "units":{"columns":[{"dtype":"int64","name":"unit_id"},{"dtype":"float64","name":"snr"},{"dtype":"string","name":"label"}],
+           "file":"results/units.q8ZtP0aa.zarr","kind":"table","rows":105},
+  "templates":{"chunks":[1,82,60],"dims":["unit","sample","channel"],"dtype":"float32",
+               "file":"results/templates.Lm3nB7cd.zarr","kind":"array","shape":[105,82,60],"units":"uV"},
+  "spike_trains":{"dtype":"int64","file":"results/spike_trains.R4tYu8ef.zarr","index":"unit",
+                  "items":105,"kind":"ragged","length":512340}},
+ "run":"<run-record uuid>","version":1}
+```
+
+- `version`: 1. A reader refuses a later version.
+- `complete`: false while a run is still writing its results; true once it ended (a
+  reader shows a result as it is either way).
+- `run`: the run-record that wrote them, when a run did. A run's first save starts the
+  manifest afresh (its results replace the last run's, as its files do) and marks it
+  incomplete; the run's end marks it complete.
+- `results`: each result by name (`[A-Za-z0-9_][A-Za-z0-9_.-]*`, up to 128 characters;
+  the interface's own names), with its `kind`, its `file` (relative to the record,
+  `/`-separated) and optionally `description` and `units` (the values' physical unit).
+  Unknown fields are ignored, and a result of a kind a reader does not know is listed,
+  not read.
+
+| Kind | `file` | Fields | Item `i` |
+|---|---|---|---|
+| `json` | a JSON file (UTF-8) | | |
+| `table` | a zarr v3 group, one 1-D array per column at `<file>/<column>` | `rows`; `columns`, in order: `name`, `dtype`, optional `units`, `description` | row `i` |
+| `array` | a zarr v3 array, at least 1-D | `dtype`, `shape`, `chunks`, optional `dims` | `array[i]`, along the first axis |
+| `ragged` | a zarr v3 group of `values` (1-D, `dtype`) and `offsets` (1-D `int64`, `items + 1` long, starting at 0) | `dtype`, `items`, `length` (of `values`), optional `index` (names the items) | `values[offsets[i]:offsets[i+1]]` |
+
+Items are positions. Results describing the same things list them in one order, and a table column carries their labels (`unit_id`); a query that is not an item stays a result method.
+
+### Encodings
+
+json results are a JSON value, written as canonical JSON with NaN and infinities rejected. Tables, arrays and ragged results are zarr v3, in the subset a Reader implements:
+
+- **Metadata**: `zarr.json` with `node_type` `array` (or `group` for a table or a
+  ragged result), a `regular` chunk grid, the `default` chunk key encoding (separator
+  `/`: chunk `(2, 0, 0)` is `c/2/0/0`; `.` is read too).
+- **Data types**: `bool`, `int8`, `int16`, `int32`, `int64`, `uint8`, `uint16`,
+  `uint32`, `uint64`, `float32`, `float64`; and `string` for table columns.
+- **Codecs**: `bytes` (`endian` `little` or `big`, absent for one-byte types) or, for
+  `string`, `vlen-utf8`, optionally followed by `gzip`. A chunk holds the full chunk
+  shape in C order, edge chunks padded with the `fill_value`. `vlen-utf8` is a `u32`
+  little-endian count, then per element a `u32` little-endian byte length and the UTF-8
+  bytes.
+- **A chunk file that is not there** reads as the `fill_value` (zarr's rule).
+
+These are plain zarr v3 arrays: zarr-python, zarrs (Rust) and zarrita (JS) read them as they are, and the subset is a few dozen lines without a zarr library. machinable's writer needs only numpy. It writes columns and ragged values 65536 rows to a chunk, and an array's chunks as whole items of about 64 KiB unless `chunks` says otherwise.
+
+### Reading
+
+A Reader reads `results.json`, then each result from its files:
+
+1. **No further than the manifest.** A table reads `rows` rows, an array `shape[0]` items, a ragged result `items` items and `length` values, whatever the arrays' `zarr.json` says: while a run appends, the data and `zarr.json` run ahead of the manifest.
+2. **By item, by chunk.** Item `i` of an array is the chunks with first index `i // chunks[0]` (all of them along the other axes); of a ragged result, `offsets[i]` and `offsets[i+1]` (the one or two `offsets` chunks holding them), then the `values` chunks covering that range. A table's rows `[a, b)` are the chunks covering them in each column.
+3. **As JSON** (the server, the corpus): a json result is its value; a table an object of column name to list; an array nested lists; a ragged result a list of lists. NaN and infinities are `null`, and a `float32` is the `float64` of the same value (`0.1f` is `0.10000000149011612`).
+
+The corpus (`results_store/`, `results_vectors.json`) has a record with every kind, data type, codec and a missing chunk, and a live record whose arrays hold an append the manifest does not declare yet. Its vectors give each result's value, single items and slices as JSON, with the record files reading each needs.
+
+### Writing
+
+Only the run's payload writes its record's results (the single-writer rule), in this order: the chunks, each array's `zarr.json`, a group's `zarr.json`, then `results.json`, then `updated_at`. A reader that sees a name in the manifest sees all of its files.
+
+- **Replacing** a result writes it under a new `file` (a fresh name per write) and removes the old files after the manifest. A reader holding a manifest older than the replace can find them gone: it reads the manifest again.
+- **Appending** (rows to a table, items to an array or a ragged result) keeps the `file`: chunks wholly within the earlier length never change, and the partial last chunk is rewritten whole (atomically, so a reader sees the old chunk or the new one, both right up to the length it read).
+
+A remote home receives each save as it is made, in the same order, during the run too, and the store's catalog log names the record again, so a machine that follows the home sees results grow.
+
+### The catalog and caching readers
+
+`results.json` always comes with a record's catalog, and json results do up to `catalog_max_bytes`. Tables, arrays and ragged results never do: their files are fetched by name when a read needs them, chunk by chunk. A reader that keeps fetched files across updates of the manifest drops, when a newer manifest arrives:
+
+- the files of a result whose `file` is no longer in the manifest (replaced or gone);
+- of a result appended to, each array's `zarr.json` and the chunks whose first index `j` reaches past the length the reader had read, `(j + 1) * chunks[0]` greater than it.
+
+### Why results are files
+
+A result method answers a question by running the interface's code, so viewing a sort's units needed the sort's Python environment and a server, although nothing had to be computed. Results as files make viewing a Reader capability, like status and provenance already were: from a folder, a bucket or a zip, in any language, after the machine that ran the sort is gone. Live results need nothing new: they are the same files changing, under the rules every record follows (one writer, `updated_at`, the catalog log).
+
+One encoding serves tables, arrays and ragged results so that a Reader implements one decoder, and zarr's file per chunk is what a `Storage` can fetch: the file methods read whole files, so a format that needs byte ranges (Parquet's row groups, an Arrow IPC file) would mean whole-file downloads or a range API on every backend. Parquet would also add the `arrow`/`parquet` crates to a Rust reader and a WebAssembly build to a JS one, and pyarrow to Python; a zarr reader is already in the Rust app this was made for (zarrs), small in JS (zarrita) and not needed in Python. JSON for small tables was declined because it would give one kind two encodings. The price is file count: a table of `c` columns is `2c + 1` small files, fetched in parallel.
+
 ## Canonical JSON and the float profile
 
 Every identity key is a sha256 over a canonical JSON serialization (sorted keys, compact
@@ -399,7 +491,7 @@ The contract is layered so implementations can claim exactly what they need:
 
 | Class | Can do | Needs |
 |---|---|---|
-| **Reader** | browse records, config, edges, artifacts | directory parsing only |
+| **Reader** | browse records, config, edges, artifacts, results | directory parsing, the results' zarr subset |
 | **Tracker** | the run state machine, claim states | status markers, claim files |
 | **Indexer** | build/refresh/query an index | + ingest & the find algebra |
 | **Verifier** | recompute keys, detect drift | + canonical JSON & hashing |

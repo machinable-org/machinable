@@ -774,6 +774,8 @@ class Interface(Jsonable):
         self._current_execution_context = None
         self._index_entry = None
         self._local_directory: str | None = None
+        # the run-record a run of this interface saves results for
+        self._results_run: str | None = None
 
         # server-push support: injected by the API server before dispatch
         self._emit_queue: Any = None  # asyncio.Queue | None
@@ -2378,15 +2380,29 @@ class Interface(Jsonable):
         writing files into the record directory by other means. Sync tooling
         relies on this value, never directory mtimes.
         """
+        self._touch()
+
+    def _touch(self, names: Sequence[str] | None = None) -> None:
+        """Bump ``updated_at``; write ``names`` (or, outside a run, all) through.
+
+        With ``names``, those files and then ``updated_at`` go to a remote
+        home in that order, in a run too (results a reader follows live).
+        """
         if not self.is_mounted():
             return
         import time as _time
 
-        from machinable.format import bump_updated_at, read_updated_at_ns
+        from machinable.format import (
+            UPDATED_AT_FILENAME,
+            bump_updated_at,
+            read_updated_at_ns,
+        )
 
         directory = self.local_directory()
         bump_updated_at(directory)
-        if cast(str, self.uuid) not in _IN_RUN.get():
+        if names is not None:
+            self._write_through(*names, UPDATED_AT_FILENAME)
+        elif cast(str, self.uuid) not in _IN_RUN.get():
             # outside a run, a remote home receives every change as made
             self._write_through()
         now = _time.monotonic()
@@ -2408,6 +2424,133 @@ class Interface(Jsonable):
         updated_ns = read_updated_at_ns(directory)
         if updated_ns is not None:
             Index.get().set_updated_at(cast(str, self.uuid), updated_ns)
+
+    # -- results -----------------------------------------------------------------
+    # A record's results as files declared in its results.json (the format's
+    # results extension, machinable.results), readable without this code.
+
+    def save_result(
+        self,
+        name: str,
+        value: Any,
+        *,
+        append: bool = False,
+        kind: str | None = None,
+        chunks: Sequence[int] | int | None = None,
+        dims: Sequence[str] | None = None,
+        index: str | None = None,
+        units: str | dict[str, str] | None = None,
+        description: str | None = None,
+        compression: str | None = None,
+    ) -> str:
+        """Save ``value`` as result ``name`` of this record; the path of its file.
+
+        The kind follows the value unless ``kind`` says otherwise: a numpy
+        array is an ``array`` (its items along the first axis), a mapping of
+        numpy columns or a DataFrame a ``table``, a list of 1-D numpy arrays
+        ``ragged`` (items of different lengths), anything else ``json``.
+        ``append=True`` adds rows to a table, items to an array or a ragged
+        result (a run's results growing live). ``chunks`` sets the rows per
+        chunk (an array's chunk shape); ``dims`` names an array's axes,
+        ``index`` a ragged result's items; ``units`` is the values' physical
+        unit (by column for a table); ``compression`` is None or ``"gzip"``.
+
+        The data is written first, then ``results.json`` (the manifest), then
+        ``updated_at``; during a run the manifest reads incomplete until the
+        run ends, and a remote home receives each save as it is made. The
+        first save of a run replaces the results of an earlier run.
+        """
+        from machinable import results
+
+        if not self.is_mounted():
+            raise RuntimeError("save_result needs a materialized interface")
+        directory = self.local_directory()
+        run = (
+            getattr(self, "_results_run", None)
+            if cast(str, self.uuid) in _IN_RUN.get()
+            else None
+        )
+        written = results.save(
+            directory,
+            name,
+            value,
+            kind=kind,
+            append=append,
+            chunks=chunks,
+            dims=dims,
+            index=index,
+            units=units,
+            description=description,
+            compression=compression,
+            run=run,
+        )
+        self._touch([*written.files, *written.removed])
+        entry = (results.read_manifest(directory) or {})["results"][name]
+        return os.path.join(directory, *entry["file"].split("/"))
+
+    def results_complete(self, complete: bool = True) -> bool:
+        """Mark this record's results complete (or not); whether that changed.
+
+        Called when a run that saved results ends; a writer outside a run that
+        saves results in steps marks them incomplete first.
+        """
+        from machinable import results
+
+        if not self.is_mounted():
+            return False
+        if not results.set_complete(self.local_directory(), complete):
+            return False
+        self._touch([results.RESULTS_FILENAME])
+        return True
+
+    def results_manifest(self) -> dict | None:
+        """This record's ``results.json``: its results by name; None without."""
+        from machinable import results
+
+        if not self.is_mounted():
+            return None
+        manifest = results.read_manifest(self.local_directory())
+        if manifest is None and self._fetch_file(results.RESULTS_FILENAME):
+            manifest = results.read_manifest(self.local_directory())
+        return manifest
+
+    def result(self, name: str, default: Any = None) -> Any:
+        """The value of result ``name``, read from this record's files.
+
+        ``json`` results are their value, tables a dict of numpy columns,
+        arrays and ragged results are read lazily (``r[i]`` reads item ``i``,
+        ``r.read()`` all of it). A record whose home is elsewhere fetches only
+        the files (chunks) a read needs. ``default`` when there is no such
+        result.
+        """
+        from machinable import results
+
+        entry = (self.results_manifest() or {}).get("results", {}).get(name)
+        if entry is None:
+            return default
+        return results.read(self.local_directory(), entry, self._results_fetch())
+
+    def _results_fetch(self) -> Callable[[list[str]], None] | None:
+        """How a result's files come from a remote home; None when all are here."""
+        from machinable.index import Index
+        from machinable.storage import remote_home
+
+        if not Index.is_connected() and self._index_entry is None:
+            return None
+        entry = self._resolve_index_entry()
+        if entry is None or not entry.bytes_missing:
+            entry = Index.get().get_by_id(entry.record_id) if entry else None
+        if entry is None or not entry.bytes_missing:
+            return None
+        storage = remote_home(entry)
+        if storage is None:
+            return None
+        directory = self.local_directory()
+
+        def fetch(names: list[str]) -> None:
+            storage.fetch_files(entry, names, directory)
+
+        return fetch
 
     @property
     def current_execution_context(self) -> Execution:

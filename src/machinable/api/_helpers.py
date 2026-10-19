@@ -6,6 +6,7 @@ import asyncio
 import contextlib
 import inspect
 import json
+import math
 import os
 from collections.abc import Awaitable, Callable, Iterator, Mapping
 from typing import Any, cast
@@ -990,3 +991,125 @@ def current_project_path() -> str | None:
     if Project.is_connected():
         return Project.get().path()
     return None
+
+
+RESULT_MAX_VALUES = 4_000_000
+
+
+def results_record(uuid: str) -> tuple[Any, str]:
+    from machinable.index import Index
+    from machinable.results import RESULTS_FILENAME
+
+    index = Index.get()
+    entry = _refreshed(index.get_by_id(uuid))
+    if entry is None:
+        raise HTTPException(status_code=404, detail=f"Record {uuid} not found")
+    directory = index.working_directory(entry)
+    if (
+        not os.path.isfile(os.path.join(directory, RESULTS_FILENAME))
+        and entry.kind == "Execution"
+        and entry.parent_id
+    ):
+        parent = _refreshed(index.get_by_id(entry.parent_id))
+        if parent is not None:
+            entry, directory = parent, index.working_directory(parent)
+    return entry, directory
+
+
+def _refreshed(entry: Any) -> Any:
+    from machinable.index import Index
+    from machinable.storage import remote_home
+
+    home = remote_home(entry)
+    if home is None:
+        return entry
+    try:
+        home.refresh(entry)
+    except Exception:  # noqa: BLE001 - the home cannot be read now; serve the copy
+        return entry
+    return Index.get().get_by_id(entry.record_id)
+
+
+def results_fetch(entry: Any, directory: str) -> Any:
+    """How the results' files of ``entry`` come from its remote home, if needed."""
+    from machinable.storage import remote_home
+
+    home = remote_home(entry)
+    if home is None or not entry.bytes_missing:
+        return None
+    return lambda names: home.fetch_files(entry, names, directory)
+
+
+def serve_result(
+    entry: Any,
+    directory: str,
+    name: str,
+    *,
+    item: int | None = None,
+    start: int | None = None,
+    stop: int | None = None,
+) -> dict[str, Any]:
+    """Result ``name`` as JSON: a value, a table's rows, an array's items."""
+    from machinable import results
+
+    try:
+        manifest = results.read_manifest(directory)
+    except results.ResultError as ex:
+        raise HTTPException(status_code=422, detail=str(ex)) from ex
+    described = (manifest or {}).get("results", {}).get(name)
+    if described is None:
+        raise HTTPException(status_code=404, detail=f"No result '{name}'")
+    kind = described.get("kind")
+    if item is not None and (start is not None or stop is not None):
+        raise HTTPException(status_code=400, detail="Ask for an item or a slice")
+    fetch = results_fetch(entry, directory)
+    payload: dict[str, Any] = {
+        "uuid": entry.record_id,
+        "name": name,
+        "complete": bool((manifest or {}).get("complete")),
+        **described,
+    }
+    try:
+        if kind == "json":
+            payload["value"] = results.read_json(directory, described, fetch)
+            return payload
+        if kind == "table":
+            if item is not None:
+                start, stop = item, item + 1
+            rows = int(described["rows"])
+            first, last, _ = slice(start, stop).indices(rows)
+            payload.update(start=first, stop=max(first, last))
+            payload["data"] = results.to_json(
+                results.read_table(directory, described, fetch, first, last)
+            )
+            return payload
+        if kind not in ("array", "ragged"):
+            raise HTTPException(status_code=422, detail=f"Unknown kind {kind!r}")
+        value = results.read(directory, described, fetch)
+        count = len(value)
+        if item is not None:
+            if not -count <= item < count:
+                raise HTTPException(
+                    status_code=404, detail=f"Item {item} out of range ({count})"
+                )
+            payload.update(item=item % count, data=results.to_json(value[item]))
+            return payload
+        first, last, _ = slice(start, stop).indices(count)
+        last = max(first, last)
+        if kind == "array":
+            per_item = math.prod(described["shape"][1:])
+            values = (last - first) * per_item
+        else:
+            offsets = value.offsets(first, last) if last > first else [0, 0]
+            values = int(offsets[-1]) - int(offsets[0])
+        if values > RESULT_MAX_VALUES:
+            raise HTTPException(
+                status_code=413,
+                detail=(
+                    f"{values} values; read result '{name}' by ?item= or ?start=&stop="
+                ),
+            )
+        payload.update(start=first, stop=last, data=results.to_json(value[first:last]))
+        return payload
+    except results.ResultError as ex:
+        raise HTTPException(status_code=409, detail=str(ex)) from ex

@@ -2,12 +2,21 @@
 
 from __future__ import annotations
 
+import asyncio
 import contextlib
+import json
 import threading
 import time
-from typing import cast
+from typing import Any, cast
 
-from fastapi import APIRouter, Depends, HTTPException, Request, WebSocket
+from fastapi import (
+    APIRouter,
+    Depends,
+    HTTPException,
+    Request,
+    WebSocket,
+    WebSocketDisconnect,
+)
 
 from machinable.api._helpers import (
     _interfaces_for,
@@ -17,7 +26,11 @@ from machinable.api._helpers import (
     is_config_error,
     list_executions,
     project_context,
+    request_attribution,
     request_project_dir,
+    resolve_project_dir,
+    results_record,
+    serve_result,
     server_context,
 )
 from machinable.api._helpers import (
@@ -310,6 +323,121 @@ def cancel_execution(
         raise HTTPException(status_code=404, detail="Execution not found")
     execution.cancel()
     _log_event(request, f"POST /v1/executions/{uuid}/cancel")
+
+
+@router.get("/{uuid}/results")
+def get_results(
+    uuid: str, request: Request, _p: str = Depends(project_context)
+) -> dict[str, Any]:
+    """The run's declared results: its ``results.json``, read from its files.
+
+    ``uuid`` is a run-record (whose results are its interface's) or the
+    interface itself. Served without importing the interface, so a server
+    without its code (or its Python environment) serves them. A run that
+    saved no results: ``{"results": {}}``.
+    """
+    from machinable.results import ResultError, read_manifest
+
+    entry, directory = results_record(uuid)
+    try:
+        manifest = read_manifest(directory)
+    except ResultError as ex:
+        raise HTTPException(status_code=422, detail=str(ex)) from ex
+    return {
+        "uuid": entry.record_id,
+        **(manifest or {"version": 1, "complete": False, "results": {}}),
+    }
+
+
+@router.get("/{uuid}/results/{name}")
+def get_result(
+    uuid: str,
+    name: str,
+    request: Request,
+    item: int | None = None,
+    start: int | None = None,
+    stop: int | None = None,
+    _p: str = Depends(project_context),
+) -> dict[str, Any]:
+    """One result, as JSON: a json result's ``value``; otherwise ``data``.
+
+    A table's columns (rows ``start`` to ``stop``, or row ``item``), an
+    array's item (``?item=12``: index 12 along the first axis) or items
+    ``start`` to ``stop`` (nested lists), a ragged result's item or items.
+    Without ``item`` or a slice, the whole result (413 past 4M values). NaN
+    and infinities are null. Only the chunks asked for are read.
+    """
+    entry, directory = results_record(uuid)
+    return serve_result(entry, directory, name, item=item, start=start, stop=stop)
+
+
+@router.websocket("/{uuid}/results/ws")
+async def results_ws(websocket: WebSocket, uuid: str) -> None:
+    """Follow a run's results: a ``results`` frame now and whenever they change.
+
+    ``{"type": "results", "uuid": ..., "manifest": {...}}``, the manifest as
+    ``GET /v1/executions/{uuid}/results`` gives it; checked every
+    ``?interval=`` seconds (default 1). A record that is not there:
+    an ``error`` frame, then the socket closes.
+    """
+    from machinable.api.ws import _AppRequest
+    from machinable.results import ResultError, read_manifest
+
+    request = cast(Request, _AppRequest(websocket))
+    await websocket.accept()
+    try:
+        interval = min(60.0, max(0.2, float(websocket.query_params.get("interval", 1))))
+        directory = resolve_project_dir(request)
+    except (ValueError, HTTPException) as ex:
+        await websocket.send_text(
+            json.dumps({"type": "error", "payload": {"message": str(ex)}})
+        )
+        await websocket.close()
+        return
+    username, claims = request_attribution(request)
+
+    def look() -> dict[str, Any]:
+        with server_context(websocket.app, directory, username=username, claims=claims):
+            entry, record = results_record(uuid)
+            try:
+                manifest = read_manifest(record)
+            except ResultError:
+                manifest = None
+            return {
+                "type": "results",
+                "uuid": entry.record_id,
+                "manifest": manifest
+                or {"version": 1, "complete": False, "results": {}},
+            }
+
+    sent: str | None = None
+    try:
+        while True:
+            try:
+                frame = await asyncio.to_thread(look)
+            except HTTPException as ex:
+                await websocket.send_text(
+                    json.dumps(
+                        {
+                            "type": "error",
+                            "payload": {"code": "not_found", "message": ex.detail},
+                        }
+                    )
+                )
+                await websocket.close()
+                return
+            text = json.dumps(frame, sort_keys=True)
+            if text != sent:
+                await websocket.send_text(text)
+                sent = text
+            try:
+                message = await asyncio.wait_for(websocket.receive(), timeout=interval)
+            except TimeoutError:
+                continue
+            if message.get("type") == "websocket.disconnect":
+                return
+    except WebSocketDisconnect:
+        return
 
 
 @router.websocket("/ws")
