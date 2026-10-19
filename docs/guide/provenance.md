@@ -37,7 +37,7 @@ A `Manifest` names the code state a run used. The captured references are opaque
 machinable; the tool that created them knows how to act on them:
 
 ```python
-execution = run.executions.last()
+execution = run.executions.first()  # newest run first
 manifest = next(u for u in execution.uses if u.kind == "Manifest")
 
 manifest.describe()              # e.g. ["git 1b16f09f (dirty)"]

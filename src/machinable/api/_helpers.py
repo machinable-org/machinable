@@ -173,16 +173,33 @@ def _iso_datetime(value) -> str | None:
     return str(value)
 
 
+def newest_execution(interface_uuid: str | None) -> tuple[Execution | None, int]:
+    from machinable.api.models import FindRequest, SortSpec
+    from machinable.index import Index
+
+    if not interface_uuid:
+        return None, 0
+    found = Index.get().find(
+        FindRequest(
+            kind="Execution",
+            parent_id=interface_uuid,
+            sort=[SortSpec(by="created_at_ns", direction="desc")],
+            limit=1,
+        )
+    )
+    if not found.items:
+        return None, found.total
+    newest = Interface.find_by_id(found.items[0].record_id)
+    if newest is None or not isinstance(newest, Execution):
+        return None, found.total
+    return newest, found.total
+
+
 def interface_to_info(
     interface: Interface,
     meta: dict[str, Any] | None = None,
 ) -> InterfaceInfo:
-    executions = [
-        item
-        for item in interface.executions
-        if item is not None and item.uuid is not None
-    ]
-    latest = executions[-1] if executions else None
+    latest, execution_count = newest_execution(interface.uuid)
     return InterfaceInfo(
         uuid=interface.uuid or "",
         module=interface.module,
@@ -196,9 +213,34 @@ def interface_to_info(
         created_by=interface.created_by,
         label=interface.label,
         meta=meta or {},
-        execution_count=len(executions),
+        execution_count=execution_count,
         latest_execution_uuid=latest.uuid if latest else None,
     )
+
+
+def recorded_resources(
+    execution: Execution, interface: Interface | None
+) -> dict[str, Any] | None:
+    """The run's computed resources as the run recorded them, or None."""
+    if interface is not None and interface.uuid:
+        found = execution.load_file(f"computed_resources.{interface.id}.json")
+        if isinstance(found, dict):
+            return found
+    if not execution.is_mounted():
+        return None
+    directory = execution.local_directory()
+    try:
+        names = [
+            name
+            for name in os.listdir(directory)
+            if name.startswith("computed_resources.") and name.endswith(".json")
+        ]
+    except OSError:
+        return None
+    if len(names) != 1:
+        return None
+    found = execution.load_file(names[0])
+    return found if isinstance(found, dict) else None
 
 
 def execution_to_info(execution: Execution, status=None) -> ExecutionInfo:
@@ -211,6 +253,9 @@ def execution_to_info(execution: Execution, status=None) -> ExecutionInfo:
     # callers that already hold a snapshot (e.g. list_executions) pass it in
     st = status if status is not None else execution.status_snapshot()
 
+    declared = execution._model.resources
+    resources = recorded_resources(execution, parent)
+
     return ExecutionInfo(
         uuid=execution.uuid or "",
         module=execution.module,
@@ -219,7 +264,8 @@ def execution_to_info(execution: Execution, status=None) -> ExecutionInfo:
         cli=execution.to_cli(),
         seed=execution.seed,
         nickname=execution.nickname,
-        resources=execution._model.resources,
+        resources=resources if resources is not None else declared,
+        declared_resources=declared,
         parent_uuid=parent_uuid,
         is_pending=st.is_pending,
         is_started=st.is_started,
@@ -388,32 +434,19 @@ def _entry_status(uuid: str) -> tuple[str, int]:
     Page-bounded (search ``limit`` caps the lookups) and index-first: one index
     query for the newest run summary, one record read for its markers.
     """
-    from machinable.api.models import FindRequest, SortSpec
-    from machinable.index import Index
-
-    found = Index.get().find(
-        FindRequest(
-            kind="Execution",
-            parent_id=uuid,
-            sort=[SortSpec(by="created_at_ns", direction="desc")],
-            limit=1,
-        )
-    )
-    if not found.items:
-        return "draft", 0
-    latest = Interface.find_by_id(found.items[0].record_id)
-    if latest is None or not isinstance(latest, Execution):
-        return "draft", found.total
+    latest, total = newest_execution(uuid)
+    if latest is None:
+        return "draft", total
     status = latest.status_snapshot()
     if status.is_finished:
-        return "cached", found.total
+        return "cached", total
     if status.is_active:
-        return "running", found.total
+        return "running", total
     if status.is_incomplete:
-        return "failed", found.total
+        return "failed", total
     if status.is_pending:
-        return "pending", found.total
-    return "draft", found.total
+        return "pending", total
+    return "draft", total
 
 
 def evict_interface(uuid: str, request: Request) -> None:
@@ -466,12 +499,7 @@ def interface_lifecycle(request: Request, target: str, version, context=None) ->
         )
 
     interface = found[-1]
-    executions = [
-        item
-        for item in interface.executions
-        if item is not None and item.uuid is not None
-    ]
-    latest = executions[-1] if executions else None
+    latest, _ = newest_execution(interface.uuid)
     execution_uuid = latest.uuid if latest else None
 
     try:
@@ -730,12 +758,19 @@ def list_executions(
     parent: str | None = None,
     limit: int = 100,
 ) -> list[ExecutionInfo]:
-    from machinable.api.models import FindRequest
+    from machinable.api.models import FindRequest, SortSpec
     from machinable.index import Index
 
     items = (
         Index.get()
-        .find(FindRequest(kind="Execution", parent_id=parent, limit=limit))
+        .find(
+            FindRequest(
+                kind="Execution",
+                parent_id=parent,
+                sort=[SortSpec(by="created_at_ns", direction="desc")],
+                limit=limit,
+            )
+        )
         .items
     )
     results: list[ExecutionInfo] = []

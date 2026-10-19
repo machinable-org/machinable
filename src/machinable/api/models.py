@@ -213,7 +213,7 @@ class InterfaceInfo(BaseModel):
     )
     latest_execution_uuid: str | None = Field(
         default=None,
-        description="Uuid of the most recent Execution child, if any.",
+        description="Uuid of the newest Execution child (by creation), if any.",
     )
 
 
@@ -232,7 +232,17 @@ class ExecutionInfo(BaseModel):
     seed: int = Field(description="Random seed for this execution.")
     nickname: str = Field(description="Human-readable execution nickname.")
     resources: dict[str, Any] | None = Field(
-        default=None, description="Requested compute resources."
+        default=None,
+        description=(
+            "The run's effective compute resources: the computed resources it "
+            "recorded (computed_resources.<id>.json: the execution's defaults "
+            "from on_compute_default_resources merged with the declared ones), "
+            "else the declared resources before the run has recorded any."
+        ),
+    )
+    declared_resources: dict[str, Any] | None = Field(
+        default=None,
+        description="The resources the execution was declared with, as given.",
     )
     parent_uuid: str = Field(description="Uuid of the parent Interface for this run.")
     is_pending: bool = Field(
@@ -827,7 +837,7 @@ class LifecycleResponse(BaseModel):
         description="True when a finished result is available to read.",
     )
     execution_uuid: str | None = Field(
-        default=None, description="Latest Execution run id, if any."
+        default=None, description="Newest Execution run id (by creation), if any."
     )
 
 

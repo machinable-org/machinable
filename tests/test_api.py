@@ -484,6 +484,129 @@ def test_interface_lifecycle_status(api_client):
     assert done["execution_uuid"] == euuid
 
 
+def _wait_finished(api_client, euuid, polls=200):
+    detail = api_client.get(f"/v1/executions/{euuid}").json()
+    for _ in range(polls):
+        if detail["is_finished"]:
+            break
+        time.sleep(0.05)
+        detail = api_client.get(f"/v1/executions/{euuid}").json()
+    return detail
+
+
+def test_lifecycle_names_the_newest_run_of_a_rerun(api_client):
+    body = {"interfaces": [{"target": "slow", "version": []}]}
+    lifecycle = {"target": "slow", "version": []}
+
+    first = api_client.post("/v1/executions", json=body).json()["uuid"]
+    assert _wait_finished(api_client, first)["is_finished"] is True
+    done = api_client.post("/v1/interfaces/lifecycle", json=lifecycle).json()
+    assert done["status"] == "cached"
+    assert done["execution_uuid"] == first
+
+    # un-cache and dispatch the same settings again: a second run of the record
+    uncached = api_client.post(
+        "/v1/interfaces/call",
+        json={"target": "slow", "version": [], "method": "cached", "args": [False]},
+    )
+    assert uncached.status_code == 200, uncached.text
+    again = api_client.post("/v1/executions", json=body).json()
+    second = again["uuid"]
+    assert again["cached"] is False
+    assert second != first
+    record = done["uuid"]
+    assert api_client.get(f"/v1/executions/{second}").json()["parent_uuid"] == record
+
+    # while the new run runs, the lifecycle names it (not the finished old one)
+    running = api_client.post("/v1/interfaces/lifecycle", json=lifecycle).json()
+    assert running["uuid"] == record
+    assert running["execution_uuid"] == second
+    assert running["status"] in ("running", "pending")
+    assert running["cached"] is False
+
+    assert _wait_finished(api_client, second)["is_finished"] is True
+    finished = api_client.post("/v1/interfaces/lifecycle", json=lifecycle).json()
+    assert finished["status"] == "cached"
+    assert finished["execution_uuid"] == second
+
+    # the record's info and its run list agree: newest first
+    info = api_client.get(f"/v1/interfaces/{record}").json()
+    assert info["execution_count"] == 2
+    assert info["latest_execution_uuid"] == second
+    runs = api_client.get(f"/v1/interfaces/{record}/executions").json()
+    assert [run["uuid"] for run in runs] == [second, first]
+    newest = api_client.get(f"/v1/interfaces/{record}/executions?limit=1").json()
+    assert [run["uuid"] for run in newest] == [second]
+
+
+RESOURCE_EXECUTION = """
+from machinable import Execution
+
+
+class PackageExecution(Execution):
+    def on_compute_default_resources(self, interface):
+        if interface is None:
+            return None
+        return {"package": {"name": "lab/tools", "hash": "abc123", "label": "1.4"}}
+"""
+
+
+def test_run_info_carries_the_computed_resources(api_client):
+    import os
+
+    from machinable.project import Project
+
+    with open(os.path.join(Project.get().path(), "package_execution.py"), "w") as f:
+        f.write(RESOURCE_EXECUTION)
+
+    package = {"name": "lab/tools", "hash": "abc123", "label": "1.4"}
+    dispatched = api_client.post(
+        "/v1/executions",
+        json={
+            "execution": {"target": "package_execution", "version": []},
+            "interfaces": [{"target": "dummy", "version": [{"a": 7}]}],
+        },
+    )
+    assert dispatched.status_code == 200, dispatched.text
+    euuid = dispatched.json()["uuid"]
+    detail = _wait_finished(api_client, euuid)
+    assert detail["is_finished"] is True
+    assert detail["resources"] == {"package": package}
+    assert detail["declared_resources"] is None
+
+    listed = api_client.get(f"/v1/interfaces/{detail['parent_uuid']}/executions")
+    assert listed.json()[0]["resources"] == {"package": package}
+    everything = api_client.get("/v1/executions").json()
+    assert {"package": package} in [run["resources"] for run in everything]
+
+
+def test_run_info_keeps_the_declared_resources(tmp_storage):
+    import os
+
+    from machinable import Execution, Interface
+    from machinable.project import Project
+    from machinable.server import Server
+
+    with open(os.path.join(Project.get().path(), "package_execution.py"), "w") as f:
+        f.write(RESOURCE_EXECUTION)
+    package = {"name": "lab/tools", "hash": "abc123", "label": "1.4"}
+
+    # declared resources merge into the computed ones and stay available as given
+    with Execution.make("package_execution", resources={"cpus": 2}):
+        interface = Interface.make("dummy", {"a": 8})
+        interface.launch()
+    run = interface.execution
+
+    app = create_app(
+        project_dir=Project.get().path(),
+        ambient_connections=Server._ambient_connections(),
+    )
+    with TestClient(app) as client:
+        detail = client.get(f"/v1/executions/{run.uuid}").json()
+    assert detail["resources"] == {"package": package, "cpus": 2}
+    assert detail["declared_resources"] == {"cpus": 2}
+
+
 def test_bearer_auth(tmp_storage):
     from machinable.project import Project
 

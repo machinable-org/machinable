@@ -28,6 +28,7 @@ from machinable import errors, schema
 from machinable.api.models import (
     ConfigLayers,
     FindRequest,
+    SortSpec,
 )
 from machinable.collection import (
     Collection,
@@ -2419,11 +2420,19 @@ class Interface(Jsonable):
 
     @property
     def executions(self) -> ExecutionCollection:
-        """Every Execution run-record of this interface."""
+        """Every Execution run-record of this interface, newest first."""
         from machinable.index import Index
 
         items = (
-            Index.get().find(FindRequest(parent_id=self.uuid, kind="Execution")).items
+            Index.get()
+            .find(
+                FindRequest(
+                    parent_id=self.uuid,
+                    kind="Execution",
+                    sort=[SortSpec(by="created_at_ns", direction="desc")],
+                )
+            )
+            .items
         )
         return ExecutionCollection(
             [
@@ -2446,7 +2455,14 @@ class Interface(Jsonable):
         if self.is_mounted():
             children = (
                 Index.get()
-                .find(FindRequest(parent_id=self.uuid, kind="Execution", limit=1))
+                .find(
+                    FindRequest(
+                        parent_id=self.uuid,
+                        kind="Execution",
+                        sort=[SortSpec(by="created_at_ns", direction="desc")],
+                        limit=1,
+                    )
+                )
                 .items
             )
             if children:
