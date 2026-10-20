@@ -3,10 +3,11 @@
 Launched by the gateway as ``python -m machinable.api.worker --project DIR
 --port N`` using the interpreter requested for that project (e.g. its ``.venv``),
 so the project runs with its own dependencies and an isolated module namespace.
-The worker is just the ordinary single-project app (`create_app`); the gateway
-reverse-proxies REST requests to it. It admits only requests carrying the secret
-the gateway passes in ``MACHINABLE_WORKER_SECRET``, so other local users cannot
-call it on loopback.
+The worker is just the ordinary single-project app (`create_app`), started in
+the project's directory; the gateway reverse-proxies requests and WebSockets to
+it. It admits only requests carrying the secret the gateway passes in
+``MACHINABLE_WORKER_SECRET``, so other local users cannot call it on loopback,
+and takes the identity and claims the gateway verified from those requests.
 """
 
 from __future__ import annotations

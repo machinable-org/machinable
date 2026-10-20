@@ -123,7 +123,13 @@ def dispatch_execution(
     answers: list[tuple[str, Interface, str | None]] = []
     app = request.app
 
+    running = getattr(app.state, "dispatches", None)
+    if running is None:
+        running = app.state.dispatches = set()
+
     def _run() -> None:
+        # counted while it runs, so the server is not idle (GET /v1/health)
+        running.add(threading.current_thread())
         try:
             with server_context(app, directory, username=username):
                 if body.execution_ref:
@@ -163,6 +169,8 @@ def dispatch_execution(
         except Exception as ex:
             failure["error"] = ex
             _log_event(request, f"dispatch failed: {ex}")
+        finally:
+            running.discard(threading.current_thread())
 
     thread = threading.Thread(target=_run, daemon=True)
     thread.start()

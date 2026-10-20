@@ -103,6 +103,15 @@ class Server(Widget):
         # interpreters that may be launched for process-isolated workers
         # (?python=…); the project's own .venv is always permitted.
         python_allowlist: list[str] | None = None
+        # a request that names a project under project_roots and no
+        # interpreter is served by that project's own .venv, when it has one
+        project_default_python: bool = False
+        # how long a worker may take to start (a first start in a new
+        # environment on a slow disk can be long)
+        worker_start_seconds: float = 30.0
+        # end a worker with nothing in flight and no execution running in it
+        # for this long (started again on its next request); None keeps it
+        worker_idle_seconds: float | None = None
         # source API: reading is always served (inspection); WRITING project
         # .py files is remote code execution, so it is disabled by default and
         # requires a token when enabled.
@@ -307,6 +316,9 @@ class Server(Widget):
             api_token=self.config.api_token,
             project_roots=list(self.config.project_roots or []),
             python_allowlist=list(self.config.python_allowlist or []),
+            project_default_python=self.config.project_default_python,
+            worker_start_seconds=self.config.worker_start_seconds,
+            worker_idle_seconds=self.config.worker_idle_seconds,
             enable_source_api=self.config.enable_source_api,
             source_token=self.config.source_token,
             source_base_dir=self.config.source_base_dir,

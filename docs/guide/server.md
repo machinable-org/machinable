@@ -26,6 +26,10 @@ Its `Config` controls the bind and the security surface:
 | `oidc_issuer` | `None` | accept access tokens from this OpenID Connect provider (see [below](#signing-requests-with-an-identity-provider)) |
 | `project` | `None` | the default project a request binds to |
 | `project_roots` | `None` | extra roots that may be opened per request |
+| `python_allowlist` | `None` | interpreters a request may use besides a project's own `.venv` (see [workers](#process-isolated-workers)) |
+| `project_default_python` | `False` | serve a request that names a project under `project_roots`, and no interpreter, by that project's own `.venv` |
+| `worker_start_seconds` | `30` | how long a worker may take to start |
+| `worker_idle_seconds` | `None` | end a worker idle this long (started again on its next request) |
 | `enable_source_api` | `False` | allow writing project `.py` files (remote code execution, off by default) |
 | `source_token` | `None` | token required for the source-editing API, sent as `X-Machinable-Source-Token` |
 
@@ -46,7 +50,30 @@ Here the [s3 integration](/integrations/s3), pulled into the project through `on
 
 ### Process-isolated workers
 
-A request for another interpreter (`?python=`) is proxied to a worker process on loopback. The gateway gives each worker a random secret at spawn (in its environment) and the worker refuses every request without it, so other local users cannot call a worker directly or claim an `X-Machinable-User`. The client's `Authorization` is not forwarded to the worker, and a request the gateway admitted by OIDC reaches the worker with the verified identity as its `X-Machinable-User`.
+A request or WebSocket for another interpreter (`X-Machinable-Python` or `?python=`) is proxied to a worker process on loopback, one per project and interpreter. The interpreter must be the gateway's own, the project's own `.venv`, or listed in `python_allowlist`. A worker starts in its project's folder, so the project's modules import their siblings by name and nothing in the gateway's folder shadows them.
+
+The gateway gives each worker a random secret at spawn (in its environment) and the worker refuses every request without it, so other local users cannot call a worker directly or claim an `X-Machinable-User`. The client's `Authorization` is not forwarded to the worker. A request the gateway admitted by OIDC reaches the worker with the verified identity as its `X-Machinable-User` and the token's verified claims as `X-Machinable-Claims`, which the worker trusts only with its secret, so `Project.get().claims` reads the same in a worker as in-process. A socket is relayed frame by frame (text and binary), the worker's close code reaches the client, and an OIDC-admitted socket still closes with `4401` when its token expires.
+
+### Several projects in their own environments
+
+One server (one port, one identity provider, one [storage](#with-a-storage)) can serve many projects side by side, each with its own dependencies, for example two versions of one package checked out next to each other:
+
+```bash
+machinable get machinable.server project_roots='["/srv/projects"]' \
+  project_default_python=true worker_idle_seconds=600 --launch
+```
+
+```
+/srv/projects/
+  analyses@769e03a5/   .venv/ ...
+  analyses@1a2b3c4d/   .venv/ ...
+```
+
+With `project_default_python`, a client names only the project (`X-Machinable-Project: /srv/projects/analyses@769e03a5`, or `?project=`) and the server runs it in that project's own `.venv`; a project without one is served in-process. A request that names an interpreter keeps it.
+
+`GET /v1/health` on the gateway asks each live worker for its own health (briefly; one that does not answer counts 0): `executions_active` counts the runs in the gateway and in its workers once each (`active_executions` lists them), and `workers` names each worker with what runs in it, so an idle check of the gateway alone sees a run in any worker.
+
+A first start in a new environment can be slow (Python compiles the environment's modules on first import); `worker_start_seconds` gives it longer. With `worker_idle_seconds`, a worker with no request or socket in flight and no execution running in its process for that long is ended, and started again by the next request for it; a worker running an execution is never ended.
 
 ## Routing
 

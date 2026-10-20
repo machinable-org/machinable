@@ -435,10 +435,35 @@ class SessionTokens:
 
 WORKER_SECRET_HEADER = "X-Machinable-Worker-Secret"
 WORKER_SECRET_ENV = "MACHINABLE_WORKER_SECRET"
+# the claims of the token the gateway admitted a request by (JSON)
+WORKER_CLAIMS_HEADER = "X-Machinable-Claims"
+
+
+def _gateway_principal(headers: dict[str, str]) -> Principal | None:
+    """The OIDC principal the gateway admitted a request as, if it says so."""
+    raw = headers.get(WORKER_CLAIMS_HEADER.lower())
+    if raw is None:
+        return None
+    try:
+        claims = json.loads(raw)
+    except ValueError:
+        return None
+    if not isinstance(claims, dict):
+        return None
+    return Principal(
+        identity=headers.get("x-machinable-user", ""),
+        method="oidc",
+        claims=MappingProxyType(claims),
+    )
 
 
 class WorkerSecretMiddleware:
-    """Admit only the gateway: every scope must carry its per-worker secret."""
+    """Admit only the gateway: every scope must carry its per-worker secret.
+
+    A scope with the secret is the gateway's, so the identity and claims it
+    verified (``X-Machinable-User`` and ``X-Machinable-Claims``) are the
+    request's principal here, as they were there.
+    """
 
     def __init__(self, app, *, secret: str) -> None:
         self.app = app
@@ -448,8 +473,14 @@ class WorkerSecretMiddleware:
         if scope["type"] not in ("http", "websocket"):
             await self.app(scope, receive, send)
             return
-        given = _headers(scope).get(WORKER_SECRET_HEADER.lower(), "")
+        headers = _headers(scope)
+        given = headers.get(WORKER_SECRET_HEADER.lower(), "")
         if hmac.compare_digest(given.encode(), self._secret):
+            principal = _gateway_principal(headers)
+            if principal is not None:
+                state: dict = dict(scope.get("state") or {})
+                state["principal"] = principal
+                scope = {**scope, "state": state}
             await self.app(scope, receive, send)
             return
         if scope["type"] == "websocket":

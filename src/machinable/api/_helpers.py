@@ -973,18 +973,23 @@ def module_schema(project_dir: str, module: str) -> ModuleSchema:
     )
 
 
-def active_execution_count() -> int:
+def active_execution_ids() -> list[str]:
+    """UUIDs of the active Execution records in the connected index."""
     from machinable.api.models import FindRequest
     from machinable.index import Index
 
-    count = 0
+    active: list[str] = []
     for item in Index.get().find(FindRequest(kind="Execution", limit=1000)).items:
         # fetch=False: never pull remote bytes for a health-poll count, and one
         # status read per run rather than the is_active() accessor storm.
         execution = Execution.find_by_id(item.record_id, fetch=False)
         if isinstance(execution, Execution) and execution.status_snapshot().is_active:
-            count += 1
-    return count
+            active.append(str(execution.uuid or item.record_id))
+    return active
+
+
+def active_execution_count() -> int:
+    return len(active_execution_ids())
 
 
 def current_project_path() -> str | None:

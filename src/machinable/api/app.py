@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import importlib.util
 import os
 import time
@@ -47,15 +48,23 @@ async def lifespan(app: FastAPI):
     app.state.interface_meta = {}
     app.state.started_at = time.monotonic()
     app.state.event_log = deque(maxlen=500)
+    # the threads running dispatched executions in this process
+    app.state.dispatches = set()
     app.state.workers = WorkerRegistry(
-        getattr(app.state, "ambient_connections", None) or []
+        getattr(app.state, "ambient_connections", None) or [],
+        start_seconds=getattr(app.state, "worker_start_seconds", None),
+        idle_seconds=getattr(app.state, "worker_idle_seconds", None),
     )
+    reaper = asyncio.ensure_future(app.state.workers.run_reaper())
     verifier = getattr(app.state, "oidc", None)
     if verifier is not None:
         app.state.oidc_warm = asyncio.get_running_loop().run_in_executor(
             None, verifier.warm
         )
     yield
+    reaper.cancel()
+    with contextlib.suppress(asyncio.CancelledError):
+        await reaper
     await app.state.workers.shutdown()
     app.state.interfaces.clear()
 
@@ -89,6 +98,9 @@ def create_app(
     api_token: str | None = None,
     project_roots: list[str] | None = None,
     python_allowlist: list[str] | None = None,
+    project_default_python: bool = False,
+    worker_start_seconds: float | None = None,
+    worker_idle_seconds: float | None = None,
     enable_source_api: bool = False,
     source_token: str | None = None,
     source_extensions: list[str] | None = None,
@@ -127,6 +139,12 @@ def create_app(
     # interpreter is run in a subprocess worker (process isolation).
     app.state.gateway_python = gateway_interpreter()
     app.state.python_allowlist = list(python_allowlist or [])
+    # a request naming a project under project_roots and no interpreter is
+    # served by that project's own .venv, when it has one
+    app.state.project_default_python = project_default_python
+    # how long a worker may take to start, and may sit idle before it ends
+    app.state.worker_start_seconds = worker_start_seconds
+    app.state.worker_idle_seconds = worker_idle_seconds
     # source-editing API (RCE surface): opt-in + token-gated, confined to a base
     # dir (defaults per-request to the project dir; env override below).
     app.state.api_token = api_token
@@ -142,9 +160,12 @@ def create_app(
     # the caller's ambient Storage/Index here — see project_context)
     app.state.ambient_connections = list(ambient_connections or [])
 
-    # innermost custom middleware (added first): routes a request to a subprocess
-    # worker when a different interpreter is requested, else serves in-process.
-    _add_isolation_middleware(app)
+    # innermost custom middleware (added first): routes a request or socket to
+    # a subprocess worker when a different interpreter is requested, else
+    # serves in-process.
+    from machinable.api.isolation import IsolationMiddleware
+
+    app.add_middleware(IsolationMiddleware)
 
     # authentication wraps the isolation middleware, so it runs before a
     # request is routed to a worker, and sits inside CORS, so preflights are
@@ -226,42 +247,3 @@ def create_app(
         app.include_router(router)
 
     return app
-
-
-def _add_isolation_middleware(app: FastAPI) -> None:
-    from fastapi.responses import JSONResponse
-
-    from machinable.api._helpers import resolve_project_dir
-    from machinable.api.isolation import (
-        is_python_allowed,
-        normalize_python,
-        resolve_interpreter,
-    )
-
-    @app.middleware("http")
-    async def isolation(request, call_next):
-        python = resolve_interpreter(request)
-        # default / gateway interpreter → serve in-process
-        if python is None or normalize_python(python) == app.state.gateway_python:
-            return await call_next(request)
-        # otherwise route to a subprocess worker for this (project, interpreter)
-        from fastapi import HTTPException
-
-        try:
-            directory = resolve_project_dir(request)
-        except HTTPException as ex:
-            return JSONResponse({"detail": ex.detail}, status_code=ex.status_code)
-        if not is_python_allowed(
-            python, directory, app.state.gateway_python, app.state.python_allowlist
-        ):
-            return JSONResponse(
-                {"detail": f"interpreter '{python}' is not permitted"},
-                status_code=403,
-            )
-        try:
-            worker = await app.state.workers.ensure(directory, python)
-            return await worker.proxy(request)
-        except Exception as ex:  # noqa: BLE001
-            return JSONResponse(
-                {"detail": f"project worker failed: {ex}"}, status_code=502
-            )

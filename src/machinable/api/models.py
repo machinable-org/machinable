@@ -612,6 +612,28 @@ class InterfaceMessage(BaseModel):
     )
 
 
+class WorkerHealth(BaseModel):
+    """A process-isolated worker, as the gateway's health reports it."""
+
+    directory: str = Field(description="The worker's project directory.")
+    python: str = Field(description="The interpreter the worker runs.")
+    pid: int = Field(description="The worker's process id.")
+    responding: bool = Field(
+        description="Whether the worker answered its health check in time."
+    )
+    executions_active: int = Field(
+        default=0,
+        description="Active Execution records the worker sees (0 when silent).",
+    )
+    executions_running: int = Field(
+        default=0, description="Executions running in the worker's process."
+    )
+    requests_active: int = Field(
+        default=0,
+        description="Requests and sockets in flight through the gateway to it.",
+    )
+
+
 class HealthResponse(BaseModel):
     """Server health summary."""
 
@@ -625,7 +647,22 @@ class HealthResponse(BaseModel):
         description="Project directories the server currently holds state for.",
     )
     executions_active: int = Field(
-        description="Active Execution records in the default project."
+        description=(
+            "Active Execution records in the default project, and in the "
+            "projects of the live workers (each run counted once)."
+        )
+    )
+    executions_running: int = Field(
+        default=0,
+        description="Executions dispatched by this server running in its process.",
+    )
+    active_executions: list[str] = Field(
+        default_factory=list,
+        description="UUIDs of the active executions counted in executions_active.",
+    )
+    workers: list[WorkerHealth] = Field(
+        default_factory=list,
+        description="The live process-isolated workers and what runs in them.",
     )
     uptime_seconds: float = Field(description="Seconds since the API server started.")
 

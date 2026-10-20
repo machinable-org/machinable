@@ -109,8 +109,12 @@ def build_protocol() -> ProtocolDoc:
                 type="string",
                 required=False,
                 description=(
-                    "Interpreter to serve the request (also ?python=); a non-"
-                    "gateway interpreter is routed to a subprocess worker."
+                    "Interpreter to serve the request or socket (also "
+                    "?python=); a non-gateway interpreter is routed to a "
+                    "subprocess worker. With the server's "
+                    "project_default_python, a request naming a project under "
+                    "project_roots without one is served by that project's "
+                    ".venv."
                 ),
             ),
             FrameField(
