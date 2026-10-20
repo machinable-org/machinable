@@ -19,18 +19,23 @@ from machinable import Interface, get
 class Optimizers(Interface):
     class Config(BaseModel):
         seeds: int = 10
+        optimizer: str = "sgd"  # the arm this aggregate lays out
+        lr: float = 0.1
 
     def launch(self):
         for seed in range(self.config.seeds):
             with get("machinable.scope", {"seed": seed}):
-                get("train", [self.version()]).launch()  # dedup'd per (config, seed)
+                get(
+                    "train",
+                    [{"optimizer": self.config.optimizer, "lr": self.config.lr}],
+                ).launch()  # dedup'd per (config, seed)
 
-    # the experiment axis, named: each operand is one token
+    # the arms, named: each operand is one token setting the Config's fields
     def version_sgd(self):
-        return {"lr": 0.1}
+        return {"optimizer": "sgd", "lr": 0.1}
 
     def version_adam(self):
-        return {"lr": 1e-3}
+        return {"optimizer": "adam", "lr": 1e-3}
 
     # a <quantity>() the inference will map across this aggregate's runs
     def loss(self):

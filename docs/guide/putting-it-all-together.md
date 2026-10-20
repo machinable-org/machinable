@@ -41,11 +41,13 @@ from machinable import Interface, get
 class Optimizers(Interface):
     class Config(BaseModel):
         seeds: int = 10
+        optimizer: str = "sgd"
+        lr: float = 0.1
 
     def launch(self):                    # the aggregate lays out the sweep in code
         for seed in range(self.config.seeds):
             with get("machinable.scope", {"seed": seed}):
-                get("train", [self.version()]).launch()
+                get("train", [{"optimizer": self.config.optimizer, "lr": self.config.lr}]).launch()
 
     def version_sgd(self):
         return {"optimizer": "sgd", "lr": 0.1}

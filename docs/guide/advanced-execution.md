@@ -13,11 +13,12 @@ itself.
 class Optimizers(Interface):
     class Config(BaseModel):
         seeds: int = 10
+        optimizer: str = "sgd"
 
     def launch(self):
         for seed in range(self.config.seeds):
             with get("machinable.scope", {"seed": seed}):
-                get("train", [self.version()]).launch()
+                get("train", [{"optimizer": self.config.optimizer}]).launch()
 
     def version_sgd(self):  return {"optimizer": "sgd"}
     def version_adam(self): return {"optimizer": "adam"}

@@ -42,15 +42,20 @@ class Train(Interface):
 
 
 class Optimizers(Interface):
-    """Aggregate: sweep `seeds` runs of `train` for the configured optimizer arm."""
+    """Aggregate: sweep `seeds` runs of `train` for the arm its config carries."""
 
     class Config(BaseModel):
         seeds: int = 10
+        optimizer: str = "sgd"  # the arm this aggregate lays out
+        lr: float = 0.1
 
     def launch(self):
         for seed in range(self.config.seeds):
             with get("machinable.scope", {"seed": seed}):
-                get("train", [self.version()]).launch()
+                get(
+                    "train",
+                    [{"optimizer": self.config.optimizer, "lr": self.config.lr}],
+                ).launch()
 
     def version_sgd(self):
         return {"optimizer": "sgd", "lr": 0.1}

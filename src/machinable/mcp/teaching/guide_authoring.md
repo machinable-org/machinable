@@ -109,11 +109,12 @@ raises a `NotImplementedError` naming what to implement; write it and re-run.
 class Optimizers(Interface):
     class Config(BaseModel):
         seeds: int = 10
+        optimizer: str = "sgd"          # the arm this aggregate lays out
 
     def launch(self):                     # the aggregate coordinates; it is ephemeral
         for seed in range(self.config.seeds):
             with get("machinable.scope", {"seed": seed}):
-                get("train", [self.version()]).launch()
+                get("train", [{"optimizer": self.config.optimizer}]).launch()
 
     def version_sgd(self):  return {"optimizer": "sgd"}
     def version_adam(self): return {"optimizer": "adam"}
