@@ -148,6 +148,7 @@ Everything a signed request creates is attributed (`created_by`) to its verified
 | Executions | `POST /v1/executions`, `GET /{uuid}`, `/output`, `/results` | run lifecycle, output, declared results |
 | Project | `GET /v1/project[/{module}]`, `/remotes` | module discovery + schema reflection |
 | Source | `GET/PUT/DELETE /v1/source/{path}` | the opt-in, token-gated source-editing API |
+| MCP | `GET /v1/mcp`, `/resources?uri=`, `POST /prompts/{name}`, `/tools/{name}` | the [MCP](/mcp/overview)'s tools, resources and prompts, [over REST](#the-mcp-over-rest) |
 
 `POST /v1/executions` runs only the interfaces that are not yet cached. When every
 requested interface is already cached it returns at once without dispatching: the
@@ -165,6 +166,21 @@ Config reflection is first-class: `GET /v1/project/{module}` returns the config 
 and the [version-method vocabulary](./versions.md) (signatures + docstrings), and
 `POST /v1/interfaces/resolve` dry-runs a compact version to its resolved config and CLI
 without materializing.
+
+## The MCP over REST
+
+The [MCP](/mcp/overview)'s functions answer over the API too, bound to the request's project (and run in its [worker](#process-isolated-workers)), for a caller that is not an MCP client or has no machinable of its own. It forms a gateway that serves the MCP for many machines and runs each tool where the project is, or a client without Python reading the guide of the machinable a server runs.
+
+| Route | Answers |
+| --- | --- |
+| `GET /v1/mcp` | the MCP's instructions, and each tool, resource and prompt with its doc |
+| `GET /v1/mcp/resources?uri=guide://authoring` | a resource (`examples://axis`, `inferences://catalog`, `widget-sdk://docs`, `module://train`): `{"uri", "mime_type", "content"}` |
+| `POST /v1/mcp/prompts/{name}` | a prompt's text, for `{"arguments": {...}}` |
+| `POST /v1/mcp/tools/{name}` | a tool's answer, `{"result": ...}`, for `{"arguments": {...}}` |
+
+The tools are read-only here (the source tools answer 403; sources are edited through the [source API](#what-it-exposes)), and a run is better dispatched with `POST /v1/executions`, which answers at once. In Python, `machinable.mcp.tools.functions(ctx)` (and `resources.functions`, `prompts.functions`) are the same functions by name, `resources.read(ctx, uri)` answers a URI.
+
+The MCP's reads see the runs other servers made in a [shared home](./storage.md#reads-that-see-the-shared-home) without a sync: `quantity`, the inferences and `run_status` on one server answer for runs another server made, and a verdict another server reached is read, not computed again.
 
 ## The console
 

@@ -7,6 +7,8 @@ idiomatic templates.
 from __future__ import annotations
 
 import os
+import re
+from collections.abc import Callable, Iterable
 from typing import Any
 
 from machinable.mcp.context import MCPContext
@@ -23,6 +25,14 @@ _EXAMPLES = (
     "widget",
     "investigate",
 )
+# the MIME type each resource is served as, by URI (None: FastMCP infers it)
+MIME_TYPES: dict[str, str | None] = {
+    "guide://authoring": "text/markdown",
+    "widget-sdk://docs": "text/markdown",
+    "inferences://catalog": "application/json",
+    "examples://{name}": "text/x-python",
+    "module://{module}": None,
+}
 
 
 def _read(rel: str) -> str:
@@ -30,8 +40,21 @@ def _read(rel: str) -> str:
         return handle.read()
 
 
-def register_resources(mcp: Any, ctx: MCPContext) -> None:
-    @mcp.resource("guide://authoring", mime_type="text/markdown")
+def functions(ctx: MCPContext) -> dict[str, Callable[..., Any]]:
+    """The MCP's resources by URI (a template's ``{name}`` is an argument).
+
+    What :func:`register_resources` serves; :func:`read` answers one URI.
+    """
+    found: dict[str, Callable[..., Any]] = {}
+
+    def resource(uri: str):
+        def add(fn: Callable[..., Any]) -> Callable[..., Any]:
+            found[uri] = fn
+            return fn
+
+        return add
+
+    @resource("guide://authoring")
     def guide_authoring() -> str:
         """How to write a machinable interface. Read before writing any code.
 
@@ -40,7 +63,7 @@ def register_resources(mcp: Any, ctx: MCPContext) -> None:
         """
         return _read("guide_authoring.md")
 
-    @mcp.resource("widget-sdk://docs", mime_type="text/markdown")
+    @resource("widget-sdk://docs")
     def widget_sdk() -> str:
         """The widget contract.
 
@@ -49,7 +72,7 @@ def register_resources(mcp: Any, ctx: MCPContext) -> None:
         """
         return _read("widget_sdk.md")
 
-    @mcp.resource("inferences://catalog", mime_type="application/json")
+    @resource("inferences://catalog")
     def inferences_catalog() -> dict:
         """The available inferences.
 
@@ -57,7 +80,7 @@ def register_resources(mcp: Any, ctx: MCPContext) -> None:
         """
         return CATALOG
 
-    @mcp.resource("examples://{name}", mime_type="text/x-python")
+    @resource("examples://{name}")
     def example(name: str) -> str:
         """Small, runnable, idiomatic templates.
 
@@ -68,7 +91,7 @@ def register_resources(mcp: Any, ctx: MCPContext) -> None:
             return f"# unknown example {name!r}; available: {', '.join(_EXAMPLES)}"
         return _read(os.path.join("examples", f"{name}.py"))
 
-    @mcp.resource("module://{module}")
+    @resource("module://{module}")
     def module_resource(module: str) -> dict:
         """Resolved schema for a project module.
 
@@ -81,3 +104,39 @@ def register_resources(mcp: Any, ctx: MCPContext) -> None:
                 return module_schema(ctx.project_dir, module).model_dump()
             except Exception as ex:  # noqa: BLE001
                 return {"module": module, "error": f"{type(ex).__name__}: {ex}"}
+
+    return found
+
+
+def register_resources(mcp: Any, ctx: MCPContext) -> None:
+    """Register every resource of :func:`functions` on the FastMCP server ``mcp``."""
+    for uri, fn in functions(ctx).items():
+        mime_type = MIME_TYPES.get(uri)
+        if mime_type is None:
+            mcp.resource(uri)(fn)
+        else:
+            mcp.resource(uri, mime_type=mime_type)(fn)
+
+
+def match(uri: str, patterns: Iterable[str]) -> tuple[str, dict[str, str]] | None:
+    """The resource pattern ``uri`` names, with its template's arguments."""
+    for pattern in patterns:
+        names = re.findall(r"\{(\w+)\}", pattern)
+        regex = "^" + re.sub(r"\\\{\w+\\\}", "(.+)", re.escape(pattern)) + "$"
+        found = re.match(regex, uri)
+        if found:
+            return pattern, dict(zip(names, found.groups(), strict=True))
+    return None
+
+
+def read(ctx: MCPContext, uri: str) -> Any:
+    """The content of the resource ``uri`` (``guide://authoring``, ``examples://axis``).
+
+    Raises ``LookupError`` for a URI no resource serves.
+    """
+    found = functions(ctx)
+    matched = match(uri, found)
+    if matched is None:
+        raise LookupError(f"No resource {uri!r}; resources: {', '.join(found)}")
+    pattern, arguments = matched
+    return found[pattern](**arguments)

@@ -432,6 +432,30 @@ def connection_scope():
         _CONTEXT_ORDER_VAR.reset(order_token)
 
 
+_ADOPTING: contextvars.ContextVar[bool] = contextvars.ContextVar(
+    "machinable_adopting", default=False
+)
+
+
+@contextlib.contextmanager
+def adopting():
+    """Within it, ``get`` sees the records other machines made in the shared home.
+
+    An interface ``get`` does not find in the index is looked up where its
+    record would be in the home (one small read) and, when another machine
+    made it there, indexed here with its runs (:meth:`Interface.adopted`); a
+    found one that is not cached here brings the runs other machines finished
+    since. So a read (a quantity, an inference's operands, a run's status) on
+    one machine sees the runs another made in a storage they share, without a
+    sync first. Records nobody made cost one read and are not written.
+    """
+    token = _ADOPTING.set(True)
+    try:
+        yield
+    finally:
+        _ADOPTING.reset(token)
+
+
 def cachable(
     memory: bool = True,
     file: bool = True,
@@ -1580,6 +1604,115 @@ class Interface(Jsonable):
 
         return self
 
+    def _remember_creation_context(self) -> None:
+        """Keep the ``with``-contexts this unmaterialized interface is queued in.
+
+        An interface queued to run later (``Execution.add``: a ``with
+        Execution()`` block, an aggregate's deferred collection) is
+        materialized outside its ``with`` block, where its scopes, and so its
+        predicate, are gone; :meth:`_creation_context` enters them again.
+        """
+        if "creation_context" in self._cache or (self.kind or "") == "Execution":
+            # an execution queued as a payload is never reused (it has no
+            # fingerprint), so its contexts identify nothing
+            return
+        self._cache["creation_context"] = [
+            context
+            for context in _context_order()
+            if context is not self
+            and not getattr(context, "_ambient", False)
+            and (context.kind or "Interface") != "Execution"
+        ]
+
+    @contextlib.contextmanager
+    def _creation_context(self):
+        """Within the remembered contexts not entered now, until materialized."""
+        remembered = self._cache.get("creation_context") or []
+        if self.is_materialized() or not remembered:
+            yield
+            return
+        entered = _context_order()
+        with contextlib.ExitStack() as stack:
+            for context in remembered:
+                if not any(context is present for present in entered):
+                    stack.enter_context(context)
+            yield
+
+    def adopted(self) -> Self:
+        """This interface as this index knows it once it looked in the shared home.
+
+        The runs another machine made of it in a storage this one shares reach
+        this index only through a dispatch (which adopts a run it finds
+        finished elsewhere) or a sync. A read adopts them itself: an interface
+        this index lacks is looked up where its record would be in the home
+        (the content-addressed place materializing it would take, one small
+        read) and, when it is there, indexed with what is under it (its runs),
+        and the indexed interface is returned; one this index has but that is
+        not cached here, or has no run here, gets the runs the claim storages
+        hold that the index lacks or that finished since. Nothing is written to
+        a storage, and a record nobody made is not materialized. ``self`` when
+        there is nothing to adopt (or the storage cannot be read now).
+        """
+        kind = self.kind or "Interface"
+        if (
+            self.is_unexpanded()
+            or getattr(self, "_ambient", False)
+            or kind in ("Project", "Execution", "Scope")
+        ):
+            return self
+        from machinable.index import Index
+
+        index = Index.get()
+        try:
+            if not self.is_materialized():
+                return self._adopt_record(index)
+            self._adopt_runs(index)
+        except Exception:  # noqa: BLE001 - an unreachable home leaves the read as is
+            pass
+        return self
+
+    def _adopt_record(self, index: Any) -> Self:
+        """Index the record the home has of this unmaterialized interface."""
+        from machinable.storage import Storage
+
+        parent = self.parent
+        record_id, location = self._shared_record_id(
+            index, parent.record_id if parent is not None else None
+        )
+        if record_id is None or location is None:
+            return self
+        home = Storage.get()
+        home.ingest(location)
+        for found in home.walk(location):
+            if found == location:
+                continue
+            try:
+                home.ingest(found)
+            except Exception:  # noqa: BLE001 - a half-written record ingests on its look
+                continue
+        adopted = type(self).find_by_id(record_id)
+        return cast(Self, adopted) if adopted is not None else self
+
+    def _adopt_runs(self, index: Any) -> None:
+        """Index the runs of this interface the claim storages hold and index lacks."""
+        from machinable.api.models import FindRequest
+        from machinable.storage import claim_storages
+
+        cached = self.cached()
+        if (
+            cached
+            and index.find(
+                FindRequest(parent_id=self.uuid, kind="Execution", limit=1)
+            ).items
+        ):
+            return
+        for storage in claim_storages():
+            for run in storage.run_records(self):
+                known = index.get_by_id(run.record_id) is not None
+                if not known or (run.finished and not cached):
+                    storage.adopt(run)
+                    cached = cached or self.cached()
+
     def _shared_record_id(
         self, index: Any, parent_id: str | None
     ) -> tuple[str | None, str | None]:
@@ -1892,9 +2025,10 @@ class Interface(Jsonable):
                 fresh_dump = getattr(fresh.__model__, "_dump", None)
                 if last_dump != fresh_dump:
                     return fresh
-            return last
+            return last.adopted() if _ADOPTING.get() else last
 
-        return cls.make(module, version, **kwargs)
+        fresh = cls.make(module, version, **kwargs)
+        return fresh.adopted() if _ADOPTING.get() else fresh
 
     def is_mounted(self) -> bool:
         """True when the record's directory exists locally."""
@@ -1919,12 +2053,19 @@ class Interface(Jsonable):
 
         local_directory = index.local_directory(entry.record_id)
 
-        if is_machinable_directory(local_directory):
+        def written() -> bool:
+            # the sentinel is written before the model: a record being written
+            # right now (a run minted a moment ago) is read from its index row
+            return is_machinable_directory(local_directory) and os.path.isfile(
+                os.path.join(local_directory, "model.json")
+            )
+
+        if written():
             return cls.from_directory(local_directory)
 
         from machinable.storage import fetch as fetch_from_storage
 
-        if fetch_from_storage(entry.record_id, local_directory):
+        if fetch_from_storage(entry.record_id, local_directory) and written():
             return cls.from_directory(local_directory)
 
         return cls.from_model(entry_to_model(entry))

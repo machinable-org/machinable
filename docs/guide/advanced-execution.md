@@ -33,7 +33,7 @@ ready = runs.filter(lambda x: x.cached())  # the ones with results
 ```
 
 This deferred-collection mechanism is what [inferences](./inference.md) use to gather
-the runs they measure.
+the runs they measure. A run collected (or queued in a `with Execution()` block) keeps the `with`-contexts it was laid out in. It is materialized in its scopes later, so they still identify it, and it enters them again while it runs, so `self.predicate` reads the same wherever the run is dispatched from (in-process, a script, or the [API server](./server.md#what-it-exposes)).
 
 ## Axis or aggregate?
 

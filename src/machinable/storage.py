@@ -1207,6 +1207,45 @@ def claim_storages() -> list[Storage]:
     return list(reversed(connected)) if connected else [Storage.get()]
 
 
+# The least time between two syncs of one storage into one index by
+# :func:`sync_homes`, so a lookup that misses in a loop is cheap.
+SYNC_HOMES_SECONDS = 5.0
+# (storage root, index database) -> (catalog position, monotonic time of the sync)
+_HOMES_SYNCED: dict[tuple[str, str], tuple[str | None, float]] = {}
+
+
+def sync_homes(force: bool = False) -> builtins.list[str]:
+    """Index what was added to the claim storages since this process last looked.
+
+    For a lookup by record id that misses (a run another machine made in the
+    shared home): each claim storage is synced (:meth:`Storage.sync`) from the
+    position this process reached in it for the connected index, at most every
+    ``SYNC_HOMES_SECONDS`` unless ``force``. Only a storage with a catalog log
+    (an object store), which reads its log since then; a storage without one
+    would be walked whole, which is what an explicit ``storage.sync()`` is for.
+    Returns the uuids ingested or refreshed; a storage that cannot be read now
+    is skipped.
+    """
+    index = Index.get()
+    database = str(index._resolved_database())
+    now = time.monotonic()
+    ingested: builtins.list[str] = []
+    for storage in claim_storages():
+        if not storage.catalog_log:
+            continue
+        key = (storage.root_uri(), database)
+        position, last = _HOMES_SYNCED.get(key, (None, None))
+        if not force and last is not None and now - last < SYNC_HOMES_SECONDS:
+            continue
+        try:
+            found, position = storage.sync(position)
+        except Exception:  # noqa: BLE001 - the store cannot be read now
+            continue
+        _HOMES_SYNCED[key] = (position, now)
+        ingested.extend(u for u in found if u not in ingested)
+    return ingested
+
+
 def storage_for(uri: str) -> Storage:
     """The storage that owns home ``uri``: the first of :func:`claim_storages`.
 

@@ -66,9 +66,15 @@ class Inference(Interface):
 
         An aggregate exposes its grid via ``.interfaces`` (the deferred-``Execution``
         collection); we take the cached ones. A leaf operand is its own single unit.
-        Overridable for operands that expose their runs differently.
+        The units are resolved :func:`~machinable.interface.adopting`, so runs
+        another machine made in a shared home count without a sync. Overridable
+        for operands that expose their runs differently.
         """
-        runs = operand.interfaces.filter(lambda x: x.cached())
+        from machinable.interface import adopting
+
+        with adopting():
+            operand = operand.adopted()
+            runs = operand.interfaces.filter(lambda x: x.cached())
         return list(runs) if len(runs) else [operand]
 
     def resolve(self, operand: Interface) -> list:

@@ -18,6 +18,7 @@ from machinable.api.routes import (
     executions,
     health,
     interfaces,
+    mcp,
     meta,
     project,
     source,
@@ -234,6 +235,7 @@ def create_app(
     app.include_router(project.projects_router)
     app.include_router(source.router)
     app.include_router(auth.router)
+    app.include_router(mcp.router)
 
     if worker_secret:
         from machinable.api.auth import WorkerSecretMiddleware

@@ -121,6 +121,8 @@ def dispatch_execution(
     holder: dict[str, Execution | None] = {"execution": None}
     failure: dict[str, BaseException | None] = {"error": None}
     answers: list[tuple[str, Interface, str | None]] = []
+    # the interfaces dispatched, in request order (an axis as its members)
+    added: list[str] = []
     app = request.app
 
     running = getattr(app.state, "dispatches", None)
@@ -161,8 +163,10 @@ def dispatch_execution(
                                 Interface.make(ctx.target, version=ctx.version)
                             )
                         interface = Interface.make(entry.target, version=entry.version)
-                        interface.materialize()
-                        execution.add(interface)
+                        for member in _members(interface, entry.target):
+                            if member.uuid not in added:
+                                added.append(cast(str, member.uuid))
+                                execution.add(member)
                 execution.dispatch()
                 if execution.uuid is None:
                     answers.extend(_answers(execution))
@@ -187,7 +191,7 @@ def dispatch_execution(
     if answers and failure["error"] is None and not thread.is_alive():
         answered = _answer(request, directory, username, answers, deadline)
         if answered is not None:
-            return answered
+            return answered.model_copy(update={"interface_uuids": list(added)})
 
     execution = holder["execution"]
     if execution is None or execution.uuid is None:
@@ -205,7 +209,51 @@ def dispatch_execution(
 
     _interfaces_for(request)[execution.uuid] = execution
     _log_event(request, f"POST /v1/executions -> {execution.uuid}")
-    return execution_to_info(execution)
+    return execution_to_info(execution).model_copy(
+        update={"interface_uuids": list(added)}
+    )
+
+
+def _is_aggregate(interface: Interface) -> bool:
+    """An interface whose own ``launch()`` lays out its runs.
+
+    Not machinable's own overrides (the server's ``launch()`` serves).
+    """
+    launch = type(interface).launch
+    return launch is not Interface.launch and not getattr(
+        launch, "__module__", ""
+    ).startswith("machinable.")
+
+
+def _members(interface: Interface, target: str) -> list[Interface]:
+    """What launching ``interface`` runs, materialized, as ``launch()`` lays it out.
+
+    ``interface`` itself; each member of its axis (``~~name``), made and
+    materialized inside the contexts its axis element yields (a
+    ``machinable.scope``); or the runs an aggregate's own ``launch()`` lays
+    out (collected without running, :attr:`Interface.interfaces`), each
+    materialized in the contexts it was laid out in. So each is the record an
+    in-process launch makes, and it records its contexts, which its run enters
+    again (so it sees its scope).
+    """
+    if _is_aggregate(interface):
+        members = list(interface.interfaces)
+        for member in members:
+            with member._creation_context():
+                member.materialize()
+        return members
+    if not interface.is_unexpanded():
+        interface.materialize()
+        return [interface]
+    members = []
+    for version, contexts in interface._expansion_spec():
+        with contextlib.ExitStack() as stack:
+            for context in contexts:
+                stack.enter_context(context)
+            member = Interface.make(target, version=version)
+            member.materialize()
+            members.append(member)
+    return members
 
 
 def _answer(

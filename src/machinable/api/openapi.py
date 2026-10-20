@@ -84,6 +84,13 @@ API_TAGS = [
         ),
     },
     {
+        "name": "mcp",
+        "description": (
+            "The MCP's tools, resources (the authoring guide, examples, the "
+            "inference catalog) and prompts, for callers without an MCP client."
+        ),
+    },
+    {
         "name": "health",
         "description": "Server status, version, and active execution count.",
     },

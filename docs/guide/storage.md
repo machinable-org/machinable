@@ -138,6 +138,20 @@ with get("s3", {"url": "s3://my-bucket/lab"}) as storage:
 
 `follow` syncs once before it returns, then in a background thread with the connections of the context it was called in, and `stop()` (or leaving the `with`) ends it. Elsewhere, call `position = storage.sync(position)[1]` on a schedule of your own.
 
+### Reads that see the shared home
+
+A read that names an interface by its module and version can look in the home itself instead of waiting for a sync. Within `adopting()`, `get` looks an interface the index lacks up where its record would be in the home (one small read) and, when another machine made it there, indexes it here with its runs; an interface the index has but that is not cached here gets the runs other machines finished since:
+
+```python
+from machinable.interface import adopting
+
+with adopting():
+    run = get("optimize", {"lr": 0.5})   # made on another machine: indexed now
+    run.cached()                          # True once it finished there
+```
+
+`interface.adopted()` does it for one interface and returns it as indexed. An [inference](./inference.md) resolves its operands' runs this way, and the [MCP](/mcp/overview) reads within `adopting()`, so servers on one home answer the same. A lookup by record id cannot know where a record is; the MCP's `run_status` then syncs the homes that keep a catalog log (`machinable.storage.sync_homes()`, from where it last read the log, at most every 5 s).
+
 [Storage backends](/integrations/) (e.g. [S3](/integrations/s3),
 [Globus](/integrations/globus)) are interfaces too.
 

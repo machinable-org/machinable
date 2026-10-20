@@ -496,7 +496,10 @@ class Project(Interface):
             try:
                 return scheme.module_schema(module, project=self, graph=graph)
             except LookupError as ex:
-                error = ex
+                # the first scheme's answer: the project's own modules come
+                # before its declared remotes, so a module of the project is
+                # not reported as "not a declared remote"
+                error = error or ex
         raise error or LookupError(f"No interface module '{module}'")
 
     def interface(

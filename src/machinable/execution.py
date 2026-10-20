@@ -1,14 +1,17 @@
 """Executions: the run-records and mechanisms that compute interfaces."""
 
 import base64
+import contextlib
 import contextvars
 import copy
 import ctypes
+import json
 import os
 import sys
 import threading
 import time
 import traceback
+import warnings
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any, Literal, Self, cast
@@ -26,6 +29,7 @@ from machinable.format import is_later
 from machinable.interface import (
     Interface,
     _connections,
+    get_context,
     get_dump,
     get_inherits,
 )
@@ -215,6 +219,55 @@ STATUS_REFRESH_SECONDS = 1.0
 _STATUS_REFRESHED: dict[str, float] = {}
 # working copies a payload in this process writes: they are the run's truth
 _RUNNING_HERE: set[str] = set()
+
+
+def _context_key(context: Any) -> str:
+    return json.dumps(list(context), sort_keys=True, default=str)
+
+
+def _enter_recorded_context(interface: Interface, stack: contextlib.ExitStack) -> None:
+    """Enter the ``with``-contexts ``interface`` was created in that are not entered.
+
+    A run's predicate is computed from the ambient scopes, so a run must see
+    the scopes it was created in while it runs: an interface launched in its
+    ``with`` block sees them already, but one dispatched later (an execution
+    dispatched by ``POST /v1/executions``, a script's ``continue_run``, a
+    resumed run) does not. The recorded context (``interface.context``) is
+    entered again in order, except the contexts already entered and an
+    ``Execution`` (which is the runner, not something to run in): the very
+    instances it was queued in when this process has them, else made again
+    from the record. Nothing when the run's predicate is the one recorded.
+    """
+    recorded = interface.context or []
+    if not recorded:
+        return
+    if interface.compute_predicate() == (interface.__model__.predicate or {}):
+        return
+    present = {_context_key(c) for c in get_context(interface)}
+    remembered = {
+        _context_key([c.module, c.version()]): c
+        for c in interface._cache.get("creation_context") or []
+    }
+    for context in recorded:
+        key = _context_key(context)
+        if key in present:
+            continue
+        if key in remembered:
+            stack.enter_context(remembered[key])
+            continue
+        module, version = context[0], context[1]
+        try:
+            made = Interface.make(module, version=version)
+        except Exception as ex:  # noqa: BLE001 - the run goes on without it
+            warnings.warn(
+                f"Cannot enter {module} {version}, a context {interface!r} was "
+                f"created in: {type(ex).__name__}: {ex}",
+                stacklevel=2,
+            )
+            continue
+        if (made.kind or "Interface") == "Execution":
+            continue
+        stack.enter_context(made)
 
 
 class Execution(Interface):
@@ -409,6 +462,10 @@ class Execution(Interface):
         if interface in self._interfaces:
             return self
 
+        if not interface.is_materialized():
+            # it materializes later (at dispatch, or by whoever collected it):
+            # in the contexts it is queued in, so its scopes still identify it
+            interface._remember_creation_context()
         self.on_add(interface)
         self._interfaces.append(interface)
 
@@ -425,7 +482,8 @@ class Execution(Interface):
             assert interface.config is not None
 
         for interface in self._interfaces:
-            interface.materialize(parent_id=parent_id, force=force)
+            with interface._creation_context():
+                interface.materialize(parent_id=parent_id, force=force)
 
         # Queued runs materialise under their interface in dispatch_interface().
         if parent_id is not None or not self._interfaces:
@@ -522,7 +580,8 @@ class Execution(Interface):
 
         for interface in self._interfaces:
             if not interface.is_materialized():
-                interface.materialize()
+                with interface._creation_context():
+                    interface.materialize()
 
         if type(self).__call__ is not Execution.__call__:
             for interface in self._interfaces:
@@ -550,7 +609,8 @@ class Execution(Interface):
     def dispatch_interface(self, interface: Interface) -> None:
         """Establish a run-record for ``interface`` via the Index, then run it."""
         if not interface.is_materialized():
-            interface.materialize()
+            with interface._creation_context():
+                interface.materialize()
 
         hold = None
         if (
@@ -948,7 +1008,12 @@ class Execution(Interface):
         def _stop_beat():
             _beat_stop.set()
 
+        # the run sees the contexts it was created in (its scopes, so its
+        # predicate), wherever it is dispatched from
+        contexts = contextlib.ExitStack()
+
         try:
+            _enter_recorded_context(interface, contexts)
             interface.on_before_dispatch()
             self._invoke_seeding(interface)
 
@@ -1060,6 +1125,7 @@ class Execution(Interface):
         finally:
             _watch_stop.set()
             _stop_beat()
+            contexts.close()
             _IN_RUN.reset(in_run)
             interface._results_run = results_run
             _RUNNING_HERE.discard(running_here)
@@ -1172,7 +1238,8 @@ class Execution(Interface):
         directory directly). Returns the run's IndexEntry.
         """
         if not interface.is_materialized():
-            interface.materialize()
+            with interface._creation_context():
+                interface.materialize()
         entry = self._resumable_run(interface)
         minted = entry is None
         if minted:

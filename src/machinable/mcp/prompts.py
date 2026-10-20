@@ -2,13 +2,21 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from typing import Any
 
 from machinable.mcp.context import MCPContext
 
 
-def register_prompts(mcp: Any, ctx: MCPContext) -> None:
-    @mcp.prompt
+def functions(ctx: MCPContext) -> dict[str, Callable[..., str]]:
+    """The MCP's prompts by name: what :func:`register_prompts` serves."""
+    found: dict[str, Callable[..., str]] = {}
+
+    def prompt(fn: Any) -> Any:
+        found[fn.__name__] = fn
+        return fn
+
+    @prompt
     def investigate(hypothesis: str) -> str:
         """Frame a research question and drive it to a validated verdict end-to-end."""
         return (
@@ -36,7 +44,7 @@ def register_prompts(mcp: Any, ctx: MCPContext) -> None:
             "the new work."
         )
 
-    @mcp.prompt
+    @prompt
     def scaffold_aggregate(name: str, axis: str = "sgd,adam") -> str:
         """Emit an aggregate Interface skeleton (grid `launch()` + a quantity stub)."""
         tokens = [t.strip() for t in axis.split(",") if t.strip()]
@@ -65,7 +73,7 @@ def register_prompts(mcp: Any, ctx: MCPContext) -> None:
             f"etc. Adjust to this project's `train` interface and stored files."
         )
 
-    @mcp.prompt
+    @prompt
     def add_inference(name: str, requires: str = "scalar") -> str:
         """Emit a new `Inference` subclass skeleton (declare the shape + the test)."""
         cls = "".join(p.capitalize() for p in name.replace("-", "_").split("_"))
@@ -88,7 +96,7 @@ def register_prompts(mcp: Any, ctx: MCPContext) -> None:
             f"interface."
         )
 
-    @mcp.prompt
+    @prompt
     def scaffold_widget(name: str, description: str = "") -> str:
         """Emit a starter Widget (`*.py` + a `render` skeleton) per `widget-sdk://docs`."""
         cls = "".join(p.capitalize() for p in name.replace("-", "_").split("_"))
@@ -106,7 +114,7 @@ def register_prompts(mcp: Any, ctx: MCPContext) -> None:
             f"}}\n```\n\nThen `write_source` both and verify with `read_widget_result`."
         )
 
-    @mcp.prompt
+    @prompt
     def new_interface(name: str) -> str:
         """A generic Interface scaffold."""
         cls = "".join(p.capitalize() for p in name.replace("-", "_").split("_"))
@@ -119,3 +127,11 @@ def register_prompts(mcp: Any, ctx: MCPContext) -> None:
             f"    def __call__(self):\n"
             f"        self.save_file('out.json', {{'param': self.config.param}})\n```"
         )
+
+    return found
+
+
+def register_prompts(mcp: Any, ctx: MCPContext) -> None:
+    """Register every prompt of :func:`functions` on the FastMCP server ``mcp``."""
+    for fn in functions(ctx).values():
+        mcp.prompt(fn)

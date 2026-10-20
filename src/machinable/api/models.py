@@ -317,6 +317,14 @@ class ExecutionInfo(BaseModel):
             " elsewhere, in request order (the cached ones are in `cached_uuids`)."
         ),
     )
+    interface_uuids: list[str] = Field(
+        default_factory=list,
+        description=(
+            "Set by POST /v1/executions: the uuids of the requested interfaces, in"
+            " request order, an axis (`~~name`) as each of its members. Follow"
+            " each one's runs with GET /v1/interfaces/{uuid}/executions."
+        ),
+    )
 
 
 class InterfaceRef(BaseModel):

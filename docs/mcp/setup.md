@@ -62,6 +62,31 @@ async with Client(server) as client:
     result = await client.call_tool("get_module", {"module": "train"})
 ```
 
+**Without an MCP client**: the tools, resources and prompts are plain functions by
+name, bound to a context, so a caller that is not an MCP server invokes them directly:
+
+```python
+from machinable.mcp import prompts, resources, tools
+from machinable.mcp.context import MCPContext
+
+ctx = MCPContext(project_dir="/path/to/project", read_only=True)
+tools.functions(ctx)["quantity"](operand="train", name="loss", version=["~~seeds"])
+resources.read(ctx, "examples://axis")
+prompts.functions(ctx)["investigate"]("sgd beats adam")
+```
+
+The [API server](/guide/server#the-mcp-over-rest) serves the same over REST
+(`GET /v1/mcp`, `GET /v1/mcp/resources?uri=`, `POST /v1/mcp/tools/{name}`,
+`POST /v1/mcp/prompts/{name}`), bound to the request's project, so a remote caller
+needs no machinable of its own to read the guide or run a tool where the project is.
+
+**Several machines on one home**: the tools read within
+[`adopting()`](/guide/storage#reads-that-see-the-shared-home), so `quantity`, the
+inferences and `run_status` on one machine see the runs another machine made in a
+storage they share, and a verdict reached on one is read, not computed again, on
+another. An axis or an aggregate dispatched through the API server
+(`POST /v1/executions`) runs as `launch` runs it here, each run seeing its scope.
+
 ## Safety
 
 - **Named, bounded, approvable tools.** Each call is rendered by the client for

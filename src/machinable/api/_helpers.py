@@ -926,11 +926,61 @@ def discover_project_modules(project_dir: str) -> ProjectIndex:
     return ProjectIndex(project=os.path.abspath(project_dir), modules=modules)
 
 
+def module_import_error(project_dir: str, module: str) -> Exception | None:
+    """Why ``module``'s source in ``project_dir`` does not import, or None.
+
+    A source that does not parse is not found by the static discovery, so its
+    schema lookup fails with a ``LookupError``; this names the cause instead
+    (the ``SyntaxError``, or the error importing it raises). None when there
+    is no such source or it imports.
+    """
+    import importlib
+    import sys
+
+    base = os.path.join(project_dir, *module.split("."))
+    path = next(
+        (
+            candidate
+            for candidate in (base + ".py", os.path.join(base, "__init__.py"))
+            if os.path.isfile(candidate)
+        ),
+        None,
+    )
+    if path is None:
+        return None
+    try:
+        with open(path, encoding="utf-8") as handle:
+            compile(handle.read(), os.path.relpath(path, project_dir), "exec")
+    except (SyntaxError, ValueError, OSError) as ex:
+        return ex
+    if module in sys.modules:
+        # imported before (and so importable): the discovery's own answer stands
+        return None
+    pinned = project_dir not in sys.path
+    if pinned:
+        sys.path.insert(0, project_dir)
+    try:
+        importlib.invalidate_caches()
+        importlib.import_module(module)
+    except Exception as ex:  # noqa: BLE001 - the cause, reported to the caller
+        return ex
+    finally:
+        if pinned and project_dir in sys.path:
+            sys.path.remove(project_dir)
+    return None
+
+
 def module_schema(project_dir: str, module: str) -> ModuleSchema:
     from machinable.api.models import ConfigMethod
 
     project = _project_for(project_dir)
-    schema = project.module_schema(module)
+    try:
+        schema = project.module_schema(module)
+    except LookupError as ex:
+        cause = module_import_error(project.path(), module)
+        if cause is not None:
+            raise cause from ex
+        raise
 
     widget = None
     if schema.widget is not None:

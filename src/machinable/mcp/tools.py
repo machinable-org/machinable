@@ -8,6 +8,7 @@ tells the agent which ``<quantity>()`` to write.
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from typing import TYPE_CHECKING, Any, cast
 
 if TYPE_CHECKING:
@@ -79,10 +80,21 @@ def _infer_tool(ctx: MCPContext, name: str, config: dict, operand_specs: list) -
             return {"ok": False, "needs": str(miss)}
 
 
-def register_tools(mcp: Any, ctx: MCPContext) -> None:
+def functions(ctx: MCPContext) -> dict[str, Callable[..., Any]]:
+    """The MCP's tools bound to ``ctx``, by name: what :func:`register_tools` serves.
+
+    Plain functions, so a caller that is not an MCP server (a remote caller
+    through ``POST /v1/mcp/tools/{name}``, a test) invokes them by name.
+    """
+    found: dict[str, Callable[..., Any]] = {}
+
+    def tool(fn: Any) -> Any:
+        found[fn.__name__] = fn
+        return fn
+
     # ---- authoring ----------------------------------------------------------
 
-    @mcp.tool
+    @tool
     def list_modules() -> list[dict]:
         """List the project's interface modules (module, kind, doc, is-widget)."""
         from machinable.api._helpers import discover_project_modules
@@ -91,7 +103,7 @@ def register_tools(mcp: Any, ctx: MCPContext) -> None:
             index = discover_project_modules(ctx.project_dir)
         return [m.model_dump() for m in index.modules]
 
-    @mcp.tool
+    @tool
     def get_module(module: str) -> dict:
         """Resolved schema for a module.
 
@@ -106,7 +118,7 @@ def register_tools(mcp: Any, ctx: MCPContext) -> None:
             except Exception as ex:  # noqa: BLE001 - surface import errors
                 return {"module": module, "error": f"{type(ex).__name__}: {ex}"}
 
-    @mcp.tool
+    @tool
     def resolve_config(target: str, version: list | None = None) -> dict:
         """Dry-run a compact version → resolved config + CLI, without materializing."""
         from machinable.api._helpers import resolved_config
@@ -125,12 +137,12 @@ def register_tools(mcp: Any, ctx: MCPContext) -> None:
             except Exception as ex:  # noqa: BLE001
                 return {"error": f"{type(ex).__name__}: {ex}"}
 
-    @mcp.tool
+    @tool
     def read_source(path: str) -> str:
         """Read a project source file (path relative to the project root)."""
         return ctx.read_source(path)
 
-    @mcp.tool
+    @tool
     def write_source(path: str, content: str) -> dict:
         """Create/overwrite a source file (token-gated).
 
@@ -141,20 +153,20 @@ def register_tools(mcp: Any, ctx: MCPContext) -> None:
             error = ctx.write_source(path, content)
         return {"path": path, "ok": error is None, "error": error}
 
-    @mcp.tool
+    @tool
     def move_source(source: str, destination: str) -> dict:
         """Rename/move a source file; re-imports the destination and returns errors."""
         with ctx.bind():
             error = ctx.move_source(source, destination)
         return {"path": destination, "ok": error is None, "error": error}
 
-    @mcp.tool
+    @tool
     def delete_source(path: str) -> dict:
         """Delete a project source file."""
         ctx.delete_source(path)
         return {"path": path, "ok": True}
 
-    @mcp.tool
+    @tool
     def search_interfaces(
         module: str | None = None,
         filters: list[dict] | None = None,
@@ -190,7 +202,7 @@ def register_tools(mcp: Any, ctx: MCPContext) -> None:
             ]
         return {"items": items, "total": total}
 
-    @mcp.tool
+    @tool
     def create_interface(
         target: str, version: list | None = None, uuid: str | None = None
     ) -> dict:
@@ -206,7 +218,7 @@ def register_tools(mcp: Any, ctx: MCPContext) -> None:
                 "cli": interface.to_cli(),
             }
 
-    @mcp.tool
+    @tool
     def launch(target: str, version: list | None = None) -> dict:
         """Run an interface and return it with its execution uuid.
 
@@ -224,15 +236,20 @@ def register_tools(mcp: Any, ctx: MCPContext) -> None:
                 "execution_uuid": execution.uuid if execution else None,
             }
 
-    @mcp.tool
+    @tool
     def run_status(uuid: str) -> dict:
         """Lifecycle of a run (started/finished/failed) and its execution."""
         from machinable.interface import Interface
+        from machinable.storage import sync_homes
 
         with ctx.bind():
             interface = Interface.find_by_id(uuid)
+            if interface is None and sync_homes():
+                # made by another machine in the shared home
+                interface = Interface.find_by_id(uuid)
             if interface is None:
                 return {"uuid": uuid, "error": "not found"}
+            interface = interface.adopted()
             execution = interface.execution
             return {
                 "uuid": uuid,
@@ -243,7 +260,7 @@ def register_tools(mcp: Any, ctx: MCPContext) -> None:
                 "is_live": execution.is_live() if execution else None,
             }
 
-    @mcp.tool
+    @tool
     def call(
         interface: str,
         method: str,
@@ -264,7 +281,7 @@ def register_tools(mcp: Any, ctx: MCPContext) -> None:
             result = fn(*(args or []), **(kwargs or {}))
             return {"payload": json_payload(result)}
 
-    @mcp.tool
+    @tool
     def provenance(uuid: str, depth: int = 8, rels: str | None = None) -> dict:
         """The provenance graph: how an interface came to be.
 
@@ -289,7 +306,7 @@ def register_tools(mcp: Any, ctx: MCPContext) -> None:
 
     # ---- inference (the scientific vocabulary) ------------------------------
 
-    @mcp.tool
+    @tool
     def quantity(operand: str, name: str, version: list | None = None) -> dict:
         """Probe an operand's ``<quantity>()`` accessor.
 
@@ -318,7 +335,7 @@ def register_tools(mcp: Any, ctx: MCPContext) -> None:
     def _two(a, a_version, b, b_version):
         return [[a, a_version or []], [b, b_version or []]]
 
-    @mcp.tool
+    @tool
     def outperforms(
         a: str,
         b: str,
@@ -337,7 +354,7 @@ def register_tools(mcp: Any, ctx: MCPContext) -> None:
             _two(a, a_version, b, b_version),
         )
 
-    @mcp.tool
+    @tool
     def differs(
         a: str,
         b: str,
@@ -355,7 +372,7 @@ def register_tools(mcp: Any, ctx: MCPContext) -> None:
             _two(a, a_version, b, b_version),
         )
 
-    @mcp.tool
+    @tool
     def beats_baseline(
         a: str,
         a_version: list | None = None,
@@ -372,7 +389,7 @@ def register_tools(mcp: Any, ctx: MCPContext) -> None:
             [[a, a_version or []]],
         )
 
-    @mcp.tool
+    @tool
     def ranks(
         operands: list,
         quantity: str = "objective",
@@ -390,7 +407,7 @@ def register_tools(mcp: Any, ctx: MCPContext) -> None:
             operands,
         )
 
-    @mcp.tool
+    @tool
     def converges_faster(
         a: str,
         b: str,
@@ -416,7 +433,7 @@ def register_tools(mcp: Any, ctx: MCPContext) -> None:
             _two(a, a_version, b, b_version),
         )
 
-    @mcp.tool
+    @tool
     def infer(inference: str, operands: list, options: dict | None = None) -> dict:
         """Generic escape hatch: run any catalog inference by name.
 
@@ -432,7 +449,7 @@ def register_tools(mcp: Any, ctx: MCPContext) -> None:
 
     # ---- widget -------------------------------------------------------------
 
-    @mcp.tool
+    @tool
     def read_widget_result(interface: str, version: list | None = None) -> dict:
         """The ``widget_state()`` a widget interface produces.
 
@@ -449,7 +466,7 @@ def register_tools(mcp: Any, ctx: MCPContext) -> None:
             )
             return {"module": target.module, "widget_state": state}
 
-    @mcp.tool
+    @tool
     def list_widgets() -> list[dict]:
         """Project modules whose schema carries a widget descriptor."""
         from machinable.api._helpers import discover_project_modules
@@ -457,3 +474,11 @@ def register_tools(mcp: Any, ctx: MCPContext) -> None:
         with ctx.bind():
             index = discover_project_modules(ctx.project_dir)
         return [m.model_dump() for m in index.modules if m.widget]
+
+    return found
+
+
+def register_tools(mcp: Any, ctx: MCPContext) -> None:
+    """Register every tool of :func:`functions` on the FastMCP server ``mcp``."""
+    for fn in functions(ctx).values():
+        mcp.tool(fn)

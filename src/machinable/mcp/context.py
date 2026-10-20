@@ -32,16 +32,28 @@ class MCPContext:
     def bind(self):
         """Connect the project so ``get``/``search``/``Index`` resolve against it.
 
+        ``get`` sees the shared home within it (:func:`machinable.interface.adopting`).
+
         Pins the project at ``sys.path[0]`` (current-project-wins, same as ``Project``)
         so bare-name imports (discovery and the ``write_source`` re-import) resolve
         to *this* project even with stale tmp dirs left on the path.
         """
         from machinable import Project
+        from machinable.interface import adopting
 
         if self.project_dir in sys.path:
             sys.path.remove(self.project_dir)
         sys.path.insert(0, self.project_dir)
-        with Project(self.project_dir):
+        # reads see the runs other machines made in a shared home (no adopt
+        # or sync first), so every server on one home answers the same
+        with contextlib.ExitStack() as stack:
+            # a request already in this project keeps its Project (its user)
+            if not (
+                Project.is_connected()
+                and os.path.realpath(Project.get().path()) == self.project_dir
+            ):
+                stack.enter_context(Project(self.project_dir))
+            stack.enter_context(adopting())
             yield
 
     # --- source editing -------------------------------------------------------
