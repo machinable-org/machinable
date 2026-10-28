@@ -1138,3 +1138,84 @@ def test_a_call_builds_off_the_event_loop_and_once(tmp_storage, monkeypatch):
         os.utime(module, ns=(stat.st_atime_ns, stat.st_mtime_ns + 10**9))
         assert call().json()["payload"] == "slow"
         assert count() == built + 2
+
+
+def test_dispatch_with_uses(api_client):
+    """``uses`` names existing runs, also one of a module that no longer imports."""
+    import os
+    import sys
+
+    from machinable.project import Project
+
+    path = os.path.join(Project.get().path(), "gone.py")
+    with open(path, "w") as f:
+        f.write(
+            "from machinable import Interface\n\n\nclass Gone(Interface):\n    pass\n"
+        )
+    (gone,) = _dispatch_and_finish(api_client, ["gone"])["interface_uuids"]
+    os.remove(path)
+    sys.modules.pop("gone", None)
+
+    response = api_client.post(
+        "/v1/executions",
+        json={"interfaces": [{"target": "hello", "version": [], "uses": [gone]}]},
+    )
+    assert response.status_code == 200, response.text
+    (hello,) = response.json()["interface_uuids"]
+    graph = api_client.get(f"/v1/interfaces/{hello}/provenance").json()
+    uses = [(e["source"], e["target"]) for e in graph["links"] if e["rel"] == "uses"]
+    assert uses == [(hello, gone)]
+    (node,) = [n for n in graph["nodes"] if n["uuid"] == gone]
+    assert node["module"] == "gone"
+
+    missing = api_client.post(
+        "/v1/executions",
+        json={"interfaces": [{"target": "hello", "uses": ["nosuchrunid"]}]},
+    )
+    assert missing.status_code == 404, missing.text
+
+
+def test_dispatch_uses_a_run_made_under_another_index(tmp_path):
+    """Two indexes over one storage: the server's has never seen the run."""
+    import shutil
+
+    from machinable import Index, Interface, Project, Storage
+
+    project = tmp_path / "project"
+    shutil.copytree(
+        "tests/samples/project", project, ignore=shutil.ignore_patterns("storage")
+    )
+    storage = str(tmp_path / "storage")
+    with (
+        Project(str(project)),
+        Storage(storage),
+        Index({"database": str(tmp_path / "one.sqlite")}),
+    ):
+        made = Interface.make("dummy", {"a": 3}).launch().uuid
+
+    app = create_app(
+        project_dir=str(project),
+        ambient_connections=[
+            {"target": "machinable.storage", "version": [{"directory": storage}]},
+            {
+                "target": "machinable.index",
+                "version": [{"database": str(tmp_path / "two.sqlite")}],
+            },
+        ],
+    )
+    with TestClient(app) as client:
+        response = client.post(
+            "/v1/executions",
+            json={"interfaces": [{"target": "hello", "uses": [made]}]},
+        )
+        assert response.status_code == 200, response.text
+        (hello,) = response.json()["interface_uuids"]
+        graph = client.get(f"/v1/interfaces/{hello}/provenance").json()
+        assert [
+            (e["source"], e["target"]) for e in graph["links"] if e["rel"] == "uses"
+        ] == [(hello, made)]
+        missing = client.post(
+            "/v1/executions",
+            json={"interfaces": [{"target": "hello", "uses": ["nosuchrunid"]}]},
+        )
+        assert missing.status_code == 404, missing.text

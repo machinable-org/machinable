@@ -38,8 +38,9 @@ from machinable.api._helpers import (
 )
 from machinable.api.models import DispatchRequest, ExecutionInfo, OutputChunk
 from machinable.api.ws import handle_interface_ws
+from machinable.errors import NotFound
 from machinable.execution import Execution
-from machinable.interface import Interface
+from machinable.interface import Interface, resolve_uses
 
 router = APIRouter(prefix="/v1/executions", tags=["executions"])
 
@@ -162,8 +163,11 @@ def dispatch_execution(
                             stack.enter_context(
                                 Interface.make(ctx.target, version=ctx.version)
                             )
-                        interface = Interface.make(entry.target, version=entry.version)
-                        for member in _members(interface, entry.target):
+                        uses = resolve_uses(entry.uses)
+                        interface = Interface.make(
+                            entry.target, version=entry.version, uses=uses
+                        )
+                        for member in _members(interface, entry.target, uses):
                             if member.uuid not in added:
                                 added.append(cast(str, member.uuid))
                                 execution.add(member)
@@ -198,6 +202,8 @@ def dispatch_execution(
         error = failure["error"]
         if error is not None and is_config_error(error):
             raise config_error(cast(Exception, error)) from error
+        if isinstance(error, NotFound):
+            raise HTTPException(status_code=404, detail=str(error)) from error
         if error is not None:
             raise HTTPException(
                 status_code=500,
@@ -225,7 +231,9 @@ def _is_aggregate(interface: Interface) -> bool:
     ).startswith("machinable.")
 
 
-def _members(interface: Interface, target: str) -> list[Interface]:
+def _members(
+    interface: Interface, target: str, uses: list[Interface] | None = None
+) -> list[Interface]:
     """What launching ``interface`` runs, materialized, as ``launch()`` lays it out.
 
     ``interface`` itself; each member of its axis (``~~name``), made and
@@ -250,7 +258,7 @@ def _members(interface: Interface, target: str) -> list[Interface]:
         with contextlib.ExitStack() as stack:
             for context in contexts:
                 stack.enter_context(context)
-            member = Interface.make(target, version=version)
+            member = Interface.make(target, version=version, uses=uses)
             member.materialize()
             members.append(member)
     return members

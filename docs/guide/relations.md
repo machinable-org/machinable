@@ -30,6 +30,13 @@ run.uses               # -> a collection: [data]
 data.used_by           # -> the inverse
 ```
 
+A run can use a run of another project sharing the storage and index, whose module does not import here. `find_by_id(uuid, stub=True)` loads such a record as a plain `Interface` carrying its uuid, module, version, config and directory (where the module imports, it loads the run as usual), and relations load their neighbours this way, so `run.uses` and `run.provenance()` read back in any project:
+
+```python
+sort = Interface.find_by_id(sort_uuid, stub=True)
+fit = get("fit", uses=sort)
+```
+
 ## Traversing the graph
 
 - `interface.inherits` is the tuple of base modules an interface inherits from (its

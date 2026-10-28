@@ -356,6 +356,14 @@ class DispatchInterface(BaseModel):
             "like the CLI's element chain. Order is significant."
         ),
     )
+    uses: list[str] = Field(
+        default_factory=list,
+        description=(
+            "Uuids of existing runs the interface uses: recorded as `uses` edges "
+            "(its provenance), not part of its identity. A run of a module this "
+            "project cannot import is used by its record."
+        ),
+    )
 
 
 class OutputChunk(BaseModel):

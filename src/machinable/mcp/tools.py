@@ -219,15 +219,32 @@ def functions(ctx: MCPContext) -> dict[str, Callable[..., Any]]:
             }
 
     @tool
-    def launch(target: str, version: list | None = None) -> dict:
+    def launch(
+        target: str, version: list | None = None, uses: list[str] | None = None
+    ) -> dict:
         """Run an interface and return it with its execution uuid.
 
-        An aggregate's ``launch()`` lays out its grid; dedup is free.
+        An aggregate's ``launch()`` lays out its grid; dedup is free. ``uses``:
+        uuids of existing runs this one uses (recorded as ``uses`` edges, shown in
+        its provenance; not part of its identity). A run of a module this project
+        cannot import is used by its record.
         """
         import machinable
+        from machinable.errors import NotFound
+        from machinable.interface import resolve_uses
 
         with ctx.bind():
-            interface = machinable.get(target, version or [])
+            try:
+                used = resolve_uses(uses)
+            except NotFound as ex:
+                return {"ok": False, "error": str(ex)}
+            interface = machinable.get(target, version or [], uses=used)
+            if used and interface.is_materialized():
+                # get() returned the stored record as it is: add the new edges
+                known = {u.uuid for u in interface.uses}
+                for use in used:
+                    if use.uuid not in known:
+                        interface.relate("uses", use)
             interface.launch()
             execution = interface.execution if interface.is_materialized() else None
             return {

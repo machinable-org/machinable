@@ -397,7 +397,7 @@ class Execution(Interface):
 
             entry = Index.get().get_by_id(self.uuid)
             if entry is not None and entry.parent_id:
-                return Interface.find_by_id(entry.parent_id)
+                return Interface.find_by_id(entry.parent_id, stub=True)
         return getattr(self, "_interface_", None)
 
     def of(self, interface: Interface | None) -> Self:

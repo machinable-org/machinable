@@ -591,7 +591,11 @@ class Relation:
                 hydrated = [
                     i
                     for r in models
-                    if (i := Interface.find_by_id(cast(str, r.uuid), fetch=False))
+                    if (
+                        i := Interface.find_by_id(
+                            cast(str, r.uuid), fetch=False, stub=True
+                        )
+                    )
                     is not None
                 ]
                 if self.multiple is False:
@@ -651,6 +655,30 @@ belongs_to = _relation(BelongsTo)
 has_one = _relation(HasOne)
 has_many = _relation(HasMany)
 belongs_to_many = _relation(BelongsToMany)
+
+
+def resolve_uses(uuids: list[str] | None) -> list[Interface]:
+    """The existing runs ``uuids`` name, to pass as ``uses=``.
+
+    Each is loaded by :meth:`Interface.find_by_id` with ``stub=True``, so a run of
+    a module that does not import here is used by its record. A run this index
+    does not know is looked up in the storages and indexed
+    (:func:`~machinable.storage.ingest_by_id`), so a run another machine made
+    over the same storage is found. Raises :class:`~machinable.errors.NotFound`
+    for a uuid no storage has.
+    """
+    from machinable.errors import NotFound
+    from machinable.storage import ingest_by_id
+
+    used = []
+    for uuid in uuids or []:
+        found = None
+        if ingest_by_id(uuid):
+            found = Interface.find_by_id(uuid, fetch=False, stub=True)
+        if found is None:
+            raise NotFound(f"No run {uuid} to use")
+        used.append(found)
+    return used
 
 
 def _config_layers_from_model(model: schema.Interface) -> ConfigLayers:
@@ -963,8 +991,16 @@ class Interface(Jsonable):
         return cls.make(module, version, base_class=cls, **kwargs)
 
     @classmethod
-    def from_model(cls, model: schema.Interface) -> Interface:
-        """Instantiate an interface from a schema model."""
+    def from_model(cls, model: schema.Interface, stub: bool = False) -> Interface:
+        """Instantiate an interface from a schema model.
+
+        ``stub=True``: if the model's module cannot be imported here (a record of
+        another project sharing this storage and index), return a plain
+        :class:`Interface` carrying the model instead of raising
+        ``ModuleNotFoundError``: its uuid, module, version and config, and its
+        directory, but not its class's code. Relations load their neighbours this
+        way, so a record reads back where a module it relates to does not import.
+        """
         if cls.__module__ != model.module:
             # re-instantiate interface class
             if model.module and model.module.startswith("__session__"):
@@ -972,7 +1008,12 @@ class Interface(Jsonable):
                     raise RuntimeError(f"Unable to restore interface {model.module}")
                 instance = cls.make(pickle.loads(model._dump))
             else:
-                instance = cls.make(model.module)
+                try:
+                    instance = cls.make(model.module)
+                except ModuleNotFoundError:
+                    if not stub:
+                        raise
+                    instance = Interface()
         else:
             instance = cls()
 
@@ -2038,8 +2079,15 @@ class Interface(Jsonable):
         return os.path.exists(self.local_directory())
 
     @classmethod
-    def find_by_id(cls, uuid: str, fetch: bool = True) -> Interface | None:
-        """Load an interface by record id, or ``None`` if unknown."""
+    def find_by_id(
+        cls, uuid: str, fetch: bool = True, stub: bool = False
+    ) -> Interface | None:
+        """Load an interface by record id, or ``None`` if unknown.
+
+        ``stub=True`` returns a plain :class:`Interface` carrying the record's
+        model when its module does not import here, instead of raising (see
+        :meth:`from_model`), e.g. to pass another project's run as ``uses=``.
+        """
         from machinable.index import Index, entry_to_model
 
         index = Index.get()
@@ -2049,7 +2097,7 @@ class Interface(Jsonable):
 
         module = entry.module
         if fetch is False and (module is None or not module.startswith("__session__")):
-            return cls.from_model(entry_to_model(entry))
+            return cls.from_model(entry_to_model(entry), stub=stub)
 
         local_directory = index.local_directory(entry.record_id)
 
@@ -2061,14 +2109,14 @@ class Interface(Jsonable):
             )
 
         if written():
-            return cls.from_directory(local_directory)
+            return cls.from_directory(local_directory, stub=stub)
 
         from machinable.storage import fetch as fetch_from_storage
 
         if fetch_from_storage(entry.record_id, local_directory) and written():
-            return cls.from_directory(local_directory)
+            return cls.from_directory(local_directory, stub=stub)
 
-        return cls.from_model(entry_to_model(entry))
+        return cls.from_model(entry_to_model(entry), stub=stub)
 
     @classmethod
     def find_many_by_id(
@@ -2188,11 +2236,12 @@ class Interface(Jsonable):
         return cls.collect(found).filter(lambda i: i.matches(matching))
 
     @classmethod
-    def from_directory(cls, directory: str) -> Self:
+    def from_directory(cls, directory: str, stub: bool = False) -> Self:
         """Returns an interface from a storage directory.
 
         Note that this does not verify the integrity of the directory.
         In particular, the interface may be missing or not be indexed.
+        ``stub``: see :meth:`from_model`.
         """
         data = load_file([directory, "model.json"])
 
@@ -2205,7 +2254,7 @@ class Interface(Jsonable):
         if interface.module.startswith("__session__"):
             interface._dump = load_file([directory, "dump.p"], None)
 
-        instance = cast(Self, cls.from_model(interface))
+        instance = cast(Self, cls.from_model(interface, stub=stub))
         instance._local_directory = os.path.abspath(directory)
         return instance
 
@@ -2726,7 +2775,8 @@ class Interface(Jsonable):
             [
                 hydrated
                 for item in items
-                if (hydrated := Interface.find_by_id(item.record_id)) is not None
+                if (hydrated := Interface.find_by_id(item.record_id, stub=True))
+                is not None
             ]
         )
 

@@ -197,3 +197,45 @@ def test_resources_and_prompts_render(tmp_path):
         assert "FRAME" in text and "sgd beats adam" in text
 
     _run(server, fn)
+
+
+def test_launch_with_uses(tmp_path):
+    """``launch(uses=[uuid])`` records the edge, also to a run that cannot import."""
+    import os
+    import sys
+
+    project = _project(tmp_path)
+    server = create_server(project)
+    with open(os.path.join(project, "gone.py"), "w") as f:
+        f.write(
+            "from machinable import Interface\n\n\nclass Gone(Interface):\n    pass\n"
+        )
+
+    async def fn(c):
+        gone = (await c.call_tool("launch", {"target": "gone"})).data["uuid"]
+        os.remove(os.path.join(project, "gone.py"))
+        sys.modules.pop("gone", None)
+        hello = (await c.call_tool("launch", {"target": "hello", "uses": [gone]})).data[
+            "uuid"
+        ]
+        # launching the stored record again adds a new edge to it
+        other = (await c.call_tool("launch", {"target": "dummy"})).data["uuid"]
+        again = (
+            await c.call_tool("launch", {"target": "hello", "uses": [other]})
+        ).data["uuid"]
+        missing = (
+            await c.call_tool("launch", {"target": "hello", "uses": ["nosuchrunid"]})
+        ).data
+        return gone, hello, other, again, missing
+
+    gone, hello, other, again, missing = _run(server, fn)
+    assert again == hello
+    assert missing["ok"] is False and "nosuchrunid" in missing["error"]
+
+    from machinable import Interface, Project
+
+    with Project(project):
+        used = Interface.find_by_id(hello, fetch=False).uses.all()
+        assert sorted(u.uuid for u in used) == sorted([gone, other])
+        (stub,) = [u for u in used if u.uuid == gone]
+        assert type(stub) is Interface and stub.module == "gone"

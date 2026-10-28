@@ -496,3 +496,19 @@ def test_a_folder_read_by_name_brings_its_missing_files(bucket):
         assert storage.ingest(storage.handle(entry.storage_uri)) == uuid
         entry = Index.get().get_by_id(uuid)
         assert entry is not None and not entry.bytes_missing
+
+
+def test_uses_finds_a_run_another_machine_made(bucket):
+    from machinable.interface import resolve_uses
+
+    stack, _ = bucket["machine"]("a")
+    with stack:
+        made = get(Job, {"tag": "sort"}).launch().uuid
+    stack, _ = bucket["machine"]("b")
+    with stack:
+        assert Index.get().get_by_id(made) is None
+        (used,) = resolve_uses([made])
+        assert used.uuid == made and used.config.tag == "sort"
+        assert used.load_file("result.json") == {"tag": "sort"}
+        fit = get(Job, {"tag": "fit"}, uses=used).launch()
+        assert [u.uuid for u in Interface.find_by_id(fit.uuid).uses] == [made]

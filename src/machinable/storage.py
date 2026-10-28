@@ -1246,6 +1246,35 @@ def sync_homes(force: bool = False) -> builtins.list[str]:
     return ingested
 
 
+def ingest_by_id(uuid: str) -> bool:
+    """Index the record ``uuid`` from the claim storages; False when none has it.
+
+    For a lookup by record id that misses because the record was made under
+    another index over the same storage (another machine's). A storage with a
+    catalog log (an object store) is synced (:func:`sync_homes`, now); one
+    without is walked for the record's marker, which holds its uuid, and that
+    record (with the records nested in it, its runs) is ingested as a reindex
+    of it would. True at once when the index already has it.
+    """
+    index = Index.get()
+    if index.get_by_id(uuid) is not None:
+        return True
+    sync_homes(force=True)
+    if index.get_by_id(uuid) is not None:
+        return True
+    for storage in claim_storages():
+        if storage.catalog_log:
+            continue
+        for location in storage.walk():
+            marker = storage.read_bytes(location, MACHINABLE_MARKER)
+            if marker is None or marker.decode("utf-8", "replace").strip() != uuid:
+                continue
+            for nested in storage.walk(location):
+                storage.ingest(nested)
+            return index.get_by_id(uuid) is not None
+    return False
+
+
 def storage_for(uri: str) -> Storage:
     """The storage that owns home ``uri``: the first of :func:`claim_storages`.
 
