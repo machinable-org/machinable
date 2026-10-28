@@ -18,6 +18,10 @@ Contents:
                             now → unclaimed | held | stale)
 - ``protocol.json``: claim-protocol sequences (look and operation outcomes →
                             the dispatcher's next step)
+- ``plain_records.json``: plain-writer vectors (project, module, plain config,
+                            label, creation time and creator, bases → the
+                            record id, home, ``id.json``/``model.json`` text,
+                            catalog entry and write order)
 - ``store/``: deterministic record directories (every kind, edge
                             logs with duplicates, status markers, hash-edge configs)
 - ``expected_index.json``: rows a conformant ingest of ``store/`` must produce
@@ -1058,6 +1062,167 @@ def results_vectors(directory: str) -> dict:
     return {"records": vectors}
 
 
+# ------------------------------------------------------ plain-record vectors
+
+# Python sources of the modules the plain-record vectors name, so the Python
+# side can make the same records through real PlainConfig interfaces
+# (tests/test_plain_config.py). Keyed by module name.
+PLAIN_MODULES: dict[str, str] = {
+    "plain_floats": """from machinable import Interface, PlainConfig
+
+
+class Floats(Interface):
+    class Config(PlainConfig):
+        tiny: float
+        big: float
+        neg_zero: float
+        ratio: float
+        count: int
+        values: list[float]
+""",
+    "plain_nested": """from machinable import Interface, PlainConfig
+
+
+class Probe(PlainConfig):
+    rows: int
+    pitch_um: float
+    shank: str | None
+
+
+class Nested(Interface):
+    class Config(PlainConfig):
+        name: str
+        probe: Probe
+        tags: dict[str, str | int | None]
+        flags: list[bool]
+        expression: str
+""",
+    "captu_data/__init__.py": "",
+    "captu_data.open_ephys": """from machinable import Data, PlainConfig
+
+
+class OpenEphysSession(Data):
+    class Config(PlainConfig):
+        format: str
+        listing: str
+""",
+}
+
+# a data record's artifacts (path -> UTF-8 content), written before its header
+_PLAIN_DATA_FILES = {
+    "Record Node 101/structure.oebin": '{"GUI version": "0.6.7"}\n',
+    "Record Node 101/continuous/data.dat": "\x00\x01\x02\x03" * 4,
+}
+
+
+def _listing(files: dict[str, str]) -> list[list]:
+    """The canonical [path, size] list of a data record's files, sorted."""
+    return sorted([path, len(data.encode("utf-8"))] for path, data in files.items())
+
+
+def _plain_cases() -> list[dict[str, Any]]:
+    listing = _listing(_PLAIN_DATA_FILES)
+    files_json = json.dumps(
+        {"files": [{"path": path, "size": size} for path, size in listing]},
+        sort_keys=True,
+    )
+    return [
+        {
+            "name": "float-heavy",
+            "project": "my-study",
+            "module": "plain_floats",
+            "inherits": ["machinable.interface"],
+            # keys out of order on purpose: model.json stores them sorted
+            "config": {
+                "values": [1e15, 1.5e300, 5e-324, 9007199254740992.0, 0.0],
+                "tiny": 1e-05,
+                "ratio": 0.1,
+                "neg_zero": -0.0,
+                "count": 9007199254740993,
+                "big": 1e16,
+            },
+            "label": None,
+            "created_at_ns": EPOCH_NS,
+            "created_by": "corpus",
+            "artifacts": {},
+        },
+        {
+            "name": "nested-unicode",
+            "project": "café study",
+            "module": "plain_nested",
+            "inherits": ["machinable.interface"],
+            "config": {
+                "name": "Maus 3 — Sitzung \U0001f600",
+                "probe": {"shank": None, "rows": 384, "pitch_um": 20.0},
+                "tags": {"z": "last", "a": 1, "m": None},
+                "flags": [True, False],
+                # neither is resolved: a plain config is data
+                "expression": "${probe.rows} foo(1)",
+            },
+            "label": 'Café été \U0001f600 "quoted"\n',
+            "created_at_ns": EPOCH_NS + 1,
+            "created_by": "zoë",
+            "artifacts": {},
+        },
+        {
+            "name": "data-record",
+            # data records live in a fixed project named `data`
+            "project": "data",
+            "module": "captu_data.open_ephys",
+            "inherits": ["machinable.data", "machinable.interface"],
+            "config": {
+                "format": "open_ephys",
+                "listing": _sha256(listing),
+            },
+            "label": "Rig 2 / 2026-10-28",
+            "created_at_ns": EPOCH_NS + 2,
+            "created_by": "rig2",
+            # the data first, then the module's own index of it (files.json),
+            # which the module writes last of its artifacts
+            "artifacts": {**_PLAIN_DATA_FILES, "files.json": files_json},
+        },
+    ]
+
+
+def plain_record_vectors() -> list[dict]:
+    """Plain-writer vectors: inputs -> the files a plain writer writes.
+
+    ``expect`` holds the record id, its keys and parent, its home relative to
+    the storage root, the exact UTF-8 text of ``id.json``, ``model.json`` and
+    ``.machinable``, the catalog-log entry (for a write at ``created_at_ns``)
+    and the order of writes at a remote home.
+    """
+    from machinable.plain import plain_record
+
+    vectors = []
+    for case in _plain_cases():
+        expect = plain_record(
+            project=case["project"],
+            module=case["module"],
+            config=case["config"],
+            inherits=case["inherits"],
+            created_at_ns=case["created_at_ns"],
+            created_by=case["created_by"],
+            label=case["label"],
+        )
+        expect["write_order"] = [
+            *case["artifacts"],
+            "model.json",
+            "id.json",
+            ".machinable",
+            "updated_at",
+            expect["catalog_entry"]["name"],
+        ]
+        vectors.append(
+            {
+                "name": case["name"],
+                "input": {k: v for k, v in case.items() if k != "name"},
+                "expect": expect,
+            }
+        )
+    return vectors
+
+
 def _walk(directory: str) -> list[str]:
     from machinable.utils import walk_markers
 
@@ -1177,6 +1342,10 @@ def generate(directory: str) -> dict:
         },
     )
     save_file([directory, "protocol.json"], {"sequences": protocol_vectors()})
+    save_file(
+        [directory, "plain_records.json"],
+        {"format": 1, "vectors": plain_record_vectors()},
+    )
 
     results_store = os.path.join(directory, "results_store")
     results_records = _results_records()

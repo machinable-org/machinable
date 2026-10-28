@@ -2,6 +2,8 @@
 
 __all__ = [
     "Interface",
+    "Data",
+    "PlainConfig",
     "Widget",
     "Inference",
     "Execution",
@@ -24,11 +26,13 @@ from importlib.metadata import PackageNotFoundError, version
 
 from machinable.cli import from_cli
 from machinable.config import Field, import_ref, resolve_ref
+from machinable.data import Data
 from machinable.discovery import Discovery
 from machinable.execution import Execution
 from machinable.index import Index
 from machinable.inference import Inference
 from machinable.interface import Interface
+from machinable.plain import PlainConfig
 from machinable.project import Project
 from machinable.query import Query
 from machinable.results import result

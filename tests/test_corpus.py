@@ -29,6 +29,7 @@ GENERATED = (
     "tracker.json",
     "claims.json",
     "protocol.json",
+    "plain_records.json",
     "expected_index.json",
     "behavior.json",
     "results_vectors.json",

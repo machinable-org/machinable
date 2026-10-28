@@ -40,7 +40,7 @@ from machinable.api.models import DispatchRequest, ExecutionInfo, OutputChunk
 from machinable.api.ws import handle_interface_ws
 from machinable.errors import NotFound
 from machinable.execution import Execution
-from machinable.interface import Interface, resolve_uses
+from machinable.interface import Interface, resolve_uses, with_working_copies
 
 router = APIRouter(prefix="/v1/executions", tags=["executions"])
 
@@ -163,7 +163,9 @@ def dispatch_execution(
                             stack.enter_context(
                                 Interface.make(ctx.target, version=ctx.version)
                             )
-                        uses = resolve_uses(entry.uses)
+                        uses = with_working_copies(
+                            resolve_uses(entry.uses), entry.working_copy
+                        )
                         interface = Interface.make(
                             entry.target, version=entry.version, uses=uses
                         )
@@ -232,7 +234,9 @@ def _is_aggregate(interface: Interface) -> bool:
 
 
 def _members(
-    interface: Interface, target: str, uses: list[Interface] | None = None
+    interface: Interface,
+    target: str,
+    uses: list[Interface | tuple[Interface, str]] | None = None,
 ) -> list[Interface]:
     """What launching ``interface`` runs, materialized, as ``launch()`` lays it out.
 

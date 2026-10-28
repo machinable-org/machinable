@@ -364,6 +364,16 @@ class DispatchInterface(BaseModel):
             "project cannot import is used by its record."
         ),
     )
+    working_copy: dict[str, str] = Field(
+        default_factory=dict,
+        description=(
+            "Local folders holding the files of used records, by uuid (each one "
+            "of `uses`): the run reads such a record from its folder "
+            "(`local_directory()` resolves into it) instead of fetching it. Kept "
+            "in this index's private overlay; the edge log records the uuid, "
+            "never the path."
+        ),
+    )
 
 
 class OutputChunk(BaseModel):

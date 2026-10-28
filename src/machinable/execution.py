@@ -462,6 +462,16 @@ class Execution(Interface):
         if interface in self._interfaces:
             return self
 
+        from machinable.data import Data
+
+        if isinstance(interface, Data):
+            from machinable.errors import MachinableError
+
+            raise MachinableError(
+                f"{interface.__class__.__name__} is machinable.Data: an input that"
+                " runs use, never executed itself"
+            )
+
         if not interface.is_materialized():
             # it materializes later (at dispatch, or by whoever collected it):
             # in the contexts it is queued in, so its scopes still identify it

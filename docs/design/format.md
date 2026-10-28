@@ -21,7 +21,8 @@ byte-for-byte and its index rows row-for-row.
 A useful side effect of the contract is that the boundary between what needs Python and
 what doesn't becomes explicit. Reading, tracking, and indexing a store is pure data; any
 language can do it. Only writing (config resolution, config methods) is Python-semantic,
-and stays so by design.
+and stays so by design, except for one narrow kind of record whose config is plain data
+([plain-config records](#plain-config-records)), which any language can write.
 
 ## The record directory
 
@@ -485,6 +486,117 @@ syncthing, rsync, a zip in an email) are the sync layer. The remaining rules are
   provider. Serverless dispatch over SSH is the degenerate case of this flow; the
   dispatching machine ingests the record it caused to exist on the target.
 
+## Plain-config records
+
+Writing a record is Python-only because of config resolution (defaults, `~versions`,
+config methods, interpolation, pydantic's coercion) and because of the Python a record's
+making runs (hooks, the ambient scopes and `with`-stack). A module whose `Config`
+subclasses `machinable.PlainConfig`, or which is a `machinable.Data`, gives all of that
+up, and its record is then a function of plain inputs that any language can compute. The
+rules (every field required, identifying and of a JSON type, a strict model with no
+validators, aliases or serializers, the version one mapping, no configure, predicate,
+instantiate, materialize or commit hooks, no config methods) are checked by Python when
+the class is defined or the record made; the [guide](/guide/relations#data-as-a-record)
+lists them. What they buy:
+
+- `canonical(config)` is the config itself, so `identity_key` is
+  `sha256(canonical JSON of {"config": config, "module": module})[:24]`;
+- the predicate is always `{}`, whatever scopes are open, so `predicate_key` is
+  `44136fa355b3678a1146ad16f7e8649e` (`sha256("{}")[:32]`); a predicate would be
+  arbitrary Python (the interface's hook, the scopes open where it is made);
+- the parent is always the project root, whatever storage is entered, and the record
+  is never derived and has no relations when it is made; `context` is `[]`.
+
+### What a plain writer writes
+
+Given a **project name**, a **module** (the name Python imports it by), a plain
+**config**, a **label** (or null), **created_at_ns**, **created_by** (or null) and
+**inherits** (the module's bases, which the writer names; a `machinable.Data` module's
+are `["machinable.data", "machinable.interface"]`, a plain `Interface`'s
+`["machinable.interface"]`):
+
+| Value | Rule |
+|---|---|
+| parent | the project root's id, from the project name ([roots](#project-identity-location-free-name-discriminated-deterministic-root), `roots.json`) |
+| `identity_key` | `sha256(canonical JSON of {"config": config, "module": module})[:24]` |
+| `predicate_key` | `sha256("{}")[:32]` |
+| record id | the [derived interface id](#interface-ids-shared-by-every-dispatcher): 12 base62 of `sha256(parent + "\0" + identity_key + "\0" + predicate_key)` |
+| home | `<root>/<project identity_key>/<project predicate_key>/<identity_key>/<predicate_key>` |
+| `id.json` | `format`, `uuid`, `kind` (`"Interface"`), `identity_key`, `predicate_key`, `parent`, in this order |
+| `model.json` | the fields below, in this order, nothing else |
+| `.machinable` | the record id, as text |
+| `updated_at` | an ISO-8601 time, as for every record |
+| `.catalog/<20-digit ns>-<record id>` | at a remote home with a catalog log: the home relative to the storage root, as text |
+
+`model.json`:
+
+| Field | Value |
+|---|---|
+| `uuid` | the record id |
+| `kind` | `"Interface"` |
+| `module` | the module |
+| `version` | `[config]` |
+| `config` | the config's fields, then `"_default_": {}`, `"_version_": [config]`, `"_update_": config` |
+| `predicate` | `{}` |
+| `inherits` | the module's bases |
+| `context` | `[]` |
+| `created_at_ns`, `created_by`, `label` | as given |
+
+Both files are UTF-8 in the form Python's `json.dumps(value, ensure_ascii=False)`
+writes: `", "` and `": "` separators, no whitespace otherwise, non-ASCII characters as
+themselves (only `"`, `\` and control characters escaped: `\n`, `\r`, `\t`, `\b`, `\f`,
+others `\u00XX`), numbers in the [float profile](#canonical-json-and-the-float-profile),
+the top-level keys in the orders above and every object inside `config` and `version`
+with its keys sorted (by code point). This is what Python writes for the same inputs
+(it stores a plain config sorted), so the two records are the same bytes, and the
+record a plain writer makes is the one `get(module, config)` finds: same keys, same
+id. A record already at its home with the same keys in `id.json` is the same record (a
+writer resumes it); one with other keys is a collision.
+
+The rules of this section are normative for a plain writer: a change to `Storage.home`,
+to how ids are derived or to the `model.json` above is a format change, as it is for
+every other implementation.
+
+### Order of writes at a remote home
+
+The artifacts first, then `model.json` and `id.json`, then `.machinable`, then
+`updated_at`, then the catalog entry. A reader that finds `.machinable` finds a whole
+header, and `sync` copies the record once its catalog entry appears. When the artifacts
+are complete is the module's business: a data module's own index of its files (say a
+`files.json` of paths, sizes and hashes) is its last artifact, written after the data
+and before the header.
+
+### Data records
+
+`machinable.Data` is the base of a plain-config interface whose record holds data and
+is never executed (`launch` and `Execution.add` refuse it): raw recordings, a dataset.
+Its artifact namespace holds the data, its methods read it, and runs `use` it. It is an
+ordinary `Interface` record (no new `kind`, no status markers); a Reader tells an input
+from a run by `"machinable.data"` in `inherits`. Data records live under a fixed project
+named `data`, so the records several projects use have one parent, the same for every
+writer (`Project("data")` and a plain writer derive one root).
+
+A run on the machine that holds a used record's files as a plain folder can read the
+folder instead of fetching the record (in Python `uses=[(record, folder)]`, in the
+dispatch API `working_copy: {uuid: folder}`): `local_directory()` resolves into the
+folder, and nothing is fetched or written there. The path is machine-local state, kept
+in the index's private overlay; the edge log records the record's uuid, never the path.
+
+### Vectors
+
+`plain_records.json` in the corpus: `{"format": 1, "vectors": [...]}`, each vector
+`{"name", "input", "expect"}`. `input` holds `project`, `module`, `config` (keys in no
+particular order), `label`, `created_at_ns`, `created_by`, `inherits` and `artifacts`
+(relative path to UTF-8 content). `expect` holds `record_id`, `identity_key`,
+`predicate_key`, `parent`, `home` (relative to the storage root, `/`-separated),
+`id_json`, `model_json` and `sentinel` (each file's exact text), `catalog_entry`
+(`name`, relative to the storage root, for a write at `created_at_ns`, and `content`)
+and `write_order` (the names in the order a writer writes them). They include a
+float-heavy config, nested maps with a unicode label and a `${...}` string, and a data
+record under the project `data` with artifacts and a `files.json`. Python's
+materialization of each, through a real `PlainConfig` module, writes the expected bytes,
+and a record written from them reads back in Python with the keys it derives.
+
 ## Conformance classes
 
 The contract is layered so implementations can claim exactly what they need:
@@ -495,12 +607,15 @@ The contract is layered so implementations can claim exactly what they need:
 | **Tracker** | the run state machine, claim states | status markers, claim files |
 | **Indexer** | build/refresh/query an index | + ingest & the find algebra |
 | **Verifier** | recompute keys, detect drift | + canonical JSON & hashing |
+| **Plain writer** | materialize [plain-config records](#plain-config-records) | + project roots, derived ids, the home layout, `plain_records.json` |
 | **Writer** | materialize new records | config resolution (**Python only**) |
 
 The Writer row is the honest boundary: config resolution (omegaconf semantics, config
 methods) is Python, and non-Python applications write by driving
 [`machinable dispatch`](/guide/cli) rather than by reimplementing resolution. One
-implementation of identity, many of reading.
+implementation of identity, many of reading. The Plain writer is the exception that
+needs no resolution: a record whose config is plain data, which every implementation
+derives the same way.
 
 ## Migration
 

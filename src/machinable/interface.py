@@ -42,6 +42,15 @@ from machinable.config import (
     rewrite_config_methods,
 )
 from machinable.errors import ConfigurationError, ExpansionError, MachinableError
+from machinable.plain import (
+    PlainConfigError,
+    check_plain_interface,
+    omegaconf_literal,
+    plain_config_class,
+    plain_config_layers,
+    plain_version_config,
+    validate_plain_config,
+)
 from machinable.types import DatetimeType, InterfaceType, VersionType
 from machinable.utils import (
     Jsonable,
@@ -605,6 +614,8 @@ class Relation:
 
             instance._relation_cache[self.fn_name] = self.cached
             instance.__related__[self.fn_name] = related
+            if self.fn_name == "uses" and related:
+                instance._apply_working_copies(list(related))
 
         return instance.__related__[self.fn_name]
 
@@ -657,6 +668,20 @@ has_many = _relation(HasMany)
 belongs_to_many = _relation(BelongsToMany)
 
 
+# the private-overlay key of a run's working copies: used uuid -> local folder
+WORKING_COPIES = "machinable.working_copies"
+
+
+def _is_working_copy_pair(value: Any) -> bool:
+    """``(record, path)``: a used record and the local folder holding its files."""
+    return (
+        isinstance(value, tuple)
+        and len(value) == 2
+        and isinstance(value[0], Interface)
+        and isinstance(value[1], str | os.PathLike)
+    )
+
+
 def resolve_uses(uuids: list[str] | None) -> list[Interface]:
     """The existing runs ``uuids`` name, to pass as ``uses=``.
 
@@ -679,6 +704,35 @@ def resolve_uses(uuids: list[str] | None) -> list[Interface]:
             raise NotFound(f"No run {uuid} to use")
         used.append(found)
     return used
+
+
+def with_working_copies(
+    uses: list[Interface], working_copies: dict[str, str] | None
+) -> list[Interface | tuple[Interface, str]]:
+    """``uses`` with each record named in ``working_copies`` paired with its folder.
+
+    ``working_copies`` maps a used record's uuid to a local folder holding its
+    files, the dispatch API's ``working_copy``. Raises a
+    :class:`~machinable.errors.ConfigurationError` for a uuid not among
+    ``uses`` or a folder that is not there.
+    """
+    working_copies = dict(working_copies or {})
+    paired: list[Interface | tuple[Interface, str]] = []
+    for use in uses:
+        path = working_copies.pop(cast(str, use.uuid), None)
+        if path is None:
+            paired.append(use)
+            continue
+        if not os.path.isdir(path):
+            raise ConfigurationError(
+                f"Working copy {path} of {use.uuid} is not a directory here"
+            )
+        paired.append((use, path))
+    if working_copies:
+        raise ConfigurationError(
+            f"Working copies given for records not used: {sorted(working_copies)}"
+        )
+    return paired
 
 
 def _config_layers_from_model(model: schema.Interface) -> ConfigLayers:
@@ -745,11 +799,35 @@ class Interface(Jsonable):
     # existence should be checked on
     # actual interface instance
     __relations__: dict[str, Relation] | None = None
+    # a plain-config interface (its Config is a PlainConfig, or it is a
+    # machinable.Data): its record is a function of plain inputs, so writers
+    # without Python make the same one (see machinable.plain)
+    __plain__: bool = False
+
+    def __init_subclass__(cls, **kwargs: Any) -> None:
+        super().__init_subclass__(**kwargs)
+        data = any(
+            klass.__module__ == "machinable.data" and klass.__name__ == "Data"
+            for klass in cls.__mro__
+        )
+        plain = plain_config_class(cls) is not None
+        if data and not plain and getattr(cls, "Config", None) is not None:
+            raise PlainConfigError(
+                f"{cls.__qualname__}.Config: a machinable.Data's Config must"
+                " subclass machinable.plain.PlainConfig (plain-config rule:"
+                " Data is plain)"
+            )
+        cls.__plain__ = data or plain
+        if cls.__plain__:
+            check_plain_interface(cls)
 
     def __init__(
         self,
         version: VersionType = None,
-        uses: None | Interface | list[Interface] = None,
+        uses: None
+        | Interface
+        | tuple[Interface, str]
+        | Sequence[Interface | tuple[Interface, str]] = None,
         derived_from: Interface | None = None,
     ):
         super().__init__()
@@ -811,10 +889,20 @@ class Interface(Jsonable):
                 self.__related__[name] = relation.collect([])
             else:
                 self.__related__[name] = None
+        # a used record's working copy: a local folder holding its files that
+        # the run reads instead of fetching the record (see _use_working_copy)
+        self._working_copy: str | None = None
         if uses:
-            if not isinstance(uses, list | tuple):
-                uses = [uses]
-            for use in uses:
+            items: list = (
+                [uses]
+                if not isinstance(uses, list | tuple) or _is_working_copy_pair(uses)
+                else list(uses)
+            )
+            for use in items:
+                if _is_working_copy_pair(use):
+                    record, path = cast("tuple[Interface, str]", use)
+                    record._use_working_copy(path)
+                    use = record
                 self.__related__["uses"].append(use)
             self._relation_cache["uses"] = True
 
@@ -1051,7 +1139,13 @@ class Interface(Jsonable):
         return {}
 
     def compute_predicate(self) -> dict:
-        """The predicate: ``on_compute_predicate()`` merged with ambient scopes."""
+        """The predicate: ``on_compute_predicate()`` merged with ambient scopes.
+
+        A plain-config interface's is always ``{}``, whatever scopes are open:
+        a writer without Python could reproduce neither.
+        """
+        if self.__plain__:
+            return {}
         predicate = self.on_compute_predicate() or {}
 
         # apply scopes
@@ -1113,9 +1207,30 @@ class Interface(Jsonable):
                 stacklevel=2,
             )
 
+    def _plain_config(self) -> DictConfig:
+        """The config of a plain-config interface: its one mapping, as given.
+
+        No defaults, version methods, config methods, interpolation or hooks
+        apply; the mapping is validated against the strict ``PlainConfig`` and
+        must dump exactly as given. Stored with sorted keys, so any writer
+        writes the same ``model.json``. A ``${`` in a string stays data.
+        """
+        if self.__model__.config is None:
+            owner = f"{type(self).__qualname__} ({self.module})"
+            config = plain_version_config(owner, self.__model__.version)
+            validate_plain_config(owner, plain_config_class(type(self)), config)
+            layers = plain_config_layers(config)
+            self.__model__.version = [copy.deepcopy(layers["_update_"])]
+            self.__model__.config = layers
+        config = OmegaConf.create(omegaconf_literal(self.__model__.config))
+        OmegaConf.set_readonly(config, True)
+        return config
+
     @property
     def config(self) -> DictConfig:
         """Interface configuration."""
+        if self._config is None and self.__plain__:
+            self._config = self._plain_config()
         if self._config is None:
             __cm_token = None
             try:
@@ -1528,18 +1643,25 @@ class Interface(Jsonable):
     def config_layers(self):
         """The config layers (default, version, update, resolved)."""
         assert self.config is not None
-        self.__model__.config = cast(dict, OmegaConf.to_container(self.config))
+        if not self.__plain__:
+            # (a plain config is held as given: its ${ strings are data)
+            self.__model__.config = cast(dict, OmegaConf.to_container(self.config))
         return _config_layers_from_model(self.__model__)
 
     @property
     def parent(self):
         """The entry this record scopes under.
 
-        The connected Storage entry, or the project root.
+        The connected Storage entry, or the project root. A plain-config
+        interface's is always the project root.
         """
         from machinable.project import Project
         from machinable.storage import Storage
 
+        if self.__plain__:
+            if not Project.is_connected():
+                return None
+            return Project.get().ensure_project_root()
         if Storage.is_connected():
             storage = Storage.get()
             if getattr(storage, "_entry", None) is not None:
@@ -1565,6 +1687,9 @@ class Interface(Jsonable):
         if self.on_before_materialize() is False:
             return self
 
+        if self.__plain__:
+            self._assert_plain_record(parent_id)
+
         assert self.__relations__ is not None
         for k, v in self.__related__.items():
             r = self.__relations__[k]
@@ -1579,8 +1704,9 @@ class Interface(Jsonable):
         from machinable.index import Index
 
         index = Index.get()
-        # capture the ordered with-context stack (identity-neutral) before persisting
-        self.__model__.context = get_context(self)
+        # capture the ordered with-context stack (identity-neutral) before
+        # persisting; none for a plain-config record (a plain writer has none)
+        self.__model__.context = [] if self.__plain__ else get_context(self)
         effective_parent = parent_id
         if effective_parent is None and self.parent is not None:
             effective_parent = self.parent.record_id
@@ -1611,6 +1737,16 @@ class Interface(Jsonable):
                     index.create_relation(r.name, cast(str, item.uuid), uuid)
                 else:
                     index.create_relation(r.name, uuid, cast(str, item.uuid))
+
+        # where this run reads used records from: this machine's business, so
+        # kept in the index's private overlay, never in a record
+        copies = {
+            cast(str, use.uuid): use._working_copy
+            for use in (self.__related__.get("uses") or [])
+            if use is not None and use._working_copy is not None
+        }
+        if copies:
+            index.set_private(uuid, {WORKING_COPIES: copies})
 
         # The Project is a self-referential root entry whose directory is the
         # (version-controlled) project folder itself; it is represented solely by
@@ -1644,6 +1780,84 @@ class Interface(Jsonable):
         self.on_after_materialize()
 
         return self
+
+    def _assert_plain_record(self, parent_id: str | None) -> None:
+        """Refuse to make a plain-config record a plain writer could not."""
+        owner = f"{type(self).__qualname__} ({self.module})"
+        module = self.module or ""
+        if module.startswith("__session__"):
+            raise PlainConfigError(
+                f"{owner}: is defined in this session, so its record would need"
+                " dump.p; define it in an importable module (plain-config rule:"
+                " importable module)"
+            )
+        if self.__related__.get("ancestor") is not None:
+            raise PlainConfigError(
+                f"{owner}: is derived from another record; a plain-config record"
+                " is always top-level (plain-config rule: not derived)"
+            )
+        related = sorted(
+            name
+            for name, value in self.__related__.items()
+            if (value is not None and not isinstance(value, Collection))
+            or (isinstance(value, Collection) and len(value) > 0)
+        )
+        if related:
+            raise PlainConfigError(
+                f"{owner}: has relations {related} at creation; edges reach a"
+                " plain-config record later, from the runs that use it"
+                " (plain-config rule: no relations at creation)"
+            )
+        from machinable.project import Project
+
+        if parent_id is not None:
+            root = (
+                Project.get().ensure_project_root() if Project.is_connected() else None
+            )
+            if root is None or parent_id != root.record_id:
+                raise PlainConfigError(
+                    f"{owner}: was given parent {parent_id}; a plain-config"
+                    " record's parent is its project's root (plain-config rule:"
+                    " parent is the project root)"
+                )
+        elif not Project.is_connected():
+            raise PlainConfigError(
+                f"{owner}: is made outside a Project; a plain-config record's"
+                " parent is its project's root (plain-config rule: parent is"
+                " the project root)"
+            )
+
+    def _use_working_copy(self, path: str | os.PathLike) -> None:
+        """Read this record from ``path``, a local folder holding its files.
+
+        For a used record on the machine that holds its data as a plain folder:
+        ``local_directory()`` resolves into the folder and nothing is fetched.
+        The folder is read, never written (edges a run records stay in its own
+        record and the index).
+        """
+        directory = os.path.abspath(os.fspath(path))
+        if not os.path.isdir(directory):
+            raise MachinableError(
+                f"Working copy {directory} of {self.uuid or repr(self)} is not a"
+                " directory"
+            )
+        self._working_copy = directory
+        self._local_directory = directory
+        self._cache["fetched"] = True
+
+    def _apply_working_copies(self, used: list[Interface]) -> None:
+        """Point the records this run uses at the working copies it was given."""
+        if not self.is_materialized():
+            return
+        from machinable.index import Index
+
+        copies = Index.get().get_private(cast(str, self.uuid)).get(WORKING_COPIES)
+        if not copies:
+            return
+        for record in used:
+            path = copies.get(record.uuid)
+            if path is not None and os.path.isdir(path):
+                record._use_working_copy(path)
 
     def _remember_creation_context(self) -> None:
         """Keep the ``with``-contexts this unmaterialized interface is queued in.
@@ -1784,6 +1998,23 @@ class Interface(Jsonable):
             home.home(Keys(identity_key, predicate_key), parent_entry)
         )
         header = home.read_json(location, ID_FILENAME)
+        if (
+            self.__plain__
+            and header is not None
+            and (
+                header.get("kind"),
+                header.get("identity_key"),
+                header.get("predicate_key"),
+                header.get("parent"),
+            )
+            != (self.kind, identity_key, predicate_key, parent_id)
+        ):
+            # same keys resume the record; a header at its home with other
+            # keys is another record there
+            raise errors.IndexCollision(
+                f"{location} holds record {header.get('uuid')} with other keys"
+                f" than {type(self).__qualname__} ({self.module}) derives"
+            )
         if (
             header is not None
             and header.get("kind") == self.kind
@@ -2289,8 +2520,10 @@ class Interface(Jsonable):
                 self._write_relation_meta(directory, r, u.uuid, self.uuid)
             else:
                 self._write_relation_meta(directory, r, self.uuid, u.uuid)
-        # inverse
+        # inverse (never into a working copy: that folder is only read)
         for i in v:
+            if getattr(i, "_working_copy", None) is not None:
+                continue
             try:
                 ir = [
                     _
@@ -2412,6 +2645,8 @@ class Interface(Jsonable):
 
         if "fetched" in self._cache and not force:
             return True
+        if self._working_copy is not None:
+            return True
 
         if directory is None:
             from machinable.index import Index
@@ -2446,7 +2681,11 @@ class Interface(Jsonable):
 
         if create:
             os.makedirs(directory, exist_ok=True)
-        elif append and (not os.path.exists(directory) or os.path.isdir(directory)):
+        elif (
+            append
+            and self._working_copy is None
+            and (not os.path.exists(directory) or os.path.isdir(directory))
+        ):
             self._fetch_file(joinpath(list(append)))
 
         return directory
@@ -2823,6 +3062,11 @@ class Interface(Jsonable):
 
     def is_unexpanded(self) -> bool:
         """True while a pending axis makes this interface denote many others."""
+        if self.__plain__ and self._axis_tokens:
+            # refuses the axis: a plain config is one mapping, given whole
+            plain_version_config(
+                f"{type(self).__qualname__} ({self.module})", self.__model__.version
+            )
         return len(self._axis_tokens) > 0
 
     @property
