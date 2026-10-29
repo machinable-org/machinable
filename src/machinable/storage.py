@@ -5,6 +5,7 @@ import contextvars
 import json
 import os
 import posixpath
+import re
 import shutil
 import threading
 import time
@@ -16,6 +17,7 @@ from pydantic import BaseModel
 from machinable import schema
 from machinable.api.models import IndexEntry
 from machinable.claims import RUN_MARKERS
+from machinable.errors import ConfigurationError, IndexCollision, StorageError
 from machinable.format import ID_FILENAME, UPDATED_AT_FILENAME, is_later
 from machinable.index import Index
 from machinable.interface import Interface, get_inherits
@@ -1366,3 +1368,197 @@ def fetch(uuid: str, directory: str) -> bool:
                 index.set_bytes_missing(uuid, False)
             return True
     return False
+
+
+# -- a data record's header, ingested on its own -------------------------------
+
+# a record id, key or parent as a header names it: one path segment, no more
+_HEADER_KEY = re.compile(r"^[A-Za-z0-9_-]{1,128}$")
+# what a data record's header bundle may carry besides id.json and model.json
+DATA_HEADER_MARKERS = (UPDATED_AT_FILENAME,)
+DATA_FILES_FILENAME = "files.json"
+
+
+def _header_key(value: object, what: str) -> str:
+    if not isinstance(value, str) or not _HEADER_KEY.match(value):
+        raise ConfigurationError(f"{what} {value!r} is not a record key")
+    return value
+
+
+def _check_data_header(
+    header: dict, model: dict, files: dict, edges: list, markers: dict
+) -> None:
+    """Refuse a data record's header bundle that is not one."""
+    from machinable.format import FORMAT_VERSION
+
+    if header.get("format") != FORMAT_VERSION:
+        raise ConfigurationError(
+            f"id.json format {header.get('format')!r} is not {FORMAT_VERSION}"
+        )
+    if set(header) != {
+        "format",
+        "uuid",
+        "kind",
+        "identity_key",
+        "predicate_key",
+        "parent",
+    }:
+        raise ConfigurationError(f"id.json has fields {sorted(header)}")
+    uuid = _header_key(header["uuid"], "uuid")
+    _header_key(header["identity_key"], "identity_key")
+    _header_key(header["predicate_key"], "predicate_key")
+    if header["parent"] is not None:
+        _header_key(header["parent"], "parent")
+    if header["kind"] != "Interface":
+        raise ConfigurationError(f"A {header['kind']} is not a data record")
+    if model.get("uuid") != uuid or model.get("kind") != header["kind"]:
+        raise ConfigurationError(
+            "model.json does not name the record id.json names"
+            f" ({model.get('kind')} {model.get('uuid')})"
+        )
+    inherits = model.get("inherits")
+    if not isinstance(inherits, list) or "machinable.data" not in inherits:
+        raise ConfigurationError(
+            f"{uuid} is not a data record (machinable.data is not in its inherits)"
+        )
+    try:
+        schema.Interface(**model)
+    except Exception as ex:  # noqa: BLE001 - pydantic's, as the caller's error
+        raise ConfigurationError(f"model.json of {uuid}: {ex}") from ex
+    for name, value in (("model.json", model), (DATA_FILES_FILENAME, files)):
+        if len(json.dumps(value)) > CATALOG_MAX_BYTES:
+            raise ConfigurationError(f"{name} of {uuid} is over {CATALOG_MAX_BYTES} B")
+    for edge in edges:
+        if not isinstance(edge, dict) or not isinstance(edge.get("name"), str):
+            raise ConfigurationError(f"Edge {edge!r} is not an edge")
+        ends = (
+            _header_key(edge.get("uuid"), "edge uuid"),
+            _header_key(edge.get("related_uuid"), "edge related_uuid"),
+        )
+        if uuid not in ends:
+            raise ConfigurationError(f"Edge {edge!r} does not touch {uuid}")
+    for name, value in markers.items():
+        if name not in DATA_HEADER_MARKERS:
+            raise ConfigurationError(
+                f"A data record has no {name!r} marker (only {DATA_HEADER_MARKERS})"
+            )
+        if not isinstance(value, str) or len(value) > 64 or "\n" in value.strip():
+            raise ConfigurationError(f"Marker {name!r} is not a timestamp")
+
+
+def _same_header(directory: str, header: dict, model: dict, files: dict) -> bool:
+    """Whether the record at ``directory`` has this header (its label aside)."""
+    from machinable.format import read_id
+
+    if read_id(directory) != header:
+        return False
+    have = load_file([directory, MODEL_FILENAME], None)
+    if not isinstance(have, dict):
+        return False
+    if {k: v for k, v in have.items() if k != "label"} != {
+        k: v for k, v in model.items() if k != "label"
+    }:
+        return False
+    listed = load_file([directory, DATA_FILES_FILENAME], None)
+    return listed is None or listed == files
+
+
+def ingest_data_header(
+    header: dict,
+    model: dict,
+    files: dict,
+    *,
+    edges: builtins.list[dict] | None = None,
+    markers: dict[str, str] | None = None,
+) -> tuple[str, bool]:
+    """Index a data record from its header alone; its uuid and whether it is new.
+
+    For a record whose files stay where they are (a folder on another
+    computer, read as a run's working copy): ``header`` and ``model`` are its
+    ``id.json`` and ``model.json``, ``files`` its ``files.json``, ``edges`` its
+    edge log and ``markers`` its ``updated_at``. The header is written into
+    the home (:meth:`Storage.home` of its keys, under its parent when this
+    index knows that project root; the caller never names the place) and
+    indexed. Idempotent: a record this index or home has already is left as
+    it is when its header is the same, and refused with
+    :class:`~machinable.errors.IndexCollision` when it is not. A header that is
+    not a data record's raises :class:`~machinable.errors.ConfigurationError`.
+    """
+    from machinable.format import bump_updated_at, read_id
+
+    edges = list(edges or [])
+    markers = dict(markers or {})
+    _check_data_header(header, model, files, edges, markers)
+    uuid = header["uuid"]
+    index = Index.get()
+
+    entry = index.get_by_id(uuid)
+    if entry is not None:
+        directory = index.local_directory(uuid)
+        if read_id(directory) is None:
+            # indexed, its header not brought here: the index's keys say
+            same = (entry.identity_key, entry.predicate_key, entry.parent_id) == (
+                header["identity_key"],
+                header["predicate_key"],
+                header["parent"],
+            )
+        else:
+            same = _same_header(directory, header, model, files)
+        if not same:
+            raise IndexCollision(f"{uuid} is here with another header")
+        return uuid, False
+    other = index.get_entry(
+        header["parent"],
+        header["identity_key"],
+        header["predicate_key"],
+        include_hidden=True,
+    )
+    if other is not None:
+        raise IndexCollision(f"{other.record_id} is here with the keys of {uuid}")
+
+    parent = index.get_by_id(header["parent"]) if header["parent"] else None
+    if parent is not None and parent.kind != "Project":
+        raise ConfigurationError(
+            f"{uuid}'s parent {parent.record_id} is a {parent.kind}; a data"
+            " record's parent is a project root"
+        )
+    home = Storage.get()
+    location = home.handle(
+        home.home(Keys(header["identity_key"], header["predicate_key"]), parent)
+    )
+    there = home.read_json(location, ID_FILENAME)
+    if there is not None:
+        if there != header:
+            raise IndexCollision(
+                f"The home of {uuid} holds {there.get('uuid')!r} already"
+            )
+        if home.ingest(location) is None:
+            raise StorageError(f"{uuid} could not be indexed from its home")
+        if not _same_header(index.local_directory(uuid), header, model, files):
+            raise IndexCollision(f"{uuid} is in its home with another header")
+        return uuid, False
+
+    def _json(value: object) -> bytes:
+        return json.dumps(value, ensure_ascii=False).encode("utf-8")
+
+    # in a plain writer's order: the sentinel last but updated_at
+    home.write(location, DATA_FILES_FILENAME, _json(files))
+    if edges:
+        home.write(
+            location,
+            "related/metadata.jsonl",
+            "".join(json.dumps(edge) + "\n" for edge in edges).encode("utf-8"),
+        )
+    home.write(location, MODEL_FILENAME, _json(model))
+    home.write(location, ID_FILENAME, _json(header))
+    home.write(location, MACHINABLE_MARKER, uuid.encode("utf-8"))
+    updated_at = markers.get(UPDATED_AT_FILENAME)
+    if updated_at is not None:
+        home.write(location, UPDATED_AT_FILENAME, updated_at.strip().encode("utf-8"))
+    elif _is_local(location):
+        bump_updated_at(_path(location))
+    if home.catalog_log:
+        home._log(location, uuid)
+    if home.ingest(location) is None:
+        raise StorageError(f"{uuid} could not be indexed from its home")
+    return uuid, True

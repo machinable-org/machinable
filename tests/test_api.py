@@ -1219,3 +1219,151 @@ def test_dispatch_uses_a_run_made_under_another_index(tmp_path):
             json={"interfaces": [{"target": "hello", "uses": ["nosuchrunid"]}]},
         )
         assert missing.status_code == 404, missing.text
+
+
+# ------------------------------------------- a data record's header, ingested
+
+
+@pytest.fixture()
+def server_project(tmp_path):
+    """A project with a reader, whose server has never seen the data record."""
+    import sys
+
+    from machinable.corpus import PLAIN_MODULES
+
+    from .test_plain_config import READER, _forget_modules, _write_modules
+
+    modules = {**PLAIN_MODULES, "reader": READER}
+    directory = tmp_path / "projects" / "server"
+    directory.mkdir(parents=True)
+    _write_modules(str(directory), modules)
+    _forget_modules(modules)
+    sys.path.insert(0, str(directory))
+    with TestClient(create_app(project_dir=str(directory))) as client:
+        yield str(directory), client
+    sys.path.remove(str(directory))
+    _forget_modules(modules)
+
+
+def _header_bundle() -> tuple[dict, dict]:
+    """What a plain writer (captu) sends: the header files, no data; its input."""
+    import json
+
+    from .test_dispatch import _vector
+
+    vector = _vector()
+    given, expect = vector["input"], vector["expect"]
+    return {
+        "id": json.loads(expect["id_json"]),
+        "model": json.loads(expect["model_json"]),
+        "files": json.loads(given["artifacts"]["files.json"]),
+        "edges": [],
+        "markers": {"updated_at": "2026-01-01T00:00:00+00:00"},
+    }, vector
+
+
+def test_ingest_a_data_record_then_dispatch_with_its_working_copy(
+    server_project, tmp_path
+):
+    import os
+
+    from machinable import Index, Interface, Project
+    from machinable.dispatch import dispatch_request
+    from machinable.interface import connection_scope
+
+    from .test_dispatch import _folder, _reads, _seen
+
+    project, client = server_project
+    bundle, vector = _header_bundle()
+    uuid = vector["expect"]["record_id"]
+    folder = _folder(tmp_path / "rig", vector["input"]["artifacts"])
+
+    # unknown to the server: uses cannot resolve it
+    missing = client.post("/v1/executions", json=_reads(uuid, folder))
+    assert missing.status_code == 404, missing.text
+
+    response = client.post("/v1/interfaces/ingest", json=bundle)
+    assert response.status_code == 200, response.text
+    assert response.json() == {"uuid": uuid, "created": True}
+    # the same header again is fine
+    again = client.post("/v1/interfaces/ingest", json=bundle)
+    assert again.status_code == 200, again.text
+    assert again.json() == {"uuid": uuid, "created": False}
+
+    with connection_scope(), Project(project):
+        directory = Index.get().local_directory(uuid)
+        # the header, never a data file
+        assert sorted(os.listdir(directory)) == [
+            ".machinable",
+            "files.json",
+            "id.json",
+            "model.json",
+            "updated_at",
+        ]
+        record = Interface.find_by_id(uuid, fetch=False, stub=True)
+        assert record.load_file("files.json") == bundle["files"]
+
+    response = client.post("/v1/executions", json=_reads(uuid, folder))
+    assert response.status_code == 200, response.text
+    (run_uuid,) = response.json()["interface_uuids"]
+    deadline = time.monotonic() + 30
+    while _seen(project, run_uuid) is None and time.monotonic() < deadline:
+        time.sleep(0.05)
+    seen = _seen(project, run_uuid)
+    assert seen is not None
+    assert seen["path"].startswith(folder)
+
+    # and serverless dispatch on the same project resolves it too
+    handle = dispatch_request(_reads(uuid, folder), project=project, mode="prepare")
+    assert handle["runs"] == [] or handle["parent_uuid"] == run_uuid
+
+
+def test_ingest_refuses_data_paths_and_other_headers(server_project):
+    import copy
+
+    _, client = server_project
+    bundle, _ = _header_bundle()
+
+    def ingest(body):
+        return client.post("/v1/interfaces/ingest", json=body)
+
+    # no data files, no paths: only the header's fields
+    for extra in (
+        {"artifacts": {"Record Node 101/continuous/data.dat": "\u0000"}},
+        {"path": "/home/someone/session"},
+        {"directory": "/tmp/x"},
+        {"home": "../../elsewhere"},
+    ):
+        response = ingest({**bundle, **extra})
+        assert response.status_code == 422, (extra, response.text)
+
+    def changed(path, value):
+        body = copy.deepcopy(bundle)
+        target = body
+        for key in path[:-1]:
+            target = target[key]
+        target[path[-1]] = value
+        return body
+
+    for body in (
+        changed(("id", "uuid"), "../escape"),
+        changed(("id", "identity_key"), "a/b"),
+        changed(("id", "kind"), "Execution"),
+        changed(("model", "uuid"), "SomeoneElse1"),
+        changed(("model", "inherits"), ["machinable.interface"]),
+        changed(("markers",), {"finished_at": "2026-01-01T00:00:00+00:00"}),
+        changed(("edges",), [{"name": "uses", "uuid": "aaa", "related_uuid": "b"}]),
+    ):
+        response = ingest(body)
+        assert response.status_code == 400, response.text
+
+    assert ingest(bundle).status_code == 200
+    # another header for the record the server has is refused
+    conflicting = changed(("model", "config", "format"), "nwb")
+    response = ingest(conflicting)
+    assert response.status_code == 409, response.text
+    response = ingest(changed(("id", "predicate_key"), "0" * 32))
+    assert response.status_code == 409, response.text
+    # a relabelled one is the same record
+    relabelled = changed(("model", "label"), "renamed")
+    assert ingest(relabelled).json()["created"] is False

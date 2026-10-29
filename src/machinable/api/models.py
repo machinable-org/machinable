@@ -376,6 +376,57 @@ class DispatchInterface(BaseModel):
     )
 
 
+class IngestDataRequest(BaseModel):
+    """A data record's header bundle: its small header files as JSON, no data.
+
+    For a record whose files stay in a folder on another computer (a run reads
+    it there as its `working_copy`): the server writes the header into its home
+    and indexes it, so `uses` finds it. The server chooses the place; no
+    field names a path, and no other field (data files) is taken.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    id: dict[str, Any] = Field(
+        description=(
+            "The record's `id.json` header: format, uuid, kind, identity_key, "
+            "predicate_key, parent."
+        )
+    )
+    model: dict[str, Any] = Field(
+        description=(
+            "The record's `model.json`; a data record's (`machinable.data` in "
+            "its `inherits`), naming the uuid and kind `id` names."
+        )
+    )
+    files: dict[str, Any] = Field(
+        description="The record's `files.json`: the listing of its data files."
+    )
+    edges: list[dict[str, Any]] = Field(
+        default_factory=list,
+        description=(
+            "The record's edge log (`related/metadata.jsonl`); each edge touches "
+            "the record."
+        ),
+    )
+    markers: dict[str, str] = Field(
+        default_factory=dict,
+        description="`updated_at` only: a data record has no run markers.",
+    )
+
+
+class IngestDataResponse(BaseModel):
+    """The record a header bundle was ingested as."""
+
+    uuid: str = Field(description="The record's uuid, to name in `uses`.")
+    created: bool = Field(
+        description=(
+            "Whether this ingest wrote the record; false when the server had it "
+            "with the same header already."
+        )
+    )
+
+
 class OutputChunk(BaseModel):
     """A bounded byte-window of a run's output log.
 

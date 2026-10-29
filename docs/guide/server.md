@@ -144,7 +144,7 @@ Everything a signed request creates is attributed (`created_by`) to its verified
 
 | Family | Examples | Purpose |
 | --- | --- | --- |
-| Interfaces | `POST /v1/interfaces`, `/search`, `/resolve`, `/{uuid}/provenance` `/data` `/related` | create, search, dry-run, inspect |
+| Interfaces | `POST /v1/interfaces`, `/search`, `/resolve`, `/ingest`, `/{uuid}/provenance` `/data` `/related` | create, search, dry-run, index a data record's header, inspect |
 | Executions | `POST /v1/executions`, `GET /{uuid}`, `/output`, `/results` | run lifecycle, output, declared results |
 | Project | `GET /v1/project[/{module}]`, `/remotes` | module discovery + schema reflection |
 | Source | `GET/PUT/DELETE /v1/source/{path}` | the opt-in, token-gated source-editing API |

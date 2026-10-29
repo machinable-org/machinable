@@ -50,10 +50,14 @@ def _build(request: dict):
     """Phase 1 (minus markers) of a serverless dispatch.
 
     Materializes the Execution container and each interface under its context
-    stack; mirrors ``POST /v1/executions``.
+    stack, with the records it ``uses`` (each read from its ``working_copy``
+    when given one); mirrors ``POST /v1/executions``. An unknown used record
+    raises :class:`~machinable.errors.NotFound`, a working copy that is not a
+    folder (or names a record not used) a
+    :class:`~machinable.errors.ConfigurationError`.
     """
     from machinable.execution import Execution
-    from machinable.interface import Interface
+    from machinable.interface import Interface, resolve_uses, with_working_copies
 
     if request.get("execution_ref"):
         execution = Execution.find_by_id(request["execution_ref"])
@@ -78,8 +82,23 @@ def _build(request: dict):
                 stack.enter_context(
                     Interface.make(ctx["target"], version=ctx.get("version"))
                 )
-            interface = Interface.make(entry["target"], version=entry.get("version"))
+            # the records the interface uses, each read from its working copy
+            # when given one (identity-neutral: a run with a working copy and
+            # one fetching the record are the same run); resolved within the
+            # context stack, as POST /v1/executions does
+            uses = with_working_copies(
+                resolve_uses(entry.get("uses")), entry.get("working_copy")
+            )
+            interface = Interface.make(
+                entry["target"], version=entry.get("version"), uses=uses
+            )
             interface.materialize()
+            # a re-entry (the detached ``--foreground`` child, a scheduler job)
+            # reads the request without its working copies: they are this
+            # index's private overlay, which phase 1 wrote
+            interface._apply_working_copies(
+                list(interface.__related__.get("uses") or [])
+            )
             execution.add(interface)
             interfaces.append(interface)
     return execution, interfaces
@@ -253,7 +272,7 @@ def _spawn_detached(request: dict, project: str, record_dir: str) -> None:
     Windows), reads the request from a file persisted in the run directory
     (provenance + no stdin plumbing), and logs to ``dispatch.log``.
     """
-    request_path = save_file([record_dir, REQUEST_FILENAME], request)
+    request_path = save_file([record_dir, REQUEST_FILENAME], _recorded(request))
     log_path = os.path.join(record_dir, LOG_FILENAME)
 
     args = [
@@ -285,6 +304,21 @@ def _spawn_detached(request: dict, project: str, record_dir: str) -> None:
             close_fds=True,
             **kwargs,
         )
+
+
+def _recorded(request: dict) -> dict:
+    """``request`` as the run-record keeps it: without its working copies.
+
+    A working copy is a folder on this machine, kept in the index's private
+    overlay, never in a record; the child re-reading the request finds it
+    there.
+    """
+    entries = []
+    for entry in request.get("interfaces") or []:
+        entry = dict(entry)
+        entry.pop("working_copy", None)
+        entries.append(entry)
+    return {**request, "interfaces": entries}
 
 
 def _wait_for(runs: list[dict], poll_seconds: float = 0.5) -> None:

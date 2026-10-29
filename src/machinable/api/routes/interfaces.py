@@ -37,6 +37,8 @@ from machinable.api.models import (
     DataStatusResponse,
     ExecutionInfo,
     FindRequest,
+    IngestDataRequest,
+    IngestDataResponse,
     InterfaceCallRequest,
     InterfaceInfo,
     LifecycleRequest,
@@ -95,6 +97,48 @@ def create_interface(
     return interface_to_info(
         interface, get_interface_meta(request).get(interface.uuid, {})
     )
+
+
+@router.post(
+    "/ingest",
+    response_model=IngestDataResponse,
+    responses={
+        400: {"description": "Not a data record's header"},
+        409: {"description": "The server has this record with another header"},
+    },
+)
+def ingest_data(
+    body: IngestDataRequest,
+    request: Request,
+    _p: str = Depends(project_context),
+) -> IngestDataResponse:
+    """Index a data record from its header bundle, its data left where it is.
+
+    For a record whose files are a folder on another computer, which a run
+    reads as its `working_copy`: the header (`id.json`, `model.json`,
+    `files.json`, the edge log, `updated_at`) is written into the server's
+    home, where the server lays it out, and indexed, so `POST /v1/executions`
+    (or `machinable dispatch`) with `uses: [uuid]` finds it. Idempotent: the
+    same header again answers `created: false`; another header for a uuid (or
+    the keys of) a record the server has is refused with 409.
+    """
+    from machinable.errors import ConfigurationError, IndexCollision
+    from machinable.storage import ingest_data_header
+
+    try:
+        uuid, created = ingest_data_header(
+            body.id,
+            body.model,
+            body.files,
+            edges=body.edges,
+            markers=body.markers,
+        )
+    except IndexCollision as ex:
+        raise HTTPException(status_code=409, detail=str(ex)) from ex
+    except ConfigurationError as ex:
+        raise HTTPException(status_code=400, detail=str(ex)) from ex
+    _log_event(request, f"POST /v1/interfaces/ingest -> {uuid}")
+    return IngestDataResponse(uuid=uuid, created=created)
 
 
 @router.post("/search", response_model=SearchResponse)
