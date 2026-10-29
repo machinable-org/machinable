@@ -576,6 +576,12 @@ from a run by `"machinable.data"` in `inherits`. Data records live under a fixed
 named `data`, so the records several projects use have one parent, the same for every
 writer (`Project("data")` and a plain writer derive one root).
 
+A data record ingested catalog-first brings only its own files: `.machinable`, `id.json`,
+`model.json`, `updated_at`, the edge log, `results.json` and the json results it declares.
+Its data, small files included, stays at the home (the record is `bytes_missing`) until a
+read of it (`local_directory(name)`) or `fetch()` brings it, so a machine that syncs the
+catalog does not copy every session it learns about.
+
 A run on the machine that holds a used record's files as a plain folder can read the
 folder instead of fetching the record (in Python `uses=[(record, folder)]`, in the
 dispatch API `working_copy: {uuid: folder}`): `local_directory()` resolves into the

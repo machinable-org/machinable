@@ -9,7 +9,7 @@ import time
 import pytest
 from pydantic import BaseModel
 
-from machinable import Execution, Index, Interface, Project, Storage, get
+from machinable import Data, Execution, Index, Interface, Project, Storage, get
 from machinable.claims import RELEASED, Claim
 from tests.memory_storage import BUCKETS, MemoryStorage
 
@@ -193,6 +193,54 @@ def test_records_are_read_catalog_first_and_fetched_on_read(bucket):
         assert os.path.isfile(found.local_directory("big.txt"))
         refreshed = Index.get().get_by_id(uuid)
         assert refreshed is not None and not refreshed.bytes_missing
+
+
+RECORDING = """
+from machinable import Data, PlainConfig
+
+
+class Recording(Data):
+    class Config(PlainConfig):
+        format: str
+        key: str
+"""
+
+
+def test_a_data_records_catalog_is_its_own_files_not_its_data(bucket):
+    (bucket["tmp"] / "project" / "object_storage_recording.py").write_text(RECORDING)
+    stack, _ = bucket["machine"]("a")
+    with stack:
+        record = get("object_storage_recording", {"format": "raw", "key": "k1"})
+        record.materialize()
+        for name in ("settings.xml", "structure.oebin", "sub/a.bin", "sub/b.bin"):
+            record.save_file(name, "x" * 16)
+        record.save_result("summary", {"channels": 4})
+        uuid = record.uuid
+
+    stack, storage = bucket["machine"]("b")
+    with stack:
+        assert uuid in storage.sync()[0]
+        data = ("settings.xml", "structure.oebin", "sub/a.bin", "sub/b.bin")
+        assert not any(r.endswith(data) for r in storage.reads)
+        entry = Index.get().get_by_id(uuid)
+        assert entry is not None and entry.bytes_missing
+        found = Interface.find_by_id(uuid)
+        assert isinstance(found, Data)
+        storage.reads.clear()
+        assert found.result("summary") == {"channels": 4}
+        assert storage.reads == []  # its json results came with it
+        path = found.local_directory("sub", "a.bin")
+        assert open(path).read() == "x" * 16
+        assert [r for r in storage.reads if r.endswith(data)] == [
+            f"{_record(bucket['url'], uuid)}/sub/a.bin"
+        ]
+        directory = found.local_directory()
+        for name in ("settings.xml", "structure.oebin", "sub/b.bin"):
+            assert not os.path.exists(os.path.join(directory, *name.split("/")))
+        entry = Index.get().get_by_id(uuid)
+        assert entry is not None and entry.bytes_missing
+        assert found.fetch()  # fetch() still brings everything
+        assert os.path.isfile(os.path.join(directory, "sub", "b.bin"))
 
 
 def test_machines_on_one_bucket_run_an_interface_once(bucket):

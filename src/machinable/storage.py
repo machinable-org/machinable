@@ -15,7 +15,8 @@ from pydantic import BaseModel
 
 from machinable import schema
 from machinable.api.models import IndexEntry
-from machinable.format import UPDATED_AT_FILENAME, is_later
+from machinable.claims import RUN_MARKERS
+from machinable.format import ID_FILENAME, UPDATED_AT_FILENAME, is_later
 from machinable.index import Index
 from machinable.interface import Interface, get_inherits
 from machinable.results import (
@@ -49,6 +50,18 @@ CATALOG_DIRECTORY = ".catalog"
 # a record's catalog files besides those up to ``catalog_max_bytes``
 CATALOG_FILES = ("related/metadata.jsonl", RESULTS_FILENAME)
 CATALOG_MAX_BYTES = 1024 * 1024
+MODEL_FILENAME = "model.json"
+# what machinable itself writes as a record's own files (besides the json
+# results ``results.json`` declares): all a data record's catalog brings
+RECORD_FILES = (
+    MACHINABLE_MARKER,
+    ID_FILENAME,
+    MODEL_FILENAME,
+    UPDATED_AT_FILENAME,
+    "related/metadata.jsonl",
+    RESULTS_FILENAME,
+    *RUN_MARKERS,
+)
 CATALOG_LOOKBACK_NS = 60 * 10**9
 # pushed last, in this order: a home that has the results' manifest has the
 # results it declares, and one that has finished_at has the rest of the run
@@ -463,7 +476,9 @@ class Storage(Interface):
         A local record is indexed in place. A remote one is indexed
         catalog-first: its files up to ``catalog_max_bytes`` (and its edge
         log) come into its working copy, and it is ``bytes_missing`` until the
-        rest is fetched (by a read of the file, or ``fetch()``).
+        rest is fetched (by a read of the file, or ``fetch()``). Of a data
+        record (``machinable.data`` in its ``inherits``) only its own files
+        come (``RECORD_FILES`` and its json results), none of its data.
         """
         index = Index.get()
         if _is_local(location):
@@ -652,7 +667,9 @@ class Storage(Interface):
     ) -> tuple[bool, bool]:
         """Bring the record at ``location`` into ``directory``.
 
-        Its own files, or those up to ``max_bytes`` (and the edge log).
+        Its own files, or those up to ``max_bytes`` (and the edge log); of a
+        data record, then, only its own files (``RECORD_FILES`` and its json
+        results), so its data comes when a run opens it.
         Returns whether the record is there and whether a file was left out.
         """
         files = self.record_files(location)
@@ -660,7 +677,13 @@ class Storage(Interface):
             return False, False
         missing = False
         manifest: bytes | None = None
+        model: bytes | None = None
         on_demand: builtins.list[str] = []
+        own: set[str] | None = None
+        if max_bytes is not None and MODEL_FILENAME in files:
+            model = self.read_bytes(location, MODEL_FILENAME)
+            if _is_data_record(model):
+                own = set(RECORD_FILES)
         if max_bytes is not None and RESULTS_FILENAME in files:
             # results read on demand (tables, arrays) are not the catalog, and
             # chunks of them here that the home's manifest outdated go
@@ -673,6 +696,8 @@ class Storage(Interface):
             for name in stale_files(directory, old, new):
                 _unlink(os.path.join(directory, *name.split("/")))
             on_demand = data_files(new)
+            if own is not None:
+                own.update(_json_results(new))
         # updated_at last: a copy that has the home's has the rest of it
         for name, (size, _) in sorted(
             files.items(), key=lambda f: (f[0] == UPDATED_AT_FILENAME, f[0])
@@ -680,6 +705,7 @@ class Storage(Interface):
             if max_bytes is not None and (
                 (size > max_bytes and name not in CATALOG_FILES)
                 or is_data_file(name, on_demand)
+                or (own is not None and name not in own)
             ):
                 # a large file fetched before stays (the record is not missing it)
                 if _size(os.path.join(directory, *name.split("/"))) != size:
@@ -687,6 +713,9 @@ class Storage(Interface):
                 continue
             if name == RESULTS_FILENAME and manifest is not None:
                 _write_local(directory, name, manifest)
+                continue
+            if name == MODEL_FILENAME and model is not None:
+                _write_local(directory, name, model)
                 continue
             self._download_file(location, name, directory)
         return True, missing
@@ -1111,6 +1140,26 @@ def _manifest(data: bytes | None) -> dict | None:
     except (UnicodeDecodeError, ValueError):
         return None
     return manifest if isinstance(manifest, dict) else None
+
+
+def _is_data_record(model: bytes | None) -> bool:
+    """Whether a record's ``model.json`` is a data record's (``machinable.Data``)."""
+    try:
+        inherits = json.loads(model or b"").get("inherits")
+    except (ValueError, AttributeError):
+        return False
+    return isinstance(inherits, list) and "machinable.data" in inherits
+
+
+def _json_results(manifest: dict | None) -> builtins.list[str]:
+    """The files of the json results a manifest declares."""
+    if not manifest:
+        return []
+    return [
+        str(e["file"]).strip("/")
+        for e in manifest.get("results", {}).values()
+        if isinstance(e, dict) and e.get("kind") == "json" and e.get("file")
+    ]
 
 
 def _write_local(directory: str, name: str, data: bytes) -> None:

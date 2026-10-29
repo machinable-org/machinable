@@ -13,7 +13,7 @@ class Data(Interface):
 
     A module subclasses ``Data`` for a format (a folder of raw recordings, a
     dataset): its ``Config`` is a :class:`~machinable.plain.PlainConfig` that
-    names the content (a format and the hash of its file listing, say), its
+    names the content (a format and a key, say), its
     artifact namespace (``local_directory()``) holds the data, and its methods
     read it. A run ``uses`` it like any other input. Since its record is plain,
     a writer without Python (an uploader) makes the same record Python does
