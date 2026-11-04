@@ -4,6 +4,10 @@
 
 # Unreleased
 
+No current changes
+
+# v5.2
+
 - Interfaces dispatched at once from several threads, processes, indexes or machines over one storage folder now only run once
 - Fix concurrent openers of a new index database racing on its schema and WAL switch
 - Added the S3 or S3-compatible bucket integration using obstore
