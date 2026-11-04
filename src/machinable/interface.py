@@ -154,7 +154,9 @@ def is_axis(token: Any) -> bool:
 
 def normversion(version: VersionType = None) -> list[str | dict]:
     """Normalize a version into a list of ``~versions`` and override dicts."""
-    if isinstance(version, list | tuple | omegaconf.listconfig.ListConfig):
+    if isinstance(
+        version, list | tuple | omegaconf.listconfig.ListConfig | omegaconf.TupleConfig
+    ):
         items: list = list(version)
     else:
         items = [version]
@@ -191,7 +193,9 @@ def compact(
     version: VersionType = None,
 ) -> InterfaceType:
     """The compact ``[module, *version]`` element form of an interface."""
-    if isinstance(element, list | tuple | omegaconf.listconfig.ListConfig):
+    if isinstance(
+        element, list | tuple | omegaconf.listconfig.ListConfig | omegaconf.TupleConfig
+    ):
         seq: list = list(element)
         element, default_version = seq[0], seq[1:]
         extra: list = list(version) if isinstance(version, list | tuple) else [version]
@@ -245,7 +249,9 @@ def extract(
     if isinstance(compact_element, str):
         return compact_element, None
 
-    if isinstance(compact_element, omegaconf.listconfig.ListConfig):
+    if isinstance(
+        compact_element, omegaconf.listconfig.ListConfig | omegaconf.TupleConfig
+    ):
         elements: list = list(compact_element)
     elif isinstance(compact_element, list | tuple):
         elements = list(compact_element)
@@ -836,7 +842,10 @@ class Interface(Jsonable):
         module = Interface._module_
 
         # resolve callables
-        if isinstance(version, list | tuple | omegaconf.listconfig.ListConfig):
+        if isinstance(
+            version,
+            list | tuple | omegaconf.listconfig.ListConfig | omegaconf.TupleConfig,
+        ):
             version_items: list = list(version)
         else:
             version_items = [version]

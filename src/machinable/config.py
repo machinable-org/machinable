@@ -227,7 +227,9 @@ def rewrite_config_methods(
 
 def to_dict(dict_like):
     """Convert omegaconf containers (recursively) into plain dicts."""
-    if isinstance(dict_like, omegaconf.DictConfig | omegaconf.ListConfig):
+    if isinstance(
+        dict_like, omegaconf.DictConfig | omegaconf.ListConfig | omegaconf.TupleConfig
+    ):
         return omegaconf.OmegaConf.to_container(dict_like)
 
     if isinstance(dict_like, list | tuple):
