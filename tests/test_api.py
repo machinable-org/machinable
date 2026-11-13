@@ -1,3 +1,4 @@
+import json
 import time
 
 import pytest
@@ -189,6 +190,176 @@ def test_interface_stream(api_client):
         assert first["type"] == "stream" and first["payload"] == 1
         assert second["type"] == "stream" and second["payload"] == 2
         assert final["final"] is True
+
+
+def _receive_frame(ws):
+    """One frame: JSON as a dict, an event's announced buffers read with it."""
+    msg = ws.receive()
+    assert "text" in msg, "a binary frame arrived without an event announcing it"
+    frame = json.loads(msg["text"])
+    if frame["type"] == "event" and "buffers" in frame:
+        frame["_buffers"] = [ws.receive_bytes() for _ in range(frame["buffers"])]
+    return frame
+
+
+def _wait_for_file(path, timeout=5.0):
+    deadline = time.monotonic() + timeout
+    while not path.exists():
+        assert time.monotonic() < deadline, f"{path.name} never appeared"
+        time.sleep(0.01)
+
+
+def test_interface_ws_emit_without_buffers_is_unchanged(api_client):
+    with api_client.websocket_connect("/v1/interfaces/ws") as ws:
+        ws.send_json({"type": "connect", "target": "emitter"})
+        ws.receive_json()
+        ws.send_json({"type": "call", "id": "1", "method": "progress"})
+        raw = ws.receive_text()
+        assert json.loads(raw)["type"] == "event"
+        assert '"buffers"' not in raw
+
+
+def test_interface_ws_emit_buffers(api_client):
+    with api_client.websocket_connect("/v1/interfaces/ws") as ws:
+        ws.send_json({"type": "connect", "target": "pusher"})
+        ws.receive_json()
+        ws.send_json({"type": "call", "id": "1", "method": "blocks", "kwargs": {}})
+
+        # the result may overtake the events (they queue); never their buffers
+        events = []
+        result = None
+        while result is None or len(events) < 3:
+            frame = _receive_frame(ws)
+            if frame["type"] == "event":
+                events.append(frame)
+            elif frame["type"] == "result":
+                result = frame
+
+        assert result["payload"] == "done"
+        assert [e["payload"] for e in events] == [{"block": i} for i in range(3)]
+        for i, event in enumerate(events):
+            assert event["buffers"] == 3
+            assert event["_buffers"] == [
+                bytes([i]) * 4,
+                b"b%d" % i,
+                b"m%d" % i,
+            ]
+
+
+def test_interface_ws_emit_numpy_buffers(api_client):
+    np = pytest.importorskip("numpy")
+    with api_client.websocket_connect("/v1/interfaces/ws") as ws:
+        ws.send_json({"type": "connect", "target": "pusher"})
+        ws.receive_json()
+        ws.send_json({"type": "call", "id": "1", "method": "array_block"})
+        event = _receive_frame(ws)
+        assert event["type"] == "event" and event["buffers"] == 2
+        transposed, plain = (
+            np.frombuffer(b, dtype=np.float32) for b in event["_buffers"]
+        )
+        samples = np.arange(12, dtype=np.float32).reshape(3, 4)
+        assert transposed.tolist() == samples.T.ravel().tolist()
+        assert plain.tolist() == samples.ravel().tolist()
+        assert _receive_frame(ws)["type"] == "result"
+
+
+def test_emit_rejects_non_buffers():
+    from machinable.interface import _buffer_frames
+
+    with pytest.raises(TypeError, match="str"):
+        _buffer_frames(["text"])
+
+
+def test_ws_sync_generator_does_not_block_other_sockets(api_client, tmp_path):
+    started, release = tmp_path / "started", tmp_path / "release"
+    with (
+        api_client.websocket_connect("/v1/interfaces/ws") as streaming,
+        api_client.websocket_connect("/v1/interfaces/ws") as other,
+    ):
+        streaming.send_json({"type": "connect", "target": "pusher"})
+        streaming.receive_json()
+        streaming.send_json(
+            {
+                "type": "call",
+                "id": "s",
+                "method": "gated_stream",
+                "kwargs": {"started": str(started), "release": str(release)},
+            }
+        )
+        _wait_for_file(started)
+
+        # the generator's step is blocked in its thread; the loop is not
+        other.send_json({"type": "ping", "id": "p"})
+        pong = other.receive_json()
+        assert (pong["type"], pong["id"]) == ("pong", "p")
+
+        release.write_text("1")
+        first = streaming.receive_json()
+        assert (first["id"], first["payload"]) == ("s", "released")
+        assert streaming.receive_json()["payload"] == "after"
+        assert streaming.receive_json()["final"] is True
+
+
+def test_ws_call_answered_while_stream_runs(api_client, tmp_path):
+    started, release = tmp_path / "started", tmp_path / "release"
+    with api_client.websocket_connect("/v1/interfaces/ws") as ws:
+        ws.send_json({"type": "connect", "target": "pusher"})
+        ws.receive_json()
+        ws.send_json(
+            {
+                "type": "call",
+                "id": "s",
+                "method": "gated_stream",
+                "kwargs": {"started": str(started), "release": str(release)},
+            }
+        )
+        _wait_for_file(started)
+
+        ws.send_json({"type": "ping", "id": "p"})
+        pong = ws.receive_json()
+        assert (pong["type"], pong["id"]) == ("pong", "p")
+
+        ws.send_json({"type": "call", "id": "q", "method": "quick"})
+        quick = ws.receive_json()
+        assert (quick["type"], quick["id"], quick["payload"]) == (
+            "result",
+            "q",
+            "quick",
+        )
+
+        # an error in one call is that call's error frame; the stream goes on
+        ws.send_json({"type": "call", "id": "e", "method": "missing"})
+        error = ws.receive_json()
+        assert (error["type"], error["id"]) == ("error", "e")
+
+        release.write_text("1")
+        frames = [ws.receive_json() for _ in range(3)]
+        assert [(f["id"], f["payload"]) for f in frames] == [
+            ("s", "released"),
+            ("s", "after"),
+            ("s", None),
+        ]
+
+
+@pytest.mark.parametrize("ending", ["close", "disconnect"])
+def test_ws_socket_end_cancels_stream(api_client, tmp_path, ending):
+    closed = tmp_path / "closed"
+    with api_client.websocket_connect("/v1/interfaces/ws") as ws:
+        ws.send_json({"type": "connect", "target": "pusher"})
+        ws.receive_json()
+        ws.send_json(
+            {
+                "type": "call",
+                "id": "s",
+                "method": "endless",
+                "kwargs": {"closed": str(closed)},
+            }
+        )
+        assert ws.receive_json()["payload"] == "tick"
+        if ending == "close":
+            ws.send_json({"type": "close"})
+    # the generator is closed (its finally ran) once the socket is gone
+    _wait_for_file(closed)
 
 
 def test_dispatch_execution(api_client):
@@ -933,7 +1104,7 @@ def test_protocol_endpoint(api_client):
     frame_types = {f["type"] for f in doc["ws_frames"]}
     assert {"connect", "call", "chunk_start", "chunk_done", "error"} <= frame_types
     flows = {f["name"] for f in doc["chunk_flows"]}
-    assert {"upload", "read"} == flows
+    assert {"upload", "read", "event_buffers"} == flows
     caps = {c["name"] for c in doc["capabilities"]}
     assert {"binary_read", "config_search", "create_by_id", "mutable_label"} <= caps
     hooks = {h["name"] for h in doc["interface_hooks"]}

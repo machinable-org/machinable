@@ -604,7 +604,8 @@ class InterfaceMessage(BaseModel):
     * ``result``    (server → client) single return value
     * ``stream``    (server → client) one yielded value from a generator
     * ``error``     (server → client) exception detail
-    * ``event``     (server → client) unsolicited push (no call in flight)
+    * ``event``     (server → client) unsolicited push (no call in flight);
+      with ``buffers: n``, n binary frames follow it
     * ``chunk_start`` (client → server) begin binary upload to a relative path
     * ``chunk_end``   (client → server) finish the active upload
     * ``chunk_done``  (server → client) upload summary (path, bytes_written)
@@ -686,6 +687,13 @@ class InterfaceMessage(BaseModel):
     final: bool = Field(
         default=True,
         description="False on intermediate stream frames; true on the last one.",
+    )
+    buffers: int | None = Field(
+        default=None,
+        description=(
+            "On an event frame: the number of binary frames that follow it "
+            "immediately (Interface.emit(..., buffers=[...])). Absent when none."
+        ),
     )
 
 

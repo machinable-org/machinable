@@ -6,7 +6,7 @@ import asyncio
 import contextlib
 import json
 import types
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from typing import Any, cast
 
 from fastapi import Request, WebSocket, WebSocketDisconnect
@@ -69,10 +69,16 @@ async def handle_interface_ws(
     # both write to the socket, and starlette's send is not concurrency-safe.
     send_lock = asyncio.Lock()
 
-    async def send_frame(**kwargs: Any) -> None:
+    async def send_frame(*, binary: Sequence[bytes] = (), **kwargs: Any) -> None:
+        if binary:
+            kwargs["buffers"] = len(binary)
         frame = InterfaceMessage(**kwargs)
+        # `buffers` appears only on frames that carry binary frames after them
+        text = frame.model_dump_json(exclude=None if binary else {"buffers"})
         async with send_lock:
-            await websocket.send_text(frame.model_dump_json())
+            await websocket.send_text(text)
+            for data in binary:
+                await websocket.send_bytes(data)
 
     async def send_bytes(data: bytes) -> None:
         async with send_lock:
@@ -88,6 +94,29 @@ async def handle_interface_ws(
 
     def require_connected() -> bool:
         return connected and interface is not None
+
+    calls: set[asyncio.Task[None]] = set()
+
+    async def run_call(target: Interface, message: InterfaceMessage) -> None:
+        try:
+            result = await run_api_call(
+                target,
+                message.method or "",
+                message.args,
+                message.kwargs,
+            )
+            await dispatch_call_result(send_frame, msg_id=message.id, result=result)
+        except Exception as ex:
+            # the socket may be gone already; nobody is left to tell then
+            with contextlib.suppress(Exception):
+                await send_error(message.id, str(ex), exc=ex)
+
+    async def cancel_calls() -> None:
+        pending = list(calls)
+        for task in pending:
+            task.cancel()
+        if pending:
+            await asyncio.gather(*pending, return_exceptions=True)
 
     try:
         while True:
@@ -125,6 +154,7 @@ async def handle_interface_ws(
                 continue
 
             if message.type == "close":
+                await cancel_calls()
                 if active_chunk is not None:
                     active_chunk.abort()
                     active_chunk = None
@@ -329,26 +359,20 @@ async def handle_interface_ws(
                 continue
             assert interface is not None
 
-            try:
-                result = await run_api_call(
-                    interface,
-                    message.method or "",
-                    message.args,
-                    message.kwargs,
-                )
-                await dispatch_call_result(
-                    send_frame,
-                    msg_id=message.id,
-                    result=result,
-                )
-            except Exception as ex:
-                await send_error(message.id, str(ex), exc=ex)
+            task = asyncio.create_task(run_call(interface, message))
+            calls.add(task)
+            task.add_done_callback(calls.discard)
     except WebSocketDisconnect:
         pass
     finally:
-        if active_chunk is not None:
-            active_chunk.abort()
-        await aio_scope.aclose()
-        if interface is not None and interface.uuid:
-            evict_interface(interface.uuid, request)
-        scope.close()
+        try:
+            await cancel_calls()
+        finally:
+            if active_chunk is not None:
+                active_chunk.abort()
+            try:
+                await aio_scope.aclose()
+            finally:
+                if interface is not None and interface.uuid:
+                    evict_interface(interface.uuid, request)
+                scope.close()

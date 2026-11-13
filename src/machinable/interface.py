@@ -10,6 +10,7 @@ import inspect
 import json
 import os
 import shlex
+import sys
 import threading
 import warnings
 from collections.abc import Callable, Sequence
@@ -428,6 +429,34 @@ def reset_connections() -> None:
     """Clear the ambient connection and context stacks."""
     _connections().clear()
     _context_order().clear()
+
+
+def _buffer_frames(buffers: Sequence[Any]) -> list[bytes]:
+    """Copy the buffers given to :meth:`Interface.emit` into ``bytes``."""
+    frames: list[bytes] = []
+    for buffer in buffers:
+        if isinstance(buffer, bytes):
+            frames.append(buffer)
+            continue
+        if isinstance(buffer, bytearray):
+            frames.append(bytes(buffer))
+            continue
+        if isinstance(buffer, memoryview):
+            frames.append(buffer.tobytes())
+            continue
+        # numpy is optional: only an array of an already imported numpy counts
+        numpy = sys.modules.get("numpy")
+        if numpy is not None and isinstance(buffer, numpy.ndarray):
+            frames.append(buffer.tobytes(order="C"))
+            continue
+        try:
+            frames.append(memoryview(buffer).tobytes())
+        except TypeError:
+            raise TypeError(
+                "emit() buffers must be bytes, bytearray, memoryview or an "
+                f"array, not {type(buffer).__name__}"
+            ) from None
+    return frames
 
 
 @contextlib.contextmanager
@@ -2774,22 +2803,23 @@ class Interface(Jsonable):
         self._emit_callbacks.append(callback)
         return callback
 
-    def emit(self, payload: Any) -> None:
+    def emit(self, payload: Any, *, buffers: Sequence[Any] | None = None) -> None:
         """Push an event to all registered observers and connected API clients.
 
         Calls every callback registered with :meth:`on_emit`, then forwards
         the event to the API server queue when one is attached.  Safe to call
-        from a synchronous ``__call__`` method; a no-op when no observers or
-        server are attached.
+        from a synchronous ``__call__`` method or any other thread; a no-op
+        when no observers or server are attached.
         """
+        frames = _buffer_frames(buffers) if buffers else None
         for callback in self._emit_callbacks:
             callback(payload)
         if self._emit_queue is None or self._emit_loop is None:
             return
-        self._emit_loop.call_soon_threadsafe(
-            self._emit_queue.put_nowait,
-            {"type": "event", "payload": payload},
-        )
+        message: dict[str, Any] = {"type": "event", "payload": payload}
+        if frames:
+            message["buffers"] = frames
+        self._emit_loop.call_soon_threadsafe(self._emit_queue.put_nowait, message)
 
     def save_file(self, filepath: str | list[str], data: Any) -> str:
         """Write data to the record directory (format chosen by extension)."""

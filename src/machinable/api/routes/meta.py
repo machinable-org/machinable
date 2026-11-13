@@ -22,8 +22,9 @@ router = APIRouter(prefix="/v1/protocol", tags=["meta"])
 def protocol() -> ProtocolDoc:
     """Return the non-OpenAPI half of the contract.
 
-    Includes every WebSocket frame type, the binary upload/read sequences, the
-    interface hooks a project implements (``read``, ``emit``, callable methods),
+    Includes every WebSocket frame type, the binary sequences (upload, read,
+    event buffers), how calls on one socket run concurrently, the interface
+    hooks a project implements (``read``, ``emit``, callable methods),
     cross-cutting request headers, and the capability map.
     """
     return build_protocol()

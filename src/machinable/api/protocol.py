@@ -12,7 +12,7 @@ from __future__ import annotations
 
 from pydantic import BaseModel, Field
 
-PROTOCOL_VERSION = "1.0"
+PROTOCOL_VERSION = "1.1"
 
 
 class FrameField(BaseModel):
@@ -64,7 +64,7 @@ class ProtocolDoc(BaseModel):
     )
     ws_frames: list[WSFrame] = Field(description="Every WebSocket frame type.")
     chunk_flows: list[ChunkFlow] = Field(
-        description="Binary upload and read sequences."
+        description="Binary frame sequences: upload, read and event buffers."
     )
     interface_hooks: list[InterfaceHook] = Field(
         description="Hooks a project Interface implements for the data plane."
@@ -80,7 +80,21 @@ def build_protocol() -> ProtocolDoc:
         protocol_version=PROTOCOL_VERSION,
         transport={
             "control_plane": "JSON text WebSocket frames (InterfaceMessage).",
-            "data_plane": "Raw binary WebSocket frames for chunk upload/read.",
+            "data_plane": (
+                "Raw binary WebSocket frames for chunk upload/read and the "
+                "buffers announced by an `event` frame."
+            ),
+            "concurrency": (
+                "Each `call` runs as its own task: a later call, ping or close "
+                "on the same socket is answered while an earlier call still "
+                "runs or streams, and replies are matched by `id`. Sync methods "
+                "run in worker threads, so concurrent calls may run methods of "
+                "the same interface instance at the same time; an interface "
+                "whose methods share state guards it with a lock. A client "
+                "that waits for each reply before sending the next call sees "
+                "calls run one at a time. Connect, chunk and widget frames are "
+                "handled in order. Closing the socket cancels its calls."
+            ),
             "rest": "All non-WebSocket endpoints are described by /openapi.json.",
         },
         headers=[
@@ -208,7 +222,10 @@ def build_protocol() -> ProtocolDoc:
             WSFrame(
                 type="call",
                 direction="client→server",
-                summary="Invoke a public method on the connected interface.",
+                summary=(
+                    "Invoke a public method on the connected interface; runs "
+                    "concurrently with the socket's other calls."
+                ),
                 fields=[
                     FrameField(
                         name="method",
@@ -249,11 +266,20 @@ def build_protocol() -> ProtocolDoc:
             WSFrame(
                 type="event",
                 direction="server→client",
-                summary="Unsolicited push from Interface.emit() (no call in flight).",
+                summary="Unsolicited push from Interface.emit(), at any time.",
                 fields=[
                     FrameField(
                         name="payload", type="any", description="Emitted payload."
-                    )
+                    ),
+                    FrameField(
+                        name="buffers",
+                        type="int",
+                        description=(
+                            "Present when the emit carried buffers: the number "
+                            "of binary frames that follow this frame "
+                            "immediately and in order, before any other frame."
+                        ),
+                    ),
                 ],
             ),
             WSFrame(
@@ -412,6 +438,14 @@ def build_protocol() -> ProtocolDoc:
                     "server → error {code: not_found}   # when missing",
                 ],
             ),
+            ChunkFlow(
+                name="event_buffers",
+                summary="An emit with buffers: an event frame, then its bytes.",
+                sequence=[
+                    "server → event {payload, buffers: n}",
+                    "server → <binary frame> xn   # buffers[0] … buffers[n-1]",
+                ],
+            ),
         ],
         interface_hooks=[
             InterfaceHook(
@@ -434,10 +468,16 @@ def build_protocol() -> ProtocolDoc:
             ),
             InterfaceHook(
                 name="emit",
-                signature="self.emit(payload: Any) -> None",
+                signature=(
+                    "self.emit(payload: Any, *, buffers: Sequence[bytes | "
+                    "bytearray | memoryview | ndarray] | None = None) -> None"
+                ),
                 description=(
-                    "Push an unsolicited `event` frame to a connected client during "
-                    "a call (e.g. progress)."
+                    "Push an unsolicited `event` frame to a connected client, "
+                    "during a call or from any thread while the socket is "
+                    "connected. `buffers` are copied at the call and sent as "
+                    "binary frames right after the event (`buffers: n`); a "
+                    "numpy array goes as its C-order bytes."
                 ),
             ),
             InterfaceHook(
@@ -470,6 +510,11 @@ def build_protocol() -> ProtocolDoc:
                 name="binary_upload",
                 summary="Stream opaque bytes into an interface directory.",
                 surfaces=["ws: chunk_start(write|append)/chunk_end"],
+            ),
+            Capability(
+                name="binary_events",
+                summary="Push raw bytes with an event, without base64 in JSON.",
+                surfaces=["ws: event(buffers) + binary frames"],
             ),
             Capability(
                 name="binary_read",

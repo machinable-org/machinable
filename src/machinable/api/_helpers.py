@@ -4,11 +4,13 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import contextvars
 import inspect
 import json
 import math
 import os
-from collections.abc import Awaitable, Callable, Iterator, Mapping
+import threading
+from collections.abc import Awaitable, Callable, Generator, Iterator, Mapping
 from typing import Any, cast
 
 from fastapi import HTTPException, Request
@@ -632,7 +634,7 @@ async def attach_emit_bridge(
     interface: Interface,
     send_frame: Callable[..., Awaitable[None]],
 ):
-    """Wire :meth:`Interface.emit` to WebSocket ``event`` frames for one WS call."""
+    """Wire :meth:`Interface.emit` to WebSocket ``event`` frames for one socket."""
     queue: asyncio.Queue = asyncio.Queue()
     loop = asyncio.get_running_loop()
     interface._emit_queue = queue
@@ -661,6 +663,15 @@ async def attach_emit_bridge(
                         final=True,
                     )
                 continue
+            buffers = msg.get("buffers")
+            if buffers:
+                await send_frame(
+                    type="event",
+                    payload=json_payload(payload),
+                    final=True,
+                    binary=buffers,
+                )
+                continue
             await send_frame(
                 type="event",
                 payload=json_payload(payload),
@@ -675,6 +686,38 @@ async def attach_emit_bridge(
         interface._emit_loop = None
         await queue.put(None)
         await task
+
+
+_EXHAUSTED = object()
+
+
+class _ThreadStepper:
+    """Advance a sync generator from worker threads, one step at a time."""
+
+    def __init__(self, generator: Generator[Any, Any, Any]) -> None:
+        self.generator = generator
+        self.context = contextvars.copy_context()
+        self.lock = threading.Lock()
+        self.exhausted = False
+
+    def step(self) -> Any:
+        with self.lock:
+            if self.exhausted:
+                return _EXHAUSTED
+            try:
+                return self.context.run(next, self.generator)
+            except StopIteration:
+                self.exhausted = True
+                return _EXHAUSTED
+            except BaseException:
+                self.exhausted = True
+                raise
+
+    def close(self) -> None:
+        with self.lock:
+            self.exhausted = True
+            with contextlib.suppress(Exception):
+                self.context.run(self.generator.close)
 
 
 async def dispatch_call_result(
@@ -695,13 +738,22 @@ async def dispatch_call_result(
         return
 
     if inspect.isgenerator(result):
-        for item in result:
-            await send(
-                type="stream",
-                id=msg_id,
-                payload=json_payload(item),
-                final=False,
-            )
+        stepper = _ThreadStepper(result)
+        loop = asyncio.get_running_loop()
+        try:
+            while True:
+                item = await loop.run_in_executor(None, stepper.step)
+                if item is _EXHAUSTED:
+                    break
+                await send(
+                    type="stream",
+                    id=msg_id,
+                    payload=json_payload(item),
+                    final=False,
+                )
+        finally:
+            if not stepper.exhausted:
+                threading.Thread(target=stepper.close, daemon=True).start()
         await send(type="stream", id=msg_id, payload=None, final=True)
         return
 
