@@ -158,6 +158,7 @@ def test_dispatch_looks_before_handing_off(project_dir):
     again = dispatch_request(
         {"interfaces": [{"target": "count"}]}, project=project_dir, mode="prepare"
     )
+    assert again["cached_uuids"] == [interface.uuid]
     assert again["runs"] == [] and "running_elsewhere" not in again
     assert load_file([interface.local_directory(), "cached"], None) == "finished"
 
@@ -192,7 +193,17 @@ def data_project(tmp_path):
 
     from .test_plain_config import READER, _forget_modules, _write_modules
 
-    modules = {**PLAIN_MODULES, "reader": READER}
+    modules = {
+        **PLAIN_MODULES,
+        "reader": READER,
+        "plain_reader": """from machinable import PlainConfig
+from reader import Reader
+
+class PlainReader(Reader):
+    class Config(PlainConfig):
+        input: str
+""",
+    }
     directory = tmp_path / "projects" / "data"
     directory.mkdir(parents=True)
     _write_modules(str(directory), modules)
@@ -261,6 +272,29 @@ def test_dispatch_reads_a_used_record_from_its_working_copy(data_project):
         response = client.post("/v1/executions", json=_reads(uuid, folder))
         assert response.status_code == 200, response.text
         assert response.json()["interface_uuids"] == [handle["parent_uuid"]]
+
+
+def test_plain_dispatch_attaches_uses_after_materialization(data_project):
+    from fastapi.testclient import TestClient
+
+    from machinable import Interface, Project
+    from machinable.api.app import create_app
+    from machinable.interface import connection_scope
+
+    project, uuid, folder, _ = data_project
+    body = _reads(uuid, folder)
+    body["interfaces"][0].update(target="plain_reader", version=[{"input": uuid}])
+    handle = dispatch_request(body, project=project, mode="detach", wait=True)
+    assert _seen(project, handle["parent_uuid"])["path"].startswith(folder)
+    with TestClient(create_app(project_dir=project)) as client:
+        response = client.post("/v1/executions", json=body)
+        assert response.status_code == 200, response.text
+        assert response.json()["interface_uuids"] == [handle["parent_uuid"]]
+    with connection_scope(), Project(project):
+        record = Interface.find_by_id(handle["parent_uuid"])
+        assert [used.uuid for used in record.uses] == [uuid]
+        edges = record.load_file("related/metadata.jsonl")
+        assert len([edge for edge in edges if edge["related_uuid"] == uuid]) == 1
 
 
 def test_detached_dispatch_reads_the_working_copy(data_project):

@@ -252,10 +252,10 @@ def _members(
         members = list(interface.interfaces)
         for member in members:
             with member._creation_context():
-                member.materialize()
+                member.materialize_for_dispatch()
         return members
     if not interface.is_unexpanded():
-        interface.materialize()
+        interface.materialize_for_dispatch()
         return [interface]
     members = []
     for version, contexts in interface._expansion_spec():
@@ -263,7 +263,7 @@ def _members(
             for context in contexts:
                 stack.enter_context(context)
             member = Interface.make(target, version=version, uses=uses)
-            member.materialize()
+            member.materialize_for_dispatch()
             members.append(member)
     return members
 

@@ -1819,6 +1819,39 @@ class Interface(Jsonable):
 
         return self
 
+    def materialize_for_dispatch(self) -> Self:
+        """Materialize this dispatch target and attach a plain interface."""
+        inputs = self.__related__.get("uses")
+        if not self.__plain__ or not inputs:
+            return self.materialize()
+
+        from machinable.index import Index
+
+        # A plain record has no creation-time edges. Dispatch inputs belong to it
+        # after its identity and home exist, including on a detached re-entry.
+        self.__related__["uses"] = type(inputs)()
+        self._relation_cache.pop("uses", None)
+        try:
+            self.materialize()
+        except BaseException:
+            self.__related__["uses"] = inputs
+            raise
+        index = Index.get()
+        uuid = cast(str, self.uuid)
+        copies = dict(index.get_private(uuid).get(WORKING_COPIES) or {})
+        existing = {used.uuid: used for used in self.uses or []}
+        for used in inputs:
+            uid = cast(str, used.uuid)
+            if used._working_copy is not None:
+                copies[uid] = used._working_copy
+            if uid not in existing:
+                self.relate("uses", used)
+                existing[uid] = used
+        if copies:
+            index.set_private(uuid, {WORKING_COPIES: copies})
+            self._apply_working_copies(list(existing.values()))
+        return self
+
     def _assert_plain_record(self, parent_id: str | None) -> None:
         """Refuse to make a plain-config record a plain writer could not."""
         owner = f"{type(self).__qualname__} ({self.module})"

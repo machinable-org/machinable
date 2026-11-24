@@ -92,7 +92,7 @@ def _build(request: dict):
             interface = Interface.make(
                 entry["target"], version=entry.get("version"), uses=uses
             )
-            interface.materialize()
+            interface.materialize_for_dispatch()
             # a re-entry (the detached ``--foreground`` child, a scheduler job)
             # reads the request without its working copies: they are this
             # index's private overlay, which phase 1 wrote
@@ -183,12 +183,15 @@ def _dispatch_connected(
 
         runs = []
         pairs = []  # (run, interface); cached interfaces produce no run
+        cached = []
         elsewhere = []  # interfaces another dispatcher holds
         for interface in interfaces:
             if interface.cached():
+                cached.append(interface.uuid)
                 continue  # finished result exists, nothing to dispatch
             found = execution.look_elsewhere(interface)
             if found == "finished elsewhere":
+                cached.append(interface.uuid)
                 continue  # adopted: cached now
             if found == "running elsewhere":
                 record_id = execution.elsewhere[cast(str, interface.uuid)][1]
@@ -214,6 +217,8 @@ def _dispatch_connected(
             pairs.append((run, interface))
 
         handle: dict = {"runs": runs, "project": directory}
+        if cached:
+            handle["cached_uuids"] = cached
         if elsewhere:
             handle["running_elsewhere"] = elsewhere
         if runs:
