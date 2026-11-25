@@ -40,6 +40,12 @@ class Probe(Interface):
 
     def claims(self):
         return dict(Project.get().claims or {})
+
+    def noisy(self, kib=256):
+        for _ in range(int(kib)):
+            sys.stderr.write("w" * 1023 + "\\n")
+        sys.stderr.flush()
+        return "done"
 """
 
 NAP = """
@@ -449,3 +455,21 @@ def test_idle_workers_are_reaped_but_not_while_running(root, tmp_path):
         again = client.get("/v1/project", params={"project": alpha})
         assert again.status_code == 200
         assert again.headers["X-Machinable-Worker"] != pid
+
+
+def test_a_worker_writing_more_than_a_pipe_to_stderr_does_not_block(root, gateway):
+    import threading
+
+    project = _project(root, "alpha")
+    python = root["pythons"]["alpha"]
+    got = {}
+
+    def call():
+        got["resp"] = _call(gateway, project, "noisy", python=python)
+
+    t = threading.Thread(target=call, daemon=True)
+    t.start()
+    t.join(30.0)
+    assert not t.is_alive(), "the worker blocked writing to its stderr"
+    assert got["resp"].status_code == 200, got["resp"].text
+    assert got["resp"].json()["payload"] == "done"

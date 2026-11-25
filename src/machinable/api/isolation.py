@@ -8,6 +8,7 @@ import secrets
 import socket
 import subprocess
 import sys
+import threading
 import time
 from collections.abc import Iterable, Mapping
 from typing import TYPE_CHECKING, Any
@@ -27,6 +28,8 @@ if TYPE_CHECKING:
     from starlette.responses import Response
 
 DEFAULT_WORKER_START_SECONDS = 30.0
+# the tail of a worker's stderr kept for its error messages (bytes)
+WORKER_STDERR_TAIL_BYTES = 64 * 1024
 # how long the gateway's health waits for a worker's own health
 WORKER_HEALTH_SECONDS = 2.0
 
@@ -206,11 +209,39 @@ class Worker:
                 WORKER_AMBIENT_ENV: json.dumps(list(ambient or [])),
             },
         )
+
+        self._stderr_tail = bytearray()
+        self._stderr_lock = threading.Lock()
+        self._stderr_reader = threading.Thread(
+            target=self._drain_stderr,
+            name=f"machinable-worker-stderr-{self.port}",
+            daemon=True,
+        )
+        self._stderr_reader.start()
         self.client = httpx.AsyncClient(
             base_url=f"http://127.0.0.1:{self.port}",
             timeout=60.0,
             headers={WORKER_SECRET_HEADER: self.secret},
         )
+
+    def _drain_stderr(self) -> None:
+        stream = self.proc.stderr
+        if stream is None:
+            return
+        try:
+            for chunk in iter(lambda: stream.read1(8192), b""):
+                with self._stderr_lock:
+                    self._stderr_tail += chunk
+                    del self._stderr_tail[:-WORKER_STDERR_TAIL_BYTES]
+        except (OSError, ValueError):
+            pass
+
+    def stderr_tail(self, timeout: float = 1.0) -> str:
+        """The last ``WORKER_STDERR_TAIL_BYTES`` the worker wrote to stderr."""
+        if self.proc.poll() is not None:
+            self._stderr_reader.join(timeout)
+        with self._stderr_lock:
+            return bytes(self._stderr_tail).decode(errors="replace")
 
     @property
     def alive(self) -> bool:
@@ -232,11 +263,9 @@ class Worker:
         deadline = time.monotonic() + timeout
         while time.monotonic() < deadline:
             if self.proc.poll() is not None:
-                err = self.proc.stderr.read() if self.proc.stderr else b""
                 raise RuntimeError(
                     f"worker for {self.directory} exited "
-                    f"({self.proc.returncode}): "
-                    f"{err.decode(errors='replace')[-800:]}"
+                    f"({self.proc.returncode}): {self.stderr_tail()[-800:]}"
                 )
             try:
                 resp = await self.client.get("/v1/health")
